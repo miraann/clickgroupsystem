@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(rm -rf \"g:/clickgroupsystem/.next/\")",
+      "Bash(rd /s /q \"g:\\\\clickgroupsystem\\\\.next\")",
+      "Bash(find \"g:/clickgroupsystem/.next\" -name \"*.js\" -path \"*middleware*\" -delete)",
+      "Bash(cmd /c \"rd /s /q g:\\\\clickgroupsystem\\\\.next\")",
+      "Bash(npm run:*)",
+      "Bash(ls \"g:/clickgroupsystem/src/app/\\(restaurant\\)/dashboard/settings/\")",
+      "Bash(ls \"g:/clickgroupsystem/src/app/\\(restaurant\\)/dashboard/settings/menu/\")",
+      "Bash(for d:*)",
+      "Bash(do)",
+      "Read(//g/clickgroupsystem/**)",
+      "Bash(done)"
+    ]
+  }
+}
