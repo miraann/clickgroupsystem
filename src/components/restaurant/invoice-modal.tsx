@@ -14,11 +14,13 @@ interface Props {
   items: Item[]
   subtotal: number
   discount: number
+  surcharge: number
   total: number
   paymentMethod: string
   amountPaid: number
   changeAmount: number
   cashier: string
+  note?: string
   onClose: () => void
 }
 
@@ -45,8 +47,8 @@ const DEFAULT_RS: ReceiptSettings = {
 
 export default function InvoiceModal({
   orderId, restaurantId, tableNum, guests, items,
-  subtotal, discount, total, paymentMethod,
-  amountPaid, changeAmount, cashier, onClose,
+  subtotal, discount, surcharge, total, paymentMethod,
+  amountPaid, changeAmount, cashier, note, onClose,
 }: Props) {
   const supabase = createClient()
   const { formatPrice } = useDefaultCurrency()
@@ -121,6 +123,7 @@ export default function InvoiceModal({
         items,
         subtotal,
         discount,
+        surcharge,
         total,
         amount_paid:    amountPaid,
         change_amount:  changeAmount,
@@ -271,6 +274,12 @@ export default function InvoiceModal({
                 <span className="tabular-nums">-{formatPrice(discount)}</span>
               </div>
             )}
+            {surcharge > 0 && (
+              <div className="flex justify-between font-bold text-orange-600">
+                <span>Surcharge</span>
+                <span className="tabular-nums">+{formatPrice(surcharge)}</span>
+              </div>
+            )}
             <div className="flex justify-between font-extrabold text-black text-[13px] pt-1 border-t border-gray-200">
               <span>Total</span>
               <span className="tabular-nums">{formatPrice(total)}</span>
@@ -303,6 +312,17 @@ export default function InvoiceModal({
               <div className="border-t border-dashed border-gray-300" />
               <div className="flex justify-center py-4">
                 <img src={rs.qr_url} alt="QR" className="w-20 h-20 object-contain" />
+              </div>
+            </>
+          )}
+
+          {/* Invoice note */}
+          {note && note.trim() && (
+            <>
+              <div className="border-t border-dashed border-gray-300" />
+              <div className="px-5 py-3">
+                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-1">Note</p>
+                <p className="text-[11px] text-gray-700 italic">{note}</p>
               </div>
             </>
           )}

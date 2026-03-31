@@ -9,6 +9,9 @@ import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 // ── Types ─────────────────────────────────────────────────────
 interface Item { name: string; price: number; qty: number }
 
+interface DbDiscount  { id: string; name: string; type: 'percentage' | 'fixed'; value: number; min_order: number; active: boolean }
+interface DbSurcharge { id: string; name: string; type: 'percentage' | 'fixed'; value: number; applied_to: string; active: boolean }
+
 interface Props {
   orderId: string
   restaurantId: string
@@ -46,16 +49,21 @@ const NUMPAD = ['7','8','9','4','5','6','1','2','3','0','00','.']
 
 // ── Component ─────────────────────────────────────────────────
 export default function PaymentScreen({ orderId, restaurantId, tableNum, guests, items, total, onClose, onPaid }: Props) {
-  const [payMethods, setPayMethods]   = useState<DbPayMethod[]>([])
-  const [method, setMethod]           = useState<string>('')
-  const [entered, setEntered]         = useState('')
-  const [paying, setPaying]           = useState(false)
-  const [paid, setPaid]               = useState(false)
-  const [activeTab, setActiveTab]     = useState<ActionTab | null>(null)
-  const [showInvoice, setShowInvoice] = useState(false)
-  const [cashier, setCashier]         = useState('Staff')
-  const [paidAmount, setPaidAmount]   = useState(0)
-  const [changeAmt, setChangeAmt]     = useState(0)
+  const [payMethods, setPayMethods]       = useState<DbPayMethod[]>([])
+  const [method, setMethod]               = useState<string>('')
+  const [entered, setEntered]             = useState('')
+  const [paying, setPaying]               = useState(false)
+  const [paid, setPaid]                   = useState(false)
+  const [activeTab, setActiveTab]         = useState<ActionTab | null>(null)
+  const [showInvoice, setShowInvoice]     = useState(false)
+  const [cashier, setCashier]             = useState('Staff')
+  const [paidAmount, setPaidAmount]       = useState(0)
+  const [changeAmt, setChangeAmt]         = useState(0)
+  const [discounts, setDiscounts]         = useState<DbDiscount[]>([])
+  const [appliedDiscount, setApplied]     = useState<DbDiscount | null>(null)
+  const [surcharges, setSurcharges]       = useState<DbSurcharge[]>([])
+  const [appliedSurcharge, setAppliedSur] = useState<DbSurcharge | null>(null)
+  const [invoiceNote, setInvoiceNote]     = useState('')
 
   const supabase = createClient()
   const { symbol: cur, decimalPlaces, formatPrice } = useDefaultCurrency()
@@ -77,19 +85,45 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
     supabase.auth.getUser().then(({ data: { user } }) => {
       setCashier(user?.user_metadata?.full_name ?? user?.email ?? 'Staff')
     })
+    supabase
+      .from('discounts')
+      .select('id,name,type,value,min_order,active')
+      .eq('restaurant_id', restaurantId)
+      .eq('active', true)
+      .order('sort_order')
+      .then(({ data }) => setDiscounts((data ?? []) as DbDiscount[]))
+    supabase
+      .from('surcharges')
+      .select('id,name,type,value,applied_to,active')
+      .eq('restaurant_id', restaurantId)
+      .eq('active', true)
+      .order('sort_order')
+      .then(({ data }) => setSurcharges((data ?? []) as DbSurcharge[]))
   }, [restaurantId]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  const discountAmount  = appliedDiscount
+    ? appliedDiscount.type === 'percentage'
+      ? Math.round(total * appliedDiscount.value) / 100
+      : Math.min(appliedDiscount.value, total)
+    : 0
+  const surchargeAmount = appliedSurcharge
+    ? appliedSurcharge.type === 'percentage'
+      ? Math.round(total * appliedSurcharge.value) / 100
+      : appliedSurcharge.value
+    : 0
+  const finalTotal  = Math.max(0, total - discountAmount + surchargeAmount)
+
   const enteredNum  = parseFloat(entered || '0') || 0
-  const payAmount   = enteredNum > 0 ? enteredNum : total
-  const change      = Math.max(0, enteredNum - total)
-  const shortfall   = Math.max(0, total - enteredNum)
-  const isExact     = enteredNum === total
-  const isReady     = enteredNum >= total || entered === ''
+  const payAmount   = enteredNum > 0 ? enteredNum : finalTotal
+  const change      = Math.max(0, enteredNum - finalTotal)
+  const shortfall   = Math.max(0, finalTotal - enteredNum)
+  const isExact     = enteredNum === finalTotal
+  const isReady     = enteredNum >= finalTotal || entered === ''
 
   const press = (key: string) => {
     if (key === '⌫') { setEntered(v => v.slice(0, -1)); return }
     if (key === 'C')  { setEntered(''); return }
-    if (key === 'Exact') { setEntered(total.toFixed(decimalPlaces)); return }
+    if (key === 'Exact') { setEntered(finalTotal.toFixed(decimalPlaces)); return }
     // Prevent multiple dots
     if (key === '.' && entered.includes('.')) return
     // Max 2 decimal places
@@ -105,8 +139,8 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
     setPaying(true)
     setPayError(null)
 
-    const amountPaid   = enteredNum > 0 ? enteredNum : total
-    const changeAmount = Math.max(0, amountPaid - total)
+    const amountPaid   = enteredNum > 0 ? enteredNum : finalTotal
+    const changeAmount = Math.max(0, amountPaid - finalTotal)
     const now          = new Date().toISOString()
 
     // Single query: close ALL active orders for this table
@@ -114,12 +148,12 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
       .from('orders')
       .update({
         status:        'paid',
-        total,
+        total:         finalTotal,
         updated_at:    now,
       })
       .eq('table_number', parseInt(tableNum))
       .eq('status', 'active')
-      .select('id', { count: 'exact', head: true })
+      .select('id')
 
     if (error) {
       setPayError(`DB error: ${error.message}`)
@@ -131,7 +165,7 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
     const methodName = payMethods.find(m => m.id === method)?.name ?? method
     await supabase
       .from('orders')
-      .update({ payment_method: methodName, amount_paid: amountPaid, change_amount: changeAmount })
+      .update({ payment_method: methodName, amount_paid: amountPaid, change_amount: changeAmount, note: invoiceNote || null })
       .eq('id', orderId)
 
     setPaidAmount(amountPaid)
@@ -231,13 +265,30 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
 
           {/* Totals */}
           <div className="shrink-0 border-t border-white/8 p-4 space-y-2">
+            {invoiceNote && (
+              <div className="px-3 py-2 rounded-xl bg-cyan-500/8 border border-cyan-500/20 text-xs text-cyan-300/70 italic">
+                {invoiceNote}
+              </div>
+            )}
             <div className="flex justify-between text-sm text-white/40">
               <span>Subtotal</span>
               <span className="tabular-nums">{formatPrice(total)}</span>
             </div>
+            {appliedDiscount && (
+              <div className="flex justify-between text-sm text-emerald-400">
+                <span>{appliedDiscount.name}</span>
+                <span className="tabular-nums">−{formatPrice(discountAmount)}</span>
+              </div>
+            )}
+            {appliedSurcharge && (
+              <div className="flex justify-between text-sm text-lime-400">
+                <span>{appliedSurcharge.name}</span>
+                <span className="tabular-nums">+{formatPrice(surchargeAmount)}</span>
+              </div>
+            )}
             <div className="flex justify-between text-base font-bold text-white pt-1 border-t border-white/8">
               <span>Total</span>
-              <span className="text-amber-400 tabular-nums">{formatPrice(total)}</span>
+              <span className="text-amber-400 tabular-nums">{formatPrice(finalTotal)}</span>
             </div>
           </div>
         </div>
@@ -248,10 +299,10 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
           {/* Summary row */}
           <div className="shrink-0 grid grid-cols-4 divide-x divide-white/8 border-b border-white/8">
             {[
-              { label: 'Total',  value: formatPrice(total),                                                                      color: 'text-white' },
-              { label: 'Pay',    value: formatPrice(payAmount),                                                                  color: 'text-amber-400' },
-              { label: 'Paid',   value: enteredNum > 0 ? formatPrice(enteredNum) : formatPrice(0),                              color: enteredNum > 0 ? 'text-white/70' : 'text-white/25' },
-              { label: 'Change', value: formatPrice(change),                                                                     color: change > 0 ? 'text-emerald-400' : 'text-white/25' },
+              { label: 'Total',  value: formatPrice(finalTotal),                                                                  color: 'text-white' },
+              { label: 'Pay',    value: formatPrice(payAmount),                                                                   color: 'text-amber-400' },
+              { label: 'Paid',   value: enteredNum > 0 ? formatPrice(enteredNum) : formatPrice(0),                               color: enteredNum > 0 ? 'text-white/70' : 'text-white/25' },
+              { label: 'Change', value: formatPrice(change),                                                                      color: change > 0 ? 'text-emerald-400' : 'text-white/25' },
             ].map(s => (
               <div key={s.label} className="flex flex-col items-center justify-center py-4 gap-1">
                 <span className="text-xs text-white/30 uppercase tracking-wider">{s.label}</span>
@@ -283,13 +334,111 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
             })}
           </div>
 
+          {/* Surcharge panel */}
+          {activeTab === 'surcharge' && (
+            <div className="shrink-0 border-b border-white/8 bg-[#080b14] p-4">
+              {surcharges.length === 0 ? (
+                <p className="text-xs text-white/25 italic text-center py-2">No surcharges — add in Settings → Menu → Surcharge</p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {surcharges.map(s => {
+                    const selected = appliedSurcharge?.id === s.id
+                    return (
+                      <button
+                        key={s.id}
+                        onClick={() => setAppliedSur(selected ? null : s)}
+                        className={cn(
+                          'flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-semibold transition-all active:scale-95',
+                          selected
+                            ? 'bg-lime-500/20 border-lime-500/40 text-lime-300'
+                            : 'bg-white/5 border-white/10 text-white/60 hover:bg-lime-500/10 hover:border-lime-500/20 hover:text-lime-300'
+                        )}
+                      >
+                        <span className="text-xs font-bold">
+                          {s.type === 'percentage' ? `${s.value}%` : formatPrice(s.value)}
+                        </span>
+                        <span>{s.name}</span>
+                        {s.applied_to !== 'All' && (
+                          <span className="text-[10px] text-white/30">{s.applied_to}</span>
+                        )}
+                        {selected && <span className="text-xs">✓</span>}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Discount panel */}
+          {activeTab === 'discount' && (
+            <div className="shrink-0 border-b border-white/8 bg-[#080b14] p-4">
+              {discounts.length === 0 ? (
+                <p className="text-xs text-white/25 italic text-center py-2">No discounts — add in Settings → Menu → Discount</p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {discounts.map(d => {
+                    const eligible = total >= d.min_order
+                    const selected = appliedDiscount?.id === d.id
+                    return (
+                      <button
+                        key={d.id}
+                        disabled={!eligible}
+                        onClick={() => setApplied(selected ? null : d)}
+                        className={cn(
+                          'flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-semibold transition-all active:scale-95',
+                          !eligible
+                            ? 'bg-white/3 border-white/5 text-white/20 cursor-not-allowed'
+                            : selected
+                              ? 'bg-yellow-500/20 border-yellow-500/40 text-yellow-300'
+                              : 'bg-white/5 border-white/10 text-white/60 hover:bg-yellow-500/10 hover:border-yellow-500/20 hover:text-yellow-300'
+                        )}
+                      >
+                        <span className="text-xs font-bold">
+                          {d.type === 'percentage' ? `${d.value}%` : formatPrice(d.value)}
+                        </span>
+                        <span>{d.name}</span>
+                        {!eligible && d.min_order > 0 && (
+                          <span className="text-[10px] text-white/25">min {formatPrice(d.min_order)}</span>
+                        )}
+                        {selected && <span className="text-xs">✓</span>}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Note panel */}
+          {activeTab === 'note' && (
+            <div className="shrink-0 border-b border-white/8 bg-[#080b14] p-4 space-y-2">
+              <p className="text-xs text-white/30 font-medium">Invoice note (printed on receipt)</p>
+              <textarea
+                value={invoiceNote}
+                onChange={e => setInvoiceNote(e.target.value)}
+                placeholder="e.g. Thank you for your visit! Special instructions..."
+                rows={3}
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-white/20 focus:outline-none focus:border-cyan-500/40 resize-none transition-colors"
+              />
+              {invoiceNote && (
+                <button
+                  onClick={() => setInvoiceNote('')}
+                  className="text-xs text-white/25 hover:text-rose-400 transition-colors"
+                >
+                  Clear note
+                </button>
+              )}
+            </div>
+          )}
+
           {/* Amount display */}
           <div className="shrink-0 flex items-center justify-between px-6 py-4 border-b border-white/8">
             <div>
               {entered ? (
                 <p className="text-3xl font-bold text-white tabular-nums">{cur}{entered}</p>
               ) : (
-                <p className="text-3xl font-bold text-white/20 tabular-nums">{formatPrice(total)}</p>
+                <p className="text-3xl font-bold text-white/20 tabular-nums">{formatPrice(finalTotal)}</p>
               )}
               {entered && shortfall > 0 && (
                 <p className="text-xs text-rose-400/70 mt-1">Short by {formatPrice(shortfall)}</p>
@@ -339,14 +488,14 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
             {/* Pay button — spans 2 rows on the right */}
             <button
               onClick={handlePay}
-              disabled={paying || paid || (entered !== '' && enteredNum < total)}
+              disabled={paying || paid || (entered !== '' && enteredNum < finalTotal)}
               className={cn(
                 'row-span-2 flex flex-col items-center justify-center gap-2 text-lg font-bold transition-all active:scale-95 touch-manipulation',
                 paid
                   ? 'bg-emerald-500 text-white'
                   : paying
                     ? 'bg-amber-500/70 text-white cursor-wait'
-                    : entered !== '' && enteredNum < total
+                    : entered !== '' && enteredNum < finalTotal
                       ? 'bg-white/4 text-white/20 cursor-not-allowed'
                       : 'bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/20'
               )}
@@ -390,12 +539,14 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
         guests={guests}
         items={items}
         subtotal={total}
-        discount={0}
-        total={total}
+        discount={discountAmount}
+        surcharge={surchargeAmount}
+        total={finalTotal}
         paymentMethod={payMethods.find(m => m.id === method)?.name ?? method}
         amountPaid={paidAmount}
         changeAmount={changeAmt}
         cashier={cashier}
+        note={invoiceNote}
         onClose={() => { setShowInvoice(false); onPaid() }}
       />
     )}

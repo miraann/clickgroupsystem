@@ -1,9 +1,10 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
+import { createClient } from '@/lib/supabase/client'
 import {
   Users, Plus, Pencil, Trash2, X, ToggleLeft, ToggleRight,
-  Mail, Phone, Key, Shield, Search, ChevronDown,
+  Key, Shield, Search, ChevronDown, Loader2,
 } from 'lucide-react'
 
 type Role = 'owner' | 'manager' | 'cashier' | 'waiter' | 'chef'
@@ -16,86 +17,155 @@ interface StaffUser {
   phone: string
   role: Role
   pin: string
+  color: string
   status: Status
-  lastSeen: string
 }
 
-const ROLES: { value: Role; label: string; color: string; bg: string; permissions: string[] }[] = [
-  { value: 'owner', label: 'Owner', color: 'text-violet-400', bg: 'bg-violet-500/15 border-violet-500/25',
+const ROLES: { value: Role; label: string; color: string; bg: string; gradColor: string; permissions: string[] }[] = [
+  { value: 'owner',   label: 'Owner',   color: 'text-violet-400', bg: 'bg-violet-500/15 border-violet-500/25',  gradColor: 'from-violet-500 to-purple-600',
     permissions: ['Full access to all features', 'Manage staff & roles', 'View all reports', 'Change settings'] },
-  { value: 'manager', label: 'Manager', color: 'text-indigo-400', bg: 'bg-indigo-500/15 border-indigo-500/25',
+  { value: 'manager', label: 'Manager', color: 'text-indigo-400', bg: 'bg-indigo-500/15 border-indigo-500/25',  gradColor: 'from-indigo-500 to-blue-600',
     permissions: ['Manage orders', 'Manage menu', 'View reports', 'Manage tables', 'Apply discounts'] },
-  { value: 'cashier', label: 'Cashier', color: 'text-amber-400', bg: 'bg-amber-500/15 border-amber-500/25',
+  { value: 'cashier', label: 'Cashier', color: 'text-amber-400',  bg: 'bg-amber-500/15 border-amber-500/25',    gradColor: 'from-emerald-500 to-teal-600',
     permissions: ['Process orders', 'Accept payments', 'Apply discounts', 'View daily report'] },
-  { value: 'waiter', label: 'Waiter', color: 'text-emerald-400', bg: 'bg-emerald-500/15 border-emerald-500/25',
+  { value: 'waiter',  label: 'Waiter',  color: 'text-emerald-400',bg: 'bg-emerald-500/15 border-emerald-500/25', gradColor: 'from-amber-500 to-orange-500',
     permissions: ['Create orders', 'Manage tables', 'Send to kitchen'] },
-  { value: 'chef', label: 'Chef', color: 'text-rose-400', bg: 'bg-rose-500/15 border-rose-500/25',
+  { value: 'chef',    label: 'Chef',    color: 'text-rose-400',   bg: 'bg-rose-500/15 border-rose-500/25',      gradColor: 'from-rose-500 to-pink-600',
     permissions: ['View kitchen orders', 'Update order status'] },
 ]
 
-const INITIAL: StaffUser[] = [
-  { id: '1', name: 'Ahmad Karimi', email: 'ahmad@spicegarden.com', phone: '+964 750 111 2222', role: 'owner', pin: '1234', status: 'active', lastSeen: 'Now' },
-  { id: '2', name: 'Layla Hassan', email: 'layla@spicegarden.com', phone: '+964 750 333 4444', role: 'manager', pin: '2580', status: 'active', lastSeen: '10 min ago' },
-  { id: '3', name: 'Omar Khalid', email: 'omar@spicegarden.com', phone: '+964 750 555 6666', role: 'cashier', pin: '3690', status: 'active', lastSeen: '5 min ago' },
-  { id: '4', name: 'Noor Ahmed', email: 'noor@spicegarden.com', phone: '+964 750 777 8888', role: 'waiter', pin: '1470', status: 'active', lastSeen: '2 min ago' },
-  { id: '5', name: 'Soran Ali', email: 'soran@spicegarden.com', phone: '+964 750 999 0000', role: 'waiter', pin: '7410', status: 'inactive', lastSeen: '2 days ago' },
-  { id: '6', name: 'Karzan Ibrahim', email: 'karzan@spicegarden.com', phone: '+964 750 111 3333', role: 'chef', pin: '9630', status: 'active', lastSeen: 'Now' },
-]
+const ROLE_COLORS: Record<Role, string> = {
+  owner:   'from-violet-500 to-purple-600',
+  manager: 'from-indigo-500 to-blue-600',
+  cashier: 'from-emerald-500 to-teal-600',
+  waiter:  'from-amber-500 to-orange-500',
+  chef:    'from-rose-500 to-pink-600',
+}
 
-const EMPTY: Omit<StaffUser, 'id' | 'lastSeen'> = {
-  name: '', email: '', phone: '', role: 'waiter', pin: '', status: 'active',
+const EMPTY: Omit<StaffUser, 'id'> = {
+  name: '', email: '', phone: '', role: 'waiter', pin: '', color: ROLE_COLORS.waiter, status: 'active',
 }
 
 function roleConfig(role: Role) { return ROLES.find(r => r.value === role)! }
 
 export default function UsersPage() {
-  const [users, setUsers] = useState<StaffUser[]>(INITIAL)
-  const [modal, setModal] = useState<'add-edit' | 'permissions' | 'reset-pin' | null>(null)
-  const [editId, setEditId] = useState<string | null>(null)
-  const [form, setForm] = useState<Omit<StaffUser, 'id' | 'lastSeen'>>(EMPTY)
+  const supabase = createClient()
+  const [restaurantId, setRestaurantId] = useState<string | null>(null)
+  const [users, setUsers]     = useState<StaffUser[]>([])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving]   = useState(false)
+
+  const [modal, setModal]               = useState<'add-edit' | 'permissions' | 'reset-pin' | null>(null)
+  const [editId, setEditId]             = useState<string | null>(null)
+  const [form, setForm]                 = useState<Omit<StaffUser, 'id'>>(EMPTY)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
-  const [search, setSearch] = useState('')
-  const [filterRole, setFilterRole] = useState<Role | 'all'>('all')
+  const [search, setSearch]             = useState('')
+  const [filterRole, setFilterRole]     = useState<Role | 'all'>('all')
   const [selectedUser, setSelectedUser] = useState<StaffUser | null>(null)
-  const [newPin, setNewPin] = useState('')
-  const [showPins, setShowPins] = useState(false)
+  const [newPin, setNewPin]             = useState('')
+  const [showPins, setShowPins]         = useState(false)
   const [roleDropdown, setRoleDropdown] = useState(false)
+
+  // Load restaurant + staff from DB
+  useEffect(() => {
+    const load = async () => {
+      const { data: rest } = await supabase.from('restaurants').select('id').limit(1).maybeSingle()
+      if (!rest) { setLoading(false); return }
+      setRestaurantId(rest.id)
+
+      const { data } = await supabase
+        .from('staff')
+        .select('*')
+        .eq('restaurant_id', rest.id)
+        .order('created_at')
+      setUsers((data ?? []).map(s => ({
+        id:     s.id,
+        name:   s.name,
+        email:  s.email  ?? '',
+        phone:  s.phone  ?? '',
+        role:   s.role   as Role,
+        pin:    s.pin,
+        color:  s.color  ?? ROLE_COLORS[s.role as Role],
+        status: s.status as Status,
+      })))
+      setLoading(false)
+    }
+    load()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const set = <K extends keyof typeof form>(k: K, v: typeof form[K]) =>
     setForm(f => ({ ...f, [k]: v }))
 
-  function openAdd() { setEditId(null); setForm(EMPTY); setModal('add-edit') }
+  function openAdd() {
+    setEditId(null)
+    setForm(EMPTY)
+    setModal('add-edit')
+  }
   function openEdit(u: StaffUser) {
     setEditId(u.id)
-    setForm({ name: u.name, email: u.email, phone: u.phone, role: u.role, pin: u.pin, status: u.status })
+    setForm({ name: u.name, email: u.email, phone: u.phone, role: u.role, pin: u.pin, color: u.color, status: u.status })
     setModal('add-edit')
   }
   function openPermissions(u: StaffUser) { setSelectedUser(u); setModal('permissions') }
-  function openResetPin(u: StaffUser) { setSelectedUser(u); setNewPin(''); setModal('reset-pin') }
+  function openResetPin(u: StaffUser)    { setSelectedUser(u); setNewPin(''); setModal('reset-pin') }
 
-  function save() {
-    if (!form.name.trim() || !form.email.trim()) return
+  async function save() {
+    if (!form.name.trim() || !restaurantId) return
+    setSaving(true)
+    const color = ROLE_COLORS[form.role]
     if (editId) {
-      setUsers(us => us.map(u => u.id === editId ? { ...u, ...form } : u))
+      const { data } = await supabase
+        .from('staff')
+        .update({ name: form.name, email: form.email || null, phone: form.phone || null,
+                  role: form.role, pin: form.pin, color, status: form.status,
+                  updated_at: new Date().toISOString() })
+        .eq('id', editId)
+        .select()
+        .single()
+      if (data) setUsers(us => us.map(u => u.id === editId
+        ? { ...u, name: data.name, email: data.email ?? '', phone: data.phone ?? '',
+            role: data.role as Role, pin: data.pin, color: data.color, status: data.status as Status }
+        : u))
     } else {
-      setUsers(us => [...us, { id: Date.now().toString(), lastSeen: 'Never', ...form }])
+      const { data } = await supabase
+        .from('staff')
+        .insert({ restaurant_id: restaurantId, name: form.name, email: form.email || null,
+                  phone: form.phone || null, role: form.role, pin: form.pin, color, status: form.status })
+        .select()
+        .single()
+      if (data) setUsers(us => [...us, {
+        id: data.id, name: data.name, email: data.email ?? '', phone: data.phone ?? '',
+        role: data.role as Role, pin: data.pin, color: data.color, status: data.status as Status,
+      }])
     }
+    setSaving(false)
     setModal(null)
   }
 
-  function savePin() {
-    if (newPin.length !== 4) return
-    setUsers(us => us.map(u => u.id === selectedUser?.id ? { ...u, pin: newPin } : u))
+  async function savePin() {
+    if (newPin.length !== 4 || !selectedUser) return
+    setSaving(true)
+    await supabase.from('staff').update({ pin: newPin, updated_at: new Date().toISOString() }).eq('id', selectedUser.id)
+    setUsers(us => us.map(u => u.id === selectedUser.id ? { ...u, pin: newPin } : u))
+    setSaving(false)
     setModal(null)
   }
 
-  function del(id: string) {
-    if (deleteConfirm === id) { setUsers(us => us.filter(u => u.id !== id)); setDeleteConfirm(null) }
-    else { setDeleteConfirm(id); setTimeout(() => setDeleteConfirm(d => d === id ? null : d), 3000) }
+  async function del(id: string) {
+    if (deleteConfirm === id) {
+      await supabase.from('staff').delete().eq('id', id)
+      setUsers(us => us.filter(u => u.id !== id))
+      setDeleteConfirm(null)
+    } else {
+      setDeleteConfirm(id)
+      setTimeout(() => setDeleteConfirm(d => d === id ? null : d), 3000)
+    }
   }
 
-  function toggleStatus(id: string) {
-    setUsers(us => us.map(u => u.id === id ? { ...u, status: u.status === 'active' ? 'inactive' : 'active' } : u))
+  async function toggleStatus(u: StaffUser) {
+    const next: Status = u.status === 'active' ? 'inactive' : 'active'
+    await supabase.from('staff').update({ status: next, updated_at: new Date().toISOString() }).eq('id', u.id)
+    setUsers(us => us.map(s => s.id === u.id ? { ...s, status: next } : s))
   }
 
   const filtered = users.filter(u => {
@@ -106,6 +176,12 @@ export default function UsersPage() {
   })
 
   const rc = roleConfig(form.role)
+
+  if (loading) return (
+    <div className="flex items-center justify-center py-20">
+      <Loader2 className="w-6 h-6 text-amber-400 animate-spin" />
+    </div>
+  )
 
   return (
     <div className="max-w-3xl mx-auto">
@@ -135,8 +211,8 @@ export default function UsersPage() {
             className="w-full pl-9 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500/50 transition-colors" />
         </div>
         <div className="flex gap-1.5 overflow-x-auto">
-          {['all', ...ROLES.map(r => r.value)].map(r => (
-            <button key={r} onClick={() => setFilterRole(r as Role | 'all')}
+          {(['all', ...ROLES.map(r => r.value)] as (Role | 'all')[]).map(r => (
+            <button key={r} onClick={() => setFilterRole(r)}
               className={cn('px-3 py-2 rounded-xl text-xs font-medium whitespace-nowrap capitalize transition-all active:scale-95',
                 filterRole === r ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-white/5 text-white/40 hover:bg-white/8 hover:text-white/60')}>
               {r}
@@ -181,7 +257,7 @@ export default function UsersPage() {
                   </span>
                 </div>
                 <div className="flex items-center gap-3 mt-0.5">
-                  <span className="text-xs text-white/35 truncate">{u.email}</span>
+                  {u.email && <span className="text-xs text-white/35 truncate">{u.email}</span>}
                   {showPins && (
                     <span className="text-xs font-mono px-1.5 py-0.5 rounded bg-white/8 text-white/50">
                       PIN: {u.pin}
@@ -189,9 +265,6 @@ export default function UsersPage() {
                   )}
                 </div>
               </div>
-
-              {/* Last seen */}
-              <span className="text-xs text-white/25 shrink-0 hidden sm:block">{u.lastSeen}</span>
 
               {/* Actions */}
               <div className="flex items-center gap-1.5 shrink-0">
@@ -205,7 +278,7 @@ export default function UsersPage() {
                   title="Reset PIN">
                   <Key className="w-3.5 h-3.5" />
                 </button>
-                <button onClick={() => toggleStatus(u.id)} className="active:scale-95" title={u.status === 'active' ? 'Deactivate' : 'Activate'}>
+                <button onClick={() => toggleStatus(u)} className="active:scale-95" title={u.status === 'active' ? 'Deactivate' : 'Activate'}>
                   {u.status === 'active'
                     ? <ToggleRight className="w-6 h-6 text-amber-400" />
                     : <ToggleLeft className="w-6 h-6 text-white/25" />}
@@ -225,7 +298,7 @@ export default function UsersPage() {
             </div>
           )
         })}
-        {filtered.length === 0 && (
+        {filtered.length === 0 && !loading && (
           <div className="text-center py-16 text-white/25 text-sm">No users found.</div>
         )}
       </div>
@@ -252,20 +325,14 @@ export default function UsersPage() {
               {/* Email + Phone */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs text-white/50 mb-1.5 font-medium">Email *</label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/25" />
-                    <input type="email" value={form.email} onChange={e => set('email', e.target.value)} placeholder="staff@restaurant.com"
-                      className="w-full pl-8 pr-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/20 focus:outline-none focus:border-amber-500/50 transition-colors" />
-                  </div>
+                  <label className="block text-xs text-white/50 mb-1.5 font-medium">Email</label>
+                  <input type="email" value={form.email} onChange={e => set('email', e.target.value)} placeholder="optional"
+                    className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/20 focus:outline-none focus:border-amber-500/50 transition-colors" />
                 </div>
                 <div>
                   <label className="block text-xs text-white/50 mb-1.5 font-medium">Phone</label>
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/25" />
-                    <input type="tel" value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="+964..."
-                      className="w-full pl-8 pr-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/20 focus:outline-none focus:border-amber-500/50 transition-colors" />
-                  </div>
+                  <input type="tel" value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="optional"
+                    className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/20 focus:outline-none focus:border-amber-500/50 transition-colors" />
                 </div>
               </div>
 
@@ -310,7 +377,8 @@ export default function UsersPage() {
                 </label>
                 <div className="relative">
                   <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/25" />
-                  <input type="password" maxLength={4} value={form.pin} onChange={e => set('pin', e.target.value.replace(/\D/g, '').slice(0, 4))}
+                  <input type="password" maxLength={4} value={form.pin}
+                    onChange={e => set('pin', e.target.value.replace(/\D/g, '').slice(0, 4))}
                     placeholder="4-digit PIN"
                     className="w-full pl-8 pr-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/20 focus:outline-none focus:border-amber-500/50 transition-colors font-mono tracking-widest" />
                 </div>
@@ -327,8 +395,9 @@ export default function UsersPage() {
 
             <div className="flex gap-3 p-6 border-t border-white/8">
               <button onClick={() => setModal(null)} className="flex-1 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 text-sm font-medium transition-all active:scale-95">Cancel</button>
-              <button onClick={save} disabled={!form.name.trim() || !form.email.trim()}
-                className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white text-sm font-medium transition-all active:scale-95">
+              <button onClick={save} disabled={!form.name.trim() || !form.pin || saving}
+                className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white text-sm font-medium transition-all active:scale-95 flex items-center justify-center gap-2">
+                {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                 {editId ? 'Save Changes' : 'Add User'}
               </button>
             </div>
@@ -391,14 +460,12 @@ export default function UsersPage() {
               </button>
             </div>
             <div className="p-5 space-y-4">
-              {/* PIN dots preview */}
               <div className="flex justify-center gap-4 py-4">
                 {[0, 1, 2, 3].map(i => (
                   <div key={i} className={cn('w-4 h-4 rounded-full border-2 transition-all',
                     i < newPin.length ? 'bg-amber-400 border-amber-400 scale-110' : 'bg-transparent border-white/25')} />
                 ))}
               </div>
-              {/* Number pad */}
               <div className="grid grid-cols-3 gap-2">
                 {['1','2','3','4','5','6','7','8','9','','0','⌫'].map((k, i) => (
                   <button key={i} disabled={!k}
@@ -417,8 +484,9 @@ export default function UsersPage() {
             </div>
             <div className="flex gap-3 p-5 border-t border-white/8">
               <button onClick={() => setModal(null)} className="flex-1 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 text-sm font-medium transition-all active:scale-95">Cancel</button>
-              <button onClick={savePin} disabled={newPin.length !== 4}
-                className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white text-sm font-medium transition-all active:scale-95">
+              <button onClick={savePin} disabled={newPin.length !== 4 || saving}
+                className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white text-sm font-medium transition-all active:scale-95 flex items-center justify-center gap-2">
+                {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                 Set New PIN
               </button>
             </div>

@@ -299,10 +299,10 @@ export default function TablesPage() {
           {/* Center: clock */}
           <div className="text-center">
             <p className="text-xl font-bold text-white tabular-nums">
-              {time.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
+              {time.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: true })}
             </p>
             <p className="text-xs text-white/25 tabular-nums">
-              {time.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+              {time.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
             </p>
           </div>
 
@@ -329,6 +329,9 @@ export default function TablesPage() {
             </Link>
             <Link href="/dashboard/kds" className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-amber-400 hover:bg-amber-500/10 hover:border-amber-500/30 transition-all active:scale-95" title="Kitchen Display">
               <ChefHat size={18} />
+            </Link>
+            <Link href="/dashboard/guests" className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-amber-400 hover:bg-amber-500/10 hover:border-amber-500/30 transition-all active:scale-95" title="Guest Tracking">
+              <Users size={18} />
             </Link>
             <Link href="/pos" className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-rose-400/50 hover:text-rose-400 hover:bg-rose-500/10 transition-all active:scale-95">
               <LogOut size={18} />
@@ -415,7 +418,7 @@ export default function TablesPage() {
         {/* Tables grid */}
         <div className="flex flex-wrap gap-2">
           {filtered.map(table => (
-            <TableCard key={table.id} table={table} onSelect={setSelectedTable} cur={cur} formatPrice={formatPrice} />
+            <TableCard key={table.id} table={table} onSelect={t => t.status === 'available' || t.status === 'reserved' ? setGuestTable(t) : setSelectedTable(t)} cur={cur} formatPrice={formatPrice} />
           ))}
         </div>
       </div>
@@ -595,6 +598,7 @@ function GuestNumpad({
   onClose: () => void
 }) {
   const [value, setValue] = useState('')
+  const cfg = STATUS_CONFIG[table.status]
 
   const press = (key: string) => {
     if (key === '⌫') { setValue(v => v.slice(0, -1)); return }
@@ -606,7 +610,7 @@ function GuestNumpad({
 
   const confirm = () => {
     const n = parseInt(value)
-    if (n >= 1) onConfirm(n)
+    onConfirm(n >= 1 ? n : 0)
   }
 
   const KEYS = ['1','2','3','4','5','6','7','8','9','⌫','0','✓']
@@ -618,17 +622,30 @@ function GuestNumpad({
         className="relative w-80 rounded-3xl border border-white/15 bg-[#0d1220]/98 backdrop-blur-2xl shadow-2xl overflow-hidden"
         onClick={e => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="px-6 pt-7 pb-5 text-center border-b border-white/8">
-          <div className="w-12 h-12 rounded-2xl bg-amber-500/15 border border-amber-500/25 flex items-center justify-center mx-auto mb-3">
-            <Users className="w-6 h-6 text-amber-400" />
+        {/* Table card header */}
+        <div className={cn('px-5 py-4 border-b border-white/8', cfg.bg)}>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-white/40 mb-0.5">Table {table.label}</p>
+              <p className={cn('text-lg font-bold', cfg.text)}>{cfg.label}</p>
+            </div>
+            <div className={cn('w-12 h-12 rounded-2xl border flex items-center justify-center text-lg font-bold text-white', cfg.bg, cfg.border)}>
+              {table.label}
+            </div>
+          </div>
+        </div>
+
+        {/* Guest count header */}
+        <div className="px-6 pt-5 pb-4 text-center border-b border-white/8">
+          <div className="w-11 h-11 rounded-2xl bg-amber-500/15 border border-amber-500/25 flex items-center justify-center mx-auto mb-2.5">
+            <Users className="w-5 h-5 text-amber-400" />
           </div>
           <p className="text-base font-bold text-white">How many guests?</p>
-          <p className="text-xs text-white/30 mt-1">Table {table.label} · Up to {table.capacity}</p>
+          <p className="text-xs text-white/30 mt-0.5">Up to {table.capacity}</p>
         </div>
 
         {/* Display */}
-        <div className="flex items-center justify-center h-20 border-b border-white/8">
+        <div className="flex items-center justify-center h-16 border-b border-white/8">
           <span className={cn(
             'text-5xl font-bold tabular-nums transition-all',
             value ? 'text-white' : 'text-white/15'
@@ -644,11 +661,9 @@ function GuestNumpad({
               key={k}
               onClick={() => k === '✓' ? confirm() : press(k)}
               className={cn(
-                'h-16 text-xl font-semibold flex items-center justify-center transition-all active:scale-95 touch-manipulation',
+                'h-14 text-xl font-semibold flex items-center justify-center transition-all active:scale-95 touch-manipulation',
                 k === '✓'
-                  ? value && parseInt(value) >= 1
-                    ? 'bg-amber-500 text-white hover:bg-amber-600 shadow-lg shadow-amber-500/20'
-                    : 'bg-white/3 text-white/15 cursor-not-allowed'
+                  ? 'bg-amber-500 text-white hover:bg-amber-600 shadow-lg shadow-amber-500/20'
                   : k === '⌫'
                     ? 'bg-[#0d1220] text-rose-400/70 hover:bg-rose-500/10'
                     : 'bg-[#0d1220] text-white/80 hover:bg-white/8'
@@ -659,13 +674,21 @@ function GuestNumpad({
           ))}
         </div>
 
-        {/* Skip */}
-        <button
-          onClick={() => onConfirm(0)}
-          className="w-full py-4 text-xs text-white/25 hover:text-white/45 transition-all touch-manipulation"
-        >
-          Skip guest count
-        </button>
+        {/* Footer actions */}
+        <div className="grid grid-cols-2 gap-2 p-3 border-t border-white/8">
+          <button
+            className="h-10 rounded-xl bg-indigo-500/15 border border-indigo-500/25 text-indigo-400 text-sm font-medium flex items-center justify-center gap-1.5 active:scale-95 transition-all touch-manipulation"
+          >
+            <Coffee className="w-4 h-4" />
+            Reserve
+          </button>
+          <button
+            onClick={onClose}
+            className="h-10 rounded-xl bg-white/5 border border-white/10 text-white/50 text-sm font-medium flex items-center justify-center active:scale-95 transition-all touch-manipulation"
+          >
+            Cancel
+          </button>
+        </div>
       </div>
     </div>
   )

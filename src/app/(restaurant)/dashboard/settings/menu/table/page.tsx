@@ -13,7 +13,7 @@ interface Table {
 
 const SHAPE_ICONS: Record<string, string> = { Square: '⬜', Round: '⭕', Rectangle: '▬' }
 
-const EMPTY_FORM = { table_number: '', name: '', capacity: 4, group_id: '', shape: 'Square' as const }
+const EMPTY_FORM = { table_number: '', name: '', capacity: 4, group_id: '', shape: 'Square' as 'Square' | 'Round' | 'Rectangle' }
 
 export default function TablePage() {
   const supabase = createClient()

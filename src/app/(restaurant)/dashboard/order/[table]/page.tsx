@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useParams, useSearchParams, useRouter } from 'next/navigation'
 import {
   ArrowLeft, Users, Minus, Plus, X,
@@ -51,7 +51,7 @@ interface DbOrderItem {
 }
 
 // ── Page ──────────────────────────────────────────────────────
-export default function OrderPage() {
+function OrderPage() {
   const { table } = useParams<{ table: string }>()
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -115,25 +115,19 @@ export default function OrderPage() {
     for (const a of (stationCatRes.data ?? [])) csMap.set(a.category_id, a.station_id)
     setCatStationMap(csMap)
 
-    let oid = existingRes.data?.id ?? null
-    if (!oid) {
-      const { data: newOrder, error } = await supabase
-        .from('orders')
-        .insert({ restaurant_id: rest.id, table_number: parseInt(table), guests, status: 'active', total: 0 })
-        .select('id').single()
-      if (error) { setInitError(`Failed to create order: ${error.message}`); setLoading(false); return }
-      oid = newOrder.id
-      // Assign order number immediately so KDS monitor can display it
-      await assignOrderNumber(supabase, rest.id, oid)
-    }
+    // Only load existing order — do NOT create one yet.
+    // The order (and Occupied status) is created when the first items are sent.
+    const oid = existingRes.data?.id ?? null
     setOrderId(oid)
 
-    const { data: orderItems } = await supabase
-      .from('order_items').select('id,item_name,item_price,qty,status,note')
-      .eq('order_id', oid).neq('status', 'void').order('created_at')
-    const loaded = (orderItems ?? []) as DbOrderItem[]
-    setDbItems(loaded)
-    if (loaded.length > 0) setActiveTab('ordered')
+    if (oid) {
+      const { data: orderItems } = await supabase
+        .from('order_items').select('id,item_name,item_price,qty,status,note')
+        .eq('order_id', oid).neq('status', 'void').order('created_at')
+      const loaded = (orderItems ?? []) as DbOrderItem[]
+      setDbItems(loaded)
+      if (loaded.length > 0) setActiveTab('ordered')
+    }
     setLoading(false)
   }, [table, guests]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -182,10 +176,27 @@ export default function OrderPage() {
     setDraft(prev => { const m = new Map(prev); m.set(itemId, entry); return m })
   }
 
+  // ── Create order on first send (deferred — keeps table Available until items ordered) ──
+  const createOrderIfNeeded = async (): Promise<string | null> => {
+    if (orderId) return orderId
+    if (!restaurantId) return null
+    const { data: newOrder, error } = await supabase
+      .from('orders')
+      .insert({ restaurant_id: restaurantId, table_number: parseInt(table), guests, status: 'active', total: 0 })
+      .select('id').single()
+    if (error || !newOrder) { setSendError(error?.message ?? 'Failed to open table'); return null }
+    await assignOrderNumber(supabase, restaurantId, newOrder.id)
+    setOrderId(newOrder.id)
+    return newOrder.id
+  }
+
   // ── Send to kitchen ───────────────────────────────────────
   const handleSend = async () => {
-    if (!orderId || draft.size === 0) return
+    if (draft.size === 0) return
     setSending(true); setSendError(null)
+
+    const oid = await createOrderIfNeeded()
+    if (!oid) { setSending(false); return }
 
     const rows = Array.from(draft.entries()).map(([menuId, entry]) => {
       const item = menuItems.find(m => m.id === menuId)!
@@ -197,7 +208,7 @@ export default function OrderPage() {
       const modPrice = entry.selectedOptions.reduce((s, o) => s + o.price, 0)
       const allParts = [...modNames, ...noteTexts]
       return {
-        order_id:   orderId,
+        order_id:   oid,
         item_name:  item.name,
         item_price: Number(item.price) + modPrice,
         qty:        entry.qty,
@@ -225,7 +236,7 @@ export default function OrderPage() {
       })
       const allItems = [...dbItems, ...newItems]
       const total = allItems.reduce((s, i) => s + i.item_price * i.qty, 0)
-      await supabase.from('orders').update({ total, updated_at: new Date().toISOString() }).eq('id', orderId)
+      await supabase.from('orders').update({ total, updated_at: new Date().toISOString() }).eq('id', oid)
       setDraft(new Map())
       setActiveTab('ordered')
     }
@@ -553,8 +564,9 @@ export default function OrderPage() {
             sending={sending}
             onConfirm={e => { draftSet(capturedId, e); setEditingId(null) }}
             onConfirmAndSend={async (e) => {
-              if (!orderId) return
               setSending(true); setSendError(null)
+              const oid = await createOrderIfNeeded()
+              if (!oid) { setSending(false); return }
               const modNames  = e.selectedOptions.map(o => o.option_name)
               const noteTexts = e.selectedNoteIds
                 .map(id => kitchenNotes.find(n => n.id === id)?.text)
@@ -563,7 +575,7 @@ export default function OrderPage() {
               const modPrice  = e.selectedOptions.reduce((s, o) => s + o.price, 0)
               const allParts  = [...modNames, ...noteTexts]
               const row = {
-                order_id:   orderId,
+                order_id:   oid,
                 item_name:  item.name,
                 item_price: Number(item.price) + modPrice,
                 qty:        e.qty,
@@ -581,7 +593,7 @@ export default function OrderPage() {
                 setDbItems(prev => [...prev, ...newItems])
                 const allItems = [...dbItems, ...newItems]
                 const total = allItems.reduce((s, i) => s + i.item_price * i.qty, 0)
-                await supabase.from('orders').update({ total, updated_at: new Date().toISOString() }).eq('id', orderId)
+                await supabase.from('orders').update({ total, updated_at: new Date().toISOString() }).eq('id', oid)
                 setDraft(prev => { const m = new Map(prev); m.delete(capturedId); return m })
                 setActiveTab('ordered')
               }
@@ -769,8 +781,26 @@ function OrderedItemModal({ item, restaurantId, currentTable, supabase, formatPr
       if (error) { setErr(error.message); setWorking(false); return }
       targetOrderId = newOrder.id
     }
+    // Move the item
     const { error } = await supabase.from('order_items').update({ order_id: targetOrderId }).eq('id', item.id)
     if (error) { setErr(error.message); setWorking(false); return }
+
+    // Get the source order id for this table
+    const { data: srcOrder } = await supabase
+      .from('orders').select('id').eq('restaurant_id', restaurantId).eq('table_number', parseInt(currentTable)).eq('status', 'active')
+      .order('created_at', { ascending: false }).limit(1).maybeSingle()
+
+    if (srcOrder?.id) {
+      // Check remaining non-voided items on source order
+      const { count } = await supabase
+        .from('order_items').select('id', { count: 'exact', head: true })
+        .eq('order_id', srcOrder.id).neq('status', 'void')
+      // If no items left, close the source order so table becomes Available
+      if ((count ?? 0) === 0) {
+        await supabase.from('orders').update({ status: 'closed', updated_at: new Date().toISOString() }).eq('id', srcOrder.id)
+      }
+    }
+
     setWorking(false)
     onTransferred()
   }
@@ -1117,3 +1147,5 @@ function ItemModal({ item, entry, kitchenNotes, supabase, formatPrice, sending, 
     </div>
   )
 }
+
+export default function OrderPageWrapper() { return <Suspense><OrderPage /></Suspense> }

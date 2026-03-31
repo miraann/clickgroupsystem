@@ -21,7 +21,7 @@ const APPLIED_COLORS: Record<string, string> = {
   'Delivery': 'bg-blue-500/15 text-blue-400',
   'Takeout':  'bg-emerald-500/15 text-emerald-400',
 }
-const EMPTY_FORM = { name: '', type: 'percentage' as const, value: 10, applied_to: 'All', active: true }
+const EMPTY_FORM = { name: '', type: 'percentage' as 'percentage' | 'fixed', value: 10, applied_to: 'All', active: true }
 
 export default function SurchargePage() {
   const supabase = createClient()

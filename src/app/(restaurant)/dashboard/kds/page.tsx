@@ -1,8 +1,8 @@
 'use client'
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { ChefHat, RefreshCw, Check, CheckCheck, Clock, Wifi, WifiOff, Flame, Bell, Layers } from 'lucide-react'
+import { ChefHat, RefreshCw, Check, CheckCheck, Clock, Wifi, WifiOff, Flame, Bell, Layers, AlertTriangle, X, Volume2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface Station {
@@ -316,7 +316,7 @@ function OrderCard({
   )
 }
 
-export default function KdsPage() {
+function KdsPage() {
   const supabase     = createClient()
   const searchParams = useSearchParams()
   const router       = useRouter()
@@ -327,7 +327,114 @@ export default function KdsPage() {
   const [online, setOnline]             = useState(true)
   const [bumping, setBumping]           = useState<Set<string>>(new Set())
   const [restaurantId, setRestaurantId] = useState<string | null>(null)
-  const restIdRef = useRef<string | null>(null)
+  const [voidAlerts, setVoidAlerts]     = useState<{ id: string; itemName: string; qty: number; tableLabel: string }[]>([])
+  const restIdRef    = useRef<string | null>(null)
+  const allOrdersRef = useRef<KdsOrder[]>([])
+
+  const audioCtxRef      = useRef<AudioContext | null>(null)
+  const alertLoopRef     = useRef<ReturnType<typeof setInterval> | null>(null)
+  const newOrderLoopRef  = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // Keep AudioContext alive — resume it on every user interaction
+  useEffect(() => {
+    const unlock = () => {
+      if (!audioCtxRef.current) {
+        try { audioCtxRef.current = new AudioContext() } catch { return }
+      }
+      if (audioCtxRef.current.state !== 'running') {
+        audioCtxRef.current.resume().catch(() => {})
+      }
+    }
+    document.addEventListener('click',      unlock)
+    document.addEventListener('touchstart', unlock)
+    document.addEventListener('keydown',    unlock)
+    return () => {
+      document.removeEventListener('click',      unlock)
+      document.removeEventListener('touchstart', unlock)
+      document.removeEventListener('keydown',    unlock)
+    }
+  }, [])
+
+  const playBeeps = useCallback((freqs: number[]) => {
+    // Create context lazily if not yet created
+    if (!audioCtxRef.current) {
+      try { audioCtxRef.current = new AudioContext() } catch { return }
+    }
+    const ctx = audioCtxRef.current
+
+    const doPlay = () => {
+      freqs.forEach((freq, i) => {
+        const t    = ctx.currentTime + i * 0.22
+        const osc  = ctx.createOscillator()
+        const gain = ctx.createGain()
+        osc.connect(gain)
+        gain.connect(ctx.destination)
+        osc.type = 'square'
+        osc.frequency.setValueAtTime(freq, t)
+        gain.gain.setValueAtTime(0.4, t)
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.18)
+        osc.start(t)
+        osc.stop(t + 0.18)
+      })
+    }
+
+    if (ctx.state === 'running') {
+      doPlay()
+    } else {
+      // Suspended — try to resume first (works if there was a prior user gesture)
+      ctx.resume().then(doPlay).catch(() => {})
+    }
+  }, [])
+
+  // Descending = void alert, ascending = new order
+  const playVoidAlert  = useCallback(() => playBeeps([880, 660, 440]), [playBeeps])
+  const playNewOrder   = useCallback(() => playBeeps([440, 660, 880]), [playBeeps])
+
+  // 1-minute reminder while any items are still 'sent' (chef hasn't started cooking)
+  useEffect(() => {
+    const hasSent = allOrders.some(o => o.items.some(i => i.status === 'sent'))
+    if (hasSent) {
+      if (!newOrderLoopRef.current) {
+        newOrderLoopRef.current = setInterval(() => {
+          if (allOrdersRef.current.some(o => o.items.some(i => i.status === 'sent'))) {
+            playNewOrder()
+          }
+        }, 60000)
+      }
+    } else {
+      if (newOrderLoopRef.current) {
+        clearInterval(newOrderLoopRef.current)
+        newOrderLoopRef.current = null
+      }
+    }
+    return () => {
+      if (newOrderLoopRef.current) {
+        clearInterval(newOrderLoopRef.current)
+        newOrderLoopRef.current = null
+      }
+    }
+  }, [allOrders, playNewOrder]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Start / stop continuous alert loop whenever voidAlerts changes
+  useEffect(() => {
+    if (voidAlerts.length > 0) {
+      playVoidAlert()
+      if (!alertLoopRef.current) {
+        alertLoopRef.current = setInterval(playVoidAlert, 3000)
+      }
+    } else {
+      if (alertLoopRef.current) {
+        clearInterval(alertLoopRef.current)
+        alertLoopRef.current = null
+      }
+    }
+    return () => {
+      if (alertLoopRef.current && voidAlerts.length === 0) {
+        clearInterval(alertLoopRef.current)
+        alertLoopRef.current = null
+      }
+    }
+  }, [voidAlerts.length, playVoidAlert])
 
   // Active station: null = All
   const activeStationId = searchParams.get('station') ?? null
@@ -404,6 +511,7 @@ export default function KdsPage() {
     })
 
     setAllOrders(result)
+    allOrdersRef.current = result
     setLoading(false)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -433,8 +541,24 @@ export default function KdsPage() {
 
       const channel = supabase
         .channel('kds-order-items')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' },
-          () => { if (restIdRef.current) fetchOrders(restIdRef.current) })
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'order_items' },
+          (payload) => {
+            const updated = payload.new as { id: string; status: string; item_name: string; qty: number }
+            if (updated.status === 'void') {
+              // Find this item in current orders — alert only if it was being cooked
+              for (const order of allOrdersRef.current) {
+                const item = order.items.find(i => i.id === updated.id && i.status === 'cooking')
+                if (item) {
+                  setVoidAlerts(prev => [...prev, { id: item.id, itemName: item.item_name, qty: item.qty, tableLabel: order.table_label }])
+                  playVoidAlert()
+                  break
+                }
+              }
+            }
+            if (restIdRef.current) fetchOrders(restIdRef.current)
+          })
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'order_items' },
+          () => { playNewOrder(); if (restIdRef.current) fetchOrders(restIdRef.current) })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' },
           () => { if (restIdRef.current) fetchOrders(restIdRef.current) })
         .subscribe((status) => setOnline(status === 'SUBSCRIBED'))
@@ -569,6 +693,13 @@ export default function KdsPage() {
             {visibleOrders.length} order{visibleOrders.length !== 1 ? 's' : ''}
           </div>
           <button
+            onClick={playVoidAlert}
+            title="Test alert sound"
+            className="w-8 h-8 rounded-xl bg-white/6 border border-white/10 flex items-center justify-center text-white/40 hover:text-amber-400 hover:bg-amber-500/10 transition-all active:scale-95"
+          >
+            <Volume2 className="w-3.5 h-3.5" />
+          </button>
+          <button
             onClick={() => { if (restaurantId) fetchOrders(restaurantId) }}
             className="w-8 h-8 rounded-xl bg-white/6 border border-white/10 flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 transition-all active:scale-95"
           >
@@ -576,6 +707,30 @@ export default function KdsPage() {
           </button>
         </div>
       </header>
+
+      {/* ── Void alert banners ── */}
+      {voidAlerts.map(alert => (
+        <div
+          key={alert.id}
+          className="flex items-center gap-4 px-5 py-3 bg-rose-600 border-b-2 border-rose-400 animate-pulse"
+        >
+          <AlertTriangle className="w-6 h-6 text-white shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-extrabold text-rose-200 uppercase tracking-widest">⚠ Stop Cooking — Order Voided</p>
+            <p className="text-lg font-black text-white leading-tight">
+              ×{alert.qty} {alert.itemName}
+              <span className="ml-3 text-sm font-bold text-rose-200">Table {alert.tableLabel}</span>
+            </p>
+          </div>
+          <button
+            onClick={() => setVoidAlerts(prev => prev.filter(a => a.id !== alert.id))}
+            className="shrink-0 h-10 px-4 rounded-xl bg-white text-rose-600 text-sm font-black uppercase tracking-wide flex items-center gap-2 active:scale-95 transition-all hover:bg-rose-50"
+          >
+            <X className="w-4 h-4" />
+            Dismiss
+          </button>
+        </div>
+      ))}
 
       {/* ── Station tabs ── */}
       {stations.length > 0 && (
@@ -688,3 +843,5 @@ export default function KdsPage() {
     </div>
   )
 }
+
+export default function KdsPageWrapper() { return <Suspense><KdsPage /></Suspense> }

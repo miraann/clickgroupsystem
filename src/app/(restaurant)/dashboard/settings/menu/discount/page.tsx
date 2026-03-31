@@ -14,7 +14,7 @@ interface Discount {
   sort_order: number
 }
 
-const EMPTY_FORM = { name: '', type: 'percentage' as const, value: 10, min_order: 0, active: true }
+const EMPTY_FORM = { name: '', type: 'percentage' as 'percentage' | 'fixed', value: 10, min_order: 0, active: true }
 
 export default function DiscountPage() {
   const supabase = createClient()
