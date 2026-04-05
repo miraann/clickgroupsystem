@@ -54,6 +54,133 @@ function YoutubeIcon({ className }: { className?: string }) {
   return <svg className={className} viewBox="0 0 24 24" fill="currentColor"><path d="M22.54 6.42a2.78 2.78 0 00-1.95-1.96C18.88 4 12 4 12 4s-6.88 0-8.59.46a2.78 2.78 0 00-1.95 1.96A29 29 0 001 12a29 29 0 00.46 5.58A2.78 2.78 0 003.41 19.6C5.12 20.06 12 20.06 12 20.06s6.88 0 8.59-.46a2.78 2.78 0 001.95-1.95A29 29 0 0023 12a29 29 0 00-.46-5.58zM9.75 15.02V8.98L15.5 12l-5.75 3.02z" /></svg>
 }
 
+// ── Template configs ──────────────────────────────────────────
+type TemplateId = 'classic' | 'dark' | 'warm' | 'bold' | 'elegant' | 'neon'
+
+interface TplCfg {
+  pageBg: string
+  pageText: string
+  logoRing: string          // CSS color
+  nameColor: string
+  tableChipBg: string
+  tableChipText: string
+  welcomeColor: string
+  catLayout: 'circles' | 'pills'
+  catActiveOutline: string  // CSS color for circle outline
+  sectionTitleColor: string
+  itemLayout: 'grid' | 'list'
+  itemCardBg: string
+  itemCardBorder: string
+  itemNameColor: string
+  priceColor: string
+  addBtnBg: string
+  addBtnText: string
+  qtyBg: string
+  qtyBorder: string
+  qtyText: string
+  backBtn: string
+  dividerColor: string
+}
+
+const TEMPLATE_CONFIGS: Record<TemplateId, TplCfg> = {
+  classic: {
+    pageBg: 'bg-white', pageText: 'text-gray-900',
+    logoRing: '#f59e0b',
+    nameColor: 'text-gray-900',
+    tableChipBg: 'bg-amber-100', tableChipText: 'text-amber-700',
+    welcomeColor: 'text-gray-400',
+    catLayout: 'circles', catActiveOutline: '#f59e0b',
+    sectionTitleColor: 'text-gray-900',
+    itemLayout: 'grid',
+    itemCardBg: 'bg-white', itemCardBorder: 'border-gray-100',
+    itemNameColor: 'text-gray-800', priceColor: 'text-amber-500',
+    addBtnBg: 'bg-amber-500 active:bg-amber-600', addBtnText: 'text-white',
+    qtyBg: 'bg-amber-50', qtyBorder: 'border-amber-200', qtyText: 'text-amber-700',
+    backBtn: 'text-gray-500 hover:text-gray-800',
+    dividerColor: 'border-gray-100',
+  },
+  dark: {
+    pageBg: 'bg-[#080c14]', pageText: 'text-white',
+    logoRing: '#f59e0b',
+    nameColor: 'text-white',
+    tableChipBg: 'bg-amber-500/15', tableChipText: 'text-amber-400',
+    welcomeColor: 'text-white/40',
+    catLayout: 'circles', catActiveOutline: '#f59e0b',
+    sectionTitleColor: 'text-white',
+    itemLayout: 'grid',
+    itemCardBg: 'bg-white/5', itemCardBorder: 'border-white/10',
+    itemNameColor: 'text-white/90', priceColor: 'text-amber-400',
+    addBtnBg: 'bg-amber-500 active:bg-amber-600', addBtnText: 'text-white',
+    qtyBg: 'bg-amber-500/10', qtyBorder: 'border-amber-500/20', qtyText: 'text-amber-400',
+    backBtn: 'text-white/50 hover:text-white',
+    dividerColor: 'border-white/8',
+  },
+  warm: {
+    pageBg: 'bg-[#fdf6ec]', pageText: 'text-[#451a03]',
+    logoRing: '#d97706',
+    nameColor: 'text-[#451a03]',
+    tableChipBg: 'bg-amber-100', tableChipText: 'text-amber-800',
+    welcomeColor: 'text-amber-700/60',
+    catLayout: 'circles', catActiveOutline: '#b45309',
+    sectionTitleColor: 'text-[#451a03]',
+    itemLayout: 'grid',
+    itemCardBg: 'bg-white', itemCardBorder: 'border-amber-100',
+    itemNameColor: 'text-[#451a03]', priceColor: 'text-amber-600',
+    addBtnBg: 'bg-amber-700 active:bg-amber-800', addBtnText: 'text-white',
+    qtyBg: 'bg-amber-50', qtyBorder: 'border-amber-200', qtyText: 'text-amber-800',
+    backBtn: 'text-amber-700/60 hover:text-amber-900',
+    dividerColor: 'border-amber-100',
+  },
+  bold: {
+    pageBg: 'bg-white', pageText: 'text-gray-900',
+    logoRing: '#7c3aed',
+    nameColor: 'text-gray-900',
+    tableChipBg: 'bg-violet-100', tableChipText: 'text-violet-700',
+    welcomeColor: 'text-gray-500',
+    catLayout: 'pills', catActiveOutline: '#7c3aed',
+    sectionTitleColor: 'text-gray-900',
+    itemLayout: 'list',
+    itemCardBg: 'bg-white', itemCardBorder: 'border-gray-100',
+    itemNameColor: 'text-gray-900', priceColor: 'text-violet-600',
+    addBtnBg: 'bg-violet-600 active:bg-violet-700', addBtnText: 'text-white',
+    qtyBg: 'bg-violet-50', qtyBorder: 'border-violet-200', qtyText: 'text-violet-700',
+    backBtn: 'text-gray-500 hover:text-gray-800',
+    dividerColor: 'border-gray-100',
+  },
+  elegant: {
+    pageBg: 'bg-[#f7f4f0]', pageText: 'text-[#1c1917]',
+    logoRing: '#a8896c',
+    nameColor: 'text-[#1c1917]',
+    tableChipBg: 'bg-stone-200', tableChipText: 'text-stone-700',
+    welcomeColor: 'text-stone-400',
+    catLayout: 'pills', catActiveOutline: '#a8896c',
+    sectionTitleColor: 'text-[#1c1917]',
+    itemLayout: 'list',
+    itemCardBg: 'bg-white', itemCardBorder: 'border-stone-200',
+    itemNameColor: 'text-stone-900', priceColor: 'text-stone-600',
+    addBtnBg: 'bg-stone-800 active:bg-stone-900', addBtnText: 'text-white',
+    qtyBg: 'bg-stone-100', qtyBorder: 'border-stone-300', qtyText: 'text-stone-700',
+    backBtn: 'text-stone-500 hover:text-stone-800',
+    dividerColor: 'border-stone-200',
+  },
+  neon: {
+    pageBg: 'bg-[#0a0a0f]', pageText: 'text-white',
+    logoRing: '#39ff14',
+    nameColor: 'text-white',
+    tableChipBg: 'bg-[#39ff14]/10', tableChipText: 'text-[#39ff14]',
+    welcomeColor: 'text-white/40',
+    catLayout: 'circles', catActiveOutline: '#39ff14',
+    sectionTitleColor: 'text-white',
+    itemLayout: 'grid',
+    itemCardBg: 'bg-white/5', itemCardBorder: 'border-white/8',
+    itemNameColor: 'text-white/90', priceColor: 'text-[#39ff14]',
+    addBtnBg: 'bg-[#39ff14] active:opacity-80', addBtnText: 'text-black',
+    qtyBg: 'bg-[#39ff14]/10', qtyBorder: 'border-[#39ff14]/30', qtyText: 'text-[#39ff14]',
+    backBtn: 'text-white/40 hover:text-white',
+    dividerColor: 'border-white/8',
+  },
+}
+
 function buildSocialHref(key: string, value: string): string {
   if (!value) return '#'
   if (value.startsWith('http://') || value.startsWith('https://')) return value
@@ -94,6 +221,17 @@ export default function GuestPage() {
   const [placeError, setPlaceError] = useState<string | null>(null)
   const [orderPlaced, setOrderPlaced] = useState(false)
 
+  // Template + styles
+  const [tpl, setTpl]               = useState<TplCfg>(TEMPLATE_CONFIGS.classic)
+  const [primaryColor, setPrimaryColor] = useState('#f59e0b')
+  const [categoryStyle, setCategoryStyle] = useState<'circles'|'pills'|'square'|'horizontal'>('circles')
+  const [itemStyle, setItemStyle]   = useState<'grid'|'list'|'compact'>('grid')
+  const [eventStyle, setEventStyle] = useState<'cards'|'banner'|'story'>('cards')
+  const [socialStyle, setSocialStyle] = useState<'pills'|'grid'|'icons'>('pills')
+  const [showPrices, setShowPrices] = useState(true)
+  const [showDescs, setShowDescs]   = useState(true)
+  const [welcomeText, setWelcomeText] = useState<string|null>(null)
+
   // Realtime order tracking
   const [currentOrderId, setCurrentOrderId] = useState<string | null>(null)
   const [trackedItems, setTrackedItems]     = useState<TrackedItem[]>([])
@@ -127,15 +265,28 @@ export default function GuestPage() {
     setTable(t as TableInfo)
 
     const rid = (t as TableInfo).restaurant_id
-    const [restRes, catsRes, eventsRes, itemsRes, notesRes, stationCatRes] = await Promise.all([
+    const [restRes, catsRes, eventsRes, itemsRes, notesRes, stationCatRes, tplRes] = await Promise.all([
       supabase.from('restaurants').select('id, name, logo_url, settings').eq('id', rid).maybeSingle(),
       supabase.from('menu_categories').select('id, name, color, icon, sort_order').eq('restaurant_id', rid).eq('active', true).order('sort_order'),
       supabase.from('events_offers').select('id, title, description, date_label, image_url').eq('restaurant_id', rid).eq('active', true).order('sort_order'),
       supabase.from('menu_items').select('id, name, description, price, image_url, category_id').eq('restaurant_id', rid).eq('available', true).order('sort_order'),
       supabase.from('kitchen_notes').select('id, text').eq('restaurant_id', rid).eq('active', true).order('sort_order'),
       supabase.from('kds_station_categories').select('station_id, category_id'),
+      supabase.from('menu_template_settings').select('*').eq('restaurant_id', rid).maybeSingle(),
     ])
     if (restRes.data) setRestaurant(restRes.data as Restaurant)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const d = tplRes.data as any
+    const tplId = (d?.template ?? 'classic') as TemplateId
+    setTpl(TEMPLATE_CONFIGS[tplId] ?? TEMPLATE_CONFIGS.classic)
+    if (d?.primary_color)   setPrimaryColor(d.primary_color)
+    if (d?.category_style)  setCategoryStyle(d.category_style)
+    if (d?.item_style)      setItemStyle(d.item_style)
+    if (d?.event_style)     setEventStyle(d.event_style)
+    if (d?.social_style)    setSocialStyle(d.social_style)
+    if (d?.show_prices     !== undefined) setShowPrices(d.show_prices)
+    if (d?.show_descriptions !== undefined) setShowDescs(d.show_descriptions)
+    if (d?.welcome_text)    setWelcomeText(d.welcome_text)
     setCategories((catsRes.data ?? []) as Category[])
     setEvents((eventsRes.data ?? []) as EventOffer[])
     setMenuItems((itemsRes.data ?? []) as MenuItem[])
@@ -295,13 +446,13 @@ export default function GuestPage() {
   }
 
   if (loading) return (
-    <div className="min-h-screen bg-white flex items-center justify-center">
+    <div className={`min-h-screen ${tpl.pageBg} flex items-center justify-center`}>
       <Loader2 className="w-8 h-8 text-amber-500 animate-spin" />
     </div>
   )
 
   if (!restaurant) return (
-    <div className="min-h-screen bg-white flex items-center justify-center">
+    <div className={`min-h-screen ${tpl.pageBg} flex items-center justify-center`}>
       <UtensilsCrossed className="w-10 h-10 text-gray-200" />
     </div>
   )
@@ -324,32 +475,33 @@ export default function GuestPage() {
   ].filter(s => s.value.trim() !== '')
 
   return (
-    <div className="min-h-screen bg-white flex flex-col items-center pt-16 text-center pb-28">
+    <div className={`min-h-screen ${tpl.pageBg} flex flex-col items-center pt-16 text-center pb-28`}>
       <style>{`.cat-scroll::-webkit-scrollbar{display:none} .social-scroll::-webkit-scrollbar{display:none}`}</style>
 
       {/* Circle logo */}
-      <div className="w-36 h-36 rounded-full ring-4 ring-amber-400 ring-offset-4 overflow-hidden bg-gray-100 shadow-xl">
+      <div className="w-36 h-36 rounded-full overflow-hidden shadow-xl"
+        style={{ outline: `4px solid ${tpl.logoRing}`, outlineOffset: '4px', background: '#f3f4f6' }}>
         {restaurant.logo_url
           ? <img src={restaurant.logo_url} alt={restaurant.name} className="w-full h-full object-cover" />
-          : <div className="w-full h-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center">
+          : <div className="w-full h-full flex items-center justify-center" style={{ background: tpl.logoRing }}>
               <span className="text-white text-5xl font-bold">{restaurant.name.charAt(0).toUpperCase()}</span>
             </div>
         }
       </div>
 
       {/* Restaurant name */}
-      <h1 className="mt-4 text-2xl font-bold text-gray-900 tracking-tight px-6">{restaurant.name}</h1>
+      <h1 className={`mt-4 text-2xl font-bold tracking-tight px-6 ${tpl.nameColor}`}>{restaurant.name}</h1>
 
       {/* Table number */}
       {tableLabel && (
-        <span className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100 text-amber-700 text-sm font-semibold">
+        <span className={`mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-semibold ${tpl.tableChipBg} ${tpl.tableChipText}`}>
           Table {tableLabel}
         </span>
       )}
 
       {/* Welcome message */}
-      <p className="mt-4 text-gray-400 text-sm px-6">
-        Welcome! Browse our menu and order directly from your table.
+      <p className={`mt-4 text-sm px-6 ${tpl.welcomeColor}`}>
+        {welcomeText ?? 'Welcome! Browse our menu and order directly from your table.'}
       </p>
 
       {/* Order placed success banner */}
@@ -393,46 +545,153 @@ export default function GuestPage() {
         </div>
       )}
 
-      {/* Category circles */}
+      {/* Category navigation */}
       {categories.length > 0 && (
         <div className="w-full mt-6 overflow-x-hidden">
-          <div
-            className="cat-scroll flex gap-5 overflow-x-auto px-6 py-4"
-            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', overflowY: 'visible' } as React.CSSProperties}
-          >
-            {categories.map(cat => {
-              const isActive = activeId === cat.id
-              return (
-                <button
-                  key={cat.id}
-                  onClick={() => { setActiveId(cat.id); setShowItems(true) }}
-                  className="flex flex-col items-center gap-2 shrink-0 focus:outline-none"
-                >
-                  <div
-                    className="w-16 h-16 rounded-full flex items-center justify-center shadow-md transition-all duration-200"
+          {categoryStyle === 'circles' ? (
+            /* ── Circles ── */
+            <div
+              className="cat-scroll flex gap-5 overflow-x-auto px-6 py-4"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', overflowY: 'visible' } as React.CSSProperties}
+            >
+              {categories.map(cat => {
+                const isActive = activeId === cat.id
+                const isDark = tpl.pageBg.includes('0a0a') || tpl.pageBg.includes('080c')
+                return (
+                  <button
+                    key={cat.id}
+                    onClick={() => { setActiveId(cat.id); setShowItems(true) }}
+                    className="flex flex-col items-center gap-2 shrink-0 focus:outline-none"
+                  >
+                    <div
+                      className="w-24 h-24 rounded-full flex items-center justify-center shadow-md transition-all duration-200"
+                      style={{
+                        background: cat.color,
+                        outline: isActive ? `3px solid ${primaryColor}` : 'none',
+                        outlineOffset: '3px',
+                        boxShadow: isActive ? `0 6px 20px ${primaryColor}55` : '0 3px 10px rgba(0,0,0,0.12)',
+                        transform: isActive ? 'scale(1.12)' : 'scale(1)',
+                      }}
+                    >
+                      {cat.icon
+                        ? <span style={{ fontSize: '3.5rem', lineHeight: 1 }}>{cat.icon}</span>
+                        : <span className="text-white text-3xl font-bold">{cat.name.charAt(0).toUpperCase()}</span>
+                      }
+                    </div>
+                    <span
+                      className="text-xs font-semibold w-16 text-center leading-tight line-clamp-1 transition-colors"
+                      style={{ color: isActive ? primaryColor : (isDark ? '#9ca3af' : '#6b7280') }}
+                    >
+                      {cat.name}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          ) : categoryStyle === 'square' ? (
+            /* ── Square cards ── */
+            <div
+              className="cat-scroll flex gap-3 overflow-x-auto px-6 py-3"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
+            >
+              {categories.map(cat => {
+                const isActive = activeId === cat.id
+                const isDark = tpl.pageBg.includes('0a0a') || tpl.pageBg.includes('080c')
+                return (
+                  <button
+                    key={cat.id}
+                    onClick={() => { setActiveId(cat.id); setShowItems(true) }}
+                    className="flex flex-col items-center gap-2 shrink-0 focus:outline-none"
+                  >
+                    <div
+                      className="w-20 h-20 rounded-2xl flex items-center justify-center shadow-md transition-all duration-200"
+                      style={{
+                        background: cat.color,
+                        outline: isActive ? `3px solid ${primaryColor}` : 'none',
+                        outlineOffset: '3px',
+                        boxShadow: isActive ? `0 6px 20px ${primaryColor}55` : '0 3px 10px rgba(0,0,0,0.12)',
+                        transform: isActive ? 'scale(1.08)' : 'scale(1)',
+                      }}
+                    >
+                      {cat.icon
+                        ? <span style={{ fontSize: '2.8rem', lineHeight: 1 }}>{cat.icon}</span>
+                        : <span className="text-white text-2xl font-bold">{cat.name.charAt(0).toUpperCase()}</span>
+                      }
+                    </div>
+                    <span
+                      className="text-xs font-semibold w-14 text-center leading-tight line-clamp-1 transition-colors"
+                      style={{ color: isActive ? primaryColor : (isDark ? '#9ca3af' : '#6b7280') }}
+                    >
+                      {cat.name}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          ) : categoryStyle === 'horizontal' ? (
+            /* ── Horizontal list ── */
+            <div className="flex flex-col gap-2 px-4">
+              {categories.map(cat => {
+                const isActive = activeId === cat.id
+                const isDark = tpl.pageBg.includes('0a0a') || tpl.pageBg.includes('080c')
+                return (
+                  <button
+                    key={cat.id}
+                    onClick={() => { setActiveId(cat.id); setShowItems(true) }}
+                    className="flex items-center gap-3 px-4 py-3 rounded-2xl transition-all active:scale-[0.98] text-left"
                     style={{
-                      background: cat.color,
-                      outline: '3px solid #f59e0b',
-                      outlineOffset: '3px',
-                      boxShadow: isActive ? '0 6px 20px rgba(0,0,0,0.25)' : '0 3px 10px rgba(0,0,0,0.12)',
-                      transform: isActive ? 'scale(1.12)' : 'scale(1)',
+                      background: isActive ? `${primaryColor}18` : (isDark ? 'rgba(255,255,255,0.05)' : '#f9fafb'),
+                      borderLeft: `4px solid ${isActive ? primaryColor : cat.color}`,
                     }}
                   >
-                    {cat.icon
-                      ? <span className="text-3xl leading-none">{cat.icon}</span>
-                      : <span className="text-white text-xl font-bold">{cat.name.charAt(0).toUpperCase()}</span>
+                    <div
+                      className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                      style={{ background: cat.color }}
+                    >
+                      {cat.icon
+                        ? <span style={{ fontSize: '1.5rem', lineHeight: 1 }}>{cat.icon}</span>
+                        : <span className="text-white text-base font-bold">{cat.name.charAt(0).toUpperCase()}</span>
+                      }
+                    </div>
+                    <span
+                      className="text-sm font-semibold flex-1"
+                      style={{ color: isActive ? primaryColor : (isDark ? '#e5e7eb' : '#374151') }}
+                    >
+                      {cat.name}
+                    </span>
+                    <span className="text-xs" style={{ color: isDark ? '#6b7280' : '#9ca3af' }}>
+                      {menuItems.filter(i => i.category_id === cat.id).length} items
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          ) : (
+            /* ── Pills ── */
+            <div
+              className="cat-scroll flex gap-2 overflow-x-auto px-6 py-3"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
+            >
+              {categories.map(cat => {
+                const isActive = activeId === cat.id
+                const isDark = tpl.pageBg.includes('0a0a') || tpl.pageBg.includes('080c')
+                return (
+                  <button
+                    key={cat.id}
+                    onClick={() => { setActiveId(cat.id); setShowItems(true) }}
+                    className="shrink-0 flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition-all active:scale-95"
+                    style={isActive
+                      ? { background: cat.color, color: '#fff', boxShadow: `0 4px 12px ${cat.color}50` }
+                      : { background: isDark ? 'rgba(255,255,255,0.08)' : '#f3f4f6', color: isDark ? 'rgba(255,255,255,0.5)' : '#6b7280' }
                     }
-                  </div>
-                  <span
-                    className="text-xs font-semibold w-16 text-center leading-tight line-clamp-1 transition-colors"
-                    style={{ color: isActive ? cat.color : '#6b7280' }}
                   >
+                    {cat.icon && <span className="text-base leading-none">{cat.icon}</span>}
                     {cat.name}
-                  </span>
-                </button>
-              )
-            })}
-          </div>
+                  </button>
+                )
+              })}
+            </div>
+          )}
         </div>
       )}
 
@@ -445,7 +704,7 @@ export default function GuestPage() {
             {/* Back button */}
             <button
               onClick={() => setShowItems(false)}
-              className="mb-4 ml-2 flex items-center gap-1.5 text-sm font-semibold text-gray-500 hover:text-gray-800 transition-colors"
+              className={`mb-4 ml-2 flex items-center gap-1.5 text-sm font-semibold transition-colors ${tpl.backBtn}`}
             >
               ← Back
             </button>
@@ -453,7 +712,7 @@ export default function GuestPage() {
             {activeCat && (
               <div className="flex items-center gap-2 mb-4 px-2">
                 <span className="w-3 h-3 rounded-full" style={{ background: activeCat.color }} />
-                <h2 className="text-lg font-bold text-gray-900">{activeCat.name}</h2>
+                <h2 className={`text-lg font-bold ${tpl.sectionTitleColor}`}>{activeCat.name}</h2>
                 <span className="text-sm text-gray-400">({items.length})</span>
               </div>
             )}
@@ -462,15 +721,108 @@ export default function GuestPage() {
                 <UtensilsCrossed className="w-10 h-10 text-gray-200" />
                 <p className="text-gray-400 text-sm">No items in this category</p>
               </div>
-            ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+            ) : itemStyle === 'list' ? (
+              /* ── List layout ── */
+              <div className="space-y-3">
                 {items.map(item => {
                   const qty = getQty(item.id)
+                  const isDark = tpl.pageBg.includes('0a0a') || tpl.pageBg.includes('080c')
                   return (
                     <div
                       key={item.id}
-                      className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col relative"
-                      style={{ boxShadow: qty > 0 ? '0 0 0 2px #f59e0b' : undefined }}
+                      className={`flex gap-3 rounded-2xl border shadow-sm overflow-hidden ${tpl.itemCardBg} ${tpl.itemCardBorder}`}
+                      style={{ boxShadow: qty > 0 ? `0 0 0 2px ${primaryColor}` : undefined }}
+                    >
+                      <div className="w-20 h-20 shrink-0 bg-gray-100 overflow-hidden">
+                        {item.image_url
+                          ? <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+                          : <div className="w-full h-full flex items-center justify-center"><UtensilsCrossed className="w-5 h-5 text-gray-200" /></div>
+                        }
+                      </div>
+                      <div className="flex flex-col justify-center flex-1 py-3 pr-3 gap-1.5">
+                        <p className={`text-sm font-bold line-clamp-1 ${tpl.itemNameColor}`}>{item.name}</p>
+                        {showDescs && item.description && (
+                          <p className="text-xs line-clamp-1" style={{ color: isDark ? 'rgba(255,255,255,0.4)' : '#9ca3af' }}>{item.description}</p>
+                        )}
+                        <div className="flex items-center justify-between">
+                          {showPrices && <p className={`text-sm font-extrabold ${tpl.priceColor}`}>{formatPrice(item.price)}</p>}
+                          {qty === 0 ? (
+                            <button
+                              onClick={() => addOne(item.id)}
+                              className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all active:scale-95 ${tpl.addBtnBg} ${tpl.addBtnText}`}
+                            >
+                              <Plus className="w-3.5 h-3.5" /> Add
+                            </button>
+                          ) : (
+                            <div className={`flex items-center rounded-xl border ${tpl.qtyBg} ${tpl.qtyBorder}`}>
+                              <button onClick={() => removeOne(item.id)} className={`w-8 h-8 flex items-center justify-center active:scale-90 ${tpl.qtyText}`}>
+                                <Minus className="w-3.5 h-3.5" />
+                              </button>
+                              <span className={`text-xs font-bold w-5 text-center tabular-nums ${tpl.qtyText}`}>{qty}</span>
+                              <button onClick={() => addOne(item.id)} className={`w-8 h-8 flex items-center justify-center active:scale-90 ${tpl.qtyText}`}>
+                                <Plus className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            ) : itemStyle === 'compact' ? (
+              /* ── Compact list (no image) ── */
+              <div className="divide-y" style={{ borderColor: tpl.pageBg.includes('0a0a') || tpl.pageBg.includes('080c') ? 'rgba(255,255,255,0.07)' : '#f3f4f6' }}>
+                {items.map(item => {
+                  const qty = getQty(item.id)
+                  const isDark = tpl.pageBg.includes('0a0a') || tpl.pageBg.includes('080c')
+                  return (
+                    <div
+                      key={item.id}
+                      className="flex items-center gap-3 py-3 px-2 transition-all"
+                      style={{ background: qty > 0 ? `${primaryColor}0d` : undefined }}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm font-semibold ${tpl.itemNameColor}`}>{item.name}</p>
+                        {showDescs && item.description && (
+                          <p className="text-xs mt-0.5 line-clamp-1" style={{ color: isDark ? 'rgba(255,255,255,0.35)' : '#9ca3af' }}>{item.description}</p>
+                        )}
+                        {showPrices && <p className={`text-xs font-bold mt-1 ${tpl.priceColor}`}>{formatPrice(item.price)}</p>}
+                      </div>
+                      {qty === 0 ? (
+                        <button
+                          onClick={() => addOne(item.id)}
+                          className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 active:scale-90 transition-all"
+                          style={{ background: primaryColor }}
+                        >
+                          <Plus className="w-4 h-4 text-white" />
+                        </button>
+                      ) : (
+                        <div className={`flex items-center rounded-xl border ${tpl.qtyBg} ${tpl.qtyBorder} shrink-0`}>
+                          <button onClick={() => removeOne(item.id)} className={`w-8 h-8 flex items-center justify-center active:scale-90 ${tpl.qtyText}`}>
+                            <Minus className="w-3.5 h-3.5" />
+                          </button>
+                          <span className={`text-xs font-bold w-5 text-center tabular-nums ${tpl.qtyText}`}>{qty}</span>
+                          <button onClick={() => addOne(item.id)} className={`w-8 h-8 flex items-center justify-center active:scale-90 ${tpl.qtyText}`}>
+                            <Plus className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              /* ── Grid layout ── */
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                {items.map(item => {
+                  const qty = getQty(item.id)
+                  const isDark = tpl.pageBg.includes('0a0a') || tpl.pageBg.includes('080c')
+                  return (
+                    <div
+                      key={item.id}
+                      className={`rounded-2xl border shadow-sm overflow-hidden flex flex-col relative ${tpl.itemCardBg} ${tpl.itemCardBorder}`}
+                      style={{ boxShadow: qty > 0 ? `0 0 0 2px ${primaryColor}` : undefined }}
                     >
                       {/* Image */}
                       <div className="relative w-full aspect-square bg-gray-50">
@@ -479,32 +831,35 @@ export default function GuestPage() {
                           : <div className="absolute inset-0 flex items-center justify-center"><UtensilsCrossed className="w-5 h-5 text-gray-200" /></div>
                         }
                         {qty > 0 && (
-                          <div className="absolute top-1.5 left-1.5 w-5 h-5 rounded-full bg-amber-500 flex items-center justify-center shadow">
+                          <div className="absolute top-1.5 left-1.5 w-5 h-5 rounded-full flex items-center justify-center shadow" style={{ background: primaryColor }}>
                             <span className="text-white text-[10px] font-bold">{qty}</span>
                           </div>
                         )}
                       </div>
                       {/* Info */}
                       <div className="p-2 flex-1 flex flex-col gap-1">
-                        <p className="text-xs font-bold text-gray-800 line-clamp-2 leading-snug">{item.name}</p>
-                        <p className="text-xs font-extrabold text-amber-500">{formatPrice(item.price)}</p>
+                        <p className={`text-xs font-bold line-clamp-2 leading-snug ${tpl.itemNameColor}`}>{item.name}</p>
+                        {showDescs && item.description && (
+                          <p className="text-[10px] line-clamp-2 leading-snug" style={{ color: isDark ? 'rgba(255,255,255,0.35)' : '#9ca3af' }}>{item.description}</p>
+                        )}
+                        {showPrices && <p className={`text-xs font-extrabold mt-auto ${tpl.priceColor}`}>{formatPrice(item.price)}</p>}
                       </div>
-                      {/* Add / qty controls — direct add, no modal */}
+                      {/* Add / qty controls */}
                       <div className="px-2 pb-2">
                         {qty === 0 ? (
                           <button
                             onClick={() => addOne(item.id)}
-                            className="w-full flex items-center justify-center gap-1 py-1.5 rounded-xl bg-amber-500 active:bg-amber-600 text-white text-xs font-bold transition-all active:scale-95"
+                            className={`w-full flex items-center justify-center gap-1 py-1.5 rounded-xl text-xs font-bold transition-all active:scale-95 ${tpl.addBtnBg} ${tpl.addBtnText}`}
                           >
                             <Plus className="w-3.5 h-3.5" /> Add
                           </button>
                         ) : (
-                          <div className="flex items-center justify-between rounded-xl bg-amber-50 border border-amber-200">
-                            <button onClick={() => removeOne(item.id)} className="w-8 h-8 flex items-center justify-center text-amber-600 active:scale-90 transition-all">
+                          <div className={`flex items-center justify-between rounded-xl border ${tpl.qtyBg} ${tpl.qtyBorder}`}>
+                            <button onClick={() => removeOne(item.id)} className={`w-8 h-8 flex items-center justify-center active:scale-90 transition-all ${tpl.qtyText}`}>
                               <Minus className="w-3.5 h-3.5" />
                             </button>
-                            <span className="text-xs font-bold text-amber-700 tabular-nums flex-1 text-center">{qty}</span>
-                            <button onClick={() => addOne(item.id)} className="w-8 h-8 flex items-center justify-center text-amber-600 active:scale-90 transition-all">
+                            <span className={`text-xs font-bold tabular-nums flex-1 text-center ${tpl.qtyText}`}>{qty}</span>
+                            <button onClick={() => addOne(item.id)} className={`w-8 h-8 flex items-center justify-center active:scale-90 transition-all ${tpl.qtyText}`}>
                               <Plus className="w-3.5 h-3.5" />
                             </button>
                           </div>
@@ -524,61 +879,161 @@ export default function GuestPage() {
         <>
           {events.length > 0 && (
             <div className="w-full mt-6 text-left">
-              <h2 className="text-lg font-bold text-gray-900 mb-3 px-6">Event &amp; Offers</h2>
-              <div
-                className="cat-scroll flex gap-3 overflow-x-auto px-6 pb-2"
-                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
-              >
-                {events.map(ev => (
-                  <div
-                    key={ev.id}
-                    className="relative rounded-2xl overflow-hidden shadow-sm shrink-0 w-40 h-56"
-                  >
-                    {ev.image_url
-                      ? <img src={ev.image_url} alt={ev.title} className="absolute inset-0 w-full h-full object-cover" />
-                      : <div className="absolute inset-0 bg-gradient-to-br from-amber-400 to-orange-500" />
-                    }
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-                    <div className="absolute bottom-0 left-0 right-0 p-2">
-                      <p className="text-white text-xs font-bold leading-snug line-clamp-2">{ev.title}</p>
-                      {ev.date_label && <p className="text-white/70 text-[10px] mt-0.5">{ev.date_label}</p>}
+              <h2 className={`text-lg font-bold mb-3 px-6 ${tpl.sectionTitleColor}`}>Event &amp; Offers</h2>
+
+              {eventStyle === 'story' ? (
+                /* ── Story circles ── */
+                <div
+                  className="cat-scroll flex gap-4 overflow-x-auto px-6 pb-4 pt-2"
+                  style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
+                >
+                  {events.map(ev => (
+                    <div key={ev.id} className="shrink-0 flex flex-col items-center gap-2">
+                      <div
+                        className="rounded-full p-[3px] shadow-lg"
+                        style={{ background: `linear-gradient(135deg, ${primaryColor}, #f97316)` }}
+                      >
+                        <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-200">
+                          {ev.image_url
+                            ? <img src={ev.image_url} alt={ev.title} className="w-full h-full object-cover" />
+                            : <div className="w-full h-full flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${primaryColor}cc, #f97316cc)` }}>
+                                <span className="text-white text-2xl font-bold">{ev.title.charAt(0)}</span>
+                              </div>
+                          }
+                        </div>
+                      </div>
+                      <p className={`text-[10px] font-semibold w-14 text-center line-clamp-2 leading-tight ${tpl.sectionTitleColor}`}>{ev.title}</p>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : eventStyle === 'banner' ? (
+                /* ── Stacked banners ── */
+                <div className="flex flex-col gap-3 px-4">
+                  {events.map(ev => (
+                    <div
+                      key={ev.id}
+                      className="relative rounded-2xl overflow-hidden h-32 shadow-md"
+                      style={{ border: `2px solid ${primaryColor}44` }}
+                    >
+                      {ev.image_url
+                        ? <img src={ev.image_url} alt={ev.title} className="absolute inset-0 w-full h-full object-cover" />
+                        : <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, ${primaryColor}cc, #f97316cc)` }} />
+                      }
+                      <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/30 to-transparent" />
+                      <div className="absolute inset-0 flex flex-col justify-center px-5">
+                        <p className="text-white text-sm font-bold leading-snug line-clamp-2">{ev.title}</p>
+                        {ev.date_label && <p className="text-white/70 text-xs mt-1">{ev.date_label}</p>}
+                        {ev.description && <p className="text-white/60 text-xs mt-1 line-clamp-1">{ev.description}</p>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                /* ── Cards (default horizontal scroll) ── */
+                <div
+                  className="cat-scroll flex gap-5 overflow-x-auto px-6 pb-4 pt-2"
+                  style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
+                >
+                  {events.map(ev => (
+                    <div
+                      key={ev.id}
+                      className="shrink-0 rounded-2xl p-[3px] shadow-lg"
+                      style={{ background: primaryColor, boxShadow: `0 4px 18px ${primaryColor}55` }}
+                    >
+                      <div className="relative rounded-[14px] overflow-hidden w-40 h-56">
+                        {ev.image_url
+                          ? <img src={ev.image_url} alt={ev.title} className="absolute inset-0 w-full h-full object-cover" />
+                          : <div className="absolute inset-0 bg-gradient-to-br from-amber-400 to-orange-500" />
+                        }
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+                        <div className="absolute bottom-0 left-0 right-0 p-2">
+                          <p className="text-white text-xs font-bold leading-snug line-clamp-2">{ev.title}</p>
+                          {ev.date_label && <p className="text-white/70 text-[10px] mt-0.5">{ev.date_label}</p>}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
           {socialLinks.length > 0 && (
             <div className="w-full mt-6 pb-10 text-left">
-              <div
-                className="social-scroll flex gap-3 overflow-x-auto px-6 py-2"
-                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
-              >
-                {socialLinks.map(s => {
-                  const href = buildSocialHref(s.key, s.value)
-                  return (
-                    <a
-                      key={s.key}
-                      href={href === '#' ? undefined : href}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="shrink-0 flex items-center gap-2.5 px-4 py-3 rounded-full border bg-white shadow-sm active:scale-95 transition-all"
-                      style={{ borderColor: s.borderColor }}
-                    >
-                      <div
-                        className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
-                        style={{ backgroundColor: s.iconBg }}
+              {socialStyle === 'grid' ? (
+                /* ── 2-col grid ── */
+                <div className="grid grid-cols-2 gap-2 px-4">
+                  {socialLinks.map(s => {
+                    const href = buildSocialHref(s.key, s.value)
+                    const isDark = tpl.pageBg.includes('0a0a') || tpl.pageBg.includes('080c')
+                    return (
+                      <a
+                        key={s.key}
+                        href={href === '#' ? undefined : href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-3 px-4 py-3 rounded-2xl border active:scale-95 transition-all"
+                        style={{ borderColor: s.borderColor, background: isDark ? 'rgba(255,255,255,0.05)' : '#fff', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
                       >
-                        <span style={{ color: s.key === 'snapchat' ? '#111' : '#fff' }}>{s.icon}</span>
-                      </div>
-                      <span className="text-base font-semibold whitespace-nowrap" style={{ color: s.textColor }}>
-                        {s.label}
-                      </span>
-                    </a>
-                  )
-                })}
-              </div>
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: s.iconBg }}>
+                          <span style={{ color: s.key === 'snapchat' ? '#111' : '#fff' }}>{s.icon}</span>
+                        </div>
+                        <span className="text-sm font-semibold whitespace-nowrap" style={{ color: s.textColor }}>{s.label}</span>
+                      </a>
+                    )
+                  })}
+                </div>
+              ) : socialStyle === 'icons' ? (
+                /* ── Icon circles only ── */
+                <div
+                  className="social-scroll flex gap-4 overflow-x-auto px-6 py-2"
+                  style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
+                >
+                  {socialLinks.map(s => {
+                    const href = buildSocialHref(s.key, s.value)
+                    return (
+                      <a
+                        key={s.key}
+                        href={href === '#' ? undefined : href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="shrink-0 flex flex-col items-center gap-1.5 active:scale-90 transition-all"
+                      >
+                        <div className="w-12 h-12 rounded-full flex items-center justify-center shadow-md" style={{ backgroundColor: s.iconBg }}>
+                          <span style={{ color: s.key === 'snapchat' ? '#111' : '#fff' }}>{s.icon}</span>
+                        </div>
+                        <span className="text-[10px] font-semibold" style={{ color: tpl.pageBg.includes('0a0a') || tpl.pageBg.includes('080c') ? '#9ca3af' : '#6b7280' }}>{s.label}</span>
+                      </a>
+                    )
+                  })}
+                </div>
+              ) : (
+                /* ── Pills (default horizontal scroll) ── */
+                <div
+                  className="social-scroll flex gap-3 overflow-x-auto px-6 py-2"
+                  style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
+                >
+                  {socialLinks.map(s => {
+                    const href = buildSocialHref(s.key, s.value)
+                    const isDark = tpl.pageBg.includes('0a0a') || tpl.pageBg.includes('080c')
+                    return (
+                      <a
+                        key={s.key}
+                        href={href === '#' ? undefined : href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="shrink-0 flex items-center gap-2.5 px-4 py-3 rounded-full border active:scale-95 transition-all"
+                        style={{ borderColor: s.borderColor, background: isDark ? 'rgba(255,255,255,0.06)' : '#fff', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
+                      >
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: s.iconBg }}>
+                          <span style={{ color: s.key === 'snapchat' ? '#111' : '#fff' }}>{s.icon}</span>
+                        </div>
+                        <span className="text-base font-semibold whitespace-nowrap" style={{ color: s.textColor }}>{s.label}</span>
+                      </a>
+                    )
+                  })}
+                </div>
+              )}
             </div>
           )}
         </>

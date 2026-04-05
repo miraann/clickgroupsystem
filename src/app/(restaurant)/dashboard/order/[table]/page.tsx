@@ -2,8 +2,8 @@
 import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useParams, useSearchParams, useRouter } from 'next/navigation'
 import {
-  ArrowLeft, Users, Minus, Plus, X,
-  Send, ChefHat, ShoppingBag, CreditCard,
+  ArrowLeft, Users, Minus, Plus, X, Delete,
+  Send, ChefHat, ShoppingBag, CreditCard, Printer,
   Loader2, AlertCircle, Trash2, Tag, ArrowRightLeft, DollarSign, ChevronRight, Pencil,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -58,9 +58,13 @@ function OrderPage() {
   const supabase = createClient()
   const { symbol: cur, formatPrice } = useDefaultCurrency()
 
-  const guests = parseInt(searchParams.get('guests') ?? '0')
+  const guestCountParam = parseInt(searchParams.get('guests') ?? '0')
+  const [guestCount, setGuestCount]         = useState(guestCountParam)
+  const [showGuestEdit, setShowGuestEdit]   = useState(false)
+  const [guestDraft, setGuestDraft]         = useState(guestCountParam)
 
-  const [restaurantId, setRestaurantId] = useState<string | null>(null)
+  const [restaurantId, setRestaurantId]   = useState<string | null>(null)
+  const [restaurantName, setRestaurantName] = useState<string>('')
   const [orderId, setOrderId]           = useState<string | null>(null)
   const [dbItems, setDbItems]           = useState<DbOrderItem[]>([])
 
@@ -86,13 +90,23 @@ function OrderPage() {
   // which sent item is open in the action modal
   const [actionItem, setActionItem] = useState<DbOrderItem | null>(null)
 
+  const saveGuestCount = async (count: number) => {
+    setGuestCount(count)
+    setShowGuestEdit(false)
+    router.replace(`/dashboard/order/${table}?guests=${count}`, { scroll: false })
+    if (orderId) {
+      await supabase.from('orders').update({ guests: count }).eq('id', orderId)
+    }
+  }
+
   // ── Init ──────────────────────────────────────────────────
   const init = useCallback(async () => {
     setLoading(true); setInitError(null)
 
-    const { data: rest } = await supabase.from('restaurants').select('id').limit(1).maybeSingle()
+    const { data: rest } = await supabase.from('restaurants').select('id,name').limit(1).maybeSingle()
     if (!rest) { setInitError('Restaurant not found.'); setLoading(false); return }
     setRestaurantId(rest.id)
+    setRestaurantName(rest.name ?? '')
 
     const [catsRes, itemsRes, notesRes, existingRes, stationCatRes] = await Promise.all([
       supabase.from('menu_categories').select('id,name,color').eq('restaurant_id', rest.id).eq('active', true).order('sort_order'),
@@ -129,7 +143,7 @@ function OrderPage() {
       if (loaded.length > 0) setActiveTab('ordered')
     }
     setLoading(false)
-  }, [table, guests]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [table, guestCount]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { init() }, [init])
 
@@ -182,7 +196,7 @@ function OrderPage() {
     if (!restaurantId) return null
     const { data: newOrder, error } = await supabase
       .from('orders')
-      .insert({ restaurant_id: restaurantId, table_number: parseInt(table), guests, status: 'active', total: 0 })
+      .insert({ restaurant_id: restaurantId, table_number: parseInt(table), guests: guestCount, status: 'active', total: 0 })
       .select('id').single()
     if (error || !newOrder) { setSendError(error?.message ?? 'Failed to open table'); return null }
     await assignOrderNumber(supabase, restaurantId, newOrder.id)
@@ -248,7 +262,67 @@ function OrderPage() {
     const { data: { user } } = await supabase.auth.getUser()
     const voidedBy = user?.user_metadata?.full_name ?? user?.email ?? 'Staff'
     await supabase.from('order_items').update({ status: 'void', void_reason: reason, voided_by: voidedBy }).eq('id', itemId)
-    setDbItems(prev => prev.filter(i => i.id !== itemId))
+    const remaining = dbItems.filter(i => i.id !== itemId)
+    setDbItems(remaining)
+
+    // If no non-void items remain, close the order → table flips to Available
+    if (orderId && remaining.length === 0) {
+      await supabase.from('orders')
+        .update({ status: 'closed', updated_at: new Date().toISOString() })
+        .eq('id', orderId)
+    }
+  }
+
+  // ── Print receipt ─────────────────────────────────────────
+  const printReceipt = () => {
+    const now = new Date()
+    const dateStr = now.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+    const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
+
+    const rows = sentItems.map(i => `
+      <tr>
+        <td style="padding:4px 0;">${i.item_name}</td>
+        <td style="padding:4px 0;text-align:center;">${i.qty}</td>
+        <td style="padding:4px 0;text-align:right;">${formatPrice(i.item_price * i.qty)}</td>
+      </tr>`).join('')
+
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+      <title>Receipt</title>
+      <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family: 'Courier New', monospace; font-size: 13px; width: 300px; margin: 0 auto; padding: 16px; }
+        h1 { font-size: 18px; font-weight: bold; text-align: center; margin-bottom: 2px; }
+        .center { text-align: center; }
+        .divider { border: none; border-top: 1px dashed #000; margin: 8px 0; }
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; font-weight: bold; padding: 4px 0; border-bottom: 1px solid #000; }
+        th:nth-child(2) { text-align: center; }
+        th:nth-child(3) { text-align: right; }
+        .total-row td { font-weight: bold; padding-top: 8px; border-top: 1px solid #000; }
+        .total-row td:last-child { text-align: right; }
+        @media print { body { width: 100%; } }
+      </style>
+    </head><body>
+      <h1>${restaurantName}</h1>
+      <p class="center" style="margin-bottom:8px;">${dateStr} &nbsp; ${timeStr}</p>
+      <hr class="divider"/>
+      <p>Table: <strong>${table}</strong> &nbsp;&nbsp; Guests: <strong>${guestCount}</strong></p>
+      <hr class="divider"/>
+      <table>
+        <thead><tr><th>Item</th><th>Qty</th><th>Price</th></tr></thead>
+        <tbody>${rows}</tbody>
+        <tfoot><tr class="total-row"><td colspan="2">Total</td><td>${formatPrice(sentTotal)}</td></tr></tfoot>
+      </table>
+      <hr class="divider"/>
+      <p class="center" style="margin-top:8px;">Thank you!</p>
+    </body></html>`
+
+    const win = window.open('', '_blank', 'width=380,height=600')
+    if (!win) return
+    win.document.write(html)
+    win.document.close()
+    win.focus()
+    setTimeout(() => { win.print(); win.close() }, 300)
   }
 
   // ── Derived ───────────────────────────────────────────────
@@ -300,12 +374,14 @@ function OrderPage() {
           <div>
             <div className="flex items-center gap-2">
               <span className="text-sm font-bold text-white">Table {table}</span>
-              {guests > 0 && (
-                <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/8 border border-white/12">
-                  <Users className="w-3 h-3 text-white/40" />
-                  <span className="text-xs text-white/50">{guests}</span>
-                </div>
-              )}
+              <button
+                onClick={() => { setGuestDraft(guestCount); setShowGuestEdit(true) }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/8 border border-white/12 hover:bg-white/12 hover:border-white/20 active:scale-95 transition-all touch-manipulation"
+              >
+                <Users className="w-4 h-4 text-amber-400" />
+                <span className="text-sm font-bold text-white">{guestCount > 0 ? guestCount : '—'}</span>
+                <span className="text-xs text-white/40">guests</span>
+              </button>
             </div>
             <p className="text-xs text-white/25 mt-0.5">Dine In · #{orderId?.slice(-6).toUpperCase()}</p>
           </div>
@@ -500,13 +576,13 @@ function OrderPage() {
         )}
         <div className="flex items-center gap-3">
           <div className="flex-1">
-            <p className="text-xs text-white/25">Table {table}{guests > 0 ? ` · ${guests} guests` : ''}</p>
+            <p className="text-xs text-white/25">Table {table}{guestCount > 0 ? ` · ${guestCount} guests` : ''}</p>
             <p className="text-base font-bold text-white tabular-nums">
               Total&nbsp;<span className={grandTotal > 0 ? 'text-amber-400' : 'text-white/30'}>{formatPrice(grandTotal)}</span>
             </p>
           </div>
           <div className="flex gap-2">
-            {grandTotal > 0 && (
+            {sentTotal > 0 && (
               <button onClick={() => setShowPayment(true)}
                 className="flex items-center gap-2 px-5 h-12 rounded-xl bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 text-sm font-semibold active:scale-95 transition-all touch-manipulation">
                 <CreditCard className="w-4 h-4" />Pay
@@ -605,12 +681,86 @@ function OrderPage() {
         )
       })()}
 
+      {/* Guest count edit numpad */}
+      {showGuestEdit && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center" onClick={() => setShowGuestEdit(false)}>
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+          <div
+            className="relative w-80 rounded-3xl border border-white/15 bg-[#0d1220]/98 backdrop-blur-2xl shadow-2xl overflow-hidden"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="px-5 py-4 border-b border-white/8 bg-amber-500/10">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-white/40 mb-0.5">Table {table}</p>
+                  <p className="text-lg font-bold text-amber-400">Update Guests</p>
+                </div>
+                <div className="w-12 h-12 rounded-2xl bg-amber-500/15 border border-amber-500/25 flex items-center justify-center text-lg font-bold text-white">
+                  T{table}
+                </div>
+              </div>
+            </div>
+
+            {/* Guest count label */}
+            <div className="px-6 pt-5 pb-4 text-center border-b border-white/8">
+              <div className="w-11 h-11 rounded-2xl bg-amber-500/15 border border-amber-500/25 flex items-center justify-center mx-auto mb-2.5">
+                <Users className="w-5 h-5 text-amber-400" />
+              </div>
+              <p className="text-base font-bold text-white">How many guests?</p>
+              <p className="text-xs text-white/30 mt-0.5">Current: {guestCount}</p>
+            </div>
+
+            {/* Display */}
+            <div className="flex items-center justify-center h-16 border-b border-white/8">
+              <span className={cn('text-5xl font-bold tabular-nums transition-all', guestDraft > 0 ? 'text-white' : 'text-white/15')}>
+                {guestDraft || '0'}
+              </span>
+            </div>
+
+            {/* Numpad */}
+            <div className="grid grid-cols-3 gap-px bg-white/5 border-t border-white/8">
+              {['1','2','3','4','5','6','7','8','9','⌫','0','✓'].map(k => (
+                <button
+                  key={k}
+                  onClick={() => {
+                    if (k === '✓') { saveGuestCount(guestDraft); return }
+                    if (k === '⌫') { setGuestDraft(v => Math.floor(v / 10)); return }
+                    const next = guestDraft * 10 + parseInt(k)
+                    if (next > 99) return
+                    setGuestDraft(next)
+                  }}
+                  className={cn(
+                    'h-14 text-xl font-semibold flex items-center justify-center transition-all active:scale-95 touch-manipulation',
+                    k === '✓'
+                      ? 'bg-amber-500 text-white hover:bg-amber-600 shadow-lg shadow-amber-500/20'
+                      : k === '⌫'
+                        ? 'bg-[#0d1220] text-rose-400/70 hover:bg-rose-500/10'
+                        : 'bg-[#0d1220] text-white/80 hover:bg-white/8'
+                  )}
+                >
+                  {k === '⌫' ? <Delete className="w-5 h-5" /> : k}
+                </button>
+              ))}
+            </div>
+
+            {/* Cancel */}
+            <div className="p-3 border-t border-white/8">
+              <button
+                onClick={() => setShowGuestEdit(false)}
+                className="w-full h-10 rounded-xl bg-white/6 hover:bg-white/10 text-white/50 text-sm font-medium transition-all active:scale-95"
+              >Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showPayment && orderId && restaurantId && (
         <PaymentScreen
           orderId={orderId}
           restaurantId={restaurantId}
           tableNum={table}
-          guests={guests}
+          guests={guestCount}
           items={sentItems.map(i => ({ name: i.item_name, price: i.item_price, qty: i.qty }))}
           total={grandTotal}
           onClose={() => setShowPayment(false)}

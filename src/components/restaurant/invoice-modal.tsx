@@ -7,6 +7,7 @@ import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 interface Item { name: string; price: number; qty: number }
 
 interface Props {
+  mode: 'receipt' | 'payment'
   orderId: string
   restaurantId: string
   tableNum: string
@@ -21,6 +22,11 @@ interface Props {
   changeAmount: number
   cashier: string
   note?: string
+  customerId?: string | null
+  customerName?: string | null
+  customerPhone?: string | null
+  invoiceNum?: string
+  orderNum?: string
   onClose: () => void
 }
 
@@ -46,9 +52,12 @@ const DEFAULT_RS: ReceiptSettings = {
 }
 
 export default function InvoiceModal({
-  orderId, restaurantId, tableNum, guests, items,
+  mode, orderId, restaurantId, tableNum, guests, items,
   subtotal, discount, surcharge, total, paymentMethod,
-  amountPaid, changeAmount, cashier, note, onClose,
+  amountPaid, changeAmount, cashier, note,
+  customerName, customerPhone,
+  invoiceNum: invoiceNumProp, orderNum: orderNumProp,
+  onClose,
 }: Props) {
   const supabase = createClient()
   const { formatPrice } = useDefaultCurrency()
@@ -70,74 +79,49 @@ export default function InvoiceModal({
     if (ranOnce.current) return
     ranOnce.current = true
     const load = async () => {
-      const [{ data: rest }, { data: rsData }, { data: invData }, { data: orderRecord }] = await Promise.all([
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const [{ data: rest }, { data: rsData }, { data: orderRecord }] = await Promise.all([
         supabase.from('restaurants').select('name').eq('id', restaurantId).maybeSingle(),
         supabase.from('receipt_settings').select('*').eq('restaurant_id', restaurantId).maybeSingle(),
-        supabase.from('invoice_number_settings').select('*').eq('restaurant_id', restaurantId).maybeSingle(),
         supabase.from('orders').select('order_num').eq('id', orderId).maybeSingle(),
       ])
 
-      setRestaurantName(rest?.name ?? '')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      setRestaurantName((rest as any)?.name ?? '')
 
       if (rsData) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const r = rsData as any
         setRs({
-          shop_name:       rsData.shop_name       ?? null,
-          logo_url:        rsData.logo_url        ?? null,
-          phone:           rsData.phone           ?? null,
-          address:         rsData.address         ?? null,
-          thank_you_msg:   rsData.thank_you_msg   ?? 'Thank you for your visit!',
-          currency_symbol: rsData.currency_symbol ?? '$',
-          show_qr:         rsData.show_qr         ?? true,
-          qr_url:          rsData.qr_url          ?? null,
-          show_logo:       rsData.show_logo       ?? true,
-          show_address:    rsData.show_address    ?? true,
-          show_phone:      rsData.show_phone      ?? true,
+          shop_name:       r.shop_name       ?? null,
+          logo_url:        r.logo_url        ?? null,
+          phone:           r.phone           ?? null,
+          address:         r.address         ?? null,
+          thank_you_msg:   r.thank_you_msg   ?? 'Thank you for your visit!',
+          currency_symbol: r.currency_symbol ?? '$',
+          show_qr:         r.show_qr         ?? true,
+          qr_url:          r.qr_url          ?? null,
+          show_logo:       r.show_logo       ?? true,
+          show_address:    r.show_address    ?? true,
+          show_phone:      r.show_phone      ?? true,
         })
       }
 
-      // Invoice number: read current, display, then increment
-      let invNum = `INV-${orderId.slice(-5).toUpperCase()}`
-      if (invData) {
-        const num = invData.current_num ?? invData.start_num ?? 1001
-        invNum = `${invData.prefix ?? 'INV-'}${num}`
-        await supabase
-          .from('invoice_number_settings')
-          .update({ current_num: num + 1, updated_at: new Date().toISOString() })
-          .eq('restaurant_id', restaurantId)
-      }
-      setInvoiceNum(invNum)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const fetchedOrderNum = (orderRecord as any)?.order_num ?? ''
+      setOrderNum(orderNumProp || fetchedOrderNum)
 
-      // Order number: already assigned at order creation time — just read it
-      const ordNum = orderRecord?.order_num ?? ''
-      setOrderNum(ordNum)
-
-      // Save invoice to database
-      await supabase.from('invoices').insert({
-        restaurant_id:  restaurantId,
-        invoice_num:    invNum,
-        order_num:      ordNum,
-        table_num:      tableNum,
-        guests,
-        cashier,
-        payment_method: paymentMethod,
-        items,
-        subtotal,
-        discount,
-        surcharge,
-        total,
-        amount_paid:    amountPaid,
-        change_amount:  changeAmount,
-      })
+      setInvoiceNum(invoiceNumProp || `INV-${orderId.slice(-5).toUpperCase()}`)
 
       setLoading(false)
     }
     load()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const cur  = rs.currency_symbol
   const name = rs.shop_name || restaurantName || 'Restaurant'
 
   const handlePrint = () => window.print()
+
 
   if (loading) return (
     <div className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm flex items-center justify-center">
@@ -226,6 +210,20 @@ export default function InvoiceModal({
             <div className="font-bold text-black">{orderNum}</div>
           </div>
 
+          {/* Customer info */}
+          {customerName && (
+            <>
+              <div className="border-t border-dashed border-gray-300" />
+              <div className="px-5 py-2 flex items-center justify-between text-[10px]">
+                <div>
+                  <span className="font-bold text-black">Customer: </span>
+                  <span className="font-extrabold text-black">{customerName}</span>
+                </div>
+                {customerPhone && <span className="font-bold text-black">{customerPhone}</span>}
+              </div>
+            </>
+          )}
+
           <div className="border-t border-dashed border-gray-300" />
 
           {/* Payment method */}
@@ -304,17 +302,13 @@ export default function InvoiceModal({
             <p className="text-[18px] font-extrabold text-black tabular-nums">
               {formatPrice(total)}
             </p>
-          </div>
-
-          {/* QR */}
-          {rs.show_qr && rs.qr_url && (
-            <>
-              <div className="border-t border-dashed border-gray-300" />
-              <div className="flex justify-center py-4">
-                <img src={rs.qr_url} alt="QR" className="w-20 h-20 object-contain" />
+            {mode === 'payment' && (
+              <div className="mt-2 pt-2 border-t border-gray-200">
+                <p className="text-[11px] font-bold text-emerald-600">✓ PAID</p>
+                <p className="text-[10px] font-bold text-gray-500 mt-0.5">{dateStr} · {timeStr}</p>
               </div>
-            </>
-          )}
+            )}
+          </div>
 
           {/* Invoice note */}
           {note && note.trim() && (
@@ -327,14 +321,49 @@ export default function InvoiceModal({
             </>
           )}
 
-          {/* Thank you + footer */}
-          <div className="border-t border-dashed border-gray-300" />
-          <div className="px-5 py-4 text-center space-y-1">
-            {rs.thank_you_msg && (
-              <p className="font-extrabold text-black text-[13px]">{rs.thank_you_msg}</p>
-            )}
-            <p className="text-[9px] font-bold text-black">Powered by ClickGroup · 07701466787</p>
-          </div>
+          {/* QR + branding — receipt mode only (for guest) */}
+          {mode === 'receipt' && (
+            <>
+              {rs.show_qr && rs.qr_url && (
+                <>
+                  <div className="border-t border-dashed border-gray-300" />
+                  <div className="flex justify-center py-4">
+                    <img src={rs.qr_url} alt="QR" className="w-20 h-20 object-contain" />
+                  </div>
+                </>
+              )}
+              {/* Feedback section — printed write-in area */}
+              <div className="border-t border-dashed border-gray-300" />
+              <div className="px-5 py-4">
+                <p className="text-[11px] font-extrabold text-black text-center mb-3 uppercase tracking-wide">Your Feedback</p>
+                <div className="space-y-3">
+                  {[
+                    { label: 'Name' },
+                    { label: 'Phone / Email' },
+                  ].map(({ label }) => (
+                    <div key={label}>
+                      <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-1">{label}</p>
+                      <div className="border-b border-gray-300 h-5" />
+                    </div>
+                  ))}
+                  <div>
+                    <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-1">Feedback</p>
+                    <div className="border-b border-gray-300 h-5" />
+                    <div className="border-b border-gray-300 h-5 mt-2" />
+                    <div className="border-b border-gray-300 h-5 mt-2" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t border-dashed border-gray-300" />
+              <div className="px-5 py-4 text-center space-y-1">
+                {rs.thank_you_msg && (
+                  <p className="font-extrabold text-black text-[13px]">{rs.thank_you_msg}</p>
+                )}
+                <p className="text-[9px] font-bold text-black">Powered by ClickGroup · 07701466787</p>
+              </div>
+            </>
+          )}
 
         </div>
       </div>

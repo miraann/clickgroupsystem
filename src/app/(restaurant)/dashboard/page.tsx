@@ -1,10 +1,13 @@
 'use client'
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   ChefHat, Clock, Users, ShoppingBag,
   Plus, RefreshCw, LayoutGrid,
   LogOut, Bell, Settings, DollarSign,
   Utensils, Coffee, ChevronRight, Delete,
+  CalendarDays, Phone, Check, AlertCircle, Loader2,
+  ArrowRightLeft, Merge, Receipt, Printer, X as XIcon, Truck,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
@@ -12,7 +15,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 
-type TableStatus = 'available' | 'occupied' | 'reserved' | 'dirty'
+type TableStatus = 'available' | 'occupied' | 'reserved' | 'dirty' | 'bill_requested'
 
 interface TableGroup { id: string; name: string; color: string }
 
@@ -68,6 +71,15 @@ const STATUS_CONFIG = {
     glow: 'shadow-rose-500/10',
     hover: 'hover:bg-rose-500/20 hover:border-rose-500/40',
   },
+  bill_requested: {
+    label: 'Bill Requested',
+    bg: 'bg-red-500/20',
+    border: 'border-red-500/60',
+    text: 'text-red-400',
+    dot: 'bg-red-400',
+    glow: 'shadow-red-500/30',
+    hover: 'hover:bg-red-500/30 hover:border-red-500/80',
+  },
 }
 
 function TableTimer({ openedAt }: { openedAt: string }) {
@@ -94,77 +106,184 @@ function TableTimer({ openedAt }: { openedAt: string }) {
   return <span>{elapsed}</span>
 }
 
-function TableCard({ table, onSelect, formatPrice }: { table: Table; onSelect: (t: Table) => void; cur: string; formatPrice: (n: number) => string }) {
+// ── Quick Action Menu ─────────────────────────────────────────
+function QuickMenu({ table, onClose, onQuickPay, router }: {
+  table: Table; onClose: () => void
+  onQuickPay: (t: Table) => void
+  router: ReturnType<typeof import('next/navigation').useRouter>
+}) {
+  const actions = [
+    { icon: ArrowRightLeft, label: 'Move Table',   color: 'text-blue-400',    onClick: () => { onClose() } },
+    { icon: Merge,          label: 'Merge Tables',  color: 'text-violet-400',  onClick: () => { onClose() } },
+    { icon: Receipt,        label: 'Quick Pay',     color: 'text-amber-400',   onClick: () => { onClose(); onQuickPay(table) } },
+    { icon: Printer,        label: 'Print Bill',    color: 'text-emerald-400', onClick: () => { onClose() } },
+    { icon: XIcon,          label: 'Cancel',        color: 'text-white/40',    onClick: onClose },
+  ]
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        className="fixed inset-0 z-[55] flex items-center justify-center"
+        onClick={onClose}
+      >
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+        <motion.div
+          initial={{ scale: 0.85, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.85, opacity: 0 }} transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+          className="relative bg-[#0d1220]/95 border border-white/15 rounded-3xl shadow-2xl backdrop-blur-2xl overflow-hidden w-72"
+          onClick={e => e.stopPropagation()}
+        >
+          <div className="px-5 py-4 border-b border-white/8 flex items-center gap-3">
+            <div className={cn('w-10 h-10 rounded-2xl flex items-center justify-center text-sm font-bold border',
+              STATUS_CONFIG[table.status].bg, STATUS_CONFIG[table.status].border, STATUS_CONFIG[table.status].text)}>
+              {table.label}
+            </div>
+            <div>
+              <p className="text-sm font-bold text-white">Table {table.label}</p>
+              <p className={cn('text-xs font-semibold', STATUS_CONFIG[table.status].text)}>{STATUS_CONFIG[table.status].label}</p>
+            </div>
+          </div>
+          <div className="p-2">
+            {actions.map(a => (
+              <button key={a.label} onClick={a.onClick}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/6 active:scale-95 transition-all text-left">
+                <a.icon className={cn('w-4 h-4 shrink-0', a.color)} />
+                <span className={cn('text-sm font-medium', a.color)}>{a.label}</span>
+              </button>
+            ))}
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  )
+}
+
+// ── Enhanced Table Card ────────────────────────────────────────
+function TableCard({ table, onSelect, onLongPress, formatPrice }: {
+  table: Table
+  onSelect: (t: Table) => void
+  onLongPress: (t: Table) => void
+  cur: string
+  formatPrice: (n: number) => string
+}) {
   const cfg = STATUS_CONFIG[table.status]
   const isRound = table.shape === 'round'
   const isRect  = table.shape === 'rect'
+  const isBillReq = table.status === 'bill_requested'
+
+  // Long-press detection
+  const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const didLongPress = useRef(false)
+
+  const startPress = () => {
+    didLongPress.current = false
+    pressTimer.current = setTimeout(() => {
+      didLongPress.current = true
+      onLongPress(table)
+    }, 600)
+  }
+  const endPress = () => {
+    if (pressTimer.current) clearTimeout(pressTimer.current)
+  }
+  const handleClick = () => {
+    if (!didLongPress.current) onSelect(table)
+  }
+
+  const w = isRound
+    ? (table.status === 'occupied' || isBillReq ? 110 : 90)
+    : isRect
+      ? (table.status === 'occupied' || isBillReq ? 190 : 175)
+      : (table.status === 'occupied' || isBillReq ? 110 : 90)
+  const h = table.status === 'occupied' || isBillReq ? 110 : 90
+
   return (
-    <button
-      onClick={() => onSelect(table)}
+    <motion.button
+      layout
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.9 }}
+      whileTap={{ scale: 0.93 }}
+      transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+      onPointerDown={startPress}
+      onPointerUp={endPress}
+      onPointerLeave={endPress}
+      onClick={handleClick}
+      style={{ width: w, height: h }}
       className={cn(
-        'relative border backdrop-blur-xl p-3 text-left transition-all duration-200',
-        'active:scale-95 touch-manipulation shadow-lg flex flex-col',
-        isRound
-          ? cn('rounded-full items-center justify-center text-center shrink-0', table.status === 'occupied' ? 'w-[110px] h-[110px]' : 'w-[90px] h-[90px]')
-          : isRect
-            ? cn('rounded-xl shrink-0', table.status === 'occupied' ? 'w-[190px] h-[110px]' : 'w-[175px] h-[90px]')
-            : cn('rounded-xl shrink-0', table.status === 'occupied' ? 'w-[110px] h-[110px]' : 'w-[90px] h-[90px]'),
+        'relative border backdrop-blur-xl p-3 text-left shrink-0 touch-manipulation shadow-lg flex flex-col',
+        isRound ? 'rounded-full items-center justify-center text-center' : 'rounded-2xl',
         cfg.bg, cfg.border, cfg.glow, cfg.hover,
+        isBillReq && 'animate-pulse',
       )}
     >
+      {/* Glow overlay for bill_requested */}
+      {isBillReq && (
+        <div className="absolute inset-0 rounded-2xl bg-red-500/10 animate-ping pointer-events-none" />
+      )}
+
       {isRound ? (
-        /* ── Round: fully centered layout ── */
-        <div className="flex flex-col items-center justify-center gap-1 w-full h-full">
+        <div className="flex flex-col items-center justify-center gap-0.5 w-full h-full">
           <span className={cn('text-sm font-bold', cfg.text)}>{table.label}</span>
           <span className={cn('text-[9px] font-bold uppercase tracking-wider', cfg.text)}>{cfg.label}</span>
-          {table.status === 'occupied' && (
+          {(table.status === 'occupied' || isBillReq) && (
             <>
-              <span className="text-xs text-white/60 tabular-nums">{table.orderTotal != null ? formatPrice(table.orderTotal) : ''}</span>
-              <span className="text-[9px] text-white/35 tabular-nums"><TableTimer openedAt={table.openedAt!} /></span>
+              <span className="text-[10px] text-white/60 tabular-nums font-semibold">{table.orderTotal != null ? formatPrice(table.orderTotal) : ''}</span>
+              <span className="text-[9px] text-white/35"><TableTimer openedAt={table.openedAt!} /></span>
             </>
           )}
-          {table.status === 'available' && (
-            <span className="text-[9px] text-white/30">{table.capacity} seats</span>
-          )}
-          <div className={cn('w-1.5 h-1.5 rounded-full animate-pulse mt-0.5', cfg.dot)} />
+          {table.status === 'available' && <span className="text-[9px] text-white/30">{table.capacity} seats</span>}
+          <motion.div animate={{ scale: [1, 1.4, 1] }} transition={{ repeat: Infinity, duration: 2 }}
+            className={cn('w-1.5 h-1.5 rounded-full mt-0.5', cfg.dot)} />
         </div>
       ) : (
-        /* ── Square / Rectangle: standard layout ── */
         <>
-          <div className="flex items-center justify-between mb-2">
-            <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold', cfg.bg, cfg.border, 'border', cfg.text)}>
+          {/* Header row */}
+          <div className="flex items-center justify-between mb-1.5">
+            <div className={cn('px-2 py-0.5 rounded-lg border text-xs font-bold', cfg.bg, cfg.border, cfg.text)}>
               {table.label}
             </div>
-            <div className={cn('w-1.5 h-1.5 rounded-full animate-pulse', cfg.dot)} />
+            <motion.div animate={{ scale: [1, 1.5, 1], opacity: [1, 0.5, 1] }}
+              transition={{ repeat: Infinity, duration: isBillReq ? 0.8 : 2.5 }}
+              className={cn('w-2 h-2 rounded-full', cfg.dot)} />
           </div>
 
-          <p className={cn('text-[10px] font-bold uppercase tracking-wider mb-auto', cfg.text)}>
-            {cfg.label}
+          {/* Status label */}
+          <p className={cn('text-[9px] font-bold uppercase tracking-widest mb-auto', cfg.text)}>
+            {isBillReq ? '⚠ Bill Requested' : cfg.label}
           </p>
 
-          {table.status === 'occupied' && (
-            <div className="space-y-1">
-              <div className="flex items-center justify-between">
+          {/* Occupied / Bill Requested info */}
+          {(table.status === 'occupied' || isBillReq) && (
+            <div className="space-y-0.5">
+              <div className="flex items-center justify-between gap-1">
                 <div className="flex items-center gap-1">
                   <Users className="w-3 h-3 text-white/40" />
-                  <span className="text-xs text-white/70">{table.guests}</span>
+                  <span className="text-xs text-white/70">{table.guests ?? 0}</span>
                 </div>
-                <span className="text-xs text-white/40 tabular-nums"><TableTimer openedAt={table.openedAt!} /></span>
+                <span className="text-[10px] text-white/40 tabular-nums"><TableTimer openedAt={table.openedAt!} /></span>
               </div>
-              <p className="text-xs font-bold text-white tabular-nums">{table.orderTotal != null ? formatPrice(table.orderTotal) : ''}</p>
+              <p className={cn('text-sm font-bold tabular-nums', isBillReq ? 'text-red-400' : 'text-white')}>
+                {table.orderTotal != null ? formatPrice(table.orderTotal) : '—'}
+              </p>
             </div>
           )}
+
+          {/* Available */}
           {table.status === 'available' && (
             <div className="flex items-center gap-1">
               <Users className="w-3 h-3 text-white/20" />
               <span className="text-xs text-white/30">{table.capacity}</span>
             </div>
           )}
-          {table.status === 'reserved' && <p className="text-xs text-indigo-300/50">Reserved</p>}
-          {table.status === 'dirty'    && <p className="text-xs text-rose-300/40">Cleaning</p>}
+
+          {/* Reserved */}
+          {table.status === 'reserved' && <p className="text-[10px] text-indigo-300/60 font-medium">Reserved</p>}
+
+          {/* Dirty */}
+          {table.status === 'dirty' && <p className="text-[10px] text-rose-300/50 font-medium">Cleaning</p>}
         </>
       )}
-    </button>
+    </motion.button>
   )
 }
 
@@ -175,12 +294,16 @@ export default function TablesPage() {
   const [groupFilter, setGroupFilter] = useState<string | 'all'>('all')
   const [selectedTable, setSelectedTable] = useState<Table | null>(null)
   const [guestTable, setGuestTable] = useState<Table | null>(null)
+  const [reservationDetail, setReservationDetail] = useState<{ id: string; guest_name: string; guest_phone: string | null; party_size: number; date: string; time: string; note: string | null; status: string } | null>(null)
+  const [quickMenuTable, setQuickMenuTable] = useState<Table | null>(null)
   const [time, setTime] = useState(new Date())
   const [restaurant, setRestaurant] = useState<{ name: string; logo_url: string | null } | null>(null)
   const [groups, setGroups] = useState<TableGroup[]>([])
   const [activeOrders, setActiveOrders]   = useState<Map<number, { guests: number; total: number; openedAt: string }>>(new Map())
   const [dbTableLayout, setDbTableLayout] = useState<{ id: string; number: number; label: string; capacity: number; shape: 'square' | 'round' | 'rect'; group_id: string | null }[]>([])
+  const [reservedTableIds, setReservedTableIds] = useState<Set<string>>(new Set())
   const [pendingCount, setPendingCount]   = useState(0)
+  const [deliveryCount, setDeliveryCount] = useState(0)
 
   const fetchOrders = useCallback(async () => {
     const supabase = createClient()
@@ -188,32 +311,57 @@ export default function TablesPage() {
     if (!rest) return
     setRestaurant({ name: rest.name, logo_url: rest.logo_url })
 
-    const [{ data: dbTables }, { data: orders }, { data: grps }, { count: pendingCnt }] = await Promise.all([
-      supabase.from('tables').select('seq, table_number, capacity, shape, group_id').eq('restaurant_id', rest.id).eq('active', true).order('table_number'),
-      supabase.from('orders').select('table_number, guests, total, created_at').eq('restaurant_id', rest.id).eq('status', 'active'),
+    const today = new Date().toISOString().slice(0, 10)
+    const [{ data: dbTables }, { data: orders }, { data: grps }, { count: pendingCnt }, { data: todayRes }, { count: deliveryCnt }] = await Promise.all([
+      supabase.from('tables').select('id, seq, table_number, capacity, shape, group_id').eq('restaurant_id', rest.id).eq('active', true).order('table_number'),
+      supabase.from('orders').select('id, table_number, guests, total, created_at').eq('restaurant_id', rest.id).eq('status', 'active'),
       supabase.from('table_groups').select('id, name, color').eq('restaurant_id', rest.id).order('sort_order'),
-      supabase.from('order_items').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+      supabase.from('order_items').select('id, orders!inner(source)', { count: 'exact', head: true }).eq('status', 'pending').not('orders.source', 'eq', 'delivery'),
+      supabase.from('reservations').select('table_id').eq('restaurant_id', rest.id).eq('date', today).in('status', ['pending', 'confirmed']),
+      supabase.from('delivery_orders').select('id', { count: 'exact', head: true }).eq('restaurant_id', rest.id).eq('status', 'pending'),
     ])
+    // Build reserved table IDs set
+    const resSet = new Set<string>((todayRes ?? []).map((r: { table_id: string | null }) => r.table_id).filter(Boolean) as string[])
+    setReservedTableIds(resSet)
     setPendingCount(pendingCnt ?? 0)
+    setDeliveryCount(deliveryCnt ?? 0)
     if (grps && grps.length > 0) {
       setGroups(grps as TableGroup[])
       setGroupFilter(f => f === 'all' ? grps[0].id : f)
     }
 
-    // Build order map
+    // Build order map — only include orders that have at least one non-void item
     const map = new Map<number, { guests: number; total: number; openedAt: string }>()
-    orders?.forEach(o => {
-      map.set(Number(o.table_number), {
-        guests:   o.guests ?? 0,
-        total:    o.total  ?? 0,
-        openedAt: new Date(o.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+    const orderIds = (orders ?? []).map(o => o.id)
+    if (orderIds.length > 0) {
+      const { data: activeItems } = await supabase
+        .from('order_items')
+        .select('order_id')
+        .in('order_id', orderIds)
+        .neq('status', 'void')
+      const activeOrderIds = new Set((activeItems ?? []).map(i => i.order_id))
+
+      // Auto-close orders that have no non-void items left
+      const staleIds = orderIds.filter(id => !activeOrderIds.has(id))
+      if (staleIds.length > 0) {
+        await supabase.from('orders')
+          .update({ status: 'closed', updated_at: new Date().toISOString() })
+          .in('id', staleIds)
+      }
+
+      orders?.filter(o => activeOrderIds.has(o.id)).forEach(o => {
+        map.set(Number(o.table_number), {
+          guests:   o.guests ?? 0,
+          total:    o.total  ?? 0,
+          openedAt: new Date(o.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+        })
       })
-    })
+    }
     setActiveOrders(map)
 
     if (dbTables && dbTables.length > 0) {
       setDbTableLayout(dbTables.map(t => ({
-        id:       `db-${t.seq}`,
+        id:       t.id,
         number:   t.seq,
         label:    t.table_number ?? String(t.seq),
         capacity: t.capacity ?? 4,
@@ -256,9 +404,9 @@ export default function TablesPage() {
 
   const tables: Table[] = dbTableLayout.map(t => {
     const order = activeOrders.get(t.number)
-    return order
-      ? { ...t, status: 'occupied' as const, guests: order.guests, orderTotal: order.total, openedAt: order.openedAt }
-      : { ...t, status: 'available' as const }
+    if (order) return { ...t, status: 'occupied' as const, guests: order.guests, orderTotal: order.total, openedAt: order.openedAt }
+    if (reservedTableIds.has(t.id)) return { ...t, status: 'reserved' as const }
+    return { ...t, status: 'available' as const }
   })
 
   const openOrder = (table: Table, guests?: number) => {
@@ -418,7 +566,16 @@ export default function TablesPage() {
         {/* Tables grid */}
         <div className="flex flex-wrap gap-2">
           {filtered.map(table => (
-            <TableCard key={table.id} table={table} onSelect={t => t.status === 'available' || t.status === 'reserved' ? setGuestTable(t) : setSelectedTable(t)} cur={cur} formatPrice={formatPrice} />
+            <TableCard key={table.id} table={table} onSelect={async t => {
+              if (t.status === 'reserved') {
+                const supabase = createClient()
+                const today = new Date().toISOString().slice(0, 10)
+                const { data } = await supabase.from('reservations').select('id,guest_name,guest_phone,party_size,date,time,note,status').eq('table_id', t.id).eq('date', today).in('status', ['pending','confirmed']).order('time').limit(1).maybeSingle()
+                if (data) { setReservationDetail(data as typeof reservationDetail); return }
+              }
+              if (t.status === 'available' || t.status === 'reserved') setGuestTable(t)
+              else setSelectedTable(t)
+            }} onLongPress={t => setQuickMenuTable(t)} cur={cur} formatPrice={formatPrice} />
           ))}
         </div>
       </div>
@@ -430,16 +587,39 @@ export default function TablesPage() {
             <Plus className="w-4 h-4" />
             New Order
           </button>
-          <button className="flex items-center justify-center gap-2 h-12 rounded-xl bg-white/8 border border-white/12 hover:bg-white/12 active:scale-95 text-white/70 text-sm font-medium transition-all touch-manipulation">
-            <ShoppingBag className="w-4 h-4" />
-            Takeaway
-          </button>
+          <Link
+            href="/dashboard/delivery-orders"
+            className={cn(
+              'relative flex items-center justify-center gap-2 h-12 rounded-xl border text-sm font-semibold transition-all active:scale-95 touch-manipulation',
+              deliveryCount > 0
+                ? 'bg-indigo-500/20 border-indigo-500/40 text-indigo-300 hover:bg-indigo-500/30'
+                : 'bg-white/8 border-white/12 text-white/70 hover:bg-white/12'
+            )}
+          >
+            <Truck className="w-4 h-4" />
+            Delivery
+            {deliveryCount > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 rounded-full bg-indigo-500 text-white text-[10px] font-bold flex items-center justify-center px-1 shadow-lg shadow-indigo-500/40">
+                {deliveryCount > 99 ? '99+' : deliveryCount}
+              </span>
+            )}
+          </Link>
           <Link href="/dashboard/settings" className="flex items-center justify-center gap-2 h-12 rounded-xl bg-white/8 border border-white/12 hover:bg-white/12 active:scale-95 text-white/70 text-sm font-medium transition-all touch-manipulation">
             <Settings className="w-4 h-4" />
             Settings
           </Link>
         </div>
       </div>
+
+      {/* Long-press quick menu */}
+      {quickMenuTable && (
+        <QuickMenu
+          table={quickMenuTable}
+          onClose={() => setQuickMenuTable(null)}
+          onQuickPay={t => { setQuickMenuTable(null); openOrder(t) }}
+          router={router}
+        />
+      )}
 
       {/* Guest count numpad */}
       {guestTable && (
@@ -448,6 +628,86 @@ export default function TablesPage() {
           onConfirm={guests => { setGuestTable(null); openOrder(guestTable, guests) }}
           onClose={() => setGuestTable(null)}
         />
+      )}
+
+      {/* Reservation detail modal */}
+      {reservationDetail && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setReservationDetail(null)}>
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+          <div className="relative w-80 rounded-3xl border border-indigo-500/25 bg-[#0d1220]/98 backdrop-blur-2xl shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+
+            {/* Header */}
+            <div className="px-5 py-4 bg-indigo-500/10 border-b border-indigo-500/20">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-white/40 mb-0.5">Reservation</p>
+                  <p className="text-lg font-bold text-indigo-400">Reserved Table</p>
+                </div>
+                <div className="w-10 h-10 rounded-2xl bg-indigo-500/15 border border-indigo-500/25 flex items-center justify-center">
+                  <CalendarDays className="w-5 h-5 text-indigo-400" />
+                </div>
+              </div>
+            </div>
+
+            {/* Details */}
+            <div className="px-5 py-4 space-y-3">
+              <div className="rounded-2xl bg-white/4 border border-white/8 divide-y divide-white/5">
+                {[
+                  ['Guest',      reservationDetail.guest_name],
+                  ['Phone',      reservationDetail.guest_phone ?? '—'],
+                  ['Date',       new Date(reservationDetail.date + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short' })],
+                  ['Time',       reservationDetail.time],
+                  ['Guest Num', `${reservationDetail.party_size} guests`],
+                  ['Status',     reservationDetail.status.charAt(0).toUpperCase() + reservationDetail.status.slice(1)],
+                ].map(([label, value]) => (
+                  <div key={label} className="flex items-center justify-between px-4 py-2.5 gap-4">
+                    <span className="text-xs text-white/35 shrink-0">{label}</span>
+                    <span className="text-xs text-white/80 font-semibold text-right truncate">{value}</span>
+                  </div>
+                ))}
+                {reservationDetail.note && (
+                  <div className="px-4 py-2.5">
+                    <span className="text-xs text-white/35 block mb-1">Note</span>
+                    <span className="text-xs text-white/60 italic">{reservationDetail.note}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="px-5 pb-5 grid grid-cols-2 gap-2">
+              <button
+                onClick={async () => {
+                  const supabase = createClient()
+                  await supabase.from('reservations').update({ status: 'seated' }).eq('id', reservationDetail.id)
+                  setReservationDetail(null)
+                  fetchOrders()
+                }}
+                className="h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 text-sm font-semibold flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+              >
+                <Users className="w-4 h-4" />Seat Guests
+              </button>
+              <button
+                onClick={async () => {
+                  const supabase = createClient()
+                  await supabase.from('reservations').update({ status: 'cancelled' }).eq('id', reservationDetail.id)
+                  setReservationDetail(null)
+                  fetchOrders()
+                }}
+                className="h-10 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm font-semibold flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+              >
+                Cancel
+              </button>
+            </div>
+
+            <div className="px-5 pb-4">
+              <button onClick={() => setReservationDetail(null)}
+                className="w-full h-9 rounded-xl bg-white/5 border border-white/10 text-white/40 text-sm font-medium active:scale-95 transition-all">
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Table detail sheet */}
@@ -597,7 +857,19 @@ function GuestNumpad({
   onConfirm: (guests: number) => void
   onClose: () => void
 }) {
-  const [value, setValue] = useState('')
+  const supabase = createClient()
+  const [value, setValue]           = useState('')
+  const [view, setView]             = useState<'numpad' | 'reserve'>('numpad')
+  const [resName, setResName]       = useState('')
+  const [resPhone, setResPhone]     = useState('')
+  const [resDate, setResDate]       = useState(new Date().toISOString().slice(0, 10))
+  const [resTime, setResTime]       = useState('')
+  const [resParty, setResParty]     = useState(2)
+  const [resNote, setResNote]       = useState('')
+  const [resSaving, setResSaving]   = useState(false)
+  const [resSaved, setResSaved]     = useState(false)
+  const [resErr, setResErr]         = useState<string | null>(null)
+
   const cfg = STATUS_CONFIG[table.status]
 
   const press = (key: string) => {
@@ -613,7 +885,46 @@ function GuestNumpad({
     onConfirm(n >= 1 ? n : 0)
   }
 
+  const handleReserve = async () => {
+    if (!resName.trim()) { setResErr('Guest name is required'); return }
+    if (!resDate)        { setResErr('Date is required'); return }
+    if (!resTime)        { setResErr('Time is required'); return }
+    setResSaving(true); setResErr(null)
+    const { data: rest } = await supabase.from('restaurants').select('id').limit(1).maybeSingle()
+    if (!rest?.id) { setResErr('Restaurant not found'); setResSaving(false); return }
+    const { error } = await supabase.from('reservations').insert({
+      restaurant_id: rest.id,
+      guest_name:    resName.trim(),
+      guest_phone:   resPhone.trim() || null,
+      party_size:    resParty,
+      date:          resDate,
+      time:          resTime,
+      table_id:      table.id ?? null,
+      table_label:   table.label,
+      note:          resNote.trim() || null,
+      status:        'confirmed',
+    })
+    if (error) { setResErr(error.message); setResSaving(false); return }
+    setResSaving(false); setResSaved(true)
+    setTimeout(() => onClose(), 1500)
+  }
+
   const KEYS = ['1','2','3','4','5','6','7','8','9','⌫','0','✓']
+
+  // ── Table header (shared) ──────────────────────────────────
+  const TableHeader = (
+    <div className={cn('px-5 py-4 border-b border-white/8', cfg.bg)}>
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-white/40 mb-0.5">Table {table.label}</p>
+          <p className={cn('text-lg font-bold', cfg.text)}>{cfg.label}</p>
+        </div>
+        <div className={cn('w-12 h-12 rounded-2xl border flex items-center justify-center text-lg font-bold text-white', cfg.bg, cfg.border)}>
+          {table.label}
+        </div>
+      </div>
+    </div>
+  )
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={onClose}>
@@ -622,73 +933,149 @@ function GuestNumpad({
         className="relative w-80 rounded-3xl border border-white/15 bg-[#0d1220]/98 backdrop-blur-2xl shadow-2xl overflow-hidden"
         onClick={e => e.stopPropagation()}
       >
-        {/* Table card header */}
-        <div className={cn('px-5 py-4 border-b border-white/8', cfg.bg)}>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-white/40 mb-0.5">Table {table.label}</p>
-              <p className={cn('text-lg font-bold', cfg.text)}>{cfg.label}</p>
+        {TableHeader}
+
+        {view === 'numpad' ? (
+          <>
+            {/* Guest count header */}
+            <div className="px-6 pt-5 pb-4 text-center border-b border-white/8">
+              <div className="w-11 h-11 rounded-2xl bg-amber-500/15 border border-amber-500/25 flex items-center justify-center mx-auto mb-2.5">
+                <Users className="w-5 h-5 text-amber-400" />
+              </div>
+              <p className="text-base font-bold text-white">How many guests?</p>
+              <p className="text-xs text-white/30 mt-0.5">Up to {table.capacity}</p>
             </div>
-            <div className={cn('w-12 h-12 rounded-2xl border flex items-center justify-center text-lg font-bold text-white', cfg.bg, cfg.border)}>
-              {table.label}
+
+            {/* Display */}
+            <div className="flex items-center justify-center h-16 border-b border-white/8">
+              <span className={cn('text-5xl font-bold tabular-nums transition-all', value ? 'text-white' : 'text-white/15')}>
+                {value || '0'}
+              </span>
             </div>
-          </div>
-        </div>
 
-        {/* Guest count header */}
-        <div className="px-6 pt-5 pb-4 text-center border-b border-white/8">
-          <div className="w-11 h-11 rounded-2xl bg-amber-500/15 border border-amber-500/25 flex items-center justify-center mx-auto mb-2.5">
-            <Users className="w-5 h-5 text-amber-400" />
-          </div>
-          <p className="text-base font-bold text-white">How many guests?</p>
-          <p className="text-xs text-white/30 mt-0.5">Up to {table.capacity}</p>
-        </div>
+            {/* Numpad */}
+            <div className="grid grid-cols-3 gap-px bg-white/5 border-t border-white/8">
+              {KEYS.map(k => (
+                <button key={k} onClick={() => k === '✓' ? confirm() : press(k)}
+                  className={cn(
+                    'h-14 text-xl font-semibold flex items-center justify-center transition-all active:scale-95 touch-manipulation',
+                    k === '✓' ? 'bg-amber-500 text-white hover:bg-amber-600 shadow-lg shadow-amber-500/20'
+                      : k === '⌫' ? 'bg-[#0d1220] text-rose-400/70 hover:bg-rose-500/10'
+                      : 'bg-[#0d1220] text-white/80 hover:bg-white/8'
+                  )}>
+                  {k === '⌫' ? <Delete className="w-5 h-5" /> : k}
+                </button>
+              ))}
+            </div>
 
-        {/* Display */}
-        <div className="flex items-center justify-center h-16 border-b border-white/8">
-          <span className={cn(
-            'text-5xl font-bold tabular-nums transition-all',
-            value ? 'text-white' : 'text-white/15'
-          )}>
-            {value || '0'}
-          </span>
-        </div>
+            {/* Footer */}
+            <div className="grid grid-cols-2 gap-2 p-3 border-t border-white/8">
+              <button
+                onClick={() => setView('reserve')}
+                className="h-10 rounded-xl bg-indigo-500/15 border border-indigo-500/25 text-indigo-400 text-sm font-medium flex items-center justify-center gap-1.5 active:scale-95 transition-all touch-manipulation"
+              >
+                <Coffee className="w-4 h-4" />Reserve
+              </button>
+              <button onClick={onClose}
+                className="h-10 rounded-xl bg-white/5 border border-white/10 text-white/50 text-sm font-medium flex items-center justify-center active:scale-95 transition-all touch-manipulation">
+                Cancel
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Reserve form */}
+            <div className="px-5 pt-4 pb-2 border-b border-white/8 flex items-center gap-2">
+              <CalendarDays className="w-4 h-4 text-indigo-400" />
+              <p className="text-sm font-bold text-white">Reserve Table {table.label}</p>
+            </div>
 
-        {/* Numpad */}
-        <div className="grid grid-cols-3 gap-px bg-white/5 border-t border-white/8">
-          {KEYS.map(k => (
-            <button
-              key={k}
-              onClick={() => k === '✓' ? confirm() : press(k)}
-              className={cn(
-                'h-14 text-xl font-semibold flex items-center justify-center transition-all active:scale-95 touch-manipulation',
-                k === '✓'
-                  ? 'bg-amber-500 text-white hover:bg-amber-600 shadow-lg shadow-amber-500/20'
-                  : k === '⌫'
-                    ? 'bg-[#0d1220] text-rose-400/70 hover:bg-rose-500/10'
-                    : 'bg-[#0d1220] text-white/80 hover:bg-white/8'
-              )}
-            >
-              {k === '⌫' ? <Delete className="w-5 h-5" /> : k}
-            </button>
-          ))}
-        </div>
+            {resSaved ? (
+              <div className="flex flex-col items-center justify-center py-10 gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center">
+                  <Check className="w-6 h-6 text-emerald-400" />
+                </div>
+                <p className="text-sm font-bold text-emerald-400">Reservation Confirmed!</p>
+              </div>
+            ) : (
+              <div className="px-5 py-4 space-y-3 max-h-[60vh] overflow-y-auto">
+                {/* Name */}
+                <div>
+                  <p className="text-[10px] text-white/40 mb-1 uppercase tracking-wider">Guest Name <span className="text-rose-400">*</span></p>
+                  <input value={resName} onChange={e => setResName(e.target.value)}
+                    placeholder="Full name"
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/20 focus:outline-none focus:border-indigo-500/40 transition-colors" />
+                </div>
 
-        {/* Footer actions */}
-        <div className="grid grid-cols-2 gap-2 p-3 border-t border-white/8">
-          <button
-            className="h-10 rounded-xl bg-indigo-500/15 border border-indigo-500/25 text-indigo-400 text-sm font-medium flex items-center justify-center gap-1.5 active:scale-95 transition-all touch-manipulation"
-          >
-            <Coffee className="w-4 h-4" />
-            Reserve
-          </button>
-          <button
-            onClick={onClose}
-            className="h-10 rounded-xl bg-white/5 border border-white/10 text-white/50 text-sm font-medium flex items-center justify-center active:scale-95 transition-all touch-manipulation"
-          >
-            Cancel
-          </button>
-        </div>
+                {/* Phone */}
+                <div>
+                  <p className="text-[10px] text-white/40 mb-1 uppercase tracking-wider">Phone</p>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/30" />
+                    <input value={resPhone} onChange={e => setResPhone(e.target.value)}
+                      placeholder="07xx…" type="tel"
+                      className="w-full pl-8 pr-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/20 focus:outline-none focus:border-indigo-500/40 transition-colors" />
+                  </div>
+                </div>
+
+                {/* Date + Time */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <p className="text-[10px] text-white/40 mb-1 uppercase tracking-wider">Date <span className="text-rose-400">*</span></p>
+                    <input value={resDate} onChange={e => setResDate(e.target.value)} type="date"
+                      className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-white/70 focus:outline-none focus:border-indigo-500/40 [color-scheme:dark] cursor-pointer" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-white/40 mb-1 uppercase tracking-wider">Time <span className="text-rose-400">*</span></p>
+                    <input value={resTime} onChange={e => setResTime(e.target.value)} type="time"
+                      className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-white/70 focus:outline-none focus:border-indigo-500/40 [color-scheme:dark] cursor-pointer" />
+                  </div>
+                </div>
+
+                {/* Party size */}
+                <div>
+                  <p className="text-[10px] text-white/40 mb-1 uppercase tracking-wider">Guest Num</p>
+                  <div className="flex items-center gap-3">
+                    <button onClick={() => setResParty(v => Math.max(1, v - 1))}
+                      className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-white/60 hover:bg-white/10 active:scale-95 transition-all text-lg font-bold">−</button>
+                    <span className="flex-1 text-center text-lg font-bold text-indigo-400">{resParty}</span>
+                    <button onClick={() => setResParty(v => Math.min(table.capacity, v + 1))}
+                      className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-white/60 hover:bg-white/10 active:scale-95 transition-all text-lg font-bold">+</button>
+                  </div>
+                </div>
+
+                {/* Note */}
+                <div>
+                  <p className="text-[10px] text-white/40 mb-1 uppercase tracking-wider">Note</p>
+                  <input value={resNote} onChange={e => setResNote(e.target.value)}
+                    placeholder="Special requests…"
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/20 focus:outline-none focus:border-indigo-500/40 transition-colors" />
+                </div>
+
+                {resErr && (
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />{resErr}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Footer */}
+            {!resSaved && (
+              <div className="grid grid-cols-2 gap-2 p-3 border-t border-white/8">
+                <button onClick={() => setView('numpad')}
+                  className="h-10 rounded-xl bg-white/5 border border-white/10 text-white/50 text-sm font-medium flex items-center justify-center active:scale-95 transition-all">
+                  Back
+                </button>
+                <button onClick={handleReserve} disabled={resSaving}
+                  className="h-10 rounded-xl bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 text-white text-sm font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-all">
+                  {resSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                  {resSaving ? 'Saving…' : 'Confirm'}
+                </button>
+              </div>
+            )}
+          </>
+        )}
       </div>
     </div>
   )

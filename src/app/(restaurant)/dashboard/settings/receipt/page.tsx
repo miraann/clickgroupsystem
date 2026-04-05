@@ -5,9 +5,11 @@ import {
   Check, ImageIcon, QrCode, Eye,
   FileText, Search, ChevronDown, ChevronUp,
   Hash, CheckCircle2, ToggleLeft, ToggleRight,
+  RotateCcw, X, User, Clock,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
+import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import InvoiceViewModal from '@/components/restaurant/invoice-view-modal'
 
 interface RS {
@@ -229,12 +231,15 @@ interface StoredInvoice {
   total: number
   amount_paid: number
   change_amount: number
+  customer_name: string | null
+  customer_phone: string | null
   created_at: string
 }
 
 // ── All Invoices tab ───────────────────────────────────────────
-function AllInvoices({ restaurantId, currencySymbol }: { restaurantId: string; currencySymbol: string }) {
+function AllInvoices({ restaurantId }: { restaurantId: string }) {
   const supabase = createClient()
+  const { formatPrice } = useDefaultCurrency()
   const [invoices, setInvoices]       = useState<StoredInvoice[]>([])
   const [loading, setLoading]         = useState(false)
   const [search, setSearch]           = useState('')
@@ -242,8 +247,6 @@ function AllInvoices({ restaurantId, currencySymbol }: { restaurantId: string; c
   const [dateTo, setDateTo]           = useState('')
   const [expanded, setExpanded]       = useState<string | null>(null)
   const [viewInvoice, setViewInvoice] = useState<StoredInvoice | null>(null)
-
-  const cur = currencySymbol || '$'
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -254,7 +257,10 @@ function AllInvoices({ restaurantId, currencySymbol }: { restaurantId: string; c
       .eq('restaurant_id', restaurantId)
       .order('created_at', { ascending: false })
 
-    if (search.trim()) query = query.ilike('invoice_num', `%${search.trim()}%`)
+    if (search.trim()) {
+      const s = `%${search.trim()}%`
+      query = query.or(`invoice_num.ilike.${s},customer_name.ilike.${s},customer_phone.ilike.${s}`)
+    }
     if (dateFrom)       query = query.gte('created_at', `${dateFrom}T00:00:00`)
     if (dateTo)         query = query.lte('created_at', `${dateTo}T23:59:59`)
 
@@ -265,13 +271,25 @@ function AllInvoices({ restaurantId, currencySymbol }: { restaurantId: string; c
 
   useEffect(() => { load() }, [restaurantId]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Reload when window/tab regains focus
+  useEffect(() => {
+    const onFocus = () => load()
+    const onVisible = () => { if (document.visibilityState === 'visible') load() }
+    window.addEventListener('focus', onFocus)
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      window.removeEventListener('focus', onFocus)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [load])
+
   return (
     <div className="space-y-4 max-w-4xl">
 
       {/* Search / Filter bar */}
       <div className="flex flex-wrap gap-3 items-end">
         <div className="flex-1 min-w-[200px]">
-          <label className="block text-xs text-white/40 mb-1.5">Invoice Number</label>
+          <label className="block text-xs text-white/40 mb-1.5">Invoice Number / Customer Name / Phone</label>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/30" />
             <input
@@ -359,8 +377,15 @@ function AllInvoices({ restaurantId, currencySymbol }: { restaurantId: string; c
                     <p className="text-sm font-semibold text-white">{inv.table_num || '—'}</p>
                   </div>
 
-                  {/* Cashier */}
+                  {/* Customer */}
                   <div className="flex-1 min-w-0 hidden md:block">
+                    <p className="text-[10px] text-white/40">Customer</p>
+                    <p className="text-sm font-semibold text-white truncate">{inv.customer_name || '—'}</p>
+                    {inv.customer_phone && <p className="text-[10px] text-white/35">{inv.customer_phone}</p>}
+                  </div>
+
+                  {/* Cashier */}
+                  <div className="w-24 shrink-0 hidden lg:block">
                     <p className="text-[10px] text-white/40">Cashier</p>
                     <p className="text-sm font-semibold text-white truncate">{inv.cashier || '—'}</p>
                   </div>
@@ -374,7 +399,7 @@ function AllInvoices({ restaurantId, currencySymbol }: { restaurantId: string; c
                   {/* Total */}
                   <div className="w-24 shrink-0 text-right">
                     <p className="text-[10px] text-white/40">Total</p>
-                    <p className="text-sm font-bold text-white tabular-nums">{cur}{Number(inv.total).toFixed(2)}</p>
+                    <p className="text-sm font-bold text-white tabular-nums">{formatPrice(Number(inv.total))}</p>
                   </div>
 
                   {/* Date */}
@@ -418,7 +443,7 @@ function AllInvoices({ restaurantId, currencySymbol }: { restaurantId: string; c
                             <td className="py-1.5 text-white/80">{item.name}</td>
                             <td className="py-1.5 text-center text-white/60">{item.qty}</td>
                             <td className="py-1.5 text-right text-white/80 tabular-nums">
-                              {cur}{(item.price * item.qty).toFixed(2)}
+                              {formatPrice(item.price * item.qty)}
                             </td>
                           </tr>
                         ))}
@@ -427,27 +452,27 @@ function AllInvoices({ restaurantId, currencySymbol }: { restaurantId: string; c
                     <div className="mt-3 pt-3 border-t border-white/8 space-y-1.5 text-sm">
                       <div className="flex justify-between text-white/60">
                         <span>Subtotal</span>
-                        <span className="tabular-nums">{cur}{Number(inv.subtotal).toFixed(2)}</span>
+                        <span className="tabular-nums">{formatPrice(Number(inv.subtotal))}</span>
                       </div>
                       {Number(inv.discount) > 0 && (
                         <div className="flex justify-between text-rose-400">
                           <span>Discount</span>
-                          <span className="tabular-nums">-{cur}{Number(inv.discount).toFixed(2)}</span>
+                          <span className="tabular-nums">-{formatPrice(Number(inv.discount))}</span>
                         </div>
                       )}
                       <div className="flex justify-between font-bold text-white">
                         <span>Total</span>
-                        <span className="tabular-nums">{cur}{Number(inv.total).toFixed(2)}</span>
+                        <span className="tabular-nums">{formatPrice(Number(inv.total))}</span>
                       </div>
                       {Number(inv.amount_paid) > 0 && Number(inv.amount_paid) > Number(inv.total) && (
                         <>
                           <div className="flex justify-between text-white/60">
                             <span>Paid</span>
-                            <span className="tabular-nums">{cur}{Number(inv.amount_paid).toFixed(2)}</span>
+                            <span className="tabular-nums">{formatPrice(Number(inv.amount_paid))}</span>
                           </div>
                           <div className="flex justify-between text-white/60">
                             <span>Change</span>
-                            <span className="tabular-nums">{cur}{Number(inv.change_amount).toFixed(2)}</span>
+                            <span className="tabular-nums">{formatPrice(Number(inv.change_amount))}</span>
                           </div>
                         </>
                       )}
@@ -682,13 +707,224 @@ function OrderNumberTab({ restaurantId }: { restaurantId: string }) {
   )
 }
 
+// ── Recover Table tab ─────────────────────────────────────────
+interface RecoveryLog {
+  id: string
+  invoice_num: string
+  order_num: string | null
+  table_num: string
+  recovered_by: string
+  reason: string | null
+  created_at: string
+}
+
+function RecoverTableTab({ restaurantId }: { restaurantId: string }) {
+  const supabase = createClient()
+  const [logs, setLogs]           = useState<RecoveryLog[]>([])
+  const [loading, setLoading]     = useState(true)
+  const [showModal, setShowModal] = useState(false)
+  const [invInput, setInvInput]   = useState('')
+  const [reason, setReason]       = useState('')
+  const [recovering, setRecovering] = useState(false)
+  const [recoverError, setRecoverError] = useState<string | null>(null)
+  const [recoverSuccess, setRecoverSuccess] = useState<string | null>(null)
+
+  const loadLogs = useCallback(async () => {
+    setLoading(true)
+    const { data } = await supabase
+      .from('table_recoveries')
+      .select('*')
+      .eq('restaurant_id', restaurantId)
+      .order('created_at', { ascending: false })
+    setLogs((data ?? []) as RecoveryLog[])
+    setLoading(false)
+  }, [restaurantId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => { loadLogs() }, [loadLogs])
+
+  const handleRecover = async () => {
+    const inv = invInput.trim()
+    if (!inv) return
+    setRecovering(true); setRecoverError(null); setRecoverSuccess(null)
+
+    // 1. Find invoice
+    const { data: invoice, error: e1 } = await supabase
+      .from('invoices').select('*').eq('restaurant_id', restaurantId).eq('invoice_num', inv).maybeSingle()
+    if (e1 || !invoice) { setRecoverError('Invoice not found. Check the invoice number and try again.'); setRecovering(false); return }
+
+    // 2. Find the order — try by order_num first, fallback to table_number
+    let order: { id: string; order_num: string | null; status: string } | null = null
+    if (invoice.order_num) {
+      const { data } = await supabase
+        .from('orders')
+        .select('id, order_num, status')
+        .eq('restaurant_id', restaurantId)
+        .eq('order_num', invoice.order_num)
+        .neq('status', 'active')
+        .limit(1).maybeSingle()
+      order = data ?? null
+    }
+    if (!order) {
+      const { data } = await supabase
+        .from('orders')
+        .select('id, order_num, status')
+        .eq('restaurant_id', restaurantId)
+        .eq('table_number', invoice.table_num)
+        .neq('status', 'active')
+        .order('updated_at', { ascending: false })
+        .limit(1).maybeSingle()
+      order = data ?? null
+    }
+    if (!order) { setRecoverError('Order not found or is already active. Check the invoice number.'); setRecovering(false); return }
+
+    // 3. Reopen order
+    const { error: e3 } = await supabase
+      .from('orders').update({ status: 'active', updated_at: new Date().toISOString() }).eq('id', order.id)
+    if (e3) { setRecoverError(`Failed to reopen order: ${e3.message}`); setRecovering(false); return }
+
+    // 4. Reopen voided items → set back to 'sent'
+    await supabase.from('order_items').update({ status: 'sent' }).eq('order_id', order.id).eq('status', 'void')
+
+    // 5. Get current user name
+    const { data: { user } } = await supabase.auth.getUser()
+    const recoveredBy = user?.user_metadata?.full_name ?? user?.email ?? 'Staff'
+
+    // 6. Log the recovery
+    await supabase.from('table_recoveries').insert({
+      restaurant_id: restaurantId,
+      invoice_num:   inv,
+      order_num:     invoice.order_num ?? order.order_num ?? null,
+      table_num:     invoice.table_num,
+      recovered_by:  recoveredBy,
+      reason:        reason.trim() || null,
+    })
+
+    setRecoverSuccess(`Table ${invoice.table_num} recovered successfully!`)
+    setInvInput(''); setReason('')
+    setShowModal(false)
+    loadLogs()
+    setRecovering(false)
+  }
+
+  return (
+    <div className="max-w-2xl space-y-4">
+
+      {/* Header + button */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-base font-semibold text-white">Recover Table</h2>
+          <p className="text-xs text-white/40 mt-0.5">Reopen a table that was closed by mistake</p>
+        </div>
+        <button
+          onClick={() => { setShowModal(true); setRecoverError(null); setRecoverSuccess(null) }}
+          className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-xl active:scale-95 transition-all"
+        >
+          <RotateCcw className="w-4 h-4" /> Recover Table
+        </button>
+      </div>
+
+      {recoverSuccess && (
+        <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+          <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+          <p className="text-sm text-emerald-400">{recoverSuccess}</p>
+        </div>
+      )}
+
+      {/* Recovery log list */}
+      {loading ? (
+        <div className="flex justify-center py-10"><Loader2 className="w-5 h-5 text-amber-400 animate-spin" /></div>
+      ) : logs.length === 0 ? (
+        <div className="text-center py-14 text-white/25 text-sm">No recoveries yet</div>
+      ) : (
+        <div className="space-y-2">
+          {logs.map(log => (
+            <div key={log.id} className="flex items-start gap-4 p-4 bg-white/4 border border-white/8 rounded-2xl">
+              <div className="w-9 h-9 rounded-xl bg-amber-500/15 flex items-center justify-center shrink-0">
+                <RotateCcw className="w-4 h-4 text-amber-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm font-bold text-amber-400">{log.invoice_num}</span>
+                  {log.order_num && <span className="text-xs text-white/40">{log.order_num}</span>}
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-white/8 text-white/50">Table {log.table_num}</span>
+                </div>
+                {log.reason && <p className="text-xs text-white/50 mt-1 italic">"{log.reason}"</p>}
+                <div className="flex items-center gap-3 mt-1.5 text-[11px] text-white/30">
+                  <span className="flex items-center gap-1"><User className="w-3 h-3" />{log.recovered_by}</span>
+                  <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{new Date(log.created_at).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Modal */}
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="w-full max-w-sm bg-[#0d1220] border border-white/15 rounded-2xl p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-base font-bold text-white">Recover Table</h3>
+              <button onClick={() => setShowModal(false)} className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-all">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs text-white/50 mb-1.5 font-medium">Invoice Number *</label>
+                <input
+                  value={invInput}
+                  onChange={e => setInvInput(e.target.value)}
+                  placeholder="e.g. INV-1039"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500/50 transition-colors"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-white/50 mb-1.5 font-medium">Reason</label>
+                <textarea
+                  value={reason}
+                  onChange={e => setReason(e.target.value)}
+                  placeholder="Why is this table being recovered?"
+                  rows={3}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500/50 transition-colors resize-none"
+                />
+              </div>
+
+              {recoverError && (
+                <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20">
+                  <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                  <p className="text-xs text-rose-400">{recoverError}</p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-3 mt-5">
+              <button onClick={() => setShowModal(false)} className="flex-1 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 text-sm font-medium transition-all active:scale-95">
+                Cancel
+              </button>
+              <button
+                onClick={handleRecover}
+                disabled={!invInput.trim() || recovering}
+                className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white text-sm font-bold transition-all active:scale-95 flex items-center justify-center gap-2"
+              >
+                {recovering ? <><Loader2 className="w-4 h-4 animate-spin" />Recovering…</> : <><RotateCcw className="w-4 h-4" />Recover</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Main Page ──────────────────────────────────────────────────
 export default function ReceiptSettingsPage() {
   const supabase = createClient()
   const fileRef   = useRef<HTMLInputElement>(null)
   const qrFileRef = useRef<HTMLInputElement>(null)
 
-  const [tab, setTab]                           = useState<'invoices' | 'settings' | 'invoice-num' | 'order-num'>('invoices')
+  const [tab, setTab]                           = useState<'invoices' | 'settings' | 'invoice-num' | 'order-num' | 'recover'>('invoices')
   const [restaurantId, setRestaurantId]         = useState<string | null>(null)
   const [restaurantName, setRestaurantName]     = useState('')
   const [form, setForm]                         = useState<RS>(DEFAULTS)
@@ -817,10 +1053,11 @@ export default function ReceiptSettingsPage() {
       {/* ── Tab bar ── */}
       <div className="flex flex-wrap gap-1 mb-6 p-1 rounded-2xl bg-white/4 border border-white/8 w-fit">
         {([
-          { key: 'invoices',    icon: <FileText className="w-4 h-4" />,  label: 'All Invoices' },
-          { key: 'settings',   icon: <Receipt  className="w-4 h-4" />,  label: 'Receipt Settings' },
-          { key: 'invoice-num',icon: <FileText className="w-4 h-4" />,  label: 'Invoice Number' },
-          { key: 'order-num',  icon: <Hash     className="w-4 h-4" />,  label: 'Order Number' },
+          { key: 'invoices',    icon: <FileText    className="w-4 h-4" />,  label: 'All Invoices' },
+          { key: 'settings',   icon: <Receipt     className="w-4 h-4" />,  label: 'Receipt Settings' },
+          { key: 'invoice-num',icon: <FileText    className="w-4 h-4" />,  label: 'Invoice Number' },
+          { key: 'order-num',  icon: <Hash        className="w-4 h-4" />,  label: 'Order Number' },
+          { key: 'recover',    icon: <RotateCcw   className="w-4 h-4" />,  label: 'Recover Table' },
         ] as const).map(({ key, icon, label }) => (
           <button
             key={key}
@@ -1042,7 +1279,7 @@ export default function ReceiptSettingsPage() {
 
       {/* ── All Invoices tab ── */}
       {tab === 'invoices' && restaurantId && (
-        <AllInvoices restaurantId={restaurantId} currencySymbol={form.currency_symbol} />
+        <AllInvoices restaurantId={restaurantId} />
       )}
 
       {/* ── Invoice Number tab ── */}
@@ -1053,6 +1290,11 @@ export default function ReceiptSettingsPage() {
       {/* ── Order Number tab ── */}
       {tab === 'order-num' && restaurantId && (
         <OrderNumberTab restaurantId={restaurantId} />
+      )}
+
+      {/* ── Recover Table tab ── */}
+      {tab === 'recover' && restaurantId && (
+        <RecoverTableTab restaurantId={restaurantId} />
       )}
 
     </div>

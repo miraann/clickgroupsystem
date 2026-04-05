@@ -317,9 +317,10 @@ function OrderCard({
 }
 
 function KdsPage() {
-  const supabase     = createClient()
-  const searchParams = useSearchParams()
-  const router       = useRouter()
+  const supabase        = createClient()
+  const searchParams    = useSearchParams()
+  const router          = useRouter()
+  const activeStationId = searchParams.get('station') ?? null
 
   const [stations, setStations]         = useState<Station[]>([])
   const [allOrders, setAllOrders]       = useState<KdsOrder[]>([])
@@ -327,13 +328,19 @@ function KdsPage() {
   const [online, setOnline]             = useState(true)
   const [bumping, setBumping]           = useState<Set<string>>(new Set())
   const [restaurantId, setRestaurantId] = useState<string | null>(null)
-  const [voidAlerts, setVoidAlerts]     = useState<{ id: string; itemName: string; qty: number; tableLabel: string }[]>([])
-  const restIdRef    = useRef<string | null>(null)
-  const allOrdersRef = useRef<KdsOrder[]>([])
+  const [voidAlerts, setVoidAlerts]     = useState<{ id: string; itemName: string; qty: number; tableLabel: string; stationId: string | null }[]>([])
+  const restIdRef          = useRef<string | null>(null)
+  const allOrdersRef       = useRef<KdsOrder[]>([])
+  const activeStationIdRef = useRef<string | null>(null)
+  const stationsRef        = useRef<Station[]>([])
 
   const audioCtxRef      = useRef<AudioContext | null>(null)
   const alertLoopRef     = useRef<ReturnType<typeof setInterval> | null>(null)
   const newOrderLoopRef  = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // Keep activeStationId + stations accessible inside realtime closures
+  useEffect(() => { activeStationIdRef.current = activeStationId }, [activeStationId])
+  useEffect(() => { stationsRef.current = stations }, [stations])
 
   // Keep AudioContext alive — resume it on every user interaction
   useEffect(() => {
@@ -392,13 +399,28 @@ function KdsPage() {
 
   // 1-minute reminder while any items are still 'sent' (chef hasn't started cooking)
   useEffect(() => {
-    const hasSent = allOrders.some(o => o.items.some(i => i.status === 'sent'))
+    // Only remind if the current station has unstarted sent items
+    const hasSent = allOrders.some(o => o.items.some(i => {
+      if (i.status !== 'sent') return false
+      if (!activeStationId) return true
+      if (i.station_id === activeStationId) return true
+      const stn = stations.find(s => s.id === activeStationId)
+      return !!stn && stn.category_ids.length === 0
+    }))
     if (hasSent) {
       if (!newOrderLoopRef.current) {
         newOrderLoopRef.current = setInterval(() => {
-          if (allOrdersRef.current.some(o => o.items.some(i => i.status === 'sent'))) {
-            playNewOrder()
-          }
+          const activeId = activeStationIdRef.current
+          const stnList  = stationsRef.current
+          const station  = stnList.find(s => s.id === activeId)
+          const hasSentNow = allOrdersRef.current.some(o => o.items.some(i => {
+            if (i.status !== 'sent') return false
+            if (!activeId) return true
+            if (i.station_id === activeId) return true
+            if (station && station.category_ids.length === 0) return true
+            return false
+          }))
+          if (hasSentNow) playNewOrder()
         }, 60000)
       }
     } else {
@@ -413,11 +435,22 @@ function KdsPage() {
         newOrderLoopRef.current = null
       }
     }
-  }, [allOrders, playNewOrder]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [allOrders, activeStationId, stations, playNewOrder]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Start / stop continuous alert loop whenever voidAlerts changes
+  // Mirror the same logic as visibleOrders:
+  // – All tab  → show every alert
+  // – Station with direct station_id match → show
+  // – Station with no category filter (shows everything) → show all alerts
+  const visibleVoidAlerts = voidAlerts.filter(a => {
+    if (!activeStationId) return true
+    if (a.stationId === activeStationId) return true
+    const station = stations.find(s => s.id === activeStationId)
+    if (station && station.category_ids.length === 0) return true
+    return false
+  })
+
   useEffect(() => {
-    if (voidAlerts.length > 0) {
+    if (visibleVoidAlerts.length > 0) {
       playVoidAlert()
       if (!alertLoopRef.current) {
         alertLoopRef.current = setInterval(playVoidAlert, 3000)
@@ -429,16 +462,14 @@ function KdsPage() {
       }
     }
     return () => {
-      if (alertLoopRef.current && voidAlerts.length === 0) {
+      if (alertLoopRef.current && visibleVoidAlerts.length === 0) {
         clearInterval(alertLoopRef.current)
         alertLoopRef.current = null
       }
     }
-  }, [voidAlerts.length, playVoidAlert])
+  }, [visibleVoidAlerts.length, playVoidAlert]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Active station: null = All
-  const activeStationId = searchParams.get('station') ?? null
-  const activeStation   = stations.find(s => s.id === activeStationId) ?? null
+  const activeStation = stations.find(s => s.id === activeStationId) ?? null
 
   const fetchOrders = useCallback(async (restId: string) => {
     const { data, error } = await supabase
@@ -549,8 +580,7 @@ function KdsPage() {
               for (const order of allOrdersRef.current) {
                 const item = order.items.find(i => i.id === updated.id && i.status === 'cooking')
                 if (item) {
-                  setVoidAlerts(prev => [...prev, { id: item.id, itemName: item.item_name, qty: item.qty, tableLabel: order.table_label }])
-                  playVoidAlert()
+                  setVoidAlerts(prev => [...prev, { id: item.id, itemName: item.item_name, qty: item.qty, tableLabel: order.table_label, stationId: item.station_id }])
                   break
                 }
               }
@@ -558,7 +588,18 @@ function KdsPage() {
             if (restIdRef.current) fetchOrders(restIdRef.current)
           })
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'order_items' },
-          () => { playNewOrder(); if (restIdRef.current) fetchOrders(restIdRef.current) })
+          (payload) => {
+            // Only play new-order sound if this item belongs to the active station
+            const newItem  = payload.new as { station_id: string | null }
+            const activeId = activeStationIdRef.current
+            const stnList  = stationsRef.current
+            const station  = stnList.find(s => s.id === activeId)
+            const belongs  = !activeId                                  // All tab
+                          || newItem.station_id === activeId            // direct match
+                          || (!!station && station.category_ids.length === 0) // station shows everything
+            if (belongs) playNewOrder()
+            if (restIdRef.current) fetchOrders(restIdRef.current)
+          })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' },
           () => { if (restIdRef.current) fetchOrders(restIdRef.current) })
         .subscribe((status) => setOnline(status === 'SUBSCRIBED'))
@@ -708,8 +749,8 @@ function KdsPage() {
         </div>
       </header>
 
-      {/* ── Void alert banners ── */}
-      {voidAlerts.map(alert => (
+      {/* ── Void alert banners — only for active station (or all if on All tab) ── */}
+      {visibleVoidAlerts.map(alert => (
         <div
           key={alert.id}
           className="flex items-center gap-4 px-5 py-3 bg-rose-600 border-b-2 border-rose-400 animate-pulse"

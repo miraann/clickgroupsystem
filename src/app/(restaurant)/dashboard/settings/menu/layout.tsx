@@ -16,6 +16,7 @@ import {
   Plus,
   CreditCard,
   CalendarDays,
+  Globe,
 } from 'lucide-react'
 
 const TABS = [
@@ -31,6 +32,7 @@ const TABS = [
   { label: 'Combo Discount', href: '/dashboard/settings/menu/combo-discount', icon: Gift },
   { label: 'Surcharge', href: '/dashboard/settings/menu/surcharge', icon: Plus },
   { label: 'Payment Method', href: '/dashboard/settings/menu/payment-method', icon: CreditCard },
+  { label: 'Online Menu', href: '/dashboard/settings/menu/online-menu', icon: Globe },
 ]
 
 export default function MenuSettingsLayout({ children }: { children: React.ReactNode }) {

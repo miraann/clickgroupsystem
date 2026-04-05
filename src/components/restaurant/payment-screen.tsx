@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { ArrowLeft, Users, Printer, Loader2, Check, Delete } from 'lucide-react'
+import { ArrowLeft, Users, Printer, Loader2, Check, Delete, Search, X, Phone, CreditCard, Star } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import InvoiceModal from './invoice-modal'
@@ -56,14 +56,50 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
   const [paid, setPaid]                   = useState(false)
   const [activeTab, setActiveTab]         = useState<ActionTab | null>(null)
   const [showInvoice, setShowInvoice]     = useState(false)
+  const [invoiceMode, setInvoiceMode]     = useState<'receipt' | 'payment'>('payment')
+  const [showConfirm, setShowConfirm]     = useState(false)
   const [cashier, setCashier]             = useState('Staff')
   const [paidAmount, setPaidAmount]       = useState(0)
   const [changeAmt, setChangeAmt]         = useState(0)
+  const [generatedInvoiceNum, setGeneratedInvoiceNum] = useState('')
+  const [generatedOrderNum, setGeneratedOrderNum]     = useState('')
+  const [orderNum, setOrderNum]                       = useState('')
+  const [previewInvoiceNum, setPreviewInvoiceNum]     = useState('')
   const [discounts, setDiscounts]         = useState<DbDiscount[]>([])
   const [appliedDiscount, setApplied]     = useState<DbDiscount | null>(null)
   const [surcharges, setSurcharges]       = useState<DbSurcharge[]>([])
   const [appliedSurcharge, setAppliedSur] = useState<DbSurcharge | null>(null)
   const [invoiceNote, setInvoiceNote]     = useState('')
+  const [plName, setPlName]               = useState('')
+  const [plPhone, setPlPhone]             = useState('')
+  const [plDueDate, setPlDueDate]         = useState('')
+  const [plNote, setPlNote]               = useState('')
+  const [payingLater, setPayingLater]     = useState(false)
+  const [paidLater, setPaidLater]         = useState(false)
+  const CUSTOMER_KEY = `pos_customer_table_${tableNum}`
+  const [selectedCustomer, setSelectedCustomer] = useState<{ id: string; name: string; phone: string | null } | null>(() => {
+    try {
+      const s = localStorage.getItem(`pos_customer_table_${tableNum}`)
+      if (s) { const c = JSON.parse(s); setPlName(c.name ?? ''); setPlPhone(c.phone ?? ''); return c }
+      return null
+    } catch { return null }
+  })
+  const [showCustomerPicker, setShowCustomerPicker] = useState(false)
+  const [customerList, setCustomerList]   = useState<{ id: string; name: string; phone: string | null; email: string | null }[]>([])
+  const [customerSearch, setCustomerSearch] = useState('')
+  const [selectedMember, setSelectedMember] = useState<{ id: string; name: string; phone: string | null; points: number; tier: string } | null>(null)
+  const [showMemberPicker, setShowMemberPicker] = useState(false)
+  const [memberList, setMemberList]       = useState<{ id: string; name: string; phone: string | null; points: number; tier: string }[]>([])
+  const [memberSearch, setMemberSearch]   = useState('')
+
+  const persistCustomer = (c: typeof selectedCustomer) => {
+    setSelectedCustomer(c)
+    if (c) { setPlName(c.name); setPlPhone(c.phone ?? '') }
+    try {
+      if (c) localStorage.setItem(CUSTOMER_KEY, JSON.stringify(c))
+      else localStorage.removeItem(CUSTOMER_KEY)
+    } catch { }
+  }
 
   const supabase = createClient()
   const { symbol: cur, decimalPlaces, formatPrice } = useDefaultCurrency()
@@ -99,7 +135,26 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
       .eq('active', true)
       .order('sort_order')
       .then(({ data }) => setSurcharges((data ?? []) as DbSurcharge[]))
-  }, [restaurantId]) // eslint-disable-line react-hooks/exhaustive-deps
+    supabase
+      .from('orders')
+      .select('order_num')
+      .eq('id', orderId)
+      .maybeSingle()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .then(({ data }) => { if (data) setOrderNum((data as any).order_num ?? '') })
+    supabase
+      .from('invoice_number_settings')
+      .select('prefix, current_num, start_num')
+      .eq('restaurant_id', restaurantId)
+      .maybeSingle()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .then(({ data }) => {
+        if (data) {
+          const num = (data as any).current_num ?? (data as any).start_num ?? 1001
+          setPreviewInvoiceNum(`${(data as any).prefix ?? 'INV-'}${num}`)
+        }
+      })
+  }, [restaurantId, orderId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const discountAmount  = appliedDiscount
     ? appliedDiscount.type === 'percentage'
@@ -134,6 +189,74 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
 
   const [payError, setPayError] = useState<string | null>(null)
 
+  const openCustomerPicker = async () => {
+    if (customerList.length === 0) {
+      const { data } = await supabase.from('customers').select('id,name,phone,email')
+        .eq('restaurant_id', restaurantId).eq('status', 'active').eq('blacklisted', false).order('name')
+      setCustomerList((data ?? []) as typeof customerList)
+    }
+    setCustomerSearch('')
+    setShowCustomerPicker(true)
+  }
+
+  const openMemberPicker = async () => {
+    if (memberList.length === 0) {
+      const { data } = await supabase.from('members').select('id,name,phone,points,tier')
+        .eq('restaurant_id', restaurantId).eq('status', 'active').order('name')
+      setMemberList((data ?? []) as typeof memberList)
+    }
+    setMemberSearch('')
+    setShowMemberPicker(true)
+  }
+
+  const handlePayLater = async () => {
+    if (!plName.trim()) { setPayError('Customer name is required'); return }
+    setPayingLater(true)
+    setPayError(null)
+    const now = new Date().toISOString()
+
+    // Mark orders as closed (pay_later is tracked separately)
+    const { error: orderErr } = await supabase
+      .from('orders')
+      .update({ status: 'closed', total: finalTotal, updated_at: now })
+      .eq('id', orderId)
+    if (orderErr) {
+      setPayError(`Order error: ${orderErr.message}`)
+      setPayingLater(false)
+      return
+    }
+
+    // Fetch order number for reference
+    const { data: orderRecord } = await supabase.from('orders').select('order_num').eq('id', orderId).maybeSingle()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const ordNum = (orderRecord as any)?.order_num ?? ''
+
+    // Save to pay_later table
+    const { error: plErr } = await supabase.from('pay_later').insert({
+      restaurant_id:   restaurantId,
+      customer_name:   plName.trim(),
+      customer_phone:  plPhone.trim() || null,
+      order_ref:       ordNum || null,
+      table_num:       tableNum,
+      original_amount: finalTotal,
+      paid_amount:     0,
+      due_date:        plDueDate || null,
+      note:            plNote.trim() || null,
+      status:          'pending',
+      created_by:      cashier,
+    })
+    if (plErr) {
+      setPayError(`Save error: ${plErr.message}`)
+      setPayingLater(false)
+      return
+    }
+
+    try { localStorage.removeItem(CUSTOMER_KEY) } catch { }
+    setPayingLater(false)
+    setPaidLater(true)
+    setTimeout(() => onPaid(), 1500)
+  }
+
   const handlePay = async () => {
     if (paying || paid) return
     setPaying(true)
@@ -142,15 +265,12 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
     const amountPaid   = enteredNum > 0 ? enteredNum : finalTotal
     const changeAmount = Math.max(0, amountPaid - finalTotal)
     const now          = new Date().toISOString()
+    const methodName   = payMethods.find(m => m.id === method)?.name ?? method
 
-    // Single query: close ALL active orders for this table
+    // Close all active orders for this table
     const { error } = await supabase
       .from('orders')
-      .update({
-        status:        'paid',
-        total:         finalTotal,
-        updated_at:    now,
-      })
+      .update({ status: 'paid', total: finalTotal, updated_at: now })
       .eq('table_number', parseInt(tableNum))
       .eq('status', 'active')
       .select('id')
@@ -162,17 +282,89 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
     }
 
     // Save payment details on the specific order
-    const methodName = payMethods.find(m => m.id === method)?.name ?? method
     await supabase
       .from('orders')
       .update({ payment_method: methodName, amount_paid: amountPaid, change_amount: changeAmount, note: invoiceNote || null })
       .eq('id', orderId)
 
+    // Fetch order number + invoice settings in parallel
+    const [{ data: orderRecord }, { data: invData }] = await Promise.all([
+      supabase.from('orders').select('order_num').eq('id', orderId).maybeSingle(),
+      supabase.from('invoice_number_settings').select('*').eq('restaurant_id', restaurantId).maybeSingle(),
+    ])
+
+    const ordNum = orderRecord?.order_num ?? ''
+    setGeneratedOrderNum(ordNum)
+
+    // Generate invoice number + increment counter
+    let invNum = `INV-${orderId.slice(-5).toUpperCase()}`
+    if (invData) {
+      const num = invData.current_num ?? invData.start_num ?? 1001
+      invNum = `${invData.prefix ?? 'INV-'}${num}`
+      await supabase
+        .from('invoice_number_settings')
+        .update({ current_num: num + 1, updated_at: new Date().toISOString() })
+        .eq('restaurant_id', restaurantId)
+    }
+    setGeneratedInvoiceNum(invNum)
+
+    // Save invoice — try with all optional fields, fall back on column errors
+    const fullPayload = {
+      restaurant_id:  restaurantId,
+      invoice_num:    invNum,
+      order_num:      ordNum,
+      table_num:      tableNum,
+      guests,
+      cashier,
+      payment_method: methodName,
+      items,
+      subtotal:       total,
+      discount:       discountAmount,
+      total:          finalTotal,
+      amount_paid:    amountPaid,
+      change_amount:  changeAmount,
+      customer_id:    selectedCustomer?.id ?? null,
+      customer_name:  selectedMember?.name ?? selectedCustomer?.name ?? null,
+      customer_phone: selectedMember?.phone ?? selectedCustomer?.phone ?? null,
+    }
+    const { error: e1 } = await supabase.from('invoices').insert(fullPayload)
+    if (e1) {
+      // Strip any unrecognised columns and retry with minimal safe set
+      const { error: e2 } = await supabase.from('invoices').insert({
+        restaurant_id:  restaurantId,
+        invoice_num:    invNum,
+        order_num:      ordNum,
+        table_num:      tableNum,
+        guests,
+        cashier,
+        payment_method: methodName,
+        items,
+        subtotal:       total,
+        total:          finalTotal,
+        amount_paid:    amountPaid,
+        change_amount:  changeAmount,
+      })
+      if (e2) console.error('[Invoice save failed]', e2.message)
+    }
+
+    // Update customer visit count + total spent
+    if (selectedCustomer) {
+      const { data: cust } = await supabase.from('customers').select('visit_count,total_spent').eq('id', selectedCustomer.id).maybeSingle()
+      if (cust) {
+        await supabase.from('customers').update({
+          visit_count: (cust.visit_count ?? 0) + 1,
+          total_spent: (cust.total_spent ?? 0) + finalTotal,
+          updated_at: now,
+        }).eq('id', selectedCustomer.id)
+      }
+    }
+
     setPaidAmount(amountPaid)
     setChangeAmt(changeAmount)
     setPaid(true)
     setPaying(false)
-    // Show invoice modal instead of immediately closing
+    try { localStorage.removeItem(CUSTOMER_KEY) } catch { }
+    setInvoiceMode('payment')
     setTimeout(() => setShowInvoice(true), 400)
   }
 
@@ -181,8 +373,6 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
     year: 'numeric', month: '2-digit', day: '2-digit',
     hour: '2-digit', minute: '2-digit', hour12: false,
   })
-
-  const invoiceNum = orderId.slice(-5).toUpperCase()
 
   return (
     <>
@@ -231,8 +421,8 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
             </div>
             <div className="space-y-1 pt-1">
               {[
-                ['Invoice', `#${invoiceNum}`],
-                ['Order',   `#${invoiceNum}`],
+                ['Invoice', generatedInvoiceNum || previewInvoiceNum || '—'],
+                ['Order',   orderNum ? orderNum : '—'],
                 ['Time',    timeStr],
               ].map(([k, v]) => (
                 <div key={k} className="flex items-center justify-between">
@@ -432,6 +622,56 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
             </div>
           )}
 
+          {/* Pay Later panel */}
+          {activeTab === 'paylater' && (
+            <div className="shrink-0 border-b border-white/8 bg-[#080b14] p-4 space-y-3">
+              <p className="text-xs text-rose-400/70 font-semibold uppercase tracking-wider">Pay Later — {formatPrice(finalTotal)}</p>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <p className="text-[10px] text-white/35 mb-1">Customer Name <span className="text-rose-400">*</span></p>
+                  <input
+                    value={plName}
+                    onChange={e => setPlName(e.target.value)}
+                    placeholder="Full name"
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/20 focus:outline-none focus:border-rose-500/40 transition-colors"
+                  />
+                </div>
+                <div>
+                  <p className="text-[10px] text-white/35 mb-1">Phone</p>
+                  <input
+                    value={plPhone}
+                    onChange={e => setPlPhone(e.target.value)}
+                    placeholder="07xx…"
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/20 focus:outline-none focus:border-rose-500/40 transition-colors"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <p className="text-[10px] text-white/35 mb-1">Due Date <span className="text-white/20">(optional)</span></p>
+                  <input
+                    type="date"
+                    value={plDueDate}
+                    onChange={e => setPlDueDate(e.target.value)}
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white/70 focus:outline-none focus:border-rose-500/40 transition-colors [color-scheme:dark] cursor-pointer"
+                  />
+                </div>
+                <div>
+                  <p className="text-[10px] text-white/35 mb-1">Note <span className="text-white/20">(optional)</span></p>
+                  <input
+                    value={plNote}
+                    onChange={e => setPlNote(e.target.value)}
+                    placeholder="Reason…"
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/20 focus:outline-none focus:border-rose-500/40 transition-colors"
+                  />
+                </div>
+              </div>
+              {selectedCustomer && plName === selectedCustomer.name && (
+                <p className="text-[10px] text-violet-400/70">Pre-filled from selected customer</p>
+              )}
+            </div>
+          )}
+
           {/* Amount display */}
           <div className="shrink-0 flex items-center justify-between px-6 py-4 border-b border-white/8">
             <div>
@@ -466,8 +706,8 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
             </div>
           </div>
 
-          {/* Numpad + Pay */}
-          <div className="flex-1 grid grid-cols-4 gap-px bg-white/5 overflow-hidden">
+          {/* Numpad — 3 cols × 4 rows (12 keys, no gaps) */}
+          <div className="flex-1 grid grid-cols-3 gap-px bg-white/5 overflow-hidden">
             {NUMPAD.map(key => (
               <button
                 key={key}
@@ -477,52 +717,96 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
                 {key}
               </button>
             ))}
-            {/* Backspace — spans row position after '.' */}
-            <button
-              onClick={() => press('⌫')}
-              className="bg-[#080b14] hover:bg-white/5 active:bg-white/10 text-white/40 hover:text-rose-400 transition-all touch-manipulation flex items-center justify-center"
-            >
-              <Delete className="w-5 h-5" />
-            </button>
-
-            {/* Pay button — spans 2 rows on the right */}
-            <button
-              onClick={handlePay}
-              disabled={paying || paid || (entered !== '' && enteredNum < finalTotal)}
-              className={cn(
-                'row-span-2 flex flex-col items-center justify-center gap-2 text-lg font-bold transition-all active:scale-95 touch-manipulation',
-                paid
-                  ? 'bg-emerald-500 text-white'
-                  : paying
-                    ? 'bg-amber-500/70 text-white cursor-wait'
-                    : entered !== '' && enteredNum < finalTotal
-                      ? 'bg-white/4 text-white/20 cursor-not-allowed'
-                      : 'bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/20'
-              )}
-            >
-              {paid
-                ? <><Check className="w-6 h-6" />Paid!</>
-                : paying
-                  ? <><Loader2 className="w-6 h-6 animate-spin" />Processing</>
-                  : 'Pay'}
-            </button>
           </div>
+
+          {/* Backspace | Receipt | Pay  —OR—  Confirm Pay Later */}
+          {activeTab === 'paylater' ? (
+            <div className="shrink-0 flex gap-px h-20 bg-white/5">
+              <button
+                onClick={() => setActiveTab(null)}
+                className="flex-1 bg-[#080b14] hover:bg-white/5 active:bg-white/10 text-white/40 hover:text-white/60 text-xs font-medium transition-all touch-manipulation flex items-center justify-center"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handlePayLater}
+                disabled={payingLater || paidLater}
+                className={cn(
+                  'flex-[3] flex flex-col items-center justify-center gap-1 text-base font-bold transition-all active:scale-95 touch-manipulation',
+                  paidLater
+                    ? 'bg-emerald-500 text-white'
+                    : payingLater
+                      ? 'bg-rose-500/70 text-white cursor-wait'
+                      : 'bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-500/20'
+                )}
+              >
+                {paidLater
+                  ? <><Check className="w-5 h-5" />Saved to Pay Later!</>
+                  : payingLater
+                    ? <><Loader2 className="w-5 h-5 animate-spin" />Saving…</>
+                    : <><CreditCard className="w-5 h-5" />Confirm Pay Later · {formatPrice(finalTotal)}</>
+                }
+              </button>
+            </div>
+          ) : (
+            <div className="shrink-0 flex gap-px h-20 bg-white/5">
+              <button
+                onClick={() => press('⌫')}
+                className="flex-1 bg-[#080b14] hover:bg-white/5 active:bg-white/10 text-white/40 hover:text-rose-400 transition-all touch-manipulation flex items-center justify-center"
+              >
+                <Delete className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => { setInvoiceMode('receipt'); setShowInvoice(true) }}
+                className="flex-1 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 text-sm font-semibold flex items-center justify-center gap-1.5 transition-all active:scale-95 touch-manipulation"
+              >
+                <Printer className="w-4 h-4" />Receipt
+              </button>
+              <button
+                onClick={() => !paying && !paid && !(entered !== '' && enteredNum < finalTotal) && setShowConfirm(true)}
+                disabled={paying || paid || (entered !== '' && enteredNum < finalTotal)}
+                className={cn(
+                  'flex-[2] flex flex-col items-center justify-center gap-2 text-lg font-bold transition-all active:scale-95 touch-manipulation',
+                  paid
+                    ? 'bg-emerald-500 text-white'
+                    : paying
+                      ? 'bg-amber-500/70 text-white cursor-wait'
+                      : entered !== '' && enteredNum < finalTotal
+                        ? 'bg-white/4 text-white/20 cursor-not-allowed'
+                        : 'bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/20'
+                )}
+              >
+                {paid
+                  ? <><Check className="w-6 h-6" />Paid!</>
+                  : paying
+                    ? <><Loader2 className="w-6 h-6 animate-spin" />Processing</>
+                    : 'Pay'}
+              </button>
+            </div>
+          )}
 
           {/* Action buttons row */}
           <div className="shrink-0 grid grid-cols-3 gap-px bg-white/5 border-t border-white/8">
-            <button className="h-12 bg-[#080b14] hover:bg-white/5 text-white/35 hover:text-white/60 text-sm font-medium flex items-center justify-center gap-2 transition-all active:scale-95 touch-manipulation">
+            <button className="h-12 bg-rose-600 hover:bg-rose-500 text-white text-sm font-medium flex items-center justify-center gap-2 transition-all active:scale-95 touch-manipulation">
               Drawer
             </button>
-            <button
-              onClick={() => setShowInvoice(true)}
-              className="h-12 bg-[#080b14] hover:bg-white/5 text-white/35 hover:text-white/60 text-sm font-medium flex items-center justify-center gap-2 transition-all active:scale-95 touch-manipulation"
-            >
-              <Printer className="w-4 h-4" />
-              Receipt
+            <button onClick={openMemberPicker} className="h-12 bg-amber-600 hover:bg-amber-500 text-white text-sm font-medium flex items-center justify-center gap-2 transition-all active:scale-95 touch-manipulation px-2 overflow-hidden">
+              <Star className="w-4 h-4 shrink-0" />
+              <span className="truncate">{selectedMember ? selectedMember.name : 'Member'}</span>
+              {selectedMember && (
+                <span role="button" onClick={e => { e.stopPropagation(); setSelectedMember(null) }} className="shrink-0 text-white/60 hover:text-white cursor-pointer">
+                  <X className="w-3.5 h-3.5" />
+                </span>
+              )}
             </button>
-            <button className="h-12 bg-[#080b14] hover:bg-white/5 text-white/35 hover:text-white/60 text-sm font-medium flex items-center justify-center gap-2 transition-all active:scale-95 touch-manipulation">
-              <Users className="w-4 h-4" />
-              Customer
+            <button onClick={openCustomerPicker} className="h-12 bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium flex items-center justify-center gap-2 transition-all active:scale-95 touch-manipulation px-2 overflow-hidden">
+              <Users className="w-4 h-4 shrink-0" />
+              <span className="truncate">{selectedCustomer ? selectedCustomer.name : 'Customer'}</span>
+              {selectedCustomer && (
+                <span role="button" onClick={e => { e.stopPropagation(); persistCustomer(null) }} className="shrink-0 text-white/60 hover:text-white cursor-pointer">
+                  <X className="w-3.5 h-3.5" />
+                </span>
+              )}
             </button>
           </div>
 
@@ -530,9 +814,111 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
       </div>
     </div>
 
+    {/* Confirm Pay dialog */}
+    {showConfirm && (
+      <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+        <div className="w-full max-w-sm bg-[#0d1220] border border-white/15 rounded-2xl shadow-2xl overflow-hidden">
+
+          {/* Header */}
+          <div className="px-5 py-4 bg-amber-500/10 border-b border-amber-500/20">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-white/40 uppercase tracking-wider mb-0.5">Confirm Payment</p>
+                <p className="text-base font-bold text-white">Table {tableNum}{guests > 0 ? ` · ${guests} guests` : ''}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-white/40 mb-0.5">Total</p>
+                <p className="text-xl font-bold text-amber-400 tabular-nums">{formatPrice(finalTotal)}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Items */}
+          <div className="px-5 py-3 border-b border-white/8 max-h-48 overflow-y-auto">
+            {items.map((item, i) => (
+              <div key={i} className="flex items-center justify-between py-1.5 gap-3">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="w-5 h-5 rounded-md bg-amber-500/15 text-amber-400 text-[10px] font-bold flex items-center justify-center shrink-0">{item.qty}</span>
+                  <span className="text-sm text-white/80 truncate">{item.name}</span>
+                </div>
+                <span className="text-sm text-white/60 tabular-nums shrink-0">{formatPrice(item.price * item.qty)}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Totals breakdown */}
+          <div className="px-5 py-3 border-b border-white/8 space-y-1.5">
+            <div className="flex justify-between text-xs text-white/40">
+              <span>Subtotal</span>
+              <span className="tabular-nums">{formatPrice(total)}</span>
+            </div>
+            {appliedDiscount && (
+              <div className="flex justify-between text-xs text-emerald-400">
+                <span>{appliedDiscount.name}</span>
+                <span className="tabular-nums">−{formatPrice(discountAmount)}</span>
+              </div>
+            )}
+            {appliedSurcharge && (
+              <div className="flex justify-between text-xs text-lime-400">
+                <span>{appliedSurcharge.name}</span>
+                <span className="tabular-nums">+{formatPrice(surchargeAmount)}</span>
+              </div>
+            )}
+            <div className="flex justify-between text-sm font-bold text-white pt-1 border-t border-white/8">
+              <span>Total</span>
+              <span className="text-amber-400 tabular-nums">{formatPrice(finalTotal)}</span>
+            </div>
+            {enteredNum > 0 && (
+              <div className="flex justify-between text-xs text-white/40">
+                <span>Cash paid</span>
+                <span className="tabular-nums">{formatPrice(enteredNum)}</span>
+              </div>
+            )}
+            {change > 0 && (
+              <div className="flex justify-between text-xs text-emerald-400">
+                <span>Change</span>
+                <span className="tabular-nums">{formatPrice(change)}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Payment method + customer */}
+          <div className="px-5 py-3 border-b border-white/8 space-y-1">
+            <div className="flex justify-between text-xs">
+              <span className="text-white/35">Payment</span>
+              <span className="text-white/70 font-medium">{payMethods.find(m => m.id === method)?.name ?? '—'}</span>
+            </div>
+            {(selectedMember || selectedCustomer) && (
+              <div className="flex justify-between text-xs">
+                <span className="text-white/35">{selectedMember ? 'Member' : 'Customer'}</span>
+                <span className="text-white/70 font-medium">{selectedMember?.name ?? selectedCustomer?.name}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Buttons */}
+          <div className="flex gap-2 p-4">
+            <button
+              onClick={() => setShowConfirm(false)}
+              className="flex-1 py-3 rounded-xl bg-white/8 hover:bg-white/12 text-white/60 text-sm font-medium transition-all active:scale-95"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => { setShowConfirm(false); handlePay() }}
+              className="flex-[2] py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold transition-all active:scale-95 shadow-lg shadow-amber-500/20"
+            >
+              Confirm Payment
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
     {/* Invoice modal — shown after payment */}
     {showInvoice && (
       <InvoiceModal
+        mode={invoiceMode}
         orderId={orderId}
         restaurantId={restaurantId}
         tableNum={tableNum}
@@ -547,8 +933,109 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
         changeAmount={changeAmt}
         cashier={cashier}
         note={invoiceNote}
+        customerId={selectedCustomer?.id ?? null}
+        customerName={selectedMember?.name ?? selectedCustomer?.name ?? null}
+        customerPhone={selectedMember?.phone ?? selectedCustomer?.phone ?? null}
+        invoiceNum={generatedInvoiceNum || previewInvoiceNum}
+        orderNum={generatedOrderNum || orderNum}
         onClose={() => { setShowInvoice(false); onPaid() }}
       />
+    )}
+
+    {/* Member Picker */}
+    {showMemberPicker && (
+      <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+        <div className="w-full max-w-sm bg-[#0d1220] border border-white/15 rounded-2xl shadow-2xl flex flex-col max-h-[80vh]">
+          <div className="flex items-center justify-between px-5 pt-5 pb-3 shrink-0">
+            <h3 className="text-base font-bold text-white">Select Member</h3>
+            <button onClick={() => setShowMemberPicker(false)} className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-all">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="px-5 pb-3 shrink-0">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+              <input value={memberSearch} onChange={e => setMemberSearch(e.target.value)}
+                placeholder="Search name or phone…" autoFocus
+                className="w-full pl-9 pr-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500/50 transition-colors" />
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto px-3 pb-4 space-y-1">
+            {memberList
+              .filter(m => {
+                const q = memberSearch.toLowerCase()
+                return !q || m.name.toLowerCase().includes(q) || m.phone?.includes(q)
+              })
+              .map(m => (
+                <button key={m.id} onClick={() => { setSelectedMember(m); setShowMemberPicker(false) }}
+                  className={cn('w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all active:scale-95',
+                    selectedMember?.id === m.id ? 'bg-amber-500/20 border border-amber-500/30' : 'bg-white/4 hover:bg-white/8 border border-transparent')}>
+                  <div className="w-9 h-9 rounded-xl bg-amber-500/15 flex items-center justify-center shrink-0">
+                    <Star className="w-4 h-4 text-amber-400" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-semibold text-white truncate">{m.name}</p>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-400 shrink-0">{m.tier}</span>
+                    </div>
+                    {m.phone && <p className="text-xs text-white/40 flex items-center gap-1 mt-0.5"><Phone className="w-3 h-3" />{m.phone}</p>}
+                    <p className="text-xs text-amber-400/60 mt-0.5">{m.points} pts</p>
+                  </div>
+                  {selectedMember?.id === m.id && <Check className="w-4 h-4 text-amber-400 shrink-0" />}
+                </button>
+              ))}
+            {memberList.length === 0 && (
+              <p className="text-center text-white/30 text-sm py-8">No active members found</p>
+            )}
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* Customer Picker */}
+    {showCustomerPicker && (
+      <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+        <div className="w-full max-w-sm bg-[#0d1220] border border-white/15 rounded-2xl shadow-2xl flex flex-col max-h-[80vh]">
+          <div className="flex items-center justify-between px-5 pt-5 pb-3 shrink-0">
+            <h3 className="text-base font-bold text-white">Select Customer</h3>
+            <button onClick={() => setShowCustomerPicker(false)} className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-all">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="px-5 pb-3 shrink-0">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+              <input value={customerSearch} onChange={e => setCustomerSearch(e.target.value)}
+                placeholder="Search name or phone…" autoFocus
+                className="w-full pl-9 pr-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/25 focus:outline-none focus:border-violet-500/50 transition-colors" />
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto px-3 pb-4 space-y-1">
+            {customerList
+              .filter(c => {
+                const q = customerSearch.toLowerCase()
+                return !q || c.name.toLowerCase().includes(q) || c.phone?.includes(q) || c.email?.toLowerCase().includes(q)
+              })
+              .map(c => (
+                <button key={c.id} onClick={() => { persistCustomer({ id: c.id, name: c.name, phone: c.phone }); setShowCustomerPicker(false) }}
+                  className={cn('w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all active:scale-95',
+                    selectedCustomer?.id === c.id ? 'bg-violet-500/20 border border-violet-500/30' : 'bg-white/4 hover:bg-white/8 border border-transparent')}>
+                  <div className="w-9 h-9 rounded-xl bg-violet-500/15 flex items-center justify-center shrink-0">
+                    <Users className="w-4 h-4 text-violet-400" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-white truncate">{c.name}</p>
+                    {c.phone && <p className="text-xs text-white/40 flex items-center gap-1 mt-0.5"><Phone className="w-3 h-3" />{c.phone}</p>}
+                  </div>
+                  {selectedCustomer?.id === c.id && <Check className="w-4 h-4 text-violet-400 ml-auto shrink-0" />}
+                </button>
+              ))}
+            {customerList.length === 0 && (
+              <p className="text-center text-white/30 text-sm py-8">No active customers found</p>
+            )}
+          </div>
+        </div>
+      </div>
     )}
     </>
   )

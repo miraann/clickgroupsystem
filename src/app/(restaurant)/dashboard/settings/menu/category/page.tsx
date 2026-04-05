@@ -30,18 +30,18 @@ interface Category {
 }
 
 const COLOR_PRESETS = [
-  'linear-gradient(135deg,#f6d365,#fda085)',
-  'linear-gradient(135deg,#f093fb,#f5576c)',
-  'linear-gradient(135deg,#4facfe,#00f2fe)',
-  'linear-gradient(135deg,#43e97b,#38f9d7)',
-  'linear-gradient(135deg,#fa709a,#fee140)',
-  'linear-gradient(135deg,#a18cd1,#fbc2eb)',
-  'linear-gradient(135deg,#667eea,#764ba2)',
-  'linear-gradient(135deg,#ff9a9e,#fecfef)',
-  'linear-gradient(135deg,#96fbc4,#f9f586)',
-  'linear-gradient(135deg,#fddb92,#d1fdff)',
-  'linear-gradient(135deg,#30cfd0,#330867)',
-  'linear-gradient(135deg,#a1c4fd,#c2e9fb)',
+  'linear-gradient(160deg,#c2185b,#7b0033)',
+  'linear-gradient(160deg,#e65100,#bf360c)',
+  'linear-gradient(160deg,#004d40,#00251a)',
+  'linear-gradient(160deg,#1b5e20,#003300)',
+  'linear-gradient(160deg,#b71c1c,#7f0000)',
+  'linear-gradient(160deg,#006064,#002b2e)',
+  'linear-gradient(160deg,#283593,#1a237e)',
+  'linear-gradient(160deg,#ad1457,#880e4f)',
+  'linear-gradient(160deg,#827717,#524a00)',
+  'linear-gradient(160deg,#6a1b9a,#4a0072)',
+  'linear-gradient(160deg,#1a237e,#0d1457)',
+  'linear-gradient(160deg,#558b2f,#33691e)',
 ]
 
 const EMOJI_PRESETS = [
@@ -51,7 +51,7 @@ const EMOJI_PRESETS = [
   '🥪','🌯','🥙','🫔','🥞','🧇','🥓','🍟',
 ]
 
-const EMPTY_FORM = { name: '', color: 'linear-gradient(135deg,#f6d365,#fda085)', icon: '', active: true }
+const EMPTY_FORM = { name: '', color: 'linear-gradient(160deg,#c2185b,#7b0033)', icon: '', active: true }
 
 function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
   return (

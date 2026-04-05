@@ -34,6 +34,7 @@ const NAV_GROUPS = [
   {
     label: 'Finance',
     items: [
+      { label: 'Sales', href: '/dashboard/settings/sales', icon: ActivitySquare },
       { label: 'Expense', href: '/dashboard/settings/expense', icon: DollarSign },
       { label: 'Pay Later', href: '/dashboard/settings/pay-later', icon: CreditCard },
       { label: 'Receipt', href: '/dashboard/settings/receipt', icon: Receipt },

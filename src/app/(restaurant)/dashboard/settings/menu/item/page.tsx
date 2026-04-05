@@ -22,13 +22,14 @@ interface Item {
   name: string
   description: string
   price: number
+  cost: number
   image_url: string | null
   available: boolean
   has_modifiers: boolean
   sort_order: number
 }
 
-const EMPTY_FORM = { name: '', category_id: '', price: 0, description: '', image_url: '', available: true, has_modifiers: false }
+const EMPTY_FORM = { name: '', category_id: '', price: 0, cost: 0, description: '', image_url: '', available: true, has_modifiers: false }
 
 export default function ItemPage() {
   const supabase = createClient()
@@ -99,7 +100,7 @@ export default function ItemPage() {
 
   const openEdit = (item: Item) => {
     setEditId(item.id)
-    setForm({ name: item.name, category_id: item.category_id ?? '', price: item.price, description: item.description ?? '', image_url: item.image_url ?? '', available: item.available, has_modifiers: item.has_modifiers })
+    setForm({ name: item.name, category_id: item.category_id ?? '', price: item.price, cost: item.cost ?? 0, description: item.description ?? '', image_url: item.image_url ?? '', available: item.available, has_modifiers: item.has_modifiers })
     setSelectedModIds(itemModMap.get(item.id) ?? [])
     setSaveError(null)
     setModal(true)
@@ -146,6 +147,7 @@ export default function ItemPage() {
       name:          form.name,
       category_id:   form.category_id || null,
       price:         form.price,
+      cost:          form.cost,
       description:   form.description,
       image_url:     (form.image_url && !form.image_url.startsWith('blob:')) ? form.image_url : null,
       available:     form.available,
@@ -326,7 +328,7 @@ export default function ItemPage() {
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500/50 transition-colors" />
               </div>
 
-              {/* Category + Price */}
+              {/* Category + Price + Cost */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs text-white/50 mb-1.5 font-medium">Category</label>
@@ -341,6 +343,19 @@ export default function ItemPage() {
                   <input type="number" min="0" step="0.5" value={form.price} onChange={e => setForm(f => ({ ...f, price: parseFloat(e.target.value) || 0 }))}
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500/50 transition-colors" />
                 </div>
+                <div>
+                  <label className="block text-xs text-white/50 mb-1.5 font-medium">Cost ({cur})</label>
+                  <input type="number" min="0" step="0.5" value={form.cost} onChange={e => setForm(f => ({ ...f, cost: parseFloat(e.target.value) || 0 }))}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500/50 transition-colors" />
+                </div>
+                {form.price > 0 && form.cost > 0 && (
+                  <div className="flex flex-col justify-end pb-2.5">
+                    <p className="text-xs text-white/40">Margin</p>
+                    <p className={form.price > form.cost ? 'text-sm font-semibold text-emerald-400' : 'text-sm font-semibold text-rose-400'}>
+                      {Math.round(((form.price - form.cost) / form.price) * 100)}%
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Image Upload */}

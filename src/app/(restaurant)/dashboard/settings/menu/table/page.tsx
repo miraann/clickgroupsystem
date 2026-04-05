@@ -297,6 +297,47 @@ export default function TablePage() {
           setCopied(true); setTimeout(() => setCopied(false), 2000)
         }
 
+        const handleDownload = async () => {
+          const img = new Image()
+          img.crossOrigin = 'anonymous'
+          img.src = qrSrc
+          await new Promise(r => { img.onload = r })
+
+          const padding = 24
+          const labelFontSize = 36
+          const gap = 16
+          const canvasW = img.width + padding * 2
+          const canvasH = img.height + padding * 2 + gap + labelFontSize + padding
+
+          const canvas = document.createElement('canvas')
+          canvas.width = canvasW
+          canvas.height = canvasH
+          const ctx = canvas.getContext('2d')!
+
+          // White background
+          ctx.fillStyle = '#ffffff'
+          ctx.fillRect(0, 0, canvasW, canvasH)
+
+          // QR image
+          ctx.drawImage(img, padding, padding, img.width, img.height)
+
+          // Table label
+          ctx.fillStyle = '#111111'
+          ctx.font = `bold ${labelFontSize}px sans-serif`
+          ctx.textAlign = 'center'
+          ctx.fillText(label, canvasW / 2, img.height + padding + gap + labelFontSize)
+
+          canvas.toBlob(blob => {
+            if (!blob) return
+            const url = URL.createObjectURL(blob)
+            const a = document.createElement('a')
+            a.href = url
+            a.download = `table-${qrTable!.table_number}-qr.png`
+            a.click()
+            URL.revokeObjectURL(url)
+          }, 'image/png')
+        }
+
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
             <div className="w-full max-w-xs bg-[#0d1220]/98 backdrop-blur-2xl border border-white/15 rounded-3xl shadow-2xl overflow-hidden">
@@ -333,10 +374,10 @@ export default function TablePage() {
 
                 {/* Actions */}
                 <div className="flex gap-2 w-full">
-                  <a href={qrSrc} download={`table-${qrTable.table_number}-qr.png`} target="_blank" rel="noreferrer"
+                  <button onClick={handleDownload}
                     className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium transition-all active:scale-95">
                     <Download className="w-4 h-4" /> Download
-                  </a>
+                  </button>
                   <a href={guestUrl} target="_blank" rel="noreferrer"
                     className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white/8 hover:bg-white/12 border border-white/10 text-white/60 text-sm font-medium transition-all active:scale-95">
                     Preview

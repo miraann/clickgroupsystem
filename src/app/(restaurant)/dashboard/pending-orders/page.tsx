@@ -60,9 +60,10 @@ export default function PendingOrdersPage() {
     const [{ data: pendingData, error: pendingErr }, { data: tablesData }, { data: groupsData }] = await Promise.all([
       supabase
         .from('order_items')
-        .select('id, item_name, item_price, qty, note, created_at, order_id, orders!inner(table_number, restaurant_id)')
+        .select('id, item_name, item_price, qty, note, created_at, order_id, orders!inner(table_number, restaurant_id, source)')
         .eq('status', 'pending')
         .eq('orders.restaurant_id', rest.id)
+        .neq('orders.source', 'delivery')
         .order('created_at', { ascending: true }),
       supabase
         .from('tables')
@@ -86,9 +87,10 @@ export default function PendingOrdersPage() {
       if (t.group_id) groupMap.set(t.seq, groupNameById.get(t.group_id) ?? '')
     }
 
-    // Group by order_id
+    // Group by order_id — skip delivery orders
     const map = new Map<string, PendingGroup>()
     for (const row of (pendingData ?? []) as any[]) {
+      if (row.orders?.source === 'delivery') continue
       const orderId = row.order_id
       const seq: number = row.orders.table_number
       if (!map.has(orderId)) {
