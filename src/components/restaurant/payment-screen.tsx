@@ -267,13 +267,12 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
     const now          = new Date().toISOString()
     const methodName   = payMethods.find(m => m.id === method)?.name ?? method
 
-    // Close all active orders for this table
-    const { error } = await supabase
-      .from('orders')
-      .update({ status: 'paid', total: finalTotal, updated_at: now })
-      .eq('table_number', parseInt(tableNum))
-      .eq('status', 'active')
-      .select('id')
+    // Close active orders for this table (use orderId directly when tableNum is non-numeric)
+    const tableNumInt = parseInt(tableNum)
+    const closeQ = isNaN(tableNumInt)
+      ? supabase.from('orders').update({ status: 'paid', total: finalTotal, updated_at: now }).eq('id', orderId)
+      : supabase.from('orders').update({ status: 'paid', total: finalTotal, updated_at: now }).eq('table_number', tableNumInt).eq('status', 'active')
+    const { error } = await closeQ.select('id')
 
     if (error) {
       setPayError(`DB error: ${error.message}`)
@@ -415,8 +414,8 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
                 <Users className="w-4 h-4 text-amber-400" />
               </div>
               <div>
-                <p className="text-sm font-bold text-white">Table {tableNum}{guests > 0 ? ` · ${guests} Guests` : ''}</p>
-                <p className="text-xs text-white/30">Dine In</p>
+                <p className="text-sm font-bold text-white">{isNaN(parseInt(tableNum)) ? tableNum : `Table ${tableNum}`}{guests > 0 ? ` · ${guests} Guests` : ''}</p>
+                <p className="text-xs text-white/30">{isNaN(parseInt(tableNum)) ? tableNum : 'Dine In'}</p>
               </div>
             </div>
             <div className="space-y-1 pt-1">
@@ -824,7 +823,7 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-white/40 uppercase tracking-wider mb-0.5">Confirm Payment</p>
-                <p className="text-base font-bold text-white">Table {tableNum}{guests > 0 ? ` · ${guests} guests` : ''}</p>
+                <p className="text-base font-bold text-white">{isNaN(parseInt(tableNum)) ? tableNum : `Table ${tableNum}`}{guests > 0 ? ` · ${guests} guests` : ''}</p>
               </div>
               <div className="text-right">
                 <p className="text-xs text-white/40 mb-0.5">Total</p>

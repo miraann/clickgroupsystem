@@ -58,6 +58,9 @@ function OrderPage() {
   const supabase = createClient()
   const { symbol: cur, formatPrice } = useDefaultCurrency()
 
+  const isTakeout      = searchParams.get('source') === 'takeout'
+  const takeoutName    = searchParams.get('name') ?? null
+  const takeoutPhone   = searchParams.get('phone') ?? null
   const guestCountParam = parseInt(searchParams.get('guests') ?? '0')
   const [guestCount, setGuestCount]         = useState(guestCountParam)
   const [showGuestEdit, setShowGuestEdit]   = useState(false)
@@ -373,17 +376,33 @@ function OrderPage() {
           </button>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-sm font-bold text-white">Table {table}</span>
-              <button
-                onClick={() => { setGuestDraft(guestCount); setShowGuestEdit(true) }}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/8 border border-white/12 hover:bg-white/12 hover:border-white/20 active:scale-95 transition-all touch-manipulation"
-              >
-                <Users className="w-4 h-4 text-amber-400" />
-                <span className="text-sm font-bold text-white">{guestCount > 0 ? guestCount : '—'}</span>
-                <span className="text-xs text-white/40">guests</span>
-              </button>
+              {isTakeout ? (
+                <div className="flex items-center gap-2">
+                  <ShoppingBag className="w-4 h-4 text-amber-400" />
+                  <span className="text-sm font-bold text-white">
+                    {takeoutName ?? 'Takeout'}
+                  </span>
+                  {takeoutPhone && (
+                    <span className="text-xs text-white/40">{takeoutPhone}</span>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <span className="text-sm font-bold text-white">Table {table}</span>
+                  <button
+                    onClick={() => { setGuestDraft(guestCount); setShowGuestEdit(true) }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/8 border border-white/12 hover:bg-white/12 hover:border-white/20 active:scale-95 transition-all touch-manipulation"
+                  >
+                    <Users className="w-4 h-4 text-amber-400" />
+                    <span className="text-sm font-bold text-white">{guestCount > 0 ? guestCount : '—'}</span>
+                    <span className="text-xs text-white/40">guests</span>
+                  </button>
+                </>
+              )}
             </div>
-            <p className="text-xs text-white/25 mt-0.5">Dine In · #{orderId?.slice(-6).toUpperCase()}</p>
+            <p className="text-xs text-white/25 mt-0.5">
+              {isTakeout ? 'Takeout' : 'Dine In'} · #{orderId?.slice(-6).toUpperCase()}
+            </p>
           </div>
         </div>
         {grandTotal > 0 && (
@@ -759,7 +778,7 @@ function OrderPage() {
         <PaymentScreen
           orderId={orderId}
           restaurantId={restaurantId}
-          tableNum={table}
+          tableNum={isTakeout ? 'Takeout' : table}
           guests={guestCount}
           items={sentItems.map(i => ({ name: i.item_name, price: i.item_price, qty: i.qty }))}
           total={grandTotal}

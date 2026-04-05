@@ -337,6 +337,8 @@ function KdsPage() {
   const audioCtxRef      = useRef<AudioContext | null>(null)
   const alertLoopRef     = useRef<ReturnType<typeof setInterval> | null>(null)
   const newOrderLoopRef  = useRef<ReturnType<typeof setInterval> | null>(null)
+  // Tracks item IDs that have already triggered the new-order sound (prevents double-play)
+  const soundedItemsRef  = useRef<Set<string>>(new Set())
 
   // Keep activeStationId + stations accessible inside realtime closures
   useEffect(() => { activeStationIdRef.current = activeStationId }, [activeStationId])
@@ -477,7 +479,7 @@ function KdsPage() {
       .select(`
         id, item_name, qty, note, status, station_id, created_at,
         sent_at, cooking_started_at, ready_at,
-        orders!inner(id, table_number, restaurant_id, order_num)
+        orders!inner(id, table_number, restaurant_id, order_num, source)
       `)
       // note: station_id may be null for old items — those fall into "All" only
       .in('status', ['sent', 'cooking', 'ready'])
@@ -502,13 +504,14 @@ function KdsPage() {
 
     const map = new Map<string, KdsOrder>()
     for (const row of (data ?? [])) {
-      const ord = row.orders as unknown as { id: string; table_number: number; order_num: string | null }
+      const ord = row.orders as unknown as { id: string; table_number: number; order_num: string | null; source: string | null }
+      const sourceLabel = ord.source === 'delivery' ? 'Delivery' : ord.source === 'takeout' ? 'Takeout' : null
       if (!map.has(ord.id)) {
         map.set(ord.id, {
           order_id:    ord.id,
           order_num:   ord.order_num ?? null,
-          table_label: labelMap.get(ord.table_number) ?? String(ord.table_number),
-          group_label: groupMap.get(ord.table_number) ?? null,
+          table_label: sourceLabel ?? labelMap.get(ord.table_number) ?? String(ord.table_number),
+          group_label: sourceLabel ? null : (groupMap.get(ord.table_number) ?? null),
           items:       [],
           oldest_at:   row.created_at,
         })
@@ -574,9 +577,22 @@ function KdsPage() {
         .channel('kds-order-items')
         .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'order_items' },
           (payload) => {
-            const updated = payload.new as { id: string; status: string; item_name: string; qty: number }
+            const updated = payload.new as { id: string; status: string; item_name: string; qty: number; station_id: string | null }
+
+            // Play sound when an item becomes 'sent' and hasn't already played
+            // (covers delivery/guest orders confirmed by staff: pending → sent via UPDATE)
+            if (updated.status === 'sent' && !soundedItemsRef.current.has(updated.id)) {
+              soundedItemsRef.current.add(updated.id)
+              const activeId = activeStationIdRef.current
+              const stnList  = stationsRef.current
+              const station  = stnList.find(s => s.id === activeId)
+              const belongs  = !activeId
+                            || updated.station_id === activeId
+                            || (!!station && station.category_ids.length === 0)
+              if (belongs) playNewOrder()
+            }
+
             if (updated.status === 'void') {
-              // Find this item in current orders — alert only if it was being cooked
               for (const order of allOrdersRef.current) {
                 const item = order.items.find(i => i.id === updated.id && i.status === 'cooking')
                 if (item) {
@@ -589,15 +605,20 @@ function KdsPage() {
           })
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'order_items' },
           (payload) => {
-            // Only play new-order sound if this item belongs to the active station
-            const newItem  = payload.new as { station_id: string | null }
-            const activeId = activeStationIdRef.current
-            const stnList  = stationsRef.current
-            const station  = stnList.find(s => s.id === activeId)
-            const belongs  = !activeId                                  // All tab
-                          || newItem.station_id === activeId            // direct match
-                          || (!!station && station.category_ids.length === 0) // station shows everything
-            if (belongs) playNewOrder()
+            const newItem = payload.new as { id: string; station_id: string | null; status: string }
+
+            // Only play sound for items inserted directly as 'sent' (dine-in staff orders).
+            // Delivery/guest items are inserted as 'pending' — their sound plays on UPDATE above.
+            if (newItem.status === 'sent') {
+              soundedItemsRef.current.add(newItem.id)
+              const activeId = activeStationIdRef.current
+              const stnList  = stationsRef.current
+              const station  = stnList.find(s => s.id === activeId)
+              const belongs  = !activeId
+                            || newItem.station_id === activeId
+                            || (!!station && station.category_ids.length === 0)
+              if (belongs) playNewOrder()
+            }
             if (restIdRef.current) fetchOrders(restIdRef.current)
           })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' },

@@ -19,6 +19,8 @@ interface StoredInvoice {
   amount_paid: number
   change_amount: number
   created_at: string
+  customer_name?: string | null
+  customer_phone?: string | null
 }
 
 interface ReceiptSettings {
@@ -166,8 +168,14 @@ export default function InvoiceViewModal({ invoice, restaurantId, onClose }: Pro
           {/* Order info row */}
           <div className="px-5 py-2 flex items-center justify-between text-[10px]">
             <div>
-              <span className="font-bold text-black">Table </span>
-              <span className="font-extrabold text-black">{invoice.table_num || '—'}</span>
+              {invoice.table_num === 'Takeout' || invoice.table_num === 'Delivery' ? (
+                <span className="font-extrabold text-black">{invoice.table_num}</span>
+              ) : (
+                <>
+                  <span className="font-bold text-black">Table </span>
+                  <span className="font-extrabold text-black">{invoice.table_num || '—'}</span>
+                </>
+              )}
               {invoice.guests > 0 && (
                 <span className="font-bold text-black"> · {invoice.guests} guests</span>
               )}
@@ -176,6 +184,27 @@ export default function InvoiceViewModal({ invoice, restaurantId, onClose }: Pro
               <div className="font-bold text-black">{invoice.order_num}</div>
             )}
           </div>
+
+          {/* Customer info row (delivery / takeout) */}
+          {(invoice.customer_name || invoice.customer_phone) && (
+            <>
+              <div className="border-t border-dashed border-gray-300" />
+              <div className="px-5 py-2 text-[10px] space-y-0.5">
+                {invoice.customer_name && (
+                  <div className="flex justify-between">
+                    <span className="font-bold text-black">Customer</span>
+                    <span className="font-extrabold text-black">{invoice.customer_name}</span>
+                  </div>
+                )}
+                {invoice.customer_phone && (
+                  <div className="flex justify-between">
+                    <span className="font-bold text-black">Phone</span>
+                    <span className="font-extrabold text-black">{invoice.customer_phone}</span>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
 
           <div className="border-t border-dashed border-gray-300" />
 

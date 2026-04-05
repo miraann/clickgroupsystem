@@ -302,8 +302,50 @@ export default function TablesPage() {
   const [activeOrders, setActiveOrders]   = useState<Map<number, { guests: number; total: number; openedAt: string }>>(new Map())
   const [dbTableLayout, setDbTableLayout] = useState<{ id: string; number: number; label: string; capacity: number; shape: 'square' | 'round' | 'rect'; group_id: string | null }[]>([])
   const [reservedTableIds, setReservedTableIds] = useState<Set<string>>(new Set())
-  const [pendingCount, setPendingCount]   = useState(0)
-  const [deliveryCount, setDeliveryCount] = useState(0)
+  const [pendingCount, setPendingCount]         = useState(0)
+  const [deliveryCount, setDeliveryCount]       = useState(0)
+  const [guestPendingCount, setGuestPendingCount] = useState(0)
+  const alertIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const audioCtxRef = useRef<AudioContext | null>(null)
+
+  // Unlock AudioContext on first user interaction (browser autoplay policy)
+  useEffect(() => {
+    const unlock = () => {
+      if (!audioCtxRef.current) {
+        try { audioCtxRef.current = new AudioContext() } catch { return }
+      }
+      if (audioCtxRef.current.state !== 'running') audioCtxRef.current.resume().catch(() => {})
+    }
+    document.addEventListener('click',      unlock)
+    document.addEventListener('touchstart', unlock)
+    return () => {
+      document.removeEventListener('click',      unlock)
+      document.removeEventListener('touchstart', unlock)
+    }
+  }, [])
+
+  const playNewOrderAlert = useCallback(() => {
+    if (!audioCtxRef.current) {
+      try { audioCtxRef.current = new AudioContext() } catch { return }
+    }
+    const ctx = audioCtxRef.current
+    const play = () => {
+      // Three ascending beeps — distinct from KDS sound
+      [520, 660, 800].forEach((freq, i) => {
+        const t    = ctx.currentTime + i * 0.25
+        const osc  = ctx.createOscillator()
+        const gain = ctx.createGain()
+        osc.connect(gain); gain.connect(ctx.destination)
+        osc.type = 'sine'
+        osc.frequency.setValueAtTime(freq, t)
+        gain.gain.setValueAtTime(0.5, t)
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.22)
+        osc.start(t); osc.stop(t + 0.22)
+      })
+    }
+    ctx.state === 'running' ? play() : ctx.resume().then(play).catch(() => {})
+  }, [])
 
   const fetchOrders = useCallback(async () => {
     const supabase = createClient()
@@ -312,19 +354,21 @@ export default function TablesPage() {
     setRestaurant({ name: rest.name, logo_url: rest.logo_url })
 
     const today = new Date().toISOString().slice(0, 10)
-    const [{ data: dbTables }, { data: orders }, { data: grps }, { count: pendingCnt }, { data: todayRes }, { count: deliveryCnt }] = await Promise.all([
+    const [{ data: dbTables }, { data: orders }, { data: grps }, { count: pendingCnt }, { data: todayRes }, { count: deliveryCnt }, guestPendingRes] = await Promise.all([
       supabase.from('tables').select('id, seq, table_number, capacity, shape, group_id').eq('restaurant_id', rest.id).eq('active', true).order('table_number'),
       supabase.from('orders').select('id, table_number, guests, total, created_at').eq('restaurant_id', rest.id).eq('status', 'active'),
       supabase.from('table_groups').select('id, name, color').eq('restaurant_id', rest.id).order('sort_order'),
       supabase.from('order_items').select('id, orders!inner(source)', { count: 'exact', head: true }).eq('status', 'pending').not('orders.source', 'eq', 'delivery'),
       supabase.from('reservations').select('table_id').eq('restaurant_id', rest.id).eq('date', today).in('status', ['pending', 'confirmed']),
       supabase.from('delivery_orders').select('id', { count: 'exact', head: true }).eq('restaurant_id', rest.id).eq('status', 'pending'),
+      supabase.from('order_items').select('id, orders!inner(source)', { count: 'exact', head: true }).eq('status', 'pending').eq('orders.source', 'guest'),
     ])
     // Build reserved table IDs set
     const resSet = new Set<string>((todayRes ?? []).map((r: { table_id: string | null }) => r.table_id).filter(Boolean) as string[])
     setReservedTableIds(resSet)
     setPendingCount(pendingCnt ?? 0)
     setDeliveryCount(deliveryCnt ?? 0)
+    setGuestPendingCount(guestPendingRes?.count ?? 0)
     if (grps && grps.length > 0) {
       setGroups(grps as TableGroup[])
       setGroupFilter(f => f === 'all' ? grps[0].id : f)
@@ -376,6 +420,29 @@ export default function TablesPage() {
     return () => clearInterval(t)
   }, [])
 
+  // Repeat alert every 30 s while there are unconfirmed delivery or guest orders
+  useEffect(() => {
+    const unconfirmed = deliveryCount + guestPendingCount
+    if (unconfirmed > 0) {
+      if (!alertIntervalRef.current) {
+        alertIntervalRef.current = setInterval(() => {
+          playNewOrderAlert()
+        }, 30000)
+      }
+    } else {
+      if (alertIntervalRef.current) {
+        clearInterval(alertIntervalRef.current)
+        alertIntervalRef.current = null
+      }
+    }
+    return () => {
+      if (alertIntervalRef.current) {
+        clearInterval(alertIntervalRef.current)
+        alertIntervalRef.current = null
+      }
+    }
+  }, [deliveryCount, guestPendingCount, playNewOrderAlert])
+
   const fetchRef = useRef(fetchOrders)
   useEffect(() => { fetchRef.current = fetchOrders }, [fetchOrders])
 
@@ -390,7 +457,16 @@ export default function TablesPage() {
     const channel = supabase
       .channel('dashboard-tables')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' },
-        () => fetchRef.current())
+        (payload) => {
+          // Play alert sound when a new delivery or guest order arrives
+          if (payload.eventType === 'INSERT') {
+            const row = payload.new as { source?: string }
+            if (row.source === 'delivery' || row.source === 'guest') {
+              playNewOrderAlert()
+            }
+          }
+          fetchRef.current()
+        })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' },
         () => fetchRef.current())
       .subscribe()
@@ -582,15 +658,15 @@ export default function TablesPage() {
 
       {/* Bottom action bar */}
       <div className="sticky bottom-0 z-30 border-t border-white/8 bg-[#060810]/90 backdrop-blur-2xl px-4 py-3">
-        <div className="grid grid-cols-3 gap-3 max-w-lg mx-auto">
-          <button className="flex items-center justify-center gap-2 h-12 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-sm font-semibold transition-all shadow-lg shadow-amber-500/25 touch-manipulation">
+        <div className="grid grid-cols-4 gap-2 max-w-lg mx-auto">
+          <button className="flex items-center justify-center gap-1.5 h-12 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-sm font-semibold transition-all shadow-lg shadow-amber-500/25 touch-manipulation">
             <Plus className="w-4 h-4" />
             New Order
           </button>
           <Link
             href="/dashboard/delivery-orders"
             className={cn(
-              'relative flex items-center justify-center gap-2 h-12 rounded-xl border text-sm font-semibold transition-all active:scale-95 touch-manipulation',
+              'relative flex items-center justify-center gap-1.5 h-12 rounded-xl border text-sm font-semibold transition-all active:scale-95 touch-manipulation',
               deliveryCount > 0
                 ? 'bg-indigo-500/20 border-indigo-500/40 text-indigo-300 hover:bg-indigo-500/30'
                 : 'bg-white/8 border-white/12 text-white/70 hover:bg-white/12'
@@ -604,7 +680,14 @@ export default function TablesPage() {
               </span>
             )}
           </Link>
-          <Link href="/dashboard/settings" className="flex items-center justify-center gap-2 h-12 rounded-xl bg-white/8 border border-white/12 hover:bg-white/12 active:scale-95 text-white/70 text-sm font-medium transition-all touch-manipulation">
+          <Link
+            href="/dashboard/takeout-orders"
+            className="relative flex items-center justify-center gap-1.5 h-12 rounded-xl border bg-white/8 border-white/12 text-white/70 hover:bg-white/12 text-sm font-semibold transition-all active:scale-95 touch-manipulation"
+          >
+            <ShoppingBag className="w-4 h-4" />
+            Takeout
+          </Link>
+          <Link href="/dashboard/settings" className="flex items-center justify-center gap-1.5 h-12 rounded-xl bg-white/8 border border-white/12 hover:bg-white/12 active:scale-95 text-white/70 text-sm font-medium transition-all touch-manipulation">
             <Settings className="w-4 h-4" />
             Settings
           </Link>

@@ -4,11 +4,12 @@ import {
   Truck, Phone, MapPin, Clock, Check, X, Loader2,
   RefreshCw, Package, ChevronDown, ChevronUp,
   ExternalLink, CheckCircle2, XCircle, AlertCircle,
-  Navigation, UtensilsCrossed,
+  Navigation, UtensilsCrossed, FileText,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
+import InvoiceViewModal from '@/components/restaurant/invoice-view-modal'
 
 // ── Types ──────────────────────────────────────────────────────
 type DeliveryStatus = 'pending' | 'confirmed' | 'preparing' | 'out_for_delivery' | 'delivered' | 'cancelled'
@@ -70,7 +71,13 @@ export default function DeliveryOrdersPage() {
   const supabase = createClient()
   const { formatPrice } = useDefaultCurrency()
 
+  const [restaurantId, setRestaurantId] = useState<string | null>(null)
   const [orders, setOrders]       = useState<DeliveryOrder[]>([])
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [printInvoice, setPrintInvoice]   = useState<any | null>(null)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [viewInvoice, setViewInvoice]     = useState<any | null>(null)
+  const [viewLoading, setViewLoading]     = useState<string | null>(null) // order_id being fetched
   const [loading, setLoading]     = useState(true)
   const [error, setError]         = useState<string | null>(null)
   const [filter, setFilter]       = useState<FilterStatus>('pending')
@@ -84,6 +91,7 @@ export default function DeliveryOrdersPage() {
   const load = useCallback(async () => {
     const { data: rest } = await supabase.from('restaurants').select('id').limit(1).maybeSingle()
     if (!rest) { setError('Restaurant not found'); setLoading(false); return }
+    setRestaurantId(rest.id)
 
     // Query through `orders` (has working RLS) and join delivery_orders for customer info
     const { data, error: err } = await supabase
@@ -142,6 +150,93 @@ export default function DeliveryOrdersPage() {
   const setProc = (k: string, v: boolean) =>
     setProcessing(p => { const s = new Set(p); v ? s.add(k) : s.delete(k); return s })
 
+  const createDeliveryInvoice = useCallback(async (orderId: string, order: DeliveryOrder, restId: string) => {
+    const { data: { user } } = await supabase.auth.getUser()
+    const { data: profile }  = user
+      ? await supabase.from('profiles').select('full_name').eq('id', user.id).maybeSingle()
+      : { data: null }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const cashier = (profile as any)?.full_name ?? 'Staff'
+
+    const { data: invData } = await supabase
+      .from('invoice_number_settings')
+      .select('prefix, current_num, start_num')
+      .eq('restaurant_id', restId)
+      .maybeSingle()
+
+    let invNum = `INV-${orderId.slice(-5).toUpperCase()}`
+    if (invData) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const d = invData as any
+      const num = d.current_num ?? d.start_num ?? 1001
+      invNum = `${d.prefix ?? 'INV-'}${num}`
+      await supabase
+        .from('invoice_number_settings')
+        .update({ current_num: num + 1, updated_at: new Date().toISOString() })
+        .eq('restaurant_id', restId)
+    }
+
+    const items = order.items.map(i => ({ name: i.item_name, price: i.item_price, qty: i.qty }))
+    const subtotal = order.order_total - order.delivery_fee
+
+    const payload = {
+      restaurant_id:  restId,
+      invoice_num:    invNum,
+      order_num:      order.order_num,
+      table_num:      'Delivery',
+      guests:         0,
+      cashier,
+      payment_method: 'Delivery',
+      items,
+      subtotal,
+      discount:       0,
+      total:          order.order_total,
+      amount_paid:    order.order_total,
+      change_amount:  0,
+      customer_name:  order.customer_name,
+      customer_phone: order.customer_phone,
+    }
+
+    const { data: saved, error: e1 } = await supabase.from('invoices').insert(payload).select().single()
+    if (e1) {
+      const { data: saved2 } = await supabase.from('invoices').insert({
+        restaurant_id:  restId,
+        invoice_num:    invNum,
+        order_num:      order.order_num,
+        table_num:      'Delivery',
+        guests:         0,
+        cashier,
+        payment_method: 'Delivery',
+        items,
+        subtotal,
+        discount:       0,
+        total:          order.order_total,
+        amount_paid:    order.order_total,
+        change_amount:  0,
+      }).select().single()
+      return saved2 ?? null
+    }
+
+    await supabase
+      .from('orders')
+      .update({ status: 'paid', total: order.order_total, updated_at: new Date().toISOString() })
+      .eq('id', orderId)
+
+    return saved ?? null
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const openInvoice = useCallback(async (order: DeliveryOrder) => {
+    if (!order.order_num) return
+    setViewLoading(order.order_id)
+    const { data } = await supabase
+      .from('invoices')
+      .select('*')
+      .eq('order_num', order.order_num)
+      .maybeSingle()
+    setViewLoading(null)
+    if (data) setViewInvoice(data)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   const updateStatus = async (deliveryId: string, orderId: string, newStatus: DeliveryStatus) => {
     const k = `${deliveryId}-${newStatus}`
     setProc(k, true)
@@ -160,6 +255,15 @@ export default function DeliveryOrdersPage() {
         .update({ status: 'sent', sent_at: new Date().toISOString() })
         .eq('order_id', orderId)
         .eq('status', 'pending')
+    }
+
+    // If out_for_delivery → create invoice, mark order paid, show print modal
+    if (newStatus === 'out_for_delivery' && restaurantId) {
+      const ord = orders.find(o => o.order_id === orderId)
+      if (ord) {
+        const inv = await createDeliveryInvoice(orderId, ord, restaurantId)
+        if (inv) setPrintInvoice(inv)
+      }
     }
 
     // If cancelled → void all pending order_items
@@ -404,6 +508,18 @@ export default function DeliveryOrdersPage() {
               {/* ── Actions ── */}
               {(canAdvance || canCancel) && order.status !== 'cancelled' && (
                 <div className="flex gap-2 px-4 pb-4 pt-2">
+                  {order.status === 'out_for_delivery' && (
+                    <button
+                      onClick={() => openInvoice(order)}
+                      disabled={viewLoading === order.order_id}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border border-white/12 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white/80 transition-all active:scale-95 disabled:opacity-50"
+                    >
+                      {viewLoading === order.order_id
+                        ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        : <FileText className="w-3.5 h-3.5" />}
+                      Invoice
+                    </button>
+                  )}
                   {canCancel && (
                     <button
                       onClick={() => setCancelTarget({ deliveryId: order.delivery_id, orderId: order.order_id, name: order.customer_name })}
@@ -442,11 +558,21 @@ export default function DeliveryOrdersPage() {
               )}
 
               {order.status === 'delivered' && (
-                <div className="px-4 pb-4 pt-2">
-                  <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-500/8 border border-emerald-500/15">
+                <div className="px-4 pb-4 pt-2 flex items-center gap-2">
+                  <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-500/8 border border-emerald-500/15">
                     <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
                     <p className="text-xs text-emerald-400 font-semibold">Order delivered successfully</p>
                   </div>
+                  <button
+                    onClick={() => openInvoice(order)}
+                    disabled={viewLoading === order.order_id}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border border-white/12 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white/80 transition-all active:scale-95 disabled:opacity-50 shrink-0"
+                  >
+                    {viewLoading === order.order_id
+                      ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      : <FileText className="w-3.5 h-3.5" />}
+                    Invoice
+                  </button>
                 </div>
               )}
             </div>
@@ -502,6 +628,24 @@ export default function DeliveryOrdersPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── Delivery invoice print modal (Out for Delivery) ── */}
+      {printInvoice && restaurantId && (
+        <InvoiceViewModal
+          invoice={printInvoice}
+          restaurantId={restaurantId}
+          onClose={() => setPrintInvoice(null)}
+        />
+      )}
+
+      {/* ── Invoice view modal (delivered orders) ── */}
+      {viewInvoice && restaurantId && (
+        <InvoiceViewModal
+          invoice={viewInvoice}
+          restaurantId={restaurantId}
+          onClose={() => setViewInvoice(null)}
+        />
       )}
     </div>
   )
