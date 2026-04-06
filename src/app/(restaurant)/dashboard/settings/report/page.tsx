@@ -325,10 +325,10 @@ export default function ReportPage() {
                 <p className="text-sm font-semibold text-white/70 mb-4">Revenue by Payment Method</p>
                 <ResponsiveContainer width="100%" height={200}>
                   <PieChart>
-                    <Pie data={pmData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={75} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false} fontSize={10}>
+                    <Pie data={pmData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={75} label={({ name, percent }: { name?: string; percent?: number }) => `${name ?? ''} ${((percent ?? 0) * 100).toFixed(0)}%`} labelLine={false} fontSize={10}>
                       {pmData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
                     </Pie>
-                    <Tooltip formatter={(v: number) => formatPrice(v)} />
+                    <Tooltip formatter={(v) => formatPrice(Number(v))} />
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="mt-3 space-y-1.5">
@@ -354,7 +354,7 @@ export default function ReportPage() {
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" horizontal={false} />
                     <XAxis type="number" tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={v => formatPrice(v)} />
                     <YAxis type="category" dataKey="name" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10 }} axisLine={false} tickLine={false} width={80} />
-                    <Tooltip formatter={(v: number) => formatPrice(v)} />
+                    <Tooltip formatter={(v) => formatPrice(Number(v))} />
                     <Bar dataKey="value" name="Amount" radius={[0, 6, 6, 0]}>
                       {expCatData.map((_, i) => <Cell key={i} fill={PIE_COLORS[(i + 3) % PIE_COLORS.length]} />)}
                     </Bar>

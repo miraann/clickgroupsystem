@@ -9,8 +9,8 @@ export function createClient() {
         autoRefreshToken: true,
         detectSessionInUrl: false,
       },
-      realTime: {
-        heartbeatInterval: 30000,
+      realtime: {
+        heartbeatIntervalMs: 30000,
       }
     }
   )
