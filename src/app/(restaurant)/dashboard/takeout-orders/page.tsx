@@ -77,10 +77,15 @@ export default function TakeoutOrdersPage() {
     if (data) setViewInvoice(data)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  const [takeoutEnabled, setTakeoutEnabled] = useState(true)
+
   const load = useCallback(async () => {
-    const { data: rest } = await supabase.from('restaurants').select('id').limit(1).maybeSingle()
+    const { data: rest } = await supabase.from('restaurants').select('id, settings').limit(1).maybeSingle()
     if (!rest) { setError('Restaurant not found'); setLoading(false); return }
     setRestaurantId(rest.id)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const s = ((rest as any).settings ?? {}) as Record<string, unknown>
+    setTakeoutEnabled(s.takeout_enabled !== false)
 
     const { data, error: err } = await supabase
       .from('orders')
@@ -243,17 +248,29 @@ export default function TakeoutOrdersPage() {
         )}
 
         {/* ── Add new takeout order card ── */}
-        <button
-          onClick={openModal}
-          className="w-full flex flex-col items-center justify-center gap-3 py-10 rounded-2xl border-2 border-dashed border-white/10 hover:border-amber-500/40 hover:bg-amber-500/5 transition-all active:scale-[0.98] group"
-        >
-          <div className="w-12 h-12 rounded-full bg-white/8 group-hover:bg-amber-500/20 flex items-center justify-center transition-all">
-            <Plus className="w-6 h-6 text-white/30 group-hover:text-amber-400 transition-colors" />
+        {takeoutEnabled ? (
+          <button
+            onClick={openModal}
+            className="w-full flex flex-col items-center justify-center gap-3 py-10 rounded-2xl border-2 border-dashed border-white/10 hover:border-amber-500/40 hover:bg-amber-500/5 transition-all active:scale-[0.98] group"
+          >
+            <div className="w-12 h-12 rounded-full bg-white/8 group-hover:bg-amber-500/20 flex items-center justify-center transition-all">
+              <Plus className="w-6 h-6 text-white/30 group-hover:text-amber-400 transition-colors" />
+            </div>
+            <span className="text-sm font-semibold text-white/30 group-hover:text-amber-400 transition-colors">
+              New Takeout Order
+            </span>
+          </button>
+        ) : (
+          <div className="flex flex-col items-center justify-center gap-3 py-10 rounded-2xl border-2 border-dashed border-white/6 bg-white/2">
+            <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center">
+              <ShoppingBag className="w-6 h-6 text-white/20" />
+            </div>
+            <div className="text-center">
+              <p className="text-sm font-semibold text-white/30">Takeout is disabled</p>
+              <p className="text-xs text-white/20 mt-0.5">Enable it in Settings → Takeout</p>
+            </div>
           </div>
-          <span className="text-sm font-semibold text-white/30 group-hover:text-amber-400 transition-colors">
-            New Takeout Order
-          </span>
-        </button>
+        )}
 
         {/* ── Order list ── */}
         {filtered.length === 0 && !error && (

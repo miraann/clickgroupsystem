@@ -837,7 +837,7 @@ export default function DeliveryOrderPage() {
   const [welcomeText, setWelcomeText] = useState<string | null>(null)
 
   // Delivery config
-  const [deliveryEnabled, setDeliveryEnabled] = useState(true)
+  const [deliveryEnabled, setDeliveryEnabled] = useState(false)
   const [deliveryFee, setDeliveryFee]         = useState(0)
   const [minOrder, setMinOrder]               = useState(0)
   const [estimatedTime, setEstimatedTime]     = useState(30)
@@ -907,7 +907,7 @@ export default function DeliveryOrderPage() {
     // Load delivery settings from restaurant.settings
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const rs = ((restRes.data as any).settings ?? {}) as Record<string, unknown>
-    setDeliveryEnabled(rs.delivery_enabled !== false)
+    setDeliveryEnabled(rs.delivery_enabled === true)
     setDeliveryFee(Number(rs.default_delivery_fee ?? 0))
     setMinOrder(Number(rs.min_order_amount ?? 0))
     setEstimatedTime(Number(rs.estimated_delivery_time ?? 30))

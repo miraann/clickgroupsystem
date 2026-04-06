@@ -305,6 +305,8 @@ export default function TablesPage() {
   const [pendingCount, setPendingCount]         = useState(0)
   const [deliveryCount, setDeliveryCount]       = useState(0)
   const [guestPendingCount, setGuestPendingCount] = useState(0)
+  const [showDeliveryButton, setShowDeliveryButton] = useState(true)
+  const [showTakeoutButton, setShowTakeoutButton]   = useState(true)
   const alertIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const audioCtxRef = useRef<AudioContext | null>(null)
@@ -349,9 +351,13 @@ export default function TablesPage() {
 
   const fetchOrders = useCallback(async () => {
     const supabase = createClient()
-    const { data: rest } = await supabase.from('restaurants').select('id, name, logo_url').limit(1).maybeSingle()
+    const { data: rest } = await supabase.from('restaurants').select('id, name, logo_url, settings').limit(1).maybeSingle()
     if (!rest) return
     setRestaurant({ name: rest.name, logo_url: rest.logo_url })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rs = ((rest as any).settings ?? {}) as Record<string, unknown>
+    setShowDeliveryButton(rs.show_delivery_button !== false)
+    setShowTakeoutButton(rs.show_takeout_button !== false)
 
     const today = new Date().toISOString().slice(0, 10)
     const [{ data: dbTables }, { data: orders }, { data: grps }, { count: pendingCnt }, { data: todayRes }, { count: deliveryCnt }, guestPendingRes] = await Promise.all([
@@ -658,35 +664,39 @@ export default function TablesPage() {
 
       {/* Bottom action bar */}
       <div className="sticky bottom-0 z-30 border-t border-white/8 bg-[#060810]/90 backdrop-blur-2xl px-4 py-3">
-        <div className="grid grid-cols-4 gap-2 max-w-lg mx-auto">
+        <div className={cn('grid gap-2 max-w-lg mx-auto', `grid-cols-${2 + (showDeliveryButton ? 1 : 0) + (showTakeoutButton ? 1 : 0)}`)}>
           <button className="flex items-center justify-center gap-1.5 h-12 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-sm font-semibold transition-all shadow-lg shadow-amber-500/25 touch-manipulation">
             <Plus className="w-4 h-4" />
             New Order
           </button>
-          <Link
-            href="/dashboard/delivery-orders"
-            className={cn(
-              'relative flex items-center justify-center gap-1.5 h-12 rounded-xl border text-sm font-semibold transition-all active:scale-95 touch-manipulation',
-              deliveryCount > 0
-                ? 'bg-indigo-500/20 border-indigo-500/40 text-indigo-300 hover:bg-indigo-500/30'
-                : 'bg-white/8 border-white/12 text-white/70 hover:bg-white/12'
-            )}
-          >
-            <Truck className="w-4 h-4" />
-            Delivery
-            {deliveryCount > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 rounded-full bg-indigo-500 text-white text-[10px] font-bold flex items-center justify-center px-1 shadow-lg shadow-indigo-500/40">
-                {deliveryCount > 99 ? '99+' : deliveryCount}
-              </span>
-            )}
-          </Link>
-          <Link
-            href="/dashboard/takeout-orders"
-            className="relative flex items-center justify-center gap-1.5 h-12 rounded-xl border bg-white/8 border-white/12 text-white/70 hover:bg-white/12 text-sm font-semibold transition-all active:scale-95 touch-manipulation"
-          >
-            <ShoppingBag className="w-4 h-4" />
-            Takeout
-          </Link>
+          {showDeliveryButton && (
+            <Link
+              href="/dashboard/delivery-orders"
+              className={cn(
+                'relative flex items-center justify-center gap-1.5 h-12 rounded-xl border text-sm font-semibold transition-all active:scale-95 touch-manipulation',
+                deliveryCount > 0
+                  ? 'bg-indigo-500/20 border-indigo-500/40 text-indigo-300 hover:bg-indigo-500/30'
+                  : 'bg-white/8 border-white/12 text-white/70 hover:bg-white/12'
+              )}
+            >
+              <Truck className="w-4 h-4" />
+              Delivery
+              {deliveryCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 rounded-full bg-indigo-500 text-white text-[10px] font-bold flex items-center justify-center px-1 shadow-lg shadow-indigo-500/40">
+                  {deliveryCount > 99 ? '99+' : deliveryCount}
+                </span>
+              )}
+            </Link>
+          )}
+          {showTakeoutButton && (
+            <Link
+              href="/dashboard/takeout-orders"
+              className="relative flex items-center justify-center gap-1.5 h-12 rounded-xl border bg-white/8 border-white/12 text-white/70 hover:bg-white/12 text-sm font-semibold transition-all active:scale-95 touch-manipulation"
+            >
+              <ShoppingBag className="w-4 h-4" />
+              Takeout
+            </Link>
+          )}
           <Link href="/dashboard/settings" className="flex items-center justify-center gap-1.5 h-12 rounded-xl bg-white/8 border border-white/12 hover:bg-white/12 active:scale-95 text-white/70 text-sm font-medium transition-all touch-manipulation">
             <Settings className="w-4 h-4" />
             Settings

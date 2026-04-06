@@ -25,6 +25,7 @@ interface DeliveryZone {
 
 interface GeneralSettings {
   delivery_enabled: boolean
+  show_delivery_button: boolean
   default_delivery_fee: number
   min_order_amount: number
   estimated_delivery_time: number
@@ -48,6 +49,7 @@ interface DeliveryOrder {
 
 const GENERAL_DEFAULTS: GeneralSettings = {
   delivery_enabled: false,
+  show_delivery_button: true,
   default_delivery_fee: 0,
   min_order_amount: 0,
   estimated_delivery_time: 30,
@@ -472,6 +474,7 @@ export default function DeliveryPage() {
     const s = (rest.settings ?? {}) as any
     setGeneral({
       delivery_enabled:        s.delivery_enabled        ?? false,
+      show_delivery_button:    s.show_delivery_button    ?? true,
       default_delivery_fee:    Number(s.default_delivery_fee ?? 0),
       min_order_amount:        Number(s.min_order_amount  ?? 0),
       estimated_delivery_time: Number(s.estimated_delivery_time ?? 30),
@@ -500,6 +503,7 @@ export default function DeliveryPage() {
     const merged = {
       ...existing,
       delivery_enabled:        general.delivery_enabled,
+      show_delivery_button:    general.show_delivery_button,
       default_delivery_fee:    general.default_delivery_fee,
       min_order_amount:        general.min_order_amount,
       estimated_delivery_time: general.estimated_delivery_time,
@@ -640,7 +644,8 @@ export default function DeliveryPage() {
           )}
 
           {/* Delivery On/Off */}
-          <div className="rounded-2xl border border-white/8 bg-white/3 p-5">
+          <div className="rounded-2xl border border-white/8 bg-white/3 p-5 space-y-4">
+            {/* Accept online delivery orders */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center transition-colors', general.delivery_enabled ? 'bg-indigo-500/20' : 'bg-white/5')}>
@@ -653,7 +658,45 @@ export default function DeliveryPage() {
                   <p className="text-xs text-white/40">Accept delivery orders from customers</p>
                 </div>
               </div>
-              <Toggle on={general.delivery_enabled} onChange={v => setGeneral(g => ({ ...g, delivery_enabled: v }))} />
+              <Toggle
+                on={general.delivery_enabled}
+                onChange={async v => {
+                  setGeneral(g => ({ ...g, delivery_enabled: v }))
+                  if (!restaurantId) return
+                  const { data: rest } = await supabase.from('restaurants').select('settings').eq('id', restaurantId).maybeSingle()
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  const existing = (rest?.settings ?? {}) as any
+                  await supabase.from('restaurants').update({ settings: { ...existing, delivery_enabled: v } }).eq('id', restaurantId)
+                }}
+              />
+            </div>
+
+            <div className="border-t border-white/6" />
+
+            {/* Show Delivery button on dashboard */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center transition-colors', general.show_delivery_button ? 'bg-indigo-500/20' : 'bg-white/5')}>
+                  {general.show_delivery_button
+                    ? <ToggleRight className="w-5 h-5 text-indigo-400" />
+                    : <ToggleLeft  className="w-5 h-5 text-white/30" />}
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-white">Delivery Button on Dashboard</p>
+                  <p className="text-xs text-white/40">Show the Delivery button in the bottom action bar</p>
+                </div>
+              </div>
+              <Toggle
+                on={general.show_delivery_button}
+                onChange={async v => {
+                  setGeneral(g => ({ ...g, show_delivery_button: v }))
+                  if (!restaurantId) return
+                  const { data: rest } = await supabase.from('restaurants').select('settings').eq('id', restaurantId).maybeSingle()
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  const existing = (rest?.settings ?? {}) as any
+                  await supabase.from('restaurants').update({ settings: { ...existing, show_delivery_button: v } }).eq('id', restaurantId)
+                }}
+              />
             </div>
           </div>
 

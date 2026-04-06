@@ -7,7 +7,7 @@ import {
   X, Loader2, ToggleLeft, ToggleRight, Check,
   ChefHat, Tag, Printer, Wifi, Bluetooth, Cable,
   Usb, Receipt, UtensilsCrossed, Tag as LabelIcon,
-  Wine, Activity, AlertCircle, CheckCircle2, WifiOff,
+  Wine, Activity, AlertCircle, CheckCircle2, WifiOff, Ruler,
 } from 'lucide-react'
 
 // ── Types ──────────────────────────────────────────────────────
@@ -38,6 +38,7 @@ interface PrinterDevice {
   port: number | null
   bt_address: string | null
   usb_path: string | null
+  paper_width: number | null
   active: boolean
   sort_order: number
 }
@@ -50,6 +51,15 @@ const COLOR_PRESETS = [
 
 const EMPTY_KDS_FORM = { name: '', color: '#f59e0b', active: true, category_ids: [] as string[] }
 
+const PAPER_WIDTHS = [
+  { mm: 48,  label: '48 mm',  desc: 'Mini' },
+  { mm: 58,  label: '58 mm',  desc: 'Small' },
+  { mm: 72,  label: '72 mm',  desc: 'Medium' },
+  { mm: 80,  label: '80 mm',  desc: 'Standard' },
+  { mm: 104, label: '104 mm', desc: 'Wide' },
+  { mm: 112, label: '112 mm', desc: 'Extra Wide' },
+]
+
 const EMPTY_PRINTER_FORM = {
   name: '',
   purpose: 'receipt' as PrinterPurpose,
@@ -58,6 +68,7 @@ const EMPTY_PRINTER_FORM = {
   port: 9100,
   bt_address: '',
   usb_path: '',
+  paper_width: 80,
   active: true,
 }
 
@@ -226,6 +237,7 @@ export default function DevicePage() {
       port:            p.port ?? 9100,
       bt_address:      p.bt_address ?? '',
       usb_path:        p.usb_path ?? '',
+      paper_width:     p.paper_width ?? 80,
       active:          p.active,
     })
     setPrtModal(true)
@@ -241,6 +253,7 @@ export default function DevicePage() {
       port:            prtForm.connection_type === 'ip'        ? (prtForm.port || 9100)         : null,
       bt_address:      prtForm.connection_type === 'bluetooth' ? (prtForm.bt_address || null)   : null,
       usb_path:        prtForm.connection_type === 'usb'       ? (prtForm.usb_path || null)     : null,
+      paper_width:     prtForm.paper_width || 80,
       active:          prtForm.active,
       updated_at:      new Date().toISOString(),
     }
@@ -501,6 +514,12 @@ export default function DevicePage() {
                         </span>
                         {/* Connection detail */}
                         <span className="text-[10px] text-white/30 font-mono">{connDetail}</span>
+                        {/* Paper width badge */}
+                        {p.paper_width && (
+                          <span className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-medium bg-amber-500/10 text-amber-400/70">
+                            <Ruler className="w-2.5 h-2.5" />{p.paper_width} mm
+                          </span>
+                        )}
                       </div>
                     </div>
 
@@ -791,6 +810,37 @@ export default function DevicePage() {
                   </div>
                 </div>
               )}
+
+              {/* Paper Width */}
+              <div>
+                <label className="block text-xs text-white/50 mb-2 font-medium flex items-center gap-1.5">
+                  <Ruler className="w-3.5 h-3.5" /> Paper Width
+                  <span className="text-white/25 font-normal">(fits invoice to printer roll)</span>
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {PAPER_WIDTHS.map(pw => (
+                    <button key={pw.mm} onClick={() => setPrtForm(f => ({ ...f, paper_width: pw.mm }))}
+                      className={cn(
+                        'flex flex-col items-center px-2 py-2.5 rounded-xl text-xs font-medium transition-all active:scale-95 border',
+                        prtForm.paper_width === pw.mm
+                          ? 'bg-amber-500/20 border-amber-500/50 text-amber-300'
+                          : 'bg-white/5 border-white/10 text-white/45 hover:bg-white/8'
+                      )}>
+                      <span className="font-semibold text-sm leading-none mb-0.5">{pw.label}</span>
+                      <span className="text-[10px] opacity-60">{pw.desc}</span>
+                    </button>
+                  ))}
+                </div>
+                <div className="mt-2 flex items-center gap-2">
+                  <span className="text-[11px] text-white/30">Custom:</span>
+                  <input
+                    type="number" min={30} max={200}
+                    value={prtForm.paper_width}
+                    onChange={e => setPrtForm(f => ({ ...f, paper_width: parseInt(e.target.value) || 80 }))}
+                    className="w-20 bg-white/5 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono focus:outline-none focus:border-amber-500/50 transition-colors" />
+                  <span className="text-[11px] text-white/30">mm</span>
+                </div>
+              </div>
 
               {/* Active */}
               <div className="flex items-center justify-between p-3 bg-white/3 rounded-xl">

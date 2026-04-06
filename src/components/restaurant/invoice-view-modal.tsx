@@ -47,6 +47,7 @@ export default function InvoiceViewModal({ invoice, restaurantId, onClose }: Pro
   const supabase = createClient()
   const { formatPrice } = useDefaultCurrency()
   const [loading, setLoading] = useState(true)
+  const [paperWidth, setPaperWidth] = useState(80)
   const [rs, setRs] = useState<ReceiptSettings>({
     shop_name: null, logo_url: null, phone: null, address: null,
     thank_you_msg: 'Thank you for your visit!',
@@ -57,10 +58,12 @@ export default function InvoiceViewModal({ invoice, restaurantId, onClose }: Pro
 
   useEffect(() => {
     const load = async () => {
-      const [{ data: rest }, { data: rsData }] = await Promise.all([
+      const [{ data: rest }, { data: rsData }, { data: printer }] = await Promise.all([
         supabase.from('restaurants').select('name').eq('id', restaurantId).maybeSingle(),
         supabase.from('receipt_settings').select('*').eq('restaurant_id', restaurantId).maybeSingle(),
+        supabase.from('printers').select('paper_width').eq('restaurant_id', restaurantId).eq('purpose', 'receipt').eq('active', true).limit(1).maybeSingle(),
       ])
+      if (printer?.paper_width) setPaperWidth(printer.paper_width)
       setRestaurantName(rest?.name ?? '')
       if (rsData) {
         setRs({
@@ -82,6 +85,162 @@ export default function InvoiceViewModal({ invoice, restaurantId, onClose }: Pro
     load()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  const handlePrint = () => {
+    const marginMm  = 2
+    const wMm       = paperWidth - marginMm * 2
+    // Font sizes scale with paper width (58mm→8pt, 80mm→10pt, 104mm→12pt)
+    const basePt    = Math.max(7, Math.round(paperWidth * 0.105))
+    const smPt      = Math.max(6, basePt - 1)
+    const lgPt      = Math.round(basePt * 1.35)
+    const xlPt      = Math.round(basePt * 1.8)
+    const logoSizeMm = Math.round(paperWidth * 0.22)
+    const qrSizeMm   = Math.round(paperWidth * 0.3)
+
+    const tableLabel = invoice.table_num === 'Takeout' || invoice.table_num === 'Delivery'
+      ? invoice.table_num
+      : invoice.table_num ? `Table ${invoice.table_num}` : ''
+    const guestsStr = invoice.guests > 0 ? ` · ${invoice.guests} guests` : ''
+
+    const logoHtml = rs.show_logo && rs.logo_url
+      ? `<img src="${rs.logo_url}" style="width:${logoSizeMm}mm;height:${logoSizeMm}mm;border-radius:50%;object-fit:cover;display:block;margin:0 auto 1mm;" />`
+      : ''
+
+    const qrHtml = rs.show_qr && rs.qr_url
+      ? `<hr class="d"/><div style="text-align:center;padding:2mm 0;"><img src="${rs.qr_url}" style="width:${qrSizeMm}mm;height:${qrSizeMm}mm;object-fit:contain;" /></div>`
+      : ''
+
+    const customerHtml = (invoice.customer_name || invoice.customer_phone) ? `
+      <hr class="d"/>
+      <div style="padding:1.5mm 0;">
+        ${invoice.customer_name ? `<div class="row"><span class="b">Customer</span><span class="xb">${invoice.customer_name}</span></div>` : ''}
+        ${invoice.customer_phone ? `<div class="row" style="margin-top:.5mm;"><span class="b">Phone</span><span class="xb">${invoice.customer_phone}</span></div>` : ''}
+      </div>` : ''
+
+    const itemRows = (invoice.items ?? []).map(item => `
+      <tr>
+        <td style="padding:1mm 0;font-weight:700;">${item.name}</td>
+        <td style="padding:1mm 0;text-align:center;font-weight:700;">${item.qty}</td>
+        <td style="padding:1mm 0;text-align:right;font-weight:700;">${formatPrice(item.price * item.qty)}</td>
+      </tr>`).join('')
+
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+<style>
+  @page { size: ${paperWidth}mm auto; margin: ${marginMm}mm; }
+  *  { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:'Courier New',Courier,monospace; font-size:${basePt}pt; width:${wMm}mm; color:#000; background:#fff; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .d  { border:none; border-top:1px dashed #888; margin:0; }
+  .row{ display:flex; justify-content:space-between; align-items:baseline; }
+  .b  { font-weight:700; }
+  .xb { font-weight:800; }
+  .c  { text-align:center; }
+  .r  { text-align:right; }
+  .sm { font-size:${smPt}pt; }
+  .lg { font-size:${lgPt}pt; }
+  .xl { font-size:${xlPt}pt; }
+  .sec{ padding:1.5mm 0; }
+  table { width:100%; border-collapse:collapse; }
+  thead th { font-weight:800; border-bottom:1px solid #ccc; padding-bottom:1mm; }
+  thead th:first-child{ text-align:left; }
+  thead th:nth-child(2){ text-align:center; width:8mm; }
+  thead th:last-child  { text-align:right; }
+</style></head><body>
+
+<!-- HEADER -->
+<div class="sec">
+  <div class="row sm">
+    <div>
+      <div class="xb">${dateStr}</div>
+      <div class="xb">${timeStr}</div>
+      <div class="b" style="margin-top:1mm;">Cashier</div>
+      <div class="xb">${invoice.cashier || '—'}</div>
+    </div>
+    <div class="c" style="flex:1;padding:0 1mm;">
+      ${logoHtml}
+      <div class="xb lg">${name}</div>
+      ${rs.show_phone && rs.phone ? `<div class="b">${rs.phone}</div>` : ''}
+      ${rs.show_address && rs.address ? `<div class="b">${rs.address}</div>` : ''}
+    </div>
+    <div class="r sm">
+      <div class="b">Invoice No.</div>
+      <div class="xb">${invoice.invoice_num}</div>
+      <div class="b" style="margin-top:1mm;">Employee</div>
+      <div class="xb">${invoice.cashier || '—'}</div>
+    </div>
+  </div>
+</div>
+
+<hr class="d"/>
+
+<!-- ORDER INFO -->
+<div class="sec sm">
+  <div class="row">
+    <span class="xb">${tableLabel}${guestsStr}</span>
+    ${invoice.order_num ? `<span class="b">${invoice.order_num}</span>` : ''}
+  </div>
+</div>
+
+${customerHtml}
+
+<hr class="d"/>
+
+<!-- PAYMENT METHOD -->
+<div class="sec c">
+  <div class="sm b">Payment Method</div>
+  <div class="xb lg">${invoice.payment_method || '—'}</div>
+</div>
+
+<hr class="d"/>
+
+<!-- ITEMS -->
+<div class="sec">
+  <table>
+    <thead><tr><th>Item</th><th>Qty</th><th style="text-align:right;">Price</th></tr></thead>
+    <tbody>${itemRows}</tbody>
+  </table>
+</div>
+
+<hr class="d"/>
+
+<!-- TOTALS -->
+<div class="sec">
+  <div class="row b" style="margin-bottom:.5mm;"><span>Subtotal</span><span>${formatPrice(Number(invoice.subtotal))}</span></div>
+  ${Number(invoice.discount) > 0 ? `<div class="row b" style="color:#dc2626;margin-bottom:.5mm;"><span>Discount</span><span>-${formatPrice(Number(invoice.discount))}</span></div>` : ''}
+  <div class="row xb lg" style="border-top:1px solid #999;padding-top:1mm;"><span>Total</span><span>${formatPrice(Number(invoice.total))}</span></div>
+  ${Number(invoice.amount_paid) > 0 && Number(invoice.amount_paid) > Number(invoice.total) ? `
+    <div class="row b" style="margin-top:.5mm;"><span>Paid</span><span>${formatPrice(Number(invoice.amount_paid))}</span></div>
+    <div class="row b"><span>Change</span><span>${formatPrice(Number(invoice.change_amount))}</span></div>` : ''}
+</div>
+
+<!-- BIG TOTAL BOX -->
+<div style="border:1px solid #ddd;border-radius:2mm;padding:2mm;text-align:center;margin-bottom:2mm;">
+  <div class="sm b">Total Amount</div>
+  <div class="xb xl">${formatPrice(Number(invoice.total))}</div>
+</div>
+
+${qrHtml}
+
+<!-- FOOTER -->
+<hr class="d"/>
+<div class="sec c">
+  ${rs.thank_you_msg ? `<div class="xb lg">${rs.thank_you_msg}</div>` : ''}
+  <div class="sm" style="margin-top:1mm;color:#666;">Powered by ClickGroup · 07701466787</div>
+</div>
+
+<script>
+  window.addEventListener('load', function() {
+    window.focus();
+    window.print();
+    setTimeout(function() { window.close(); }, 800);
+  });
+</script>
+</body></html>`
+
+    const pw = window.open('', '_blank', 'width=500,height=700')
+    if (!pw) { alert('Allow pop-ups to print'); return }
+    pw.document.write(html)
+    pw.document.close()
+  }
+
   const cur  = rs.currency_symbol
   const name = rs.shop_name || restaurantName || 'Restaurant'
   const date = new Date(invoice.created_at)
@@ -96,12 +255,12 @@ export default function InvoiceViewModal({ invoice, restaurantId, onClose }: Pro
 
   return (
     <div className="fixed inset-0 z-[70] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-      <div className="relative w-full max-w-sm">
+      <div id="invoice-print-root" className="relative w-full max-w-sm">
 
         {/* Action buttons */}
         <div className="flex items-center justify-between mb-3">
           <button
-            onClick={() => window.print()}
+            onClick={handlePrint}
             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 border border-white/15 text-white/70 text-sm font-medium hover:bg-white/15 active:scale-95 transition-all"
           >
             <Printer className="w-4 h-4" />
