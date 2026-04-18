@@ -21,17 +21,16 @@ export async function assignOrderNumber(
   const ordNum = `${prefix}${String(num).padStart(3, '0')}`
 
   const updates: Promise<unknown>[] = [
-    supabase.from('orders').update({ order_num: ordNum }).eq('id', orderId),
+    supabase.from('orders').update({ order_num: ordNum }).eq('id', orderId) as unknown as Promise<unknown>,
   ]
 
   if (data) {
     updates.push(
       supabase.from('order_number_settings')
         .update({ current_num: num + 1, updated_at: new Date().toISOString() })
-        .eq('restaurant_id', restaurantId)
+        .eq('restaurant_id', restaurantId) as unknown as Promise<unknown>
     )
   } else {
-    // No settings row yet — create with defaults
     updates.push(
       supabase.from('order_number_settings').insert({
         restaurant_id: restaurantId,
@@ -39,7 +38,7 @@ export async function assignOrderNumber(
         start_num:     1,
         current_num:   2,
         reset_period:  'never',
-      })
+      }) as unknown as Promise<unknown>
     )
   }
 
