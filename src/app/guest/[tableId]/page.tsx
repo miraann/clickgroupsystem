@@ -1108,7 +1108,7 @@ export default function GuestPage() {
       )}
 
       {/* ── Call Waiter button ── */}
-      {table && !showCart && (restaurant?.settings?.show_call_waiter !== false) && (
+      {table && !showCart && (restaurant?.settings?.show_call_waiter !== 'false') && (
         <div className={`fixed z-40 transition-all duration-300 ${cartCount > 0 ? 'bottom-24' : 'bottom-6'} right-4`}>
           <button
             onClick={callWaiter}
@@ -1242,7 +1242,7 @@ export default function GuestPage() {
               {placeError && (
                 <p className="text-xs text-rose-500 text-center">{placeError}</p>
               )}
-              {restaurant?.settings?.enable_qr_ordering === false ? (
+              {restaurant?.settings?.enable_qr_ordering === 'false' ? (
                 <div className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl bg-white/8 border border-white/10 text-white/40 text-sm font-semibold">
                   <UtensilsCrossed className="w-4 h-4" />
                   Online ordering is currently unavailable
