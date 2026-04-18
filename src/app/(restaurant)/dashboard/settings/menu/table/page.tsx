@@ -1,28 +1,36 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { Plus, Pencil, Trash2, LayoutGrid, X, Users, Loader2, AlertCircle, QrCode, Download, Copy, Check } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { useTableGroups, type CachedTableGroup } from '@/hooks/useTableGroups'
+import { useTables, type CachedTable } from '@/hooks/useTables'
 
-interface TableGroup { id: string; name: string; color: string; sort_order: number }
-interface Table {
-  id: string; seq: number; table_number: string; name: string
-  capacity: number; group_id: string | null; shape: 'Square' | 'Round' | 'Rectangle'
-  active: boolean
-}
+type TableGroup = CachedTableGroup
+type Table = CachedTable
 
 const SHAPE_ICONS: Record<string, string> = { Square: '⬜', Round: '⭕', Rectangle: '▬' }
 
 const EMPTY_FORM = { table_number: '', name: '', capacity: 4, group_id: '', shape: 'Square' as 'Square' | 'Round' | 'Rectangle' }
 
 export default function TablePage() {
+  const { t } = useLanguage()
   const supabase = createClient()
 
   const [restaurantId, setRestaurantId] = useState<string | null>(null)
-  const [groups, setGroups]             = useState<TableGroup[]>([])
-  const [tables, setTables]             = useState<Table[]>([])
-  const [loading, setLoading]           = useState(true)
-  const [error, setError]               = useState<string | null>(null)
+  useEffect(() => { setRestaurantId(localStorage.getItem('restaurant_id')) }, [])
+
+  const { data: swrGroups, isLoading: loadingGroups, error: groupsError } = useTableGroups(restaurantId)
+  const { data: swrTables, isLoading: loadingTables, error: tablesError, mutate: mutateTables } = useTables(restaurantId)
+
+  const loading = loadingGroups || loadingTables
+  const error = groupsError ? (groupsError as Error).message : tablesError ? (tablesError as Error).message : null
+
+  const [groups, setGroups] = useState<TableGroup[]>([])
+  const [tables, setTables] = useState<Table[]>([])
+  useEffect(() => { if (swrGroups) setGroups(swrGroups) }, [swrGroups])
+  useEffect(() => { if (swrTables) setTables(swrTables) }, [swrTables])
 
   const [modalOpen, setModalOpen]       = useState(false)
   const [editId, setEditId]             = useState<string | null>(null)
@@ -31,24 +39,6 @@ export default function TablePage() {
   const [deleteId, setDeleteId]         = useState<string | null>(null)
   const [qrTable, setQrTable]           = useState<Table | null>(null)
   const [copied, setCopied]             = useState(false)
-
-  // ── Load ───────────────────────────────────────────────────
-  const load = useCallback(async () => {
-    setLoading(true); setError(null)
-    const { data: rest } = await supabase.from('restaurants').select('id').limit(1).maybeSingle()
-    if (!rest) { setError('Restaurant not found'); setLoading(false); return }
-    setRestaurantId(rest.id)
-
-    const [{ data: g }, { data: t }] = await Promise.all([
-      supabase.from('table_groups').select('*').eq('restaurant_id', rest.id).order('sort_order'),
-      supabase.from('tables').select('*').eq('restaurant_id', rest.id).order('seq'),
-    ])
-    setGroups((g ?? []) as TableGroup[])
-    setTables((t ?? []) as Table[])
-    setLoading(false)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => { load() }, [load])
 
   // ── Open add/edit ──────────────────────────────────────────
   const openAdd = () => {
@@ -78,7 +68,9 @@ export default function TablePage() {
         updated_at:   new Date().toISOString(),
       }).eq('id', editId)
       if (!error) {
-        setTables(ts => ts.map(t => t.id === editId ? { ...t, ...form, group_id: form.group_id || null } : t))
+        const updated = tables.map(t => t.id === editId ? { ...t, ...form, group_id: form.group_id || null } : t)
+        setTables(updated)
+        mutateTables(updated, false)
       }
     } else {
       const nextSeq = (tables.length > 0 ? Math.max(...tables.map(t => t.seq)) : 0) + 1
@@ -93,7 +85,9 @@ export default function TablePage() {
         sort_order:   nextSeq,
       }).select().single()
       if (!error && data) {
-        setTables(ts => [...ts, data as Table])
+        const updated = [...tables, data as Table]
+        setTables(updated)
+        mutateTables(updated, false)
       }
     }
     setSaving(false)
@@ -104,7 +98,11 @@ export default function TablePage() {
   const handleDelete = async (id: string) => {
     if (deleteId !== id) { setDeleteId(id); setTimeout(() => setDeleteId(d => d === id ? null : d), 3000); return }
     const { error } = await supabase.from('tables').delete().eq('id', id)
-    if (!error) setTables(ts => ts.filter(t => t.id !== id))
+    if (!error) {
+      const updated = tables.filter(t => t.id !== id)
+      setTables(updated)
+      mutateTables(updated, false)
+    }
     setDeleteId(null)
   }
 
@@ -129,7 +127,7 @@ export default function TablePage() {
         <p className="text-sm text-rose-400 font-semibold">Failed to load</p>
         <p className="text-xs text-white/40 mt-1 font-mono">{error}</p>
         <p className="text-xs text-white/30 mt-1">Run <code className="text-amber-400">supabase-tables-schema.sql</code> first.</p>
-        <button onClick={load} className="mt-2 px-3 py-1.5 rounded-lg bg-white/8 text-xs text-white/50 hover:bg-white/12 active:scale-95 transition-all">Retry</button>
+        <button onClick={() => mutateTables()} className="mt-2 px-3 py-1.5 rounded-lg bg-white/8 text-xs text-white/50 hover:bg-white/12 active:scale-95 transition-all">Retry</button>
       </div>
     </div>
   )
@@ -143,8 +141,8 @@ export default function TablePage() {
             <LayoutGrid className="w-5 h-5 text-amber-400" />
           </div>
           <div>
-            <h1 className="text-lg font-semibold text-white">Tables</h1>
-            <p className="text-xs text-white/40">Manage seating layout</p>
+            <h1 className="text-lg font-semibold text-white">{t.tbl_title}</h1>
+            <p className="text-xs text-white/40">{t.tbl_subtitle}</p>
           </div>
           <span className="ml-1 px-2 py-0.5 rounded-full bg-white/8 text-xs text-white/50 font-medium">{tables.length}</span>
         </div>
@@ -152,7 +150,7 @@ export default function TablePage() {
           onClick={openAdd}
           className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-xl active:scale-95 touch-manipulation transition-all"
         >
-          <Plus className="w-4 h-4" /> Add Table
+          <Plus className="w-4 h-4" /> {t.tbl_add}
         </button>
       </div>
 
@@ -211,7 +209,7 @@ export default function TablePage() {
           </div>
         ))}
         {tables.length === 0 && (
-          <div className="text-center py-16 text-white/25 text-sm">No tables yet. Add your first table.</div>
+          <div className="text-center py-16 text-white/25 text-sm">{t.tbl_no_data}</div>
         )}
       </div>
 
@@ -220,7 +218,7 @@ export default function TablePage() {
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="w-full max-w-md bg-[#0d1220]/95 backdrop-blur-2xl border border-white/15 rounded-3xl p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-base font-semibold text-white">{editId ? 'Edit Table' : 'Add Table'}</h2>
+              <h2 className="text-base font-semibold text-white">{editId ? t.edit : t.tbl_add}</h2>
               <button onClick={() => setModalOpen(false)} className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-all active:scale-95">
                 <X className="w-4 h-4" />
               </button>
@@ -229,12 +227,12 @@ export default function TablePage() {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs text-white/50 mb-1.5 font-medium">Table Number *</label>
+                  <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.tbl_label} *</label>
                   <input type="text" value={form.table_number} onChange={e => setForm(f => ({ ...f, table_number: e.target.value }))} placeholder="e.g. T01"
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500/50 transition-colors" />
                 </div>
                 <div>
-                  <label className="block text-xs text-white/50 mb-1.5 font-medium">Name</label>
+                  <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.tbl_label}</label>
                   <input type="text" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Optional"
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500/50 transition-colors" />
                 </div>
@@ -242,12 +240,12 @@ export default function TablePage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs text-white/50 mb-1.5 font-medium">Capacity</label>
+                  <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.tbl_capacity}</label>
                   <input type="number" min={1} value={form.capacity} onChange={e => setForm(f => ({ ...f, capacity: parseInt(e.target.value) || 1 }))}
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500/50 transition-colors" />
                 </div>
                 <div>
-                  <label className="block text-xs text-white/50 mb-1.5 font-medium">Group</label>
+                  <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.tbl_group}</label>
                   <select value={form.group_id} onChange={e => setForm(f => ({ ...f, group_id: e.target.value }))}
                     className="w-full bg-[#0d1220] border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500/50 transition-colors">
                     <option value="">No Group</option>
@@ -257,13 +255,13 @@ export default function TablePage() {
               </div>
 
               <div>
-                <label className="block text-xs text-white/50 mb-2 font-medium">Shape</label>
+                <label className="block text-xs text-white/50 mb-2 font-medium">{t.tbl_shape}</label>
                 <div className="flex gap-2">
                   {(['Square', 'Round', 'Rectangle'] as const).map(shape => (
                     <button key={shape} onClick={() => setForm(f => ({ ...f, shape }))}
                       className={cn('flex-1 py-2 rounded-xl text-xs font-medium transition-all active:scale-95',
                         form.shape === shape ? 'bg-amber-500/20 border border-amber-500/40 text-amber-400' : 'bg-white/5 border border-white/10 text-white/50 hover:text-white/80')}>
-                      {SHAPE_ICONS[shape]} {shape}
+                      {SHAPE_ICONS[shape]} {shape === 'Square' ? t.tbl_square : shape === 'Round' ? t.tbl_round : t.tbl_rect}
                     </button>
                   ))}
                 </div>
@@ -272,12 +270,12 @@ export default function TablePage() {
 
             <div className="flex gap-3 mt-6">
               <button onClick={() => setModalOpen(false)} className="flex-1 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 text-sm font-medium transition-all active:scale-95">
-                Cancel
+                {t.cancel}
               </button>
               <button onClick={handleSave} disabled={!form.table_number.trim() || saving}
                 className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium transition-all active:scale-95 flex items-center justify-center gap-2">
                 {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-                {editId ? 'Save Changes' : 'Add Table'}
+                {editId ? t.save_changes : t.tbl_add}
               </button>
             </div>
           </div>
@@ -346,7 +344,7 @@ export default function TablePage() {
               <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-white/8">
                 <div className="flex items-center gap-2">
                   <QrCode className="w-4 h-4 text-amber-400" />
-                  <span className="text-sm font-semibold text-white">Table QR Code</span>
+                  <span className="text-sm font-semibold text-white">{t.tbl_qr}</span>
                 </div>
                 <button onClick={() => setQrTable(null)} className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-all active:scale-95">
                   <X className="w-4 h-4" />
@@ -376,7 +374,7 @@ export default function TablePage() {
                 <div className="flex gap-2 w-full">
                   <button onClick={handleDownload}
                     className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium transition-all active:scale-95">
-                    <Download className="w-4 h-4" /> Download
+                    <Download className="w-4 h-4" /> {t.tbl_download_qr}
                   </button>
                   <a href={guestUrl} target="_blank" rel="noreferrer"
                     className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white/8 hover:bg-white/12 border border-white/10 text-white/60 text-sm font-medium transition-all active:scale-95">

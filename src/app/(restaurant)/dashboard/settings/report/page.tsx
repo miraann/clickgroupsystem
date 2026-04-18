@@ -8,6 +8,7 @@ import {
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend,
@@ -62,6 +63,7 @@ function ChartTooltip({ active, payload, label, formatPrice }: any) {
 export default function ReportPage() {
   const supabase = createClient()
   const { formatPrice } = useDefaultCurrency()
+  const { t } = useLanguage()
 
   const [restaurantId, setRestaurantId] = useState<string | null>(null)
   const [range, setRange]               = useState<Range>('month')
@@ -109,7 +111,7 @@ export default function ReportPage() {
   }, [getBounds]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    supabase.from('restaurants').select('id').limit(1).maybeSingle().then(({ data }) => {
+    supabase.from('restaurants').select('id').eq('id', typeof window !== 'undefined' ? (localStorage.getItem('restaurant_id') ?? '') : '').maybeSingle().then(({ data }) => {
       if (data?.id) { setRestaurantId(data.id); load(data.id, range, dateFrom, dateTo) }
     })
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -195,10 +197,10 @@ export default function ReportPage() {
   }
 
   const KPIs = [
-    { label: 'Total Revenue',   value: formatPrice(totalRevenue),   icon: DollarSign,  color: 'text-amber-400',  bg: 'bg-amber-500/10',  border: 'border-amber-500/20', trend: null },
+    { label: t.rpt_revenue,     value: formatPrice(totalRevenue),   icon: DollarSign,  color: 'text-amber-400',  bg: 'bg-amber-500/10',  border: 'border-amber-500/20', trend: null },
     { label: 'Net Profit',      value: formatPrice(netProfit),      icon: TrendingUp,  color: netProfit >= 0 ? 'text-emerald-400' : 'text-rose-400', bg: netProfit >= 0 ? 'bg-emerald-500/10' : 'bg-rose-500/10', border: netProfit >= 0 ? 'border-emerald-500/20' : 'border-rose-500/20', trend: null },
-    { label: 'Total Orders',    value: totalOrders,                  icon: Receipt,     color: 'text-violet-400', bg: 'bg-violet-500/10', border: 'border-violet-500/20', trend: null },
-    { label: 'Avg Ticket',      value: formatPrice(avgTicket),      icon: BarChart3,   color: 'text-blue-400',   bg: 'bg-blue-500/10',   border: 'border-blue-500/20',   trend: null },
+    { label: t.rpt_orders,      value: totalOrders,                  icon: Receipt,     color: 'text-violet-400', bg: 'bg-violet-500/10', border: 'border-violet-500/20', trend: null },
+    { label: t.rpt_avg_ticket,  value: formatPrice(avgTicket),      icon: BarChart3,   color: 'text-blue-400',   bg: 'bg-blue-500/10',   border: 'border-blue-500/20',   trend: null },
     { label: 'Total Guests',    value: totalGuests,                  icon: Users,       color: 'text-cyan-400',   bg: 'bg-cyan-500/10',   border: 'border-cyan-500/20',   trend: null },
     { label: 'Total Expenses',  value: formatPrice(totalExpenses),  icon: ShoppingBag, color: 'text-rose-400',   bg: 'bg-rose-500/10',   border: 'border-rose-500/20',   trend: null },
     { label: 'Total Discounts', value: formatPrice(totalDiscount),  icon: ArrowDownRight, color: 'text-yellow-400', bg: 'bg-yellow-500/10', border: 'border-yellow-500/20', trend: null },
@@ -211,8 +213,8 @@ export default function ReportPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-white">Report</h1>
-          <p className="text-xs text-white/35 mt-0.5">Financial overview and performance analysis</p>
+          <h1 className="text-xl font-bold text-white">{t.rpt_title}</h1>
+          <p className="text-xs text-white/35 mt-0.5">{t.rpt_subtitle}</p>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => restaurantId && load(restaurantId, range, dateFrom, dateTo)}
@@ -221,7 +223,7 @@ export default function ReportPage() {
           </button>
           <button onClick={exportCSV}
             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 text-sm font-semibold hover:bg-emerald-500/25 transition-all active:scale-95">
-            <Download className="w-4 h-4" />Export CSV
+            <Download className="w-4 h-4" />{t.rpt_export}
           </button>
         </div>
       </div>
@@ -234,7 +236,7 @@ export default function ReportPage() {
             <button key={r} onClick={() => handleRange(r)}
               className={cn('px-4 py-2 rounded-xl border text-sm font-semibold transition-all active:scale-95',
                 range === r ? 'bg-amber-500/20 border-amber-500/35 text-amber-400' : 'bg-white/5 border-white/10 text-white/50 hover:text-white/70')}>
-              {RANGE_LABELS[r]}
+              {r === 'today' ? t.rpt_daily : r === 'week' ? t.rpt_weekly : t.rpt_monthly}
             </button>
           ))}
         </div>
@@ -298,7 +300,7 @@ export default function ReportPage() {
           {/* Revenue chart */}
           {dailyData.length > 0 && (
             <div className="rounded-2xl bg-white/3 border border-white/8 p-5">
-              <p className="text-sm font-semibold text-white/70 mb-4">Daily Revenue</p>
+              <p className="text-sm font-semibold text-white/70 mb-4">{t.rpt_revenue}</p>
               <ResponsiveContainer width="100%" height={200}>
                 <AreaChart data={dailyData}>
                   <defs>
@@ -322,7 +324,7 @@ export default function ReportPage() {
             {/* Payment method breakdown */}
             {pmData.length > 0 && (
               <div className="rounded-2xl bg-white/3 border border-white/8 p-5">
-                <p className="text-sm font-semibold text-white/70 mb-4">Revenue by Payment Method</p>
+                <p className="text-sm font-semibold text-white/70 mb-4">{t.rpt_by_category}</p>
                 <ResponsiveContainer width="100%" height={200}>
                   <PieChart>
                     <Pie data={pmData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={75} label={({ name, percent }: { name?: string; percent?: number }) => `${name ?? ''} ${((percent ?? 0) * 100).toFixed(0)}%`} labelLine={false} fontSize={10}>
@@ -367,7 +369,7 @@ export default function ReportPage() {
           {/* Top selling items */}
           {topItems.length > 0 && (
             <div className="rounded-2xl bg-white/3 border border-white/8 p-5">
-              <p className="text-sm font-semibold text-white/70 mb-4">Top Selling Items</p>
+              <p className="text-sm font-semibold text-white/70 mb-4">{t.rpt_top_items}</p>
               <div className="space-y-2">
                 {topItems.map((item, i) => {
                   const pct = topItems[0].revenue > 0 ? (item.revenue / topItems[0].revenue) * 100 : 0
@@ -422,7 +424,7 @@ export default function ReportPage() {
           {invoices.length === 0 && expenses.length === 0 && (
             <div className="text-center py-16">
               <BarChart3 className="w-10 h-10 text-white/15 mx-auto mb-3" />
-              <p className="text-white/30 text-sm">No data for selected period</p>
+              <p className="text-white/30 text-sm">{t.rpt_no_data}</p>
             </div>
           )}
         </>

@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 // ── Social icons ────────────────────────────────────────────
 function WhatsAppIcon({ className }: { className?: string }) {
@@ -77,6 +78,7 @@ const EMPTY_FORM: FormData = {
 // ── Page ─────────────────────────────────────────────────────
 export default function RestaurantInfoPage() {
   const supabase = createClient()
+  const { t } = useLanguage()
   const [restaurantId, setRestaurantId] = useState<string | null>(null)
   const [form, setForm] = useState<FormData>(EMPTY_FORM)
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
@@ -93,7 +95,7 @@ export default function RestaurantInfoPage() {
     const { data, error } = await supabase
       .from('restaurants')
       .select('*')
-      .limit(1)
+      .eq('id', typeof window !== 'undefined' ? (localStorage.getItem('restaurant_id') ?? '') : '')
       .maybeSingle()
 
     if (error) {
@@ -247,15 +249,15 @@ export default function RestaurantInfoPage() {
             <Store className="w-5 h-5 text-amber-400" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-white">Restaurant Info</h1>
-            <p className="text-xs text-white/35 mt-0.5">Changes save to database</p>
+            <h1 className="text-xl font-bold text-white">{t.ri_title}</h1>
+            <p className="text-xs text-white/35 mt-0.5">{t.changes_saved_to_db}</p>
           </div>
         </div>
         <SaveButton state={saveState} onClick={handleSave} />
       </div>
 
       {/* Logo */}
-      <Section title="Logo">
+      <Section title={t.ri_logo}>
         <div className="flex items-center gap-5">
           <div className="relative shrink-0">
             <div className="w-24 h-24 rounded-2xl border-2 border-white/15 bg-gradient-to-br from-amber-400/20 to-orange-500/10 flex items-center justify-center text-3xl font-bold text-white overflow-hidden">
@@ -272,58 +274,58 @@ export default function RestaurantInfoPage() {
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleLogoChange} />
           </div>
           <div className="space-y-1">
-            <p className="text-sm font-medium text-white/70">Restaurant Logo</p>
-            <p className="text-xs text-white/30">PNG, JPG or SVG · Max 2MB · Recommended 512×512</p>
-            {logoFile && <p className="text-xs text-amber-400">New logo selected — save to upload</p>}
+            <p className="text-sm font-medium text-white/70">{t.ri_logo_label}</p>
+            <p className="text-xs text-white/30">{t.ri_logo_hint}</p>
+            {logoFile && <p className="text-xs text-amber-400">{t.ri_logo_new}</p>}
             <button
               onClick={() => fileRef.current?.click()}
               className="mt-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-white/50 hover:bg-white/10 hover:text-white/70 transition-all active:scale-95"
             >
-              Upload photo
+              {t.upload_photo}
             </button>
           </div>
         </div>
       </Section>
 
       {/* Basic Info */}
-      <Section title="Basic Information">
+      <Section title={t.ri_basic_info}>
         <div className="space-y-4">
-          <Field label="Restaurant Name" required>
+          <Field label={t.ri_name} required>
             <Input icon={<Store className="w-4 h-4" />} value={form.name} onChange={set('name')} placeholder="e.g. Spice Garden" />
           </Field>
-          <Field label="Email Address">
+          <Field label={t.ri_email}>
             <Input icon={<Mail className="w-4 h-4" />} value={form.email} onChange={set('email')} placeholder="info@restaurant.com" type="email" />
           </Field>
-          <Field label="Location / Address">
+          <Field label={t.ri_location}>
             <Input icon={<MapPin className="w-4 h-4" />} value={form.location} onChange={set('location')} placeholder="Street, City, Country" />
           </Field>
         </div>
       </Section>
 
       {/* Contact */}
-      <Section title="Contact Numbers">
+      <Section title={t.ri_contact}>
         <div className="space-y-4">
-          <Field label="Primary Phone">
+          <Field label={t.ri_phone_primary}>
             <Input icon={<Phone className="w-4 h-4" />} value={form.phone} onChange={set('phone')} placeholder="+964 XXX XXX XXXX" type="tel" />
           </Field>
-          <Field label="Secondary Phone" hint="Optional">
+          <Field label={t.ri_phone_secondary} hint={t.optional}>
             <Input icon={<Phone className="w-4 h-4" />} value={form.phone2} onChange={set('phone2')} placeholder="+964 XXX XXX XXXX" type="tel" />
           </Field>
         </div>
       </Section>
 
       {/* Social */}
-      <Section title="Website & Social Media">
+      <Section title={t.ri_social}>
         <div className="space-y-3">
-          <SocialField icon={<Globe className="w-4 h-4 text-white/40" />}      label="Website"    prefix="https://"        value={form.website}   onChange={set('website')}   placeholder="www.yourrestaurant.com" />
-          <SocialField icon={<InstagramIcon className="w-4 h-4 text-pink-400" />} label="Instagram" prefix="instagram.com/"  value={form.instagram} onChange={set('instagram')} placeholder="yourhandle" />
-          <SocialField icon={<FacebookIcon className="w-4 h-4 text-blue-400" />}  label="Facebook"  prefix="facebook.com/"   value={form.facebook}  onChange={set('facebook')}  placeholder="YourPageName" />
-          <SocialField icon={<TwitterXIcon className="w-4 h-4 text-sky-400" />}   label="X (Twitter)" prefix="x.com/"        value={form.twitter}   onChange={set('twitter')}   placeholder="yourhandle" />
-          <SocialField icon={<WhatsAppIcon className="w-4 h-4 text-emerald-400" />} label="WhatsApp" prefix=""               value={form.whatsapp}  onChange={set('whatsapp')}  placeholder="+964 XXX XXX XXXX" />
-          <SocialField icon={<TikTokIcon className="w-4 h-4 text-white/60" />}    label="TikTok"    prefix="tiktok.com/@"    value={form.tiktok}    onChange={set('tiktok')}    placeholder="yourhandle" />
-          <SocialField icon={<YoutubeIcon className="w-4 h-4 text-rose-400" />}   label="YouTube"   prefix="youtube.com/@"   value={form.youtube}   onChange={set('youtube')}   placeholder="yourchannel" />
-          <SocialField icon={<SnapchatIcon className="w-4 h-4 text-yellow-400" />} label="Snapchat" prefix="snapchat.com/add/"  value={form.snapchat}  onChange={set('snapchat')}  placeholder="yourusername" />
-          <SocialField icon={<MapPin className="w-4 h-4 text-emerald-400" />}     label="Location"  prefix="maps.google.com/" value={form.maps_url}  onChange={set('maps_url')}  placeholder="?q=your+restaurant" />
+          <SocialField icon={<Globe className="w-4 h-4 text-white/40" />}          label={t.ri_website}      value={form.website}   onChange={set('website')}   placeholder="https://www.yourrestaurant.com" />
+          <SocialField icon={<InstagramIcon className="w-4 h-4 text-pink-400" />}  label="Instagram"         value={form.instagram} onChange={set('instagram')} placeholder="https://instagram.com/yourhandle" />
+          <SocialField icon={<FacebookIcon className="w-4 h-4 text-blue-400" />}   label="Facebook"          value={form.facebook}  onChange={set('facebook')}  placeholder="https://facebook.com/YourPage" />
+          <SocialField icon={<TwitterXIcon className="w-4 h-4 text-sky-400" />}    label="X (Twitter)"       value={form.twitter}   onChange={set('twitter')}   placeholder="https://x.com/yourhandle" />
+          <SocialField icon={<WhatsAppIcon className="w-4 h-4 text-emerald-400" />} label="WhatsApp"         value={form.whatsapp}  onChange={set('whatsapp')}  placeholder="+964 XXX XXX XXXX" />
+          <SocialField icon={<TikTokIcon className="w-4 h-4 text-white/60" />}     label="TikTok"            value={form.tiktok}    onChange={set('tiktok')}    placeholder="https://tiktok.com/@yourhandle" />
+          <SocialField icon={<YoutubeIcon className="w-4 h-4 text-rose-400" />}    label="YouTube"           value={form.youtube}   onChange={set('youtube')}   placeholder="https://youtube.com/@yourchannel" />
+          <SocialField icon={<SnapchatIcon className="w-4 h-4 text-yellow-400" />} label="Snapchat"          value={form.snapchat}  onChange={set('snapchat')}  placeholder="https://snapchat.com/add/yourusername" />
+          <SocialField icon={<MapPin className="w-4 h-4 text-emerald-400" />}      label={t.ri_location_link} value={form.maps_url} onChange={set('maps_url')}  placeholder="https://maps.google.com/..." />
         </div>
       </Section>
 
@@ -337,6 +339,7 @@ export default function RestaurantInfoPage() {
 // ── Reusable sub-components ───────────────────────────────────
 
 function SaveButton({ state, onClick, large }: { state: SaveState; onClick: () => void; large?: boolean }) {
+  const { t } = useLanguage()
   return (
     <button onClick={onClick} disabled={state === 'saving'}
       className={cn(
@@ -351,7 +354,7 @@ function SaveButton({ state, onClick, large }: { state: SaveState; onClick: () =
       {state === 'saved'  && <CheckCircle2 className="w-4 h-4" />}
       {state === 'error'  && <AlertCircle className="w-4 h-4" />}
       {state === 'idle'   && <Save className="w-4 h-4" />}
-      {state === 'saving' ? 'Saving...' : state === 'saved' ? 'Saved!' : state === 'error' ? 'Error — Retry' : 'Save Changes'}
+      {state === 'saving' ? t.saving_ : state === 'saved' ? t.saved_ : state === 'error' ? t.error_retry : t.save_changes}
     </button>
   )
 }
@@ -398,8 +401,8 @@ function Input({ icon, value, onChange, placeholder, type = 'text' }: {
   )
 }
 
-function SocialField({ icon, label, prefix, value, onChange, placeholder }: {
-  icon: React.ReactNode; label: string; prefix: string
+function SocialField({ icon, label, value, onChange, placeholder }: {
+  icon: React.ReactNode; label: string
   value: string; onChange: React.ChangeEventHandler<HTMLInputElement>; placeholder: string
 }) {
   return (
@@ -407,7 +410,6 @@ function SocialField({ icon, label, prefix, value, onChange, placeholder }: {
       <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/8 flex items-center justify-center shrink-0">{icon}</div>
       <div className="w-20 shrink-0"><p className="text-xs font-medium text-white/50">{label}</p></div>
       <div className="flex items-center flex-1 min-w-0 gap-1">
-        {prefix && <span className="text-xs text-white/20 shrink-0">{prefix}</span>}
         <input type="text" value={value} onChange={onChange} placeholder={placeholder}
           className="flex-1 min-w-0 bg-transparent text-sm text-white placeholder-white/20 focus:outline-none" />
       </div>

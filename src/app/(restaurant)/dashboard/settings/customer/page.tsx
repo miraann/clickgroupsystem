@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 interface Customer {
   id: string
@@ -31,6 +32,7 @@ const EMPTY_FORM = {
 }
 
 export default function CustomerPage() {
+  const { t } = useLanguage()
   const supabase = createClient()
 
   const [restaurantId, setRestaurantId] = useState<string | null>(null)
@@ -53,7 +55,7 @@ export default function CustomerPage() {
 
   const load = useCallback(async () => {
     setLoading(true); setError(null)
-    const { data: rest } = await supabase.from('restaurants').select('id').limit(1).maybeSingle()
+    const { data: rest } = await supabase.from('restaurants').select('id').eq('id', typeof window !== 'undefined' ? (localStorage.getItem('restaurant_id') ?? '') : '').maybeSingle()
     if (!rest) { setError('Restaurant not found'); setLoading(false); return }
     setRestaurantId(rest.id)
     const { data, error: e } = await supabase
@@ -180,13 +182,13 @@ export default function CustomerPage() {
             <UserCircle className="w-5 h-5 text-violet-400" />
           </div>
           <div>
-            <h1 className="text-lg font-semibold text-white">Customers</h1>
-            <p className="text-xs text-white/40">Customer profiles and history</p>
+            <h1 className="text-lg font-semibold text-white">{t.cust_title}</h1>
+            <p className="text-xs text-white/40">{t.cust_subtitle}</p>
           </div>
           <span className="px-2 py-0.5 rounded-full bg-white/8 text-xs text-white/50">{customers.length}</span>
         </div>
         <button onClick={openAdd} className="flex items-center gap-2 px-4 py-2 bg-violet-500 hover:bg-violet-600 text-white text-sm font-medium rounded-xl active:scale-95 transition-all">
-          <Plus className="w-4 h-4" /> Add Customer
+          <Plus className="w-4 h-4" /> {t.cust_add}
         </button>
       </div>
 
@@ -214,7 +216,7 @@ export default function CustomerPage() {
       <div className="flex flex-wrap gap-2 mb-4">
         <div className="flex-1 min-w-48 relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/25" />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search name, phone, email…"
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t.search}
             className="w-full pl-9 pr-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/25 focus:outline-none focus:border-violet-500/50 transition-colors" />
         </div>
         <div className="flex flex-wrap gap-1">
@@ -240,18 +242,18 @@ export default function CustomerPage() {
       {/* List */}
       {filtered.length === 0 ? (
         <div className="text-center py-16 text-white/25 text-sm">
-          {customers.length === 0 ? 'No customers yet. Add your first customer.' : 'No customers match your search.'}
+          {customers.length === 0 ? t.cust_no_data : t.cust_no_data}
         </div>
       ) : (
         <div className="rounded-2xl border border-white/8 overflow-hidden">
           {/* Header */}
           <div className="grid grid-cols-[1fr_auto_auto_auto_auto_auto_auto] gap-px bg-white/5 px-4 py-2.5 text-[11px] font-semibold text-white/30 uppercase tracking-wider">
             <button onClick={() => toggleSort('name')} className="flex items-center gap-1 hover:text-white/60 transition-colors text-left">
-              Name <SortIcon col="name" />
+              {t.cust_name} <SortIcon col="name" />
             </button>
-            <span className="text-center px-3">Tags</span>
+            <span className="text-center px-3">{t.cust_note}</span>
             <button onClick={() => toggleSort('visit_count')} className="flex items-center gap-1 justify-end hover:text-white/60 transition-colors px-3">
-              Visits <SortIcon col="visit_count" />
+              {t.cust_total_orders} <SortIcon col="visit_count" />
             </button>
             <span className="text-center px-2">Block</span>
             <span className="text-center px-2">Status</span>
@@ -321,7 +323,7 @@ export default function CustomerPage() {
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="w-full max-w-md bg-[#0d1220]/95 border border-white/15 rounded-3xl p-6 shadow-2xl max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-base font-semibold text-white">{editId ? 'Edit Customer' : 'Add Customer'}</h2>
+              <h2 className="text-base font-semibold text-white">{editId ? t.edit : t.cust_add}</h2>
               <button onClick={() => setModal(false)} className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-all active:scale-95">
                 <X className="w-4 h-4" />
               </button>
@@ -330,7 +332,7 @@ export default function CustomerPage() {
             <div className="space-y-4">
               {/* Name */}
               <div>
-                <label className="block text-xs text-white/50 mb-1.5 font-medium">Full Name *</label>
+                <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.cust_name} *</label>
                 <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Customer name"
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-violet-500/50 transition-colors" />
               </div>
@@ -338,12 +340,12 @@ export default function CustomerPage() {
               {/* Phone + Email */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs text-white/50 mb-1.5 font-medium">Phone</label>
+                  <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.cust_phone}</label>
                   <input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="07xx xxx xxxx"
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-violet-500/50 transition-colors" />
                 </div>
                 <div>
-                  <label className="block text-xs text-white/50 mb-1.5 font-medium">Email</label>
+                  <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.cust_email}</label>
                   <input value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="email@example.com"
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-violet-500/50 transition-colors" />
                 </div>
@@ -387,7 +389,7 @@ export default function CustomerPage() {
 
               {/* Notes */}
               <div>
-                <label className="block text-xs text-white/50 mb-1.5 font-medium">Notes</label>
+                <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.cust_note}</label>
                 <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={2} placeholder="Optional notes"
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-violet-500/50 transition-colors resize-none" />
               </div>
@@ -412,11 +414,11 @@ export default function CustomerPage() {
             )}
 
             <div className="flex gap-3 mt-5">
-              <button onClick={() => setModal(false)} className="flex-1 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 text-sm font-medium transition-all active:scale-95">Cancel</button>
+              <button onClick={() => setModal(false)} className="flex-1 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 text-sm font-medium transition-all active:scale-95">{t.cancel}</button>
               <button onClick={handleSave} disabled={!form.name.trim() || saving}
                 className="flex-1 py-2.5 rounded-xl bg-violet-500 hover:bg-violet-600 disabled:opacity-40 text-white text-sm font-medium transition-all active:scale-95 flex items-center justify-center gap-2">
                 {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-                {editId ? 'Save Changes' : 'Add Customer'}
+                {editId ? t.save_changes : t.cust_add}
               </button>
             </div>
           </div>

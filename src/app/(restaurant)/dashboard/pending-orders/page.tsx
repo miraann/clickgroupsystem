@@ -1,9 +1,12 @@
 'use client'
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { ModuleGate } from '@/components/ModuleGate'
 import { Bell, Check, X, Loader2, RefreshCw, AlertCircle, ChefHat, Clock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { usePermissions } from '@/lib/permissions/PermissionsContext'
+import { getStaffHome } from '@/lib/permissions/staffHome'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 
 interface PendingItem {
@@ -44,17 +47,22 @@ export default function PendingOrdersPage() {
   const supabase = createClient()
   const router = useRouter()
   const { symbol: cur, formatPrice } = useDefaultCurrency()
+  const { can, isOwner, permissions, loading: permsLoading } = usePermissions()
+
+  useEffect(() => {
+    if (permsLoading || isOwner) return
+    if (!can('takeout')) router.replace(getStaffHome(permissions))
+  }, [permsLoading, isOwner, permissions, can, router])
 
   const [groups, setGroups]       = useState<PendingGroup[]>([])
   const [loading, setLoading]     = useState(true)
   const [error, setError]         = useState<string | null>(null)
-  const [processing, setProcessing] = useState<Set<string>>(new Set())
   const [lastRefresh, setLastRefresh] = useState(new Date())
   // eslint-disable-next-line @typescript-eslint/no-empty-function
   const loadRef = useRef<() => void>(() => {})
 
   const load = useCallback(async () => {
-    const { data: rest } = await supabase.from('restaurants').select('id').limit(1).maybeSingle()
+    const { data: rest } = await supabase.from('restaurants').select('id').eq('id', typeof window !== 'undefined' ? (localStorage.getItem('restaurant_id') ?? '') : '').maybeSingle()
     if (!rest) { setError('Restaurant not found'); setLoading(false); return }
 
     const [{ data: pendingData, error: pendingErr }, { data: tablesData }, { data: groupsData }] = await Promise.all([
@@ -135,67 +143,85 @@ export default function PendingOrdersPage() {
     return () => { supabase.removeChannel(channel) }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const setKey = (key: string, val: boolean) => {
-    setProcessing(prev => { const s = new Set(prev); val ? s.add(key) : s.delete(key); return s })
+  const approveGroup = (group: PendingGroup) => {
+    // Optimistic: remove immediately
+    setGroups(prev => prev.filter(g => g.order_id !== group.order_id))
+    const ids = group.items.map(i => i.id)
+    supabase
+      .from('order_items')
+      .update({ status: 'sent', sent_at: new Date().toISOString() })
+      .in('id', ids)
+      .then(({ error }) => {
+        if (error) {
+          setGroups(prev => [group, ...prev]) // revert
+          alert('Error approving: ' + error.message)
+        }
+      })
   }
 
-  const approveGroup = async (group: PendingGroup) => {
-    const key = `approve-${group.order_id}`
-    setKey(key, true)
+  const declineGroup = (group: PendingGroup) => {
+    // Optimistic: remove immediately
+    setGroups(prev => prev.filter(g => g.order_id !== group.order_id))
     const ids = group.items.map(i => i.id)
-    const now = new Date().toISOString()
-    const { error: err } = await supabase
-      .from('order_items').update({ status: 'sent', sent_at: now }).in('id', ids)
-    if (err) alert('Error approving: ' + err.message)
-    else setGroups(prev => prev.filter(g => g.order_id !== group.order_id))
-    setKey(key, false)
-  }
-
-  const declineGroup = async (group: PendingGroup) => {
-    const key = `decline-${group.order_id}`
-    setKey(key, true)
-    const ids = group.items.map(i => i.id)
-    const { error: err } = await supabase
+    supabase
       .from('order_items')
       .update({ status: 'void', void_reason: 'Declined by staff' })
       .in('id', ids)
-    if (err) alert('Error declining: ' + err.message)
-    else setGroups(prev => prev.filter(g => g.order_id !== group.order_id))
-    setKey(key, false)
+      .then(({ error }) => {
+        if (error) {
+          setGroups(prev => [group, ...prev]) // revert
+          alert('Error declining: ' + error.message)
+        }
+      })
   }
 
-  const approveItem = async (item: PendingItem, groupOrderId: string) => {
-    const key = `item-approve-${item.id}`
-    setKey(key, true)
-    const { error: err } = await supabase
-      .from('order_items').update({ status: 'sent', sent_at: new Date().toISOString() }).eq('id', item.id)
-    if (err) alert('Error: ' + err.message)
-    else {
-      setGroups(prev => prev.map(g => {
-        if (g.order_id !== groupOrderId) return g
-        const remaining = g.items.filter(i => i.id !== item.id)
-        return remaining.length === 0 ? null : { ...g, items: remaining }
-      }).filter(Boolean) as PendingGroup[])
-    }
-    setKey(key, false)
+  const approveItem = (item: PendingItem, groupOrderId: string) => {
+    // Optimistic: remove item (or entire group if last item)
+    setGroups(prev => prev.map(g => {
+      if (g.order_id !== groupOrderId) return g
+      const remaining = g.items.filter(i => i.id !== item.id)
+      return remaining.length === 0 ? null : { ...g, items: remaining }
+    }).filter(Boolean) as PendingGroup[])
+
+    supabase
+      .from('order_items')
+      .update({ status: 'sent', sent_at: new Date().toISOString() })
+      .eq('id', item.id)
+      .then(({ error }) => {
+        if (error) {
+          // Revert: put item back into its group
+          setGroups(prev => {
+            const group = prev.find(g => g.order_id === groupOrderId)
+            if (group) return prev.map(g => g.order_id === groupOrderId ? { ...g, items: [...g.items, item] } : g)
+            return prev
+          })
+          alert('Error: ' + error.message)
+        }
+      })
   }
 
-  const declineItem = async (item: PendingItem, groupOrderId: string) => {
-    const key = `item-decline-${item.id}`
-    setKey(key, true)
-    const { error: err } = await supabase
+  const declineItem = (item: PendingItem, groupOrderId: string) => {
+    // Optimistic: remove item (or entire group if last item)
+    setGroups(prev => prev.map(g => {
+      if (g.order_id !== groupOrderId) return g
+      const remaining = g.items.filter(i => i.id !== item.id)
+      return remaining.length === 0 ? null : { ...g, items: remaining }
+    }).filter(Boolean) as PendingGroup[])
+
+    supabase
       .from('order_items')
       .update({ status: 'void', void_reason: 'Declined by staff' })
       .eq('id', item.id)
-    if (err) alert('Error: ' + err.message)
-    else {
-      setGroups(prev => prev.map(g => {
-        if (g.order_id !== groupOrderId) return g
-        const remaining = g.items.filter(i => i.id !== item.id)
-        return remaining.length === 0 ? null : { ...g, items: remaining }
-      }).filter(Boolean) as PendingGroup[])
-    }
-    setKey(key, false)
+      .then(({ error }) => {
+        if (error) {
+          setGroups(prev => {
+            const group = prev.find(g => g.order_id === groupOrderId)
+            if (group) return prev.map(g => g.order_id === groupOrderId ? { ...g, items: [...g.items, item] } : g)
+            return prev
+          })
+          alert('Error: ' + error.message)
+        }
+      })
   }
 
   if (loading) return (
@@ -218,6 +244,7 @@ export default function PendingOrdersPage() {
   )
 
   return (
+    <ModuleGate moduleKey="dine_in">
     <div className="min-h-screen bg-[#060810] flex flex-col">
 
       {/* Header */}
@@ -267,9 +294,6 @@ export default function PendingOrdersPage() {
           </div>
         ) : (
           groups.map(group => {
-            const isApprovingAll = processing.has(`approve-${group.order_id}`)
-            const isDecliningAll = processing.has(`decline-${group.order_id}`)
-            const groupBusy = isApprovingAll || isDecliningAll
             const groupTotal = group.items.reduce((s, i) => s + i.item_price * i.qty, 0)
 
             return (
@@ -297,18 +321,16 @@ export default function PendingOrdersPage() {
                     <div className="flex gap-1.5">
                       <button
                         onClick={() => declineGroup(group)}
-                        disabled={groupBusy}
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-500/15 border border-rose-500/25 text-rose-400 text-xs font-semibold hover:bg-rose-500/25 active:scale-95 transition-all disabled:opacity-40"
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-500/15 border border-rose-500/25 text-rose-400 text-xs font-semibold hover:bg-rose-500/25 active:scale-95 transition-all"
                       >
-                        {isDecliningAll ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <X className="w-3.5 h-3.5" />}
+                        <X className="w-3.5 h-3.5" />
                         Decline All
                       </button>
                       <button
                         onClick={() => approveGroup(group)}
-                        disabled={groupBusy}
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-xs font-semibold hover:bg-emerald-500/30 active:scale-95 transition-all disabled:opacity-40"
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-xs font-semibold hover:bg-emerald-500/30 active:scale-95 transition-all"
                       >
-                        {isApprovingAll ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                        <Check className="w-3.5 h-3.5" />
                         Approve All
                       </button>
                     </div>
@@ -318,10 +340,6 @@ export default function PendingOrdersPage() {
                 {/* Items */}
                 <div className="divide-y divide-white/5">
                   {group.items.map(item => {
-                    const approving = processing.has(`item-approve-${item.id}`)
-                    const declining = processing.has(`item-decline-${item.id}`)
-                    const itemBusy = approving || declining || groupBusy
-
                     return (
                       <div key={item.id} className="flex items-center gap-3 px-4 py-3">
                         <div className="flex-1 min-w-0">
@@ -339,17 +357,15 @@ export default function PendingOrdersPage() {
                         <div className="flex gap-1.5 shrink-0">
                           <button
                             onClick={() => declineItem(item, group.order_id)}
-                            disabled={itemBusy}
-                            className="w-8 h-8 rounded-lg bg-rose-500/12 border border-rose-500/20 text-rose-400/70 flex items-center justify-center hover:bg-rose-500/20 active:scale-90 transition-all disabled:opacity-30"
+                            className="w-8 h-8 rounded-lg bg-rose-500/12 border border-rose-500/20 text-rose-400/70 flex items-center justify-center hover:bg-rose-500/20 active:scale-90 transition-all"
                           >
-                            {declining ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <X className="w-3.5 h-3.5" />}
+                            <X className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={() => approveItem(item, group.order_id)}
-                            disabled={itemBusy}
-                            className="w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 flex items-center justify-center hover:bg-emerald-500/25 active:scale-90 transition-all disabled:opacity-30"
+                            className="w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 flex items-center justify-center hover:bg-emerald-500/25 active:scale-90 transition-all"
                           >
-                            {approving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                            <Check className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       </div>
@@ -363,5 +379,6 @@ export default function PendingOrdersPage() {
         )}
       </div>
     </div>
+    </ModuleGate>
   )
 }

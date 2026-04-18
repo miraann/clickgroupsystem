@@ -1,8 +1,10 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { Plus, Pencil, Trash2, Tag, X, Loader2, AlertCircle, GripVertical } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { useMenuCategories, type CachedCategory } from '@/hooks/useMenuCategories'
 import {
   DndContext,
   closestCenter,
@@ -20,14 +22,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
-interface Category {
-  id: string
-  name: string
-  color: string
-  icon: string | null
-  sort_order: number
-  active: boolean
-}
+type Category = CachedCategory
 
 const COLOR_PRESETS = [
   'linear-gradient(160deg,#c2185b,#7b0033)',
@@ -138,12 +133,18 @@ function SortableRow({
 }
 
 export default function CategoryPage() {
+  const { t } = useLanguage()
   const supabase = createClient()
 
   const [restaurantId, setRestaurantId] = useState<string | null>(null)
-  const [categories, setCategories]     = useState<Category[]>([])
-  const [loading, setLoading]           = useState(true)
-  const [error, setError]               = useState<string | null>(null)
+  useEffect(() => { setRestaurantId(localStorage.getItem('restaurant_id')) }, [])
+
+  const { data: swrCategories, isLoading: loading, error: swrError, mutate } = useMenuCategories(restaurantId)
+
+  const [categories, setCategories] = useState<Category[]>([])
+  useEffect(() => { if (swrCategories) setCategories(swrCategories) }, [swrCategories])
+
+  const error = swrError ? (swrError as Error).message : null
 
   const [modalOpen, setModalOpen]       = useState(false)
   const [editId, setEditId]             = useState<string | null>(null)
@@ -156,26 +157,6 @@ export default function CategoryPage() {
     useSensor(TouchSensor,   { activationConstraint: { delay: 150, tolerance: 5 } }),
   )
 
-  // ── Load ───────────────────────────────────────────────────
-  const load = useCallback(async () => {
-    setLoading(true); setError(null)
-    const { data: rest } = await supabase.from('restaurants').select('id').limit(1).maybeSingle()
-    if (!rest) { setError('Restaurant not found'); setLoading(false); return }
-    setRestaurantId(rest.id)
-
-    const { data, error: err } = await supabase
-      .from('menu_categories')
-      .select('*')
-      .eq('restaurant_id', rest.id)
-      .order('sort_order')
-
-    if (err) { setError(err.message); setLoading(false); return }
-    setCategories((data ?? []) as Category[])
-    setLoading(false)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => { load() }, [load])
-
   // ── Drag end ───────────────────────────────────────────────
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event
@@ -185,8 +166,8 @@ export default function CategoryPage() {
     const newIndex = categories.findIndex(c => c.id === over.id)
     const reordered = arrayMove(categories, oldIndex, newIndex).map((c, i) => ({ ...c, sort_order: i + 1 }))
     setCategories(reordered)
+    mutate(reordered, false) // update SWR cache without refetch
 
-    // Persist all new sort_orders
     await Promise.all(
       reordered.map(c =>
         supabase.from('menu_categories').update({ sort_order: c.sort_order, updated_at: new Date().toISOString() }).eq('id', c.id)
@@ -263,7 +244,7 @@ export default function CategoryPage() {
         <p className="text-sm text-rose-400 font-semibold">Failed to load</p>
         <p className="text-xs text-white/40 mt-1 font-mono">{error}</p>
         <p className="text-xs text-white/30 mt-1">Run <code className="text-amber-400">supabase-menu-schema.sql</code> first.</p>
-        <button onClick={load} className="mt-2 px-3 py-1.5 rounded-lg bg-white/8 text-xs text-white/50 hover:bg-white/12 active:scale-95 transition-all">Retry</button>
+        <button onClick={() => mutate()} className="mt-2 px-3 py-1.5 rounded-lg bg-white/8 text-xs text-white/50 hover:bg-white/12 active:scale-95 transition-all">Retry</button>
       </div>
     </div>
   )
@@ -277,8 +258,8 @@ export default function CategoryPage() {
             <Tag className="w-5 h-5 text-amber-400" />
           </div>
           <div>
-            <h1 className="text-lg font-semibold text-white">Categories</h1>
-            <p className="text-xs text-white/40">Drag to reorder</p>
+            <h1 className="text-lg font-semibold text-white">{t.cat_title}</h1>
+            <p className="text-xs text-white/40">{t.cat_subtitle}</p>
           </div>
           <span className="ml-1 px-2 py-0.5 rounded-full bg-white/8 text-xs text-white/50 font-medium">{categories.length}</span>
         </div>
@@ -286,7 +267,7 @@ export default function CategoryPage() {
           onClick={openAdd}
           className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-xl active:scale-95 touch-manipulation transition-all"
         >
-          <Plus className="w-4 h-4" /> Add Category
+          <Plus className="w-4 h-4" /> {t.cat_add}
         </button>
       </div>
 
@@ -305,7 +286,7 @@ export default function CategoryPage() {
               />
             ))}
             {categories.length === 0 && (
-              <div className="text-center py-16 text-white/25 text-sm">No categories yet. Add your first category.</div>
+              <div className="text-center py-16 text-white/25 text-sm">{t.cat_no_data}</div>
             )}
           </div>
         </SortableContext>
@@ -316,7 +297,7 @@ export default function CategoryPage() {
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="w-full max-w-md bg-[#0d1220]/95 backdrop-blur-2xl border border-white/15 rounded-3xl p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-base font-semibold text-white">{editId ? 'Edit Category' : 'Add Category'}</h2>
+              <h2 className="text-base font-semibold text-white">{editId ? t.edit : t.cat_add}</h2>
               <button onClick={() => setModalOpen(false)} className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-all active:scale-95">
                 <X className="w-4 h-4" />
               </button>
@@ -325,7 +306,7 @@ export default function CategoryPage() {
             <div className="space-y-4">
               {/* Name */}
               <div>
-                <label className="block text-xs text-white/50 mb-1.5 font-medium">Name *</label>
+                <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.cat_name} *</label>
                 <input
                   type="text"
                   value={form.name}
@@ -365,7 +346,7 @@ export default function CategoryPage() {
 
               {/* Color */}
               <div>
-                <label className="block text-xs text-white/50 mb-2 font-medium">Color</label>
+                <label className="block text-xs text-white/50 mb-2 font-medium">{t.cat_color}</label>
                 <div className="flex gap-2 flex-wrap">
                   {COLOR_PRESETS.map(c => (
                     <button
@@ -380,14 +361,14 @@ export default function CategoryPage() {
 
               {/* Active */}
               <div className="flex items-center justify-between">
-                <label className="text-xs text-white/50 font-medium">Active</label>
+                <label className="text-xs text-white/50 font-medium">{t.dev_active}</label>
                 <Toggle value={form.active} onChange={v => setForm(f => ({ ...f, active: v }))} />
               </div>
             </div>
 
             <div className="flex gap-3 mt-6">
               <button onClick={() => setModalOpen(false)} className="flex-1 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 text-sm font-medium transition-all active:scale-95">
-                Cancel
+                {t.cancel}
               </button>
               <button
                 onClick={handleSave}
@@ -395,7 +376,7 @@ export default function CategoryPage() {
                 className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium transition-all active:scale-95 flex items-center justify-center gap-2"
               >
                 {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-                {editId ? 'Save Changes' : 'Add Category'}
+                {editId ? t.save_changes : t.cat_add}
               </button>
             </div>
           </div>

@@ -67,7 +67,7 @@ export default function Home() {
           </Link>
 
           {/* Restaurant Portal */}
-          <Link href="/pos" className="group">
+          <Link href="/restaurant-login" className="group">
             <div className="relative rounded-3xl border border-amber-500/20 bg-gradient-to-br from-amber-500/10 to-orange-600/5 backdrop-blur-xl p-8 hover:border-amber-500/40 hover:bg-amber-500/15 transition-all duration-300 hover:shadow-2xl hover:shadow-amber-500/20 cursor-pointer">
               <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
               <div className="relative">

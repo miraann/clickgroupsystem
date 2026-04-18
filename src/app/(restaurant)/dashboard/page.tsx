@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { mutate as swrMutate } from 'swr'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ChefHat, Clock, Users, ShoppingBag,
@@ -7,13 +8,18 @@ import {
   LogOut, Bell, Settings, DollarSign,
   Utensils, Coffee, ChevronRight, Delete,
   CalendarDays, Phone, Check, AlertCircle, Loader2,
-  ArrowRightLeft, Merge, Receipt, Printer, X as XIcon, Truck,
+  ArrowRightLeft, Merge, Receipt, Printer, X as XIcon, Truck, BellRing, Globe, Monitor,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
+import { Lang, LANG_META } from '@/lib/i18n/translations'
+import { useDashboardLayout } from '@/hooks/useDashboardLayout'
+import { usePermissions } from '@/lib/permissions/PermissionsContext'
+import { getStaffHome } from '@/lib/permissions/staffHome'
 
 type TableStatus = 'available' | 'occupied' | 'reserved' | 'dirty' | 'bill_requested'
 
@@ -31,6 +37,13 @@ interface Table {
   openedAt?: string
   shape: 'square' | 'round' | 'rect'
   group_id?: string | null
+}
+
+interface WaiterCall {
+  id: string
+  table_number: string
+  table_name: string | null
+  created_at: string
 }
 
 
@@ -159,13 +172,22 @@ function QuickMenu({ table, onClose, onQuickPay, router }: {
 }
 
 // ── Enhanced Table Card ────────────────────────────────────────
-function TableCard({ table, onSelect, onLongPress, formatPrice }: {
+function TableCard({ table, onSelect, onLongPress, formatPrice, hasWaiterCall }: {
   table: Table
   onSelect: (t: Table) => void
   onLongPress: (t: Table) => void
   cur: string
   formatPrice: (n: number) => string
+  hasWaiterCall?: boolean
 }) {
+  const { t: tr } = useLanguage()
+  const STATUS_LABELS: Record<TableStatus, string> = {
+    available:      tr.table_available,
+    occupied:       tr.table_occupied,
+    reserved:       tr.table_reserved,
+    dirty:          tr.table_dirty,
+    bill_requested: tr.table_bill,
+  }
   const cfg = STATUS_CONFIG[table.status]
   const isRound = table.shape === 'round'
   const isRect  = table.shape === 'rect'
@@ -221,10 +243,17 @@ function TableCard({ table, onSelect, onLongPress, formatPrice }: {
         <div className="absolute inset-0 rounded-2xl bg-red-500/10 animate-ping pointer-events-none" />
       )}
 
+      {/* Waiter call badge */}
+      {hasWaiterCall && (
+        <div className="absolute -top-2 -right-2 z-10 flex items-center justify-center w-6 h-6 rounded-full bg-violet-500 border-2 border-[#060810] shadow-lg shadow-violet-500/50 animate-bounce">
+          <BellRing className="w-3 h-3 text-white" />
+        </div>
+      )}
+
       {isRound ? (
         <div className="flex flex-col items-center justify-center gap-0.5 w-full h-full">
           <span className={cn('text-sm font-bold', cfg.text)}>{table.label}</span>
-          <span className={cn('text-[9px] font-bold uppercase tracking-wider', cfg.text)}>{cfg.label}</span>
+          <span className={cn('text-[9px] font-bold uppercase tracking-wider', cfg.text)}>{STATUS_LABELS[table.status]}</span>
           {(table.status === 'occupied' || isBillReq) && (
             <>
               <span className="text-[10px] text-white/60 tabular-nums font-semibold">{table.orderTotal != null ? formatPrice(table.orderTotal) : ''}</span>
@@ -249,7 +278,7 @@ function TableCard({ table, onSelect, onLongPress, formatPrice }: {
 
           {/* Status label */}
           <p className={cn('text-[9px] font-bold uppercase tracking-widest mb-auto', cfg.text)}>
-            {isBillReq ? '⚠ Bill Requested' : cfg.label}
+            {STATUS_LABELS[table.status]}
           </p>
 
           {/* Occupied / Bill Requested info */}
@@ -277,10 +306,10 @@ function TableCard({ table, onSelect, onLongPress, formatPrice }: {
           )}
 
           {/* Reserved */}
-          {table.status === 'reserved' && <p className="text-[10px] text-indigo-300/60 font-medium">Reserved</p>}
+          {table.status === 'reserved' && <p className="text-[10px] text-indigo-300/60 font-medium">{tr.table_reserved}</p>}
 
           {/* Dirty */}
-          {table.status === 'dirty' && <p className="text-[10px] text-rose-300/50 font-medium">Cleaning</p>}
+          {table.status === 'dirty' && <p className="text-[10px] text-rose-300/50 font-medium">{tr.table_dirty}</p>}
         </>
       )}
     </motion.button>
@@ -290,6 +319,22 @@ function TableCard({ table, onSelect, onLongPress, formatPrice }: {
 export default function TablesPage() {
   const router = useRouter()
   const { symbol: cur, formatPrice } = useDefaultCurrency()
+  const { can, staffName, roleName, isPinStaff, isOwner, permissions, loading: permsLoading } = usePermissions()
+
+  // Redirect PIN staff who can't access dine-in to their allowed home
+  useEffect(() => {
+    if (permsLoading || isOwner) return
+    if (!can('dashboard.access')) router.replace(getStaffHome(permissions))
+  }, [permsLoading, isOwner, permissions, can, router])
+
+  // Read restaurantId once at init so SWR can start immediately (before fetchOrders runs)
+  const [cachedRestaurantId] = useState<string | null>(() =>
+    typeof window !== 'undefined' ? localStorage.getItem('restaurant_id') : null
+  )
+
+  // SWR: layout data (tables, groups, restaurant info) — instant on return navigation
+  const { data: layoutData } = useDashboardLayout(cachedRestaurantId)
+
   const [filter, setFilter] = useState<TableStatus | 'all'>('all')
   const [groupFilter, setGroupFilter] = useState<string | 'all'>('all')
   const [selectedTable, setSelectedTable] = useState<Table | null>(null)
@@ -307,9 +352,31 @@ export default function TablesPage() {
   const [guestPendingCount, setGuestPendingCount] = useState(0)
   const [showDeliveryButton, setShowDeliveryButton] = useState(true)
   const [showTakeoutButton, setShowTakeoutButton]   = useState(true)
+  const [waiterCalls, setWaiterCalls]           = useState<WaiterCall[]>([])
+  const [showWaiterPanel, setShowWaiterPanel]   = useState(false)
+  const [showLangPicker, setShowLangPicker]     = useState(false)
+  const { lang, setLang, t: tr } = useLanguage()
   const alertIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const soundsEnabledRef  = useRef(true)
+  const alertRepeatMsRef  = useRef(30000)
 
   const audioCtxRef = useRef<AudioContext | null>(null)
+
+  // Populate layout state from SWR cache instantly on mount (no loading flash on return)
+  useEffect(() => {
+    if (!layoutData) return
+    if (layoutData.restaurant) setRestaurant({ name: layoutData.restaurant.name, logo_url: layoutData.restaurant.logo_url })
+    if (layoutData.tables.length > 0) setDbTableLayout(layoutData.tables)
+    if (layoutData.groups.length > 0) {
+      setGroups(layoutData.groups as TableGroup[])
+      setGroupFilter(f => f === 'all' ? layoutData.groups[0].id : f)
+    }
+    if (layoutData.restaurant?.settings) {
+      const rs = layoutData.restaurant.settings
+      setShowDeliveryButton(rs.show_delivery_button !== false)
+      setShowTakeoutButton(rs.show_takeout_button !== false)
+    }
+  }, [layoutData]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Unlock AudioContext on first user interaction (browser autoplay policy)
   useEffect(() => {
@@ -328,6 +395,7 @@ export default function TablesPage() {
   }, [])
 
   const playNewOrderAlert = useCallback(() => {
+    if (!soundsEnabledRef.current) return
     if (!audioCtxRef.current) {
       try { audioCtxRef.current = new AudioContext() } catch { return }
     }
@@ -349,18 +417,47 @@ export default function TablesPage() {
     ctx.state === 'running' ? play() : ctx.resume().then(play).catch(() => {})
   }, [])
 
+  const playWaiterAlert = useCallback(() => {
+    if (!soundsEnabledRef.current) return
+    if (!audioCtxRef.current) {
+      try { audioCtxRef.current = new AudioContext() } catch { return }
+    }
+    const ctx = audioCtxRef.current
+    const play = () => {
+      // Two descending chimes — distinct from order alert
+      [880, 660].forEach((freq, i) => {
+        const t    = ctx.currentTime + i * 0.3
+        const osc  = ctx.createOscillator()
+        const gain = ctx.createGain()
+        osc.connect(gain); gain.connect(ctx.destination)
+        osc.type = 'triangle'
+        osc.frequency.setValueAtTime(freq, t)
+        gain.gain.setValueAtTime(0.45, t)
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4)
+        osc.start(t); osc.stop(t + 0.4)
+      })
+    }
+    ctx.state === 'running' ? play() : ctx.resume().then(play).catch(() => {})
+  }, [])
+
   const fetchOrders = useCallback(async () => {
     const supabase = createClient()
-    const { data: rest } = await supabase.from('restaurants').select('id, name, logo_url, settings').limit(1).maybeSingle()
+    const storedId = typeof window !== 'undefined' ? localStorage.getItem('restaurant_id') : null
+    const query = supabase.from('restaurants').select('id, name, logo_url, settings')
+    const { data: rest } = await (storedId
+      ? query.eq('id', storedId).maybeSingle()
+      : query.limit(1).maybeSingle())
     if (!rest) return
     setRestaurant({ name: rest.name, logo_url: rest.logo_url })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const rs = ((rest as any).settings ?? {}) as Record<string, unknown>
     setShowDeliveryButton(rs.show_delivery_button !== false)
     setShowTakeoutButton(rs.show_takeout_button !== false)
+    soundsEnabledRef.current = rs.sounds_enabled !== false
+    alertRepeatMsRef.current = Number(rs.alert_repeat_seconds ?? 30) * 1000
 
     const today = new Date().toISOString().slice(0, 10)
-    const [{ data: dbTables }, { data: orders }, { data: grps }, { count: pendingCnt }, { data: todayRes }, { count: deliveryCnt }, guestPendingRes] = await Promise.all([
+    const [{ data: dbTables }, { data: orders }, { data: grps }, { count: pendingCnt }, { data: todayRes }, { count: deliveryCnt }, guestPendingRes, { data: waiterCallsData }] = await Promise.all([
       supabase.from('tables').select('id, seq, table_number, capacity, shape, group_id').eq('restaurant_id', rest.id).eq('active', true).order('table_number'),
       supabase.from('orders').select('id, table_number, guests, total, created_at').eq('restaurant_id', rest.id).eq('status', 'active'),
       supabase.from('table_groups').select('id, name, color').eq('restaurant_id', rest.id).order('sort_order'),
@@ -368,7 +465,9 @@ export default function TablesPage() {
       supabase.from('reservations').select('table_id').eq('restaurant_id', rest.id).eq('date', today).in('status', ['pending', 'confirmed']),
       supabase.from('delivery_orders').select('id', { count: 'exact', head: true }).eq('restaurant_id', rest.id).eq('status', 'pending'),
       supabase.from('order_items').select('id, orders!inner(source)', { count: 'exact', head: true }).eq('status', 'pending').eq('orders.source', 'guest'),
+      supabase.from('waiter_calls').select('id, table_number, table_name, created_at').eq('restaurant_id', rest.id).eq('status', 'pending').order('created_at'),
     ])
+    setWaiterCalls((waiterCallsData ?? []) as WaiterCall[])
     // Build reserved table IDs set
     const resSet = new Set<string>((todayRes ?? []).map((r: { table_id: string | null }) => r.table_id).filter(Boolean) as string[])
     setReservedTableIds(resSet)
@@ -410,14 +509,24 @@ export default function TablesPage() {
     setActiveOrders(map)
 
     if (dbTables && dbTables.length > 0) {
-      setDbTableLayout(dbTables.map(t => ({
+      const mappedTables = dbTables.map(t => ({
         id:       t.id,
         number:   t.seq,
         label:    t.table_number ?? String(t.seq),
         capacity: t.capacity ?? 4,
         shape:    (t.shape === 'Rectangle' ? 'rect' : (t.shape ?? 'Square').toLowerCase()) as 'square' | 'round' | 'rect',
         group_id: t.group_id ?? null,
-      })))
+      }))
+      setDbTableLayout(mappedTables)
+
+      // Keep SWR cache fresh so next return navigation is instant
+      if (rest) {
+        swrMutate(`dashboard-layout-${rest.id}`, {
+          restaurant: { name: rest.name, logo_url: rest.logo_url, settings: (rest as unknown as Record<string, unknown>).settings ?? {} },
+          tables: mappedTables,
+          groups: (grps ?? []) as { id: string; name: string; color: string }[],
+        }, false) // false = don't revalidate, just update cache silently
+      }
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -426,15 +535,14 @@ export default function TablesPage() {
     return () => clearInterval(t)
   }, [])
 
-  // Repeat alert every 30 s while there are unconfirmed delivery or guest orders
+  // Repeat alert while there are unconfirmed delivery or guest orders
   useEffect(() => {
     const unconfirmed = deliveryCount + guestPendingCount
     if (unconfirmed > 0) {
-      if (!alertIntervalRef.current) {
-        alertIntervalRef.current = setInterval(() => {
-          playNewOrderAlert()
-        }, 30000)
-      }
+      if (alertIntervalRef.current) clearInterval(alertIntervalRef.current)
+      alertIntervalRef.current = setInterval(() => {
+        playNewOrderAlert()
+      }, alertRepeatMsRef.current)
     } else {
       if (alertIntervalRef.current) {
         clearInterval(alertIntervalRef.current)
@@ -474,6 +582,17 @@ export default function TablesPage() {
           fetchRef.current()
         })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' },
+        () => fetchRef.current())
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'waiter_calls' },
+        (payload) => {
+          const row = payload.new as WaiterCall & { restaurant_id?: string }
+          const storedId = typeof window !== 'undefined' ? localStorage.getItem('restaurant_id') : null
+          if (!storedId || row.restaurant_id !== storedId) return
+          playWaiterAlert()
+          setWaiterCalls(prev => [...prev, { id: row.id, table_number: row.table_number, table_name: row.table_name, created_at: row.created_at }])
+          setShowWaiterPanel(true)
+        })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'waiter_calls' },
         () => fetchRef.current())
       .subscribe()
 
@@ -538,44 +657,118 @@ export default function TablesPage() {
 
           {/* Right: actions */}
           <div className="flex items-center gap-2">
-            <Link href="/dashboard/reports" className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 transition-all active:scale-95">
-              <DollarSign className="w-4.5 h-4.5" size={18} />
-            </Link>
-            <Link href="/dashboard/staff" className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 transition-all active:scale-95">
-              <Users className="w-4.5 h-4.5" size={18} />
-            </Link>
-            <Link href="/dashboard/pending-orders" className={cn(
-              'w-10 h-10 rounded-xl border flex items-center justify-center transition-all active:scale-95 relative',
-              pendingCount > 0
-                ? 'bg-amber-500/15 border-amber-500/30 text-amber-400 hover:bg-amber-500/25'
-                : 'bg-white/5 border-white/10 text-white/40 hover:text-white/70 hover:bg-white/10'
-            )}>
-              <Bell size={18} />
-              {pendingCount > 0 && (
-                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full bg-amber-500 text-white text-[10px] font-bold flex items-center justify-center px-1 shadow-lg shadow-amber-500/40">
-                  {pendingCount > 99 ? '99+' : pendingCount}
+            {/* Staff name badge when PIN logged in */}
+            {isPinStaff && staffName && (
+              <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                <div className="w-5 h-5 rounded-full bg-amber-500/30 flex items-center justify-center text-[10px] font-bold text-amber-300">
+                  {staffName[0]}
+                </div>
+                <span className="text-xs font-medium text-amber-300/80 max-w-[80px] truncate">{staffName}</span>
+                {roleName && <span className="text-[10px] text-white/30 truncate max-w-[60px]">· {roleName}</span>}
+              </div>
+            )}
+            {can('finance.report') && (
+              <Link href="/dashboard/reports" className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 transition-all active:scale-95">
+                <DollarSign className="w-4.5 h-4.5" size={18} />
+              </Link>
+            )}
+            {can('settings.users') && (
+              <Link href="/dashboard/staff" className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 transition-all active:scale-95">
+                <Users className="w-4.5 h-4.5" size={18} />
+              </Link>
+            )}
+            <button
+              onClick={() => setShowWaiterPanel(p => !p)}
+              className={cn(
+                'w-10 h-10 rounded-xl border flex items-center justify-center transition-all active:scale-95 relative',
+                waiterCalls.length > 0
+                  ? 'bg-violet-500/15 border-violet-500/40 text-violet-400 hover:bg-violet-500/25 animate-pulse'
+                  : 'bg-white/5 border-white/10 text-white/40 hover:text-white/70 hover:bg-white/10'
+              )}
+              title="Waiter Calls"
+            >
+              <BellRing size={18} />
+              {waiterCalls.length > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full bg-violet-500 text-white text-[10px] font-bold flex items-center justify-center px-1 shadow-lg shadow-violet-500/40">
+                  {waiterCalls.length > 99 ? '99+' : waiterCalls.length}
                 </span>
               )}
-            </Link>
-            <Link href="/dashboard/kds" className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-amber-400 hover:bg-amber-500/10 hover:border-amber-500/30 transition-all active:scale-95" title="Kitchen Display">
-              <ChefHat size={18} />
-            </Link>
-            <Link href="/dashboard/guests" className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-amber-400 hover:bg-amber-500/10 hover:border-amber-500/30 transition-all active:scale-95" title="Guest Tracking">
-              <Users size={18} />
-            </Link>
-            <Link href="/pos" className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-rose-400/50 hover:text-rose-400 hover:bg-rose-500/10 transition-all active:scale-95">
+            </button>
+            {can('kds') && (
+              <Link href="/dashboard/kds" className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-amber-400 hover:bg-amber-500/10 hover:border-amber-500/30 transition-all active:scale-95" title="Kitchen Display">
+                <ChefHat size={18} />
+              </Link>
+            )}
+            {can('dashboard.cfd') && cachedRestaurantId && (
+              <button
+                onClick={() => window.open(`/cfd/${cachedRestaurantId}`, 'CFD', 'width=1024,height=768,menubar=no,toolbar=no,location=no,status=no')}
+                className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 hover:bg-blue-500/20 hover:border-blue-500/40 transition-all active:scale-95"
+                title="Customer Facing Display"
+              >
+                <Monitor size={18} />
+              </button>
+            )}
+            {can('guests') && (
+              <Link href="/dashboard/guests" className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-amber-400 hover:bg-amber-500/10 hover:border-amber-500/30 transition-all active:scale-95" title="Guest Tracking">
+                <Users size={18} />
+              </Link>
+            )}
+            {/* Language picker */}
+            <div className="relative">
+              <button
+                onClick={() => setShowLangPicker(v => !v)}
+                className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 transition-all active:scale-95"
+                title="Language"
+              >
+                <Globe size={18} />
+              </button>
+              {showLangPicker && (
+                <div className="absolute top-full mt-2 right-0 w-44 rounded-2xl border border-white/12 bg-[#0d1120] shadow-2xl overflow-hidden z-50">
+                  <p className="px-4 py-2.5 text-[10px] font-bold text-white/30 uppercase tracking-widest border-b border-white/8">
+                    Language
+                  </p>
+                  {(Object.entries(LANG_META) as [Lang, typeof LANG_META[Lang]][]).map(([code, meta]) => (
+                    <button
+                      key={code}
+                      onClick={() => { setLang(code); setShowLangPicker(false) }}
+                      className={cn(
+                        'w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors',
+                        lang === code
+                          ? 'bg-amber-500/15 text-amber-300'
+                          : 'text-white/60 hover:bg-white/5 hover:text-white',
+                      )}
+                    >
+                      <span className="text-base">{meta.flag}</span>
+                      <span className="flex-1 text-left">{meta.nativeLabel}</span>
+                      {lang === code && <Check className="w-4 h-4 text-amber-400 shrink-0" />}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={async () => {
+                const supabase = createClient()
+                await supabase.auth.signOut().catch(() => {})
+                const keys = ['restaurant_id','restaurant_name','owner_session','pos_staff_id','pos_staff_name','pos_staff_role','pos_staff_color','pos_role_permissions','pos_role_name']
+                keys.forEach(k => localStorage.removeItem(k))
+                router.replace('/pos')
+              }}
+              className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-rose-400/50 hover:text-rose-400 hover:bg-rose-500/10 transition-all active:scale-95"
+            >
               <LogOut size={18} />
-            </Link>
+            </button>
           </div>
         </div>
 
         {/* Summary stats row */}
         <div className="grid grid-cols-4 divide-x divide-white/5 border-t border-white/5">
           {[
-            { label: 'Available', count: counts.available, color: 'text-emerald-400', status: 'available' as const },
-            { label: 'Occupied', count: counts.occupied, color: 'text-amber-400', status: 'occupied' as const },
-            { label: 'Reserved', count: counts.reserved, color: 'text-indigo-400', status: 'reserved' as const },
-            { label: 'Cleaning', count: counts.dirty, color: 'text-rose-400', status: 'dirty' as const },
+            { label: tr.table_available, count: counts.available, color: 'text-emerald-400', status: 'available' as const },
+            { label: tr.table_occupied,  count: counts.occupied,  color: 'text-amber-400',   status: 'occupied'  as const },
+            { label: tr.table_reserved,  count: counts.reserved,  color: 'text-indigo-400',  status: 'reserved'  as const },
+            { label: tr.table_dirty,     count: counts.dirty,     color: 'text-rose-400',    status: 'dirty'     as const },
           ].map(s => (
             <button
               key={s.status}
@@ -604,7 +797,7 @@ export default function TablesPage() {
                 groupFilter === 'all' ? 'bg-white/15 text-white border border-white/20' : 'bg-white/5 text-white/40 border border-white/8 hover:text-white/70'
               )}
             >
-              All Zones
+              {tr.all_groups}
             </button>
             {groups.map(g => (
               <button
@@ -629,8 +822,8 @@ export default function TablesPage() {
             <LayoutGrid className="w-4 h-4 text-white/30" />
             <span className="text-sm font-medium text-white/50">
               {filter === 'all' && groupFilter === 'all'
-                ? `All Tables (${tables.length})`
-                : `${filtered.length} table${filtered.length !== 1 ? 's' : ''}`}
+                ? `${tr.nav_tables} (${tables.length})`
+                : `${filtered.length}`}
             </span>
           </div>
           <button
@@ -641,14 +834,14 @@ export default function TablesPage() {
             )}
           >
             <RefreshCw className="w-3 h-3" />
-            {filter !== 'all' || groupFilter !== 'all' ? 'Show all' : 'All shown'}
+            {filter !== 'all' || groupFilter !== 'all' ? tr.show_all : tr.all_shown}
           </button>
         </div>
 
         {/* Tables grid */}
         <div className="flex flex-wrap gap-2">
           {filtered.map(table => (
-            <TableCard key={table.id} table={table} onSelect={async t => {
+            <TableCard key={table.id} table={table} hasWaiterCall={waiterCalls.some(c => c.table_number === table.label)} onSelect={async t => {
               if (t.status === 'reserved') {
                 const supabase = createClient()
                 const today = new Date().toISOString().slice(0, 10)
@@ -664,12 +857,30 @@ export default function TablesPage() {
 
       {/* Bottom action bar */}
       <div className="sticky bottom-0 z-30 border-t border-white/8 bg-[#060810]/90 backdrop-blur-2xl px-4 py-3">
-        <div className={cn('grid gap-2 max-w-lg mx-auto', `grid-cols-${2 + (showDeliveryButton ? 1 : 0) + (showTakeoutButton ? 1 : 0)}`)}>
+        <div className={cn('grid gap-2 max-w-lg mx-auto', `grid-cols-${3 + (showDeliveryButton ? 1 : 0) + (showTakeoutButton ? 1 : 0)}`)}>
           <button className="flex items-center justify-center gap-1.5 h-12 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-sm font-semibold transition-all shadow-lg shadow-amber-500/25 touch-manipulation">
             <Plus className="w-4 h-4" />
-            New Order
+            {tr.new_order}
           </button>
-          {showDeliveryButton && (
+          {/* Pending Orders */}
+          <Link
+            href="/dashboard/pending-orders"
+            className={cn(
+              'relative flex items-center justify-center gap-1.5 h-12 rounded-xl border text-sm font-semibold transition-all active:scale-95 touch-manipulation',
+              pendingCount > 0
+                ? 'bg-amber-500/20 border-amber-500/40 text-amber-300 hover:bg-amber-500/30'
+                : 'bg-white/8 border-white/12 text-white/70 hover:bg-white/12'
+            )}
+          >
+            <Bell className="w-4 h-4" />
+            QR Orders
+            {pendingCount > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 rounded-full bg-amber-500 text-white text-[10px] font-bold flex items-center justify-center px-1 shadow-lg shadow-amber-500/40">
+                {pendingCount > 99 ? '99+' : pendingCount}
+              </span>
+            )}
+          </Link>
+          {showDeliveryButton && can('delivery') && (
             <Link
               href="/dashboard/delivery-orders"
               className={cn(
@@ -680,7 +891,7 @@ export default function TablesPage() {
               )}
             >
               <Truck className="w-4 h-4" />
-              Delivery
+              {tr.delivery}
               {deliveryCount > 0 && (
                 <span className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 rounded-full bg-indigo-500 text-white text-[10px] font-bold flex items-center justify-center px-1 shadow-lg shadow-indigo-500/40">
                   {deliveryCount > 99 ? '99+' : deliveryCount}
@@ -688,21 +899,120 @@ export default function TablesPage() {
               )}
             </Link>
           )}
-          {showTakeoutButton && (
+          {showTakeoutButton && can('takeout') && (
             <Link
               href="/dashboard/takeout-orders"
               className="relative flex items-center justify-center gap-1.5 h-12 rounded-xl border bg-white/8 border-white/12 text-white/70 hover:bg-white/12 text-sm font-semibold transition-all active:scale-95 touch-manipulation"
             >
               <ShoppingBag className="w-4 h-4" />
-              Takeout
+              {tr.takeout}
             </Link>
           )}
-          <Link href="/dashboard/settings" className="flex items-center justify-center gap-1.5 h-12 rounded-xl bg-white/8 border border-white/12 hover:bg-white/12 active:scale-95 text-white/70 text-sm font-medium transition-all touch-manipulation">
-            <Settings className="w-4 h-4" />
-            Settings
-          </Link>
+          {can('settings') && (
+            <Link href="/dashboard/settings" className="flex items-center justify-center gap-1.5 h-12 rounded-xl bg-white/8 border border-white/12 hover:bg-white/12 active:scale-95 text-white/70 text-sm font-medium transition-all touch-manipulation">
+              <Settings className="w-4 h-4" />
+              {tr.nav_settings}
+            </Link>
+          )}
         </div>
       </div>
+
+      {/* Waiter calls panel */}
+      <AnimatePresence>
+        {showWaiterPanel && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+            onClick={() => setShowWaiterPanel(false)}
+          >
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+            <motion.div
+              initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 60, opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+              className="relative w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl border border-violet-500/25 bg-[#0d1220]/97 backdrop-blur-2xl shadow-2xl overflow-hidden"
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Pull handle */}
+              <div className="flex justify-center pt-3 pb-1 sm:hidden">
+                <div className="w-10 h-1 bg-white/20 rounded-full" />
+              </div>
+
+              {/* Header */}
+              <div className="px-5 py-4 bg-violet-500/10 border-b border-violet-500/20 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-violet-500/15 border border-violet-500/25 flex items-center justify-center">
+                    <BellRing className="w-5 h-5 text-violet-400" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-white/40 mb-0.5">{tr.waiter_paging}</p>
+                    <p className="text-base font-bold text-violet-400">
+                      {waiterCalls.length === 0 ? tr.no_pending_calls : `${waiterCalls.length} ${tr.tables_calling}`}
+                    </p>
+                  </div>
+                </div>
+                <button onClick={() => setShowWaiterPanel(false)} className="w-8 h-8 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-white/70 transition-all">
+                  <XIcon className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Calls list */}
+              <div className="px-4 py-3 space-y-2 max-h-80 overflow-y-auto">
+                {waiterCalls.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-8 text-white/25">
+                    <BellRing className="w-8 h-8 mb-2 opacity-30" />
+                    <p className="text-sm">{tr.all_clear}</p>
+                  </div>
+                ) : (
+                  waiterCalls.map(call => (
+                    <div key={call.id} className="flex items-center gap-3 p-3 rounded-2xl bg-violet-500/8 border border-violet-500/20">
+                      <div className="w-10 h-10 rounded-xl bg-violet-500/15 border border-violet-500/25 flex items-center justify-center shrink-0">
+                        <BellRing className="w-4 h-4 text-violet-400 animate-bounce" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold text-white">
+                          Table {call.table_name || call.table_number || '?'}
+                        </p>
+                        <p className="text-xs text-violet-300/70">
+                          {new Date(call.created_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })} — {tr.requesting_waiter}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          // Optimistic: dismiss immediately, write in background
+                          setWaiterCalls(prev => prev.filter(c => c.id !== call.id))
+                          createClient().from('waiter_calls').update({ status: 'acknowledged' }).eq('id', call.id)
+                        }}
+                        className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 text-xs font-semibold hover:bg-emerald-500/25 active:scale-95 transition-all"
+                      >
+                        <Check className="w-3 h-3" />
+                        OK
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Acknowledge all */}
+              {waiterCalls.length > 1 && (
+                <div className="px-4 pb-4">
+                  <button
+                    onClick={() => {
+                      // Optimistic: clear all immediately, write in background
+                      const ids = waiterCalls.map(c => c.id)
+                      setWaiterCalls([])
+                      createClient().from('waiter_calls').update({ status: 'acknowledged' }).in('id', ids)
+                    }}
+                    className="w-full h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 text-sm font-semibold flex items-center justify-center gap-2 hover:bg-emerald-500/25 active:scale-95 transition-all"
+                  >
+                    <Check className="w-4 h-4" />
+                    {tr.acknowledge_all}
+                  </button>
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Long-press quick menu */}
       {quickMenuTable && (
@@ -983,7 +1293,7 @@ function GuestNumpad({
     if (!resDate)        { setResErr('Date is required'); return }
     if (!resTime)        { setResErr('Time is required'); return }
     setResSaving(true); setResErr(null)
-    const { data: rest } = await supabase.from('restaurants').select('id').limit(1).maybeSingle()
+    const { data: rest } = await supabase.from('restaurants').select('id').eq('id', typeof window !== 'undefined' ? (localStorage.getItem('restaurant_id') ?? '') : '').maybeSingle()
     if (!rest?.id) { setResErr('Restaurant not found'); setResSaving(false); return }
     const { error } = await supabase.from('reservations').insert({
       restaurant_id: rest.id,

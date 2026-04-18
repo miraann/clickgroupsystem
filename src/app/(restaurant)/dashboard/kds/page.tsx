@@ -2,7 +2,12 @@
 import { useState, useEffect, useCallback, useRef, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { ChefHat, RefreshCw, Check, CheckCheck, Clock, Wifi, WifiOff, Flame, Bell, Layers, AlertTriangle, X, Volume2 } from 'lucide-react'
+import { ChefHat, RefreshCw, Check, CheckCheck, Clock, Wifi, WifiOff, Flame, Bell, Layers, AlertTriangle, X, Volume2, Truck } from 'lucide-react'
+import { ModuleGate } from '@/components/ModuleGate'
+import { usePermissions } from '@/lib/permissions/PermissionsContext'
+import { getStaffHome } from '@/lib/permissions/staffHome'
+import { useKdsStations } from '@/hooks/useKdsStations'
+import { mutate as swrMutate } from 'swr'
 import { cn } from '@/lib/utils'
 
 interface Station {
@@ -33,6 +38,7 @@ interface KdsOrder {
   order_num: string | null
   table_label: string
   group_label: string | null
+  source: string | null
   items: KdsItem[]
   oldest_at: string
 }
@@ -215,13 +221,23 @@ function OrderCard({
         <div className="flex items-center gap-2.5">
           <div
             className="w-10 h-10 rounded-xl border border-white/12 flex items-center justify-center shrink-0"
-            style={{ backgroundColor: stationColor ? `${stationColor}22` : 'rgba(255,255,255,0.05)' }}
+            style={{ backgroundColor: stationColor ? `${stationColor}22` : order.source === 'delivery' ? 'rgba(99,102,241,0.12)' : 'rgba(255,255,255,0.05)' }}
           >
-            <span className="text-base font-extrabold text-white">{order.table_label}</span>
+            {order.source === 'delivery'
+              ? <Truck className="w-5 h-5 text-indigo-400" />
+              : <span className="text-base font-extrabold text-white">{order.table_label}</span>
+            }
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-1.5 flex-wrap">
-              <p className="text-sm font-bold text-white">Table {order.table_label}</p>
+              {order.source === 'delivery' ? (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-indigo-500/20 text-indigo-300 uppercase tracking-wide">Delivery</span>
+                  <p className="text-sm font-bold text-white">{order.table_label}</p>
+                </div>
+              ) : (
+                <p className="text-sm font-bold text-white">Table {order.table_label}</p>
+              )}
               {order.group_label && (
                 <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-white/10 text-white/50">
                   {order.group_label}
@@ -321,6 +337,20 @@ function KdsPage() {
   const searchParams    = useSearchParams()
   const router          = useRouter()
   const activeStationId = searchParams.get('station') ?? null
+  const { can, isOwner, permissions, loading: permsLoading } = usePermissions()
+
+  useEffect(() => {
+    if (permsLoading || isOwner) return
+    if (!can('kds')) router.replace(getStaffHome(permissions))
+  }, [permsLoading, isOwner, permissions, can, router])
+
+  // Read restaurantId from localStorage immediately so SWR can serve cache on re-mount
+  const [cachedRestaurantId] = useState<string | null>(() =>
+    typeof window !== 'undefined' ? localStorage.getItem('restaurant_id') : null
+  )
+
+  // SWR: stations (static, rarely changes) — instant on return navigation
+  const { data: cachedStations } = useKdsStations(cachedRestaurantId)
 
   const [stations, setStations]         = useState<Station[]>([])
   const [allOrders, setAllOrders]       = useState<KdsOrder[]>([])
@@ -328,7 +358,10 @@ function KdsPage() {
   const [online, setOnline]             = useState(true)
   const [bumping, setBumping]           = useState<Set<string>>(new Set())
   const [restaurantId, setRestaurantId] = useState<string | null>(null)
-  const [voidAlerts, setVoidAlerts]     = useState<{ id: string; itemName: string; qty: number; tableLabel: string; stationId: string | null }[]>([])
+  const [voidAlerts, setVoidAlerts]     = useState<{ id: string; itemName: string; qty: number; tableLabel: string; stationId: string | null; source: string | null }[]>([])
+  // Persist audio-unlock across navigations — once user taps, never show overlay again
+  // NOTE: must start as false (not read from localStorage) to avoid SSR/client hydration mismatch
+  const [audioUnlocked, setAudioUnlocked] = useState<boolean>(false)
   const restIdRef          = useRef<string | null>(null)
   const allOrdersRef       = useRef<KdsOrder[]>([])
   const activeStationIdRef = useRef<string | null>(null)
@@ -344,25 +377,57 @@ function KdsPage() {
   useEffect(() => { activeStationIdRef.current = activeStationId }, [activeStationId])
   useEffect(() => { stationsRef.current = stations }, [stations])
 
-  // Keep AudioContext alive — resume it on every user interaction
+  // Populate stations from SWR cache instantly on mount (no blank KDS on return navigation)
   useEffect(() => {
-    const unlock = () => {
-      if (!audioCtxRef.current) {
-        try { audioCtxRef.current = new AudioContext() } catch { return }
-      }
-      if (audioCtxRef.current.state !== 'running') {
-        audioCtxRef.current.resume().catch(() => {})
-      }
+    if (cachedStations && cachedStations.length > 0 && stations.length === 0) {
+      setStations(cachedStations as Station[])
     }
-    document.addEventListener('click',      unlock)
-    document.addEventListener('touchstart', unlock)
-    document.addEventListener('keydown',    unlock)
-    return () => {
-      document.removeEventListener('click',      unlock)
-      document.removeEventListener('touchstart', unlock)
-      document.removeEventListener('keydown',    unlock)
+  }, [cachedStations]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const unlockAudio = useCallback(() => {
+    if (!audioCtxRef.current) {
+      try { audioCtxRef.current = new AudioContext() } catch { return }
+    }
+    const ctx = audioCtxRef.current
+    const markUnlocked = () => {
+      setAudioUnlocked(true)
+      localStorage.setItem('kds_audio_enabled', 'true')
+    }
+    if (ctx.state !== 'running') {
+      ctx.resume().then(markUnlocked).catch(() => {})
+    } else {
+      markUnlocked()
     }
   }, [])
+
+  // On mount: if previously unlocked, silently resume AudioContext (no overlay needed)
+  // Also set audioUnlocked=true here (after hydration) to avoid SSR mismatch
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (localStorage.getItem('kds_audio_enabled') !== 'true') return
+    setAudioUnlocked(true)
+    try {
+      const ctx = new AudioContext()
+      audioCtxRef.current = ctx
+      if (ctx.state === 'suspended') ctx.resume().catch(() => {})
+    } catch { /* ignore */ }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Re-check audio state on any user interaction so polling sounds fire correctly
+  useEffect(() => {
+    const check = () => {
+      if (audioCtxRef.current?.state === 'running') setAudioUnlocked(true)
+      else unlockAudio()
+    }
+    document.addEventListener('click',      check)
+    document.addEventListener('touchstart', check)
+    document.addEventListener('keydown',    check)
+    return () => {
+      document.removeEventListener('click',      check)
+      document.removeEventListener('touchstart', check)
+      document.removeEventListener('keydown',    check)
+    }
+  }, [unlockAudio])
 
   const playBeeps = useCallback((freqs: number[]) => {
     // Create context lazily if not yet created
@@ -479,7 +544,7 @@ function KdsPage() {
       .select(`
         id, item_name, qty, note, status, station_id, created_at,
         sent_at, cooking_started_at, ready_at,
-        orders!inner(id, table_number, restaurant_id, order_num, source)
+        orders!inner(id, table_number, restaurant_id, order_num, source, delivery_orders(customer_name))
       `)
       // note: station_id may be null for old items — those fall into "All" only
       .in('status', ['sent', 'cooking', 'ready'])
@@ -504,14 +569,16 @@ function KdsPage() {
 
     const map = new Map<string, KdsOrder>()
     for (const row of (data ?? [])) {
-      const ord = row.orders as unknown as { id: string; table_number: number; order_num: string | null; source: string | null }
-      const sourceLabel = ord.source === 'delivery' ? 'Delivery' : ord.source === 'takeout' ? 'Takeout' : null
+      const ord = row.orders as unknown as { id: string; table_number: number; order_num: string | null; source: string | null; delivery_orders: { customer_name: string }[] | null }
+      const deliveryName = ord.source === 'delivery' ? (ord.delivery_orders?.[0]?.customer_name ?? 'Delivery') : null
+      const sourceLabel  = deliveryName ?? (ord.source === 'takeout' ? 'Takeout' : null)
       if (!map.has(ord.id)) {
         map.set(ord.id, {
           order_id:    ord.id,
           order_num:   ord.order_num ?? null,
           table_label: sourceLabel ?? labelMap.get(ord.table_number) ?? String(ord.table_number),
           group_label: sourceLabel ? null : (groupMap.get(ord.table_number) ?? null),
+          source:      ord.source ?? null,
           items:       [],
           oldest_at:   row.created_at,
         })
@@ -550,8 +617,11 @@ function KdsPage() {
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
+    let pollId: ReturnType<typeof setInterval> | null = null
+    let channel: ReturnType<typeof supabase.channel> | null = null
+
     const init = async () => {
-      const { data: rest } = await supabase.from('restaurants').select('id').limit(1).maybeSingle()
+      const { data: rest } = await supabase.from('restaurants').select('id').eq('id', typeof window !== 'undefined' ? (localStorage.getItem('restaurant_id') ?? '') : '').maybeSingle()
       if (!rest) return
       setRestaurantId(rest.id)
       restIdRef.current = rest.id
@@ -567,13 +637,83 @@ function KdsPage() {
         arr.push(a.category_id)
         assignMap.set(a.station_id, arr)
       }
-      setStations(((stationsData ?? []) as Omit<Station, 'category_ids'>[]).map(s => ({
+      const mappedStations = ((stationsData ?? []) as Omit<Station, 'category_ids'>[]).map(s => ({
         ...s, category_ids: assignMap.get(s.id) ?? [],
-      })))
+      }))
+      setStations(mappedStations)
+      // Keep SWR cache fresh for next return navigation
+      swrMutate(`kds-stations-${rest.id}`, mappedStations, false)
 
       await fetchOrders(rest.id)
 
-      const channel = supabase
+      // ── Polling fallback (4 s) — works even when Supabase Realtime WAL replication
+      //    is not enabled for these tables. Also detects voids between polls.
+      pollId = setInterval(async () => {
+        if (!restIdRef.current) return
+
+        // Snapshot known item IDs + active items before refresh
+        const prevIds = new Set<string>()
+        const prevActive = new Map<string, { itemName: string; qty: number; tableLabel: string; stationId: string | null; source: string | null }>()
+        for (const order of allOrdersRef.current) {
+          for (const item of order.items) {
+            prevIds.add(item.id)
+            if (item.status === 'sent' || item.status === 'cooking') {
+              prevActive.set(item.id, { itemName: item.item_name, qty: item.qty, tableLabel: order.table_label, stationId: item.station_id, source: order.source })
+            }
+          }
+        }
+
+        await fetchOrders(restIdRef.current)
+
+        const activeId = activeStationIdRef.current
+        const stnList  = stationsRef.current
+        const station  = stnList.find(s => s.id === activeId)
+
+        // ── Detect new 'sent' items (play new-order sound) ──────────
+        for (const order of allOrdersRef.current) {
+          for (const item of order.items) {
+            if (item.status === 'sent' && !prevIds.has(item.id) && !soundedItemsRef.current.has(item.id)) {
+              soundedItemsRef.current.add(item.id)
+              const belongs = !activeId
+                           || item.station_id === activeId
+                           || (!!station && station.category_ids.length === 0)
+              if (belongs) playNewOrder()
+            }
+          }
+        }
+
+        // ── Detect items that disappeared (voided) ──────────────────
+        if (prevActive.size > 0) {
+          const newItemIds = new Set<string>()
+          for (const order of allOrdersRef.current) {
+            for (const item of order.items) newItemIds.add(item.id)
+          }
+          const missingIds = [...prevActive.keys()].filter(id => !newItemIds.has(id))
+          if (missingIds.length > 0) {
+            const { data: voidedRows } = await supabase
+              .from('order_items')
+              .select('id, station_id')
+              .in('id', missingIds)
+              .eq('status', 'void')
+            if (voidedRows && voidedRows.length > 0) {
+              setVoidAlerts(prev => {
+                const existingIds = new Set(prev.map(a => a.id))
+                const newAlerts = voidedRows
+                  .filter(vr => !existingIds.has(vr.id))
+                  .map(vr => {
+                    const p = prevActive.get(vr.id)!
+                    return { id: vr.id, itemName: p.itemName, qty: p.qty, tableLabel: p.tableLabel, stationId: vr.station_id, source: p.source }
+                  })
+                return newAlerts.length > 0 ? [...prev, ...newAlerts] : prev
+              })
+              playVoidAlert()
+            }
+          }
+        }
+      }, 4000)
+
+      // ── Realtime subscription — instant updates when WAL replication is enabled
+      channel = supabase
         .channel('kds-order-items')
         .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'order_items' },
           (payload) => {
@@ -594,9 +734,9 @@ function KdsPage() {
 
             if (updated.status === 'void') {
               for (const order of allOrdersRef.current) {
-                const item = order.items.find(i => i.id === updated.id && i.status === 'cooking')
+                const item = order.items.find(i => i.id === updated.id && (i.status === 'cooking' || i.status === 'sent'))
                 if (item) {
-                  setVoidAlerts(prev => [...prev, { id: item.id, itemName: item.item_name, qty: item.qty, tableLabel: order.table_label, stationId: item.station_id }])
+                  setVoidAlerts(prev => prev.some(a => a.id === item.id) ? prev : [...prev, { id: item.id, itemName: item.item_name, qty: item.qty, tableLabel: order.table_label, stationId: item.station_id, source: order.source }])
                   break
                 }
               }
@@ -624,11 +764,15 @@ function KdsPage() {
         .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' },
           () => { if (restIdRef.current) fetchOrders(restIdRef.current) })
         .subscribe((status) => setOnline(status === 'SUBSCRIBED'))
-
-      return () => { supabase.removeChannel(channel) }
     }
+
     init()
-  }, [fetchOrders]) // eslint-disable-line react-hooks/exhaustive-deps
+
+    return () => {
+      if (pollId) clearInterval(pollId)
+      if (channel) supabase.removeChannel(channel)
+    }
+  }, [fetchOrders, playVoidAlert, playNewOrder]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Filter orders for the active station ──────────────────────
   // An item belongs to a station if:
@@ -755,9 +899,14 @@ function KdsPage() {
             {visibleOrders.length} order{visibleOrders.length !== 1 ? 's' : ''}
           </div>
           <button
-            onClick={playVoidAlert}
-            title="Test alert sound"
-            className="w-8 h-8 rounded-xl bg-white/6 border border-white/10 flex items-center justify-center text-white/40 hover:text-amber-400 hover:bg-amber-500/10 transition-all active:scale-95"
+            onClick={() => { unlockAudio(); playVoidAlert() }}
+            title={audioUnlocked ? 'Test alert sound' : 'Click to enable sounds'}
+            className={cn(
+              'w-8 h-8 rounded-xl border flex items-center justify-center transition-all active:scale-95',
+              audioUnlocked
+                ? 'bg-white/6 border-white/10 text-white/40 hover:text-amber-400 hover:bg-amber-500/10'
+                : 'bg-amber-500/20 border-amber-500/40 text-amber-400 animate-pulse'
+            )}
           >
             <Volume2 className="w-3.5 h-3.5" />
           </button>
@@ -781,7 +930,9 @@ function KdsPage() {
             <p className="text-xs font-extrabold text-rose-200 uppercase tracking-widest">⚠ Stop Cooking — Order Voided</p>
             <p className="text-lg font-black text-white leading-tight">
               ×{alert.qty} {alert.itemName}
-              <span className="ml-3 text-sm font-bold text-rose-200">Table {alert.tableLabel}</span>
+              <span className="ml-3 text-sm font-bold text-rose-200">
+                {alert.source === 'delivery' ? `Delivery · ${alert.tableLabel}` : `Table ${alert.tableLabel}`}
+              </span>
             </p>
           </div>
           <button
@@ -899,11 +1050,30 @@ function KdsPage() {
             Viewing: {activeStation.name}
           </div>
         )}
-        <div className="ml-auto">Live updates via Supabase Realtime</div>
+        <div className="ml-auto">Polling every 4s · Realtime when available</div>
       </footer>
+
+      {/* ── Sound unlock overlay — shown until user enables audio ── */}
+      {!audioUnlocked && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+          onClick={() => { unlockAudio(); playNewOrder() }}
+        >
+          <div className="flex flex-col items-center gap-4 px-8 py-8 rounded-3xl bg-white/8 border border-white/15 shadow-2xl text-center max-w-xs">
+            <div className="w-16 h-16 rounded-2xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center animate-pulse">
+              <Volume2 className="w-8 h-8 text-amber-400" />
+            </div>
+            <p className="text-lg font-bold text-white">Tap to enable sounds</p>
+            <p className="text-sm text-white/50">The browser requires one tap before audio alerts can play on this display.</p>
+            <div className="w-full py-3 rounded-xl bg-amber-500 text-black text-sm font-bold">
+              Enable Alert Sounds
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   )
 }
 
-export default function KdsPageWrapper() { return <Suspense><KdsPage /></Suspense> }
+export default function KdsPageWrapper() { return <ModuleGate moduleKey="kds"><Suspense><KdsPage /></Suspense></ModuleGate> }

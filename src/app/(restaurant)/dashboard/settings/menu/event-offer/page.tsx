@@ -35,6 +35,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { cn } from '@/lib/utils'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 import {
   Plus, Pencil, Trash2, CalendarDays, X,
   ToggleLeft, ToggleRight, Loader2, AlertCircle, ImageIcon, GripVertical,
@@ -145,6 +146,7 @@ function SortableEventRow({
 
 export default function EventOfferPage() {
   const supabase = createClient()
+  const { t } = useLanguage()
 
   const [restaurantId, setRestaurantId] = useState<string | null>(null)
   const [events, setEvents]             = useState<EventOffer[]>([])
@@ -168,7 +170,7 @@ export default function EventOfferPage() {
   // ── Load ─────────────────────────────────────────────────────
   const load = useCallback(async () => {
     setLoading(true); setError(null)
-    const { data: rest } = await supabase.from('restaurants').select('id').limit(1).maybeSingle()
+    const { data: rest } = await supabase.from('restaurants').select('id').eq('id', typeof window !== 'undefined' ? (localStorage.getItem('restaurant_id') ?? '') : '').maybeSingle()
     if (!rest) { setError('Restaurant not found'); setLoading(false); return }
     setRestaurantId(rest.id)
 
@@ -326,8 +328,8 @@ export default function EventOfferPage() {
             <CalendarDays className="w-5 h-5 text-amber-400" />
           </div>
           <div>
-            <h1 className="text-lg font-semibold text-white">Events & Offers</h1>
-            <p className="text-xs text-white/40">Drag to reorder</p>
+            <h1 className="text-lg font-semibold text-white">{t.evt_title}</h1>
+            <p className="text-xs text-white/40">{t.evt_subtitle}</p>
           </div>
           <span className="px-2 py-0.5 rounded-full bg-white/8 text-xs text-white/50">{events.length}</span>
         </div>
@@ -335,7 +337,7 @@ export default function EventOfferPage() {
           onClick={openAdd}
           className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-xl active:scale-95 touch-manipulation transition-all"
         >
-          <Plus className="w-4 h-4" /> Add Event
+          <Plus className="w-4 h-4" /> {t.evt_add}
         </button>
       </div>
 
@@ -355,7 +357,7 @@ export default function EventOfferPage() {
             ))}
             {events.length === 0 && (
               <div className="text-center py-16 text-white/25 text-sm">
-                No events or offers yet. Add your first one.
+                {t.evt_no_data}
               </div>
             )}
           </div>
@@ -370,7 +372,7 @@ export default function EventOfferPage() {
             {/* Modal header */}
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-base font-semibold text-white">
-                {editId ? 'Edit Event / Offer' : 'Add Event / Offer'}
+                {editId ? t.edit : t.evt_add}
               </h2>
               <button
                 onClick={closeModal}
@@ -384,7 +386,7 @@ export default function EventOfferPage() {
 
               {/* Title */}
               <div>
-                <label className="block text-xs text-white/50 mb-1.5 font-medium">Title *</label>
+                <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.evt_name} *</label>
                 <input
                   value={form.title}
                   onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
@@ -395,7 +397,7 @@ export default function EventOfferPage() {
 
               {/* Date label */}
               <div>
-                <label className="block text-xs text-white/50 mb-1.5 font-medium">Date / Schedule</label>
+                <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.evt_start} / {t.evt_end}</label>
                 <input
                   value={form.date_label}
                   onChange={e => setForm(f => ({ ...f, date_label: e.target.value }))}
@@ -407,7 +409,7 @@ export default function EventOfferPage() {
 
               {/* Image Upload */}
               <div>
-                <label className="block text-xs text-white/50 mb-1.5 font-medium">Image</label>
+                <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.evt_image}</label>
                 <div className="relative">
                   {form.image_url ? (
                     <div className="relative rounded-xl overflow-hidden border border-white/10 w-32 h-40 mx-auto">
@@ -444,7 +446,7 @@ export default function EventOfferPage() {
 
               {/* Description */}
               <div>
-                <label className="block text-xs text-white/50 mb-1.5 font-medium">Description</label>
+                <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.evt_description}</label>
                 <textarea
                   value={form.description}
                   onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
@@ -462,7 +464,7 @@ export default function EventOfferPage() {
                 {form.active
                   ? <ToggleRight className="w-6 h-6 text-amber-400" />
                   : <ToggleLeft className="w-6 h-6 text-white/25" />}
-                <span className={form.active ? 'text-white' : 'text-white/40'}>Active</span>
+                <span className={form.active ? 'text-white' : 'text-white/40'}>{t.evt_active}</span>
               </button>
             </div>
 
@@ -478,7 +480,7 @@ export default function EventOfferPage() {
                 onClick={closeModal}
                 className="flex-1 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 text-sm font-medium transition-all active:scale-95"
               >
-                Cancel
+                {t.cancel}
               </button>
               <button
                 onClick={handleSave}
@@ -486,7 +488,7 @@ export default function EventOfferPage() {
                 className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium transition-all active:scale-95 flex items-center justify-center gap-2"
               >
                 {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-                {editId ? 'Save Changes' : 'Add Event'}
+                {editId ? t.save_changes : t.evt_add}
               </button>
             </div>
           </div>

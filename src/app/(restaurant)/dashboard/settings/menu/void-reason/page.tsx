@@ -3,11 +3,13 @@ import { useState, useEffect, useCallback } from 'react'
 import { cn } from '@/lib/utils'
 import { Plus, Trash2, XCircle, ToggleLeft, ToggleRight, Loader2, AlertCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 interface VoidReason { id: string; text: string; active: boolean; sort_order: number }
 
 export default function VoidReasonPage() {
   const supabase = createClient()
+  const { t } = useLanguage()
 
   const [restaurantId, setRestaurantId] = useState<string | null>(null)
   const [reasons, setReasons]           = useState<VoidReason[]>([])
@@ -20,7 +22,7 @@ export default function VoidReasonPage() {
   // ── Load ───────────────────────────────────────────────────
   const load = useCallback(async () => {
     setLoading(true); setError(null)
-    const { data: rest } = await supabase.from('restaurants').select('id').limit(1).maybeSingle()
+    const { data: rest } = await supabase.from('restaurants').select('id').eq('id', typeof window !== 'undefined' ? (localStorage.getItem('restaurant_id') ?? '') : '').maybeSingle()
     if (!rest) { setError('Restaurant not found'); setLoading(false); return }
     setRestaurantId(rest.id)
 
@@ -95,8 +97,8 @@ export default function VoidReasonPage() {
           <XCircle className="w-5 h-5 text-rose-400" />
         </div>
         <div>
-          <h1 className="text-lg font-semibold text-white">Void Reasons</h1>
-          <p className="text-xs text-white/40">Reasons for voiding orders or items</p>
+          <h1 className="text-lg font-semibold text-white">{t.vr_title}</h1>
+          <p className="text-xs text-white/40">{t.vr_subtitle}</p>
         </div>
         <span className="px-2 py-0.5 rounded-full bg-white/8 text-xs text-white/50">{reasons.length}</span>
       </div>
@@ -116,7 +118,7 @@ export default function VoidReasonPage() {
           className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white text-sm font-medium rounded-xl active:scale-95 transition-all flex items-center gap-1.5"
         >
           {adding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-          Add
+          {t.vr_add}
         </button>
       </div>
 
@@ -137,11 +139,11 @@ export default function VoidReasonPage() {
               className={cn('h-8 rounded-lg flex items-center justify-center transition-all active:scale-95 text-xs font-medium shrink-0',
                 deleteId === r.id ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30 px-2' : 'w-8 bg-white/5 hover:bg-rose-500/10 text-white/40 hover:text-rose-400')}
             >
-              {deleteId === r.id ? 'Confirm?' : <Trash2 className="w-3.5 h-3.5" />}
+              {deleteId === r.id ? t.confirm : <Trash2 className="w-3.5 h-3.5" />}
             </button>
           </div>
         ))}
-        {reasons.length === 0 && <div className="text-center py-12 text-white/25 text-sm">No void reasons yet.</div>}
+        {reasons.length === 0 && <div className="text-center py-12 text-white/25 text-sm">{t.vr_no_data}</div>}
       </div>
     </div>
   )

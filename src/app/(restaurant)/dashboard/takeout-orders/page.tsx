@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { ModuleGate } from '@/components/ModuleGate'
 import {
   ShoppingBag, Plus, X, Loader2, RefreshCw,
   Clock, CheckCircle2, Phone, User, ChevronRight,
@@ -80,7 +81,7 @@ export default function TakeoutOrdersPage() {
   const [takeoutEnabled, setTakeoutEnabled] = useState(true)
 
   const load = useCallback(async () => {
-    const { data: rest } = await supabase.from('restaurants').select('id, settings').limit(1).maybeSingle()
+    const { data: rest } = await supabase.from('restaurants').select('id, settings').eq('id', typeof window !== 'undefined' ? (localStorage.getItem('restaurant_id') ?? '') : '').maybeSingle()
     if (!rest) { setError('Restaurant not found'); setLoading(false); return }
     setRestaurantId(rest.id)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -187,6 +188,7 @@ export default function TakeoutOrdersPage() {
   )
 
   return (
+    <ModuleGate moduleKey="takeout">
     <div className="min-h-screen bg-[#060810] text-white flex flex-col">
 
       {/* ── Header ── */}
@@ -459,5 +461,6 @@ export default function TakeoutOrdersPage() {
         />
       )}
     </div>
+    </ModuleGate>
   )
 }

@@ -3,7 +3,10 @@ import { useState, useEffect, useCallback } from 'react'
 import { Users, ArrowLeft, TrendingUp, Clock, Calendar, CalendarDays } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { usePermissions } from '@/lib/permissions/PermissionsContext'
+import { getStaffHome } from '@/lib/permissions/staffHome'
 
 type Period = 'today' | 'week' | 'month' | 'year'
 
@@ -117,13 +120,21 @@ function dateRangeFor(period: Period): { from: string; to: string } {
 
 export default function GuestsPage() {
   const supabase = createClient()
+  const router = useRouter()
+  const { can, isOwner, permissions, loading: permsLoading } = usePermissions()
+
+  useEffect(() => {
+    if (permsLoading || isOwner) return
+    if (!can('guests')) router.replace(getStaffHome(permissions))
+  }, [permsLoading, isOwner, permissions, can, router])
+
   const [period, setPeriod] = useState<Period>('today')
   const [rows, setRows]     = useState<OrderRow[]>([])
   const [loading, setLoading] = useState(true)
 
   const load = useCallback(async () => {
     setLoading(true)
-    const { data: rest } = await supabase.from('restaurants').select('id').limit(1).maybeSingle()
+    const { data: rest } = await supabase.from('restaurants').select('id').eq('id', typeof window !== 'undefined' ? (localStorage.getItem('restaurant_id') ?? '') : '').maybeSingle()
     if (!rest) { setLoading(false); return }
 
     // Load a full year always — we filter client-side per period

@@ -1,10 +1,17 @@
 'use client'
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useRouter } from 'next/navigation'
+import NextImage from 'next/image'
+import { mutate as swrMutate } from 'swr'
+import { useDeliveryOrders } from '@/hooks/useDeliveryOrders'
+import { ModuleGate } from '@/components/ModuleGate'
+import { usePermissions } from '@/lib/permissions/PermissionsContext'
+import { getStaffHome } from '@/lib/permissions/staffHome'
 import {
   Truck, Phone, MapPin, Clock, Check, X, Loader2,
-  RefreshCw, Package, ChevronDown, ChevronUp,
-  ExternalLink, CheckCircle2, XCircle, AlertCircle,
-  Navigation, UtensilsCrossed, FileText,
+  RefreshCw, Package,
+  CheckCircle2, XCircle, AlertCircle,
+  Navigation, UtensilsCrossed, FileText, Home,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
@@ -20,6 +27,7 @@ interface DeliveryItem {
   item_price: number
   qty: number
   note: string | null
+  image_url: string | null
 }
 
 interface DeliveryOrder {
@@ -70,8 +78,22 @@ type FilterStatus = 'all' | DeliveryStatus
 export default function DeliveryOrdersPage() {
   const supabase = createClient()
   const { formatPrice } = useDefaultCurrency()
+  const router = useRouter()
+  const { can, isOwner, permissions, loading: permsLoading } = usePermissions()
 
-  const [restaurantId, setRestaurantId] = useState<string | null>(null)
+  useEffect(() => {
+    if (permsLoading || isOwner) return
+    if (!can('delivery')) router.replace(getStaffHome(permissions))
+  }, [permsLoading, isOwner, permissions, can, router])
+
+  // Read restaurantId from localStorage immediately so SWR can serve cache on re-mount
+  const [restaurantId, setRestaurantId] = useState<string | null>(() =>
+    typeof window !== 'undefined' ? localStorage.getItem('restaurant_id') : null
+  )
+
+  // SWR: delivery orders — shows cached data instantly on return navigation, revalidates in background
+  const { data: swrOrders, isLoading: swrLoading, mutate: reloadOrders } = useDeliveryOrders(restaurantId)
+
   const [orders, setOrders]       = useState<DeliveryOrder[]>([])
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [printInvoice, setPrintInvoice]   = useState<any | null>(null)
@@ -81,68 +103,44 @@ export default function DeliveryOrdersPage() {
   const [loading, setLoading]     = useState(true)
   const [error, setError]         = useState<string | null>(null)
   const [filter, setFilter]       = useState<FilterStatus>('pending')
-  const [expanded, setExpanded]   = useState<Set<string>>(new Set())
   const [processing, setProcessing] = useState<Set<string>>(new Set())
   const [lastRefresh, setLastRefresh] = useState(new Date())
   const [cancelTarget, setCancelTarget] = useState<{ deliveryId: string; orderId: string; name: string } | null>(null)
   // eslint-disable-next-line @typescript-eslint/no-empty-function
   const loadRef = useRef<() => void>(() => {})
 
+  // Populate orders from SWR cache/data
+  useEffect(() => {
+    if (swrOrders) {
+      setOrders(swrOrders as DeliveryOrder[])
+      setLastRefresh(new Date())
+      setLoading(false)
+    } else if (!swrLoading) {
+      setLoading(false)
+    }
+  }, [swrOrders, swrLoading])
+
   const load = useCallback(async () => {
-    const { data: rest } = await supabase.from('restaurants').select('id').limit(1).maybeSingle()
-    if (!rest) { setError('Restaurant not found'); setLoading(false); return }
-    setRestaurantId(rest.id)
-
-    // Query through `orders` (has working RLS) and join delivery_orders for customer info
-    const { data, error: err } = await supabase
-      .from('orders')
-      .select(`
-        id, total, order_num, created_at,
-        delivery_orders ( id, customer_name, customer_phone, latitude, longitude, address_text, delivery_fee, status ),
-        order_items ( id, item_name, item_price, qty, note, status )
-      `)
-      .eq('restaurant_id', rest.id)
-      .eq('source', 'delivery')
-      .order('created_at', { ascending: false })
-      .limit(100)
-
-    if (err) { setError(err.message); setLoading(false); return }
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const mapped: DeliveryOrder[] = (data ?? []).flatMap((row: any) => {
-      const di = Array.isArray(row.delivery_orders) ? row.delivery_orders[0] : row.delivery_orders
-      if (!di) return []
-      return [{
-        delivery_id:    di.id,
-        order_id:       row.id,
-        customer_name:  di.customer_name,
-        customer_phone: di.customer_phone,
-        latitude:       di.latitude,
-        longitude:      di.longitude,
-        address_text:   di.address_text ?? null,
-        delivery_fee:   di.delivery_fee ?? 0,
-        status:         di.status as DeliveryStatus,
-        created_at:     row.created_at,
-        order_total:    row.total ?? 0,
-        order_num:      row.order_num ?? null,
-        items:          (row.order_items ?? []).filter((i: any) => i.status !== 'void'),
-      }]
-    })
-
-    setOrders(mapped)
+    // If restaurantId not yet known, resolve it first
+    if (!restaurantId) {
+      const { data: rest } = await supabase.from('restaurants').select('id').eq('id', typeof window !== 'undefined' ? (localStorage.getItem('restaurant_id') ?? '') : '').maybeSingle()
+      if (!rest) { setError('Restaurant not found'); setLoading(false); return }
+      setRestaurantId(rest.id)
+    }
+    // Trigger SWR revalidation — it re-runs the fetcher and updates state via the effect above
+    await reloadOrders()
     setLastRefresh(new Date())
-    setLoading(false)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [restaurantId, reloadOrders]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { loadRef.current = load }, [load])
 
   useEffect(() => {
-    load()
+    // Initial load via SWR (already triggered by useDeliveryOrders)
     const channel = supabase
       .channel('delivery-orders-rt')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders' }, () => loadRef.current())
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'delivery_orders' }, () => loadRef.current())
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'delivery_orders' }, () => loadRef.current())
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders' }, () => reloadOrders())
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'delivery_orders' }, () => reloadOrders())
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'delivery_orders' }, () => reloadOrders())
       .subscribe()
     return () => { supabase.removeChannel(channel) }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -266,23 +264,32 @@ export default function DeliveryOrdersPage() {
       }
     }
 
-    // If cancelled → void all pending order_items
+    // If cancelled → void all active order_items (pending, sent, cooking)
     if (newStatus === 'cancelled') {
       await supabase
         .from('order_items')
         .update({ status: 'void', void_reason: 'Delivery cancelled' })
         .eq('order_id', orderId)
-        .eq('status', 'pending')
+        .in('status', ['pending', 'sent', 'cooking'])
     }
 
+    // Optimistic local state update
     setOrders(prev => prev.map(o =>
       o.delivery_id === deliveryId ? { ...o, status: newStatus } : o
     ))
+    // Also update SWR cache so next re-mount shows the correct status instantly
+    if (restaurantId) {
+      swrMutate(`delivery-orders-${restaurantId}`, (prev: DeliveryOrder[] | undefined) =>
+        (prev ?? []).map(o => o.delivery_id === deliveryId ? { ...o, status: newStatus } : o),
+        false
+      )
+    }
     setProc(k, false)
+
+    // Auto-navigate to the new status step
+    if (newStatus !== 'cancelled') setFilter(newStatus)
   }
 
-  const toggleExpand = (id: string) =>
-    setExpanded(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s })
 
   const filtered = filter === 'all' ? orders : orders.filter(o => o.status === filter)
 
@@ -299,6 +306,7 @@ export default function DeliveryOrdersPage() {
   )
 
   return (
+    <ModuleGate moduleKey="delivery">
     <div className="min-h-screen bg-[#060810] text-white flex flex-col">
 
       {/* ── Header ── */}
@@ -315,41 +323,127 @@ export default function DeliveryOrdersPage() {
               </p>
             </div>
           </div>
-          <button
-            onClick={() => { setLoading(true); load() }}
-            className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 transition-all active:scale-95"
-          >
-            <RefreshCw className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => router.push('/dashboard')}
+              className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 transition-all active:scale-95"
+            >
+              <Home className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => { setLoading(true); load() }}
+              className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 transition-all active:scale-95"
+            >
+              <RefreshCw className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
-        {/* Filter tabs */}
-        <div className="flex gap-1.5 mt-3 overflow-x-auto pb-0.5 max-w-2xl mx-auto" style={{ scrollbarWidth: 'none' }}>
-          {(['all', 'pending', 'confirmed', 'preparing', 'out_for_delivery', 'delivered', 'cancelled'] as FilterStatus[]).map(s => {
-            const cfg = s !== 'all' ? STATUS_CFG[s] : null
-            const count = counts[s] ?? 0
-            if (s !== 'all' && count === 0 && filter !== s) return null
-            return (
+        {/* ── Status Stepper ── */}
+        <div className="mt-3 max-w-2xl mx-auto">
+          {/* Main flow stepper — scrollable on small screens */}
+          <div className="overflow-x-auto pb-1 pt-2" style={{ scrollbarWidth: 'none' }}>
+            <div className="flex items-start min-w-[340px]">
+              {(['pending', 'confirmed', 'preparing', 'out_for_delivery', 'delivered'] as DeliveryStatus[]).map((s, idx) => {
+                const cfg = STATUS_CFG[s]
+                const Icon = cfg.icon
+                const isActive = filter === s
+                const count = counts[s] ?? 0
+                const isLast = idx === 4
+
+                return (
+                  <div key={s} className="flex items-start flex-1">
+                    <button
+                      onClick={() => setFilter(s)}
+                      className="flex flex-col items-center gap-1.5 group flex-shrink-0 active:scale-95 transition-transform"
+                    >
+                      {/* Circle */}
+                      <div className="relative">
+                        <div className={cn(
+                          'w-11 h-11 rounded-full flex items-center justify-center border-2 transition-all',
+                          isActive
+                            ? 'bg-amber-500 border-amber-400 shadow-[0_0_16px_rgba(245,158,11,0.4)]'
+                            : count > 0
+                              ? 'bg-white/8 border-white/20 group-hover:bg-white/12 group-hover:border-white/30'
+                              : 'bg-white/4 border-white/8 group-hover:bg-white/8'
+                        )}>
+                          <Icon className={cn(
+                            'w-5 h-5 transition-colors',
+                            isActive ? 'text-white' : count > 0 ? 'text-white/55 group-hover:text-white/75' : 'text-white/20'
+                          )} />
+                        </div>
+                        {/* Count badge — only on active step */}
+                        {isActive && count > 0 && (
+                          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-[3px] rounded-full text-[9px] font-bold flex items-center justify-center leading-none bg-white text-amber-600">
+                            {count}
+                          </span>
+                        )}
+                      </div>
+                      {/* Label */}
+                      <span className={cn(
+                        'text-[10px] font-semibold leading-tight text-center transition-colors max-w-[56px]',
+                        isActive ? 'text-amber-400' : count > 0 ? 'text-white/45 group-hover:text-white/65' : 'text-white/18'
+                      )}>
+                        {s === 'out_for_delivery' ? <>On the<br/>Way</> : cfg.label}
+                      </span>
+                    </button>
+
+                    {/* Connecting line */}
+                    {!isLast && (
+                      <div className="flex-1 flex items-center pb-[22px] px-1">
+                        <div className={cn(
+                          'w-full h-[2px] rounded-full transition-colors',
+                          filter === s || STATUS_FLOW.indexOf(filter as DeliveryStatus) > idx
+                            ? 'bg-amber-500/40'
+                            : 'bg-white/10'
+                        )} />
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Secondary pills: All + Cancelled */}
+          <div className="flex gap-2 mt-2.5">
+            <button
+              onClick={() => setFilter('all')}
+              className={cn(
+                'flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold border transition-all active:scale-95',
+                filter === 'all'
+                  ? 'bg-white/15 border-white/25 text-white'
+                  : 'bg-white/5 border-white/8 text-white/35 hover:text-white/55 hover:bg-white/8'
+              )}
+            >
+              All
+              {(counts.all ?? 0) > 0 && (
+                <span className={cn(
+                  'text-[9px] font-bold px-1.5 py-0.5 rounded-full',
+                  filter === 'all' ? 'bg-white/20' : 'bg-white/10'
+                )}>{counts.all}</span>
+              )}
+            </button>
+            {((counts.cancelled ?? 0) > 0 || filter === 'cancelled') && (
               <button
-                key={s}
-                onClick={() => setFilter(s)}
+                onClick={() => setFilter('cancelled')}
                 className={cn(
-                  'shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all active:scale-95',
-                  filter === s
-                    ? (cfg ? `${cfg.bg} ${cfg.border} ${cfg.color}` : 'bg-white/15 border-white/25 text-white')
-                    : 'bg-white/5 border-white/10 text-white/40 hover:text-white/60'
+                  'flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold border transition-all active:scale-95',
+                  filter === 'cancelled'
+                    ? 'bg-rose-500/15 border-rose-500/30 text-rose-400'
+                    : 'bg-white/5 border-white/8 text-white/35 hover:text-white/55 hover:bg-white/8'
                 )}
               >
-                {s === 'all' ? 'All' : STATUS_CFG[s].label}
-                {count > 0 && (
+                Cancelled
+                {(counts.cancelled ?? 0) > 0 && (
                   <span className={cn(
-                    'text-[10px] font-bold px-1.5 py-0.5 rounded-full',
-                    filter === s ? 'bg-white/20' : 'bg-white/8'
-                  )}>{count}</span>
+                    'text-[9px] font-bold px-1.5 py-0.5 rounded-full',
+                    filter === 'cancelled' ? 'bg-rose-500/20' : 'bg-white/10'
+                  )}>{counts.cancelled}</span>
                 )}
               </button>
-            )
-          })}
+            )}
+          </div>
         </div>
       </header>
 
@@ -374,7 +468,7 @@ export default function DeliveryOrdersPage() {
         {filtered.map(order => {
           const cfg = STATUS_CFG[order.status]
           const StatusIcon = cfg.icon
-          const isExpanded = expanded.has(order.delivery_id)
+
           const grandTotal = order.order_total
 
           const nextStatus = STATUS_FLOW[STATUS_FLOW.indexOf(order.status) + 1]
@@ -394,7 +488,7 @@ export default function DeliveryOrdersPage() {
               {/* ── Card header ── */}
               <div className="px-4 pt-4 pb-3">
                 <div className="flex items-start gap-3">
-                  {/* Status badge */}
+                  {/* Status icon */}
                   <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center shrink-0', cfg.bg)}>
                     <StatusIcon className={cn('w-5 h-5', cfg.color)} />
                   </div>
@@ -412,12 +506,8 @@ export default function DeliveryOrdersPage() {
                         {cfg.label}
                       </span>
                     </div>
-
                     <div className="flex items-center gap-3 mt-1 flex-wrap">
-                      <a
-                        href={`tel:${order.customer_phone}`}
-                        className="flex items-center gap-1 text-xs text-indigo-300 hover:text-indigo-200 transition-colors"
-                      >
+                      <a href={`tel:${order.customer_phone}`} className="flex items-center gap-1 text-xs text-indigo-300 hover:text-indigo-200 transition-colors">
                         <Phone className="w-3 h-3" />
                         {order.customer_phone}
                       </a>
@@ -428,82 +518,77 @@ export default function DeliveryOrdersPage() {
                     </div>
                   </div>
 
-                  {/* Total */}
-                  <div className="text-right shrink-0">
+                  {/* Total + location button */}
+                  <div className="flex flex-col items-end gap-1.5 shrink-0">
                     <p className="text-sm font-extrabold text-white">{formatPrice(grandTotal)}</p>
                     {order.delivery_fee > 0 && (
-                      <p className="text-[10px] text-white/30 mt-0.5">+{formatPrice(order.delivery_fee)} fee</p>
+                      <p className="text-[10px] text-white/30">+{formatPrice(order.delivery_fee)} fee</p>
+                    )}
+                    {order.latitude && order.longitude ? (
+                      <a
+                        href={mapsUrl(order.latitude, order.longitude)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title={order.address_text ?? 'Open in Google Maps'}
+                        className="flex items-center gap-1 px-2 py-1 rounded-lg bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/25 transition-all active:scale-95 text-[10px] font-semibold"
+                      >
+                        <Navigation className="w-3 h-3" />
+                        Map
+                      </a>
+                    ) : (
+                      <span className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white/5 border border-white/10 text-white/20 text-[10px]">
+                        <MapPin className="w-3 h-3" />
+                        No GPS
+                      </span>
                     )}
                   </div>
                 </div>
 
-                {/* Location */}
-                {order.latitude && order.longitude ? (
-                  <a
-                    href={mapsUrl(order.latitude, order.longitude)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-2.5 flex items-start gap-2 px-3 py-2 rounded-xl transition-all active:scale-[0.98]"
-                    style={{ background: 'rgba(99,102,241,0.10)', border: '1px solid rgba(99,102,241,0.20)' }}
-                  >
-                    <Navigation className="w-3.5 h-3.5 text-indigo-400 shrink-0 mt-0.5" />
-                    <span className="text-xs text-indigo-300 font-medium flex-1 leading-relaxed">
-                      {order.address_text
-                        ? order.address_text
-                        : `${order.latitude.toFixed(5)}, ${order.longitude.toFixed(5)}`}
-                    </span>
-                    <ExternalLink className="w-3 h-3 text-indigo-400/60 shrink-0 mt-0.5" />
-                  </a>
-                ) : (
-                  <div className="mt-2.5 flex items-center gap-2 px-3 py-2 rounded-xl bg-white/4 border border-white/8">
-                    <MapPin className="w-3.5 h-3.5 text-white/20 shrink-0" />
-                    <span className="text-xs text-white/25">No location provided</span>
-                  </div>
+                {/* Address text (compact) */}
+                {order.address_text && (
+                  <p className="mt-2 text-[11px] text-white/35 leading-relaxed line-clamp-2 pl-12">
+                    {order.address_text}
+                  </p>
                 )}
               </div>
 
-              {/* ── Items toggle ── */}
-              <button
-                onClick={() => toggleExpand(order.delivery_id)}
-                className="w-full flex items-center justify-between px-4 py-2 border-t border-white/6 text-xs text-white/40 hover:text-white/60 hover:bg-white/3 transition-all"
-              >
-                <span className="flex items-center gap-1.5">
-                  <UtensilsCrossed className="w-3 h-3" />
-                  {order.items.length} item{order.items.length !== 1 ? 's' : ''}
-                </span>
-                {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-              </button>
-
-              {/* ── Items list ── */}
-              {isExpanded && (
-                <div className="border-t border-white/6 divide-y divide-white/5">
-                  {order.items.map(item => (
-                    <div key={item.id} className="flex items-center gap-3 px-4 py-2.5">
-                      <span className="text-[11px] font-bold text-white/50 shrink-0 w-5 text-center">×{item.qty}</span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-white/85 truncate">{item.item_name}</p>
-                        {item.note && <p className="text-[10px] text-white/30 truncate mt-0.5">{item.note}</p>}
-                      </div>
-                      <p className="text-xs font-bold text-white/60 shrink-0">{formatPrice(item.item_price * item.qty)}</p>
+              {/* ── Items — always visible ── */}
+              <div className="border-t border-white/6 divide-y divide-white/5">
+                {order.items.length === 0 ? (
+                  <div className="flex items-center gap-2 px-4 py-3 text-xs text-white/25">
+                    <UtensilsCrossed className="w-3.5 h-3.5" />
+                    No items
+                  </div>
+                ) : order.items.map(item => (
+                  <div key={item.id} className="flex items-center gap-3 px-4 py-2.5">
+                    {/* Item image */}
+                    <div className="w-10 h-10 rounded-xl overflow-hidden bg-white/6 border border-white/8 shrink-0 relative">
+                      {item.image_url
+                        ? <NextImage src={item.image_url} alt={item.item_name} fill className="object-cover" />
+                        : <div className="w-full h-full flex items-center justify-center"><UtensilsCrossed className="w-4 h-4 text-white/20" /></div>
+                      }
                     </div>
-                  ))}
-                  {/* Subtotals */}
-                  <div className="px-4 py-2.5 space-y-1">
-                    <div className="flex justify-between text-xs text-white/30">
-                      <span>Subtotal</span>
-                      <span>{formatPrice(order.order_total - order.delivery_fee)}</span>
+                    {/* Name + note */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-white/90 truncate">{item.item_name}</p>
+                      {item.note && <p className="text-[10px] text-white/30 truncate mt-0.5">{item.note}</p>}
                     </div>
-                    <div className="flex justify-between text-xs text-white/30">
-                      <span>Delivery fee</span>
-                      <span>{formatPrice(order.delivery_fee)}</span>
-                    </div>
-                    <div className="flex justify-between text-sm font-extrabold text-white pt-1 border-t border-white/8 mt-1">
-                      <span>Total</span>
-                      <span>{formatPrice(grandTotal)}</span>
+                    {/* Qty × price */}
+                    <div className="text-right shrink-0">
+                      <p className="text-xs font-bold text-white/80">{formatPrice(item.item_price * item.qty)}</p>
+                      <p className="text-[10px] text-white/30 mt-0.5">×{item.qty} · {formatPrice(item.item_price)}</p>
                     </div>
                   </div>
+                ))}
+                {/* Totals row */}
+                <div className="px-4 py-2.5 flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3 text-[11px] text-white/30">
+                    <span>Subtotal {formatPrice(order.order_total - order.delivery_fee)}</span>
+                    {order.delivery_fee > 0 && <span>· Fee {formatPrice(order.delivery_fee)}</span>}
+                  </div>
+                  <p className="text-sm font-extrabold text-white">{formatPrice(grandTotal)}</p>
                 </div>
-              )}
+              </div>
 
               {/* ── Actions ── */}
               {(canAdvance || canCancel) && order.status !== 'cancelled' && (
@@ -648,5 +733,6 @@ export default function DeliveryOrdersPage() {
         />
       )}
     </div>
+    </ModuleGate>
   )
 }

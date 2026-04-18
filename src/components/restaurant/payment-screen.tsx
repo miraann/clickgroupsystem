@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import InvoiceModal from './invoice-modal'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
+import { usePermissions } from '@/lib/permissions/PermissionsContext'
 
 // ── Types ─────────────────────────────────────────────────────
 interface Item { name: string; price: number; qty: number }
@@ -49,6 +50,8 @@ const NUMPAD = ['7','8','9','4','5','6','1','2','3','0','00','.']
 
 // ── Component ─────────────────────────────────────────────────
 export default function PaymentScreen({ orderId, restaurantId, tableNum, guests, items, total, onClose, onPaid }: Props) {
+  const { can, isOwner } = usePermissions()
+  const p = (key: string) => isOwner || can(key)
   const [payMethods, setPayMethods]       = useState<DbPayMethod[]>([])
   const [method, setMethod]               = useState<string>('')
   const [entered, setEntered]             = useState('')
@@ -296,7 +299,7 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
     setGeneratedOrderNum(ordNum)
 
     // Generate invoice number + increment counter
-    let invNum = `INV-${orderId.slice(-5).toUpperCase()}`
+    let invNum: string
     if (invData) {
       const num = invData.current_num ?? invData.start_num ?? 1001
       invNum = `${invData.prefix ?? 'INV-'}${num}`
@@ -304,6 +307,16 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
         .from('invoice_number_settings')
         .update({ current_num: num + 1, updated_at: new Date().toISOString() })
         .eq('restaurant_id', restaurantId)
+    } else {
+      // No settings row yet — create one with defaults and use 1001
+      invNum = 'INV-1001'
+      await supabase.from('invoice_number_settings').insert({
+        restaurant_id: restaurantId,
+        prefix:        'INV-',
+        start_num:     1001,
+        current_num:   1002,
+        reset_period:  'never',
+      })
     }
     setGeneratedInvoiceNum(invNum)
 
@@ -358,6 +371,59 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
       }
     }
 
+    // ── Inventory auto-deduct ─────────────────────────────────
+    const { data: restSettings } = await supabase
+      .from('restaurants').select('settings').eq('id', restaurantId).maybeSingle()
+    const autoDeduct = (restSettings?.settings as Record<string, unknown> | null)?.inventory_auto_deduct === true
+    if (autoDeduct) {
+      // Get all non-voided order items with menu_item_id
+      const { data: orderItems } = await supabase
+        .from('order_items')
+        .select('menu_item_id, qty')
+        .eq('order_id', orderId)
+        .neq('status', 'void')
+        .not('menu_item_id', 'is', null)
+
+      if (orderItems && orderItems.length > 0) {
+        const menuItemIds = [...new Set(orderItems.map((r: { menu_item_id: string; qty: number }) => r.menu_item_id))]
+
+        // Get all ingredients for these menu items
+        const { data: ingredients } = await supabase
+          .from('menu_item_ingredients')
+          .select('menu_item_id, inventory_item_id, quantity')
+          .in('menu_item_id', menuItemIds)
+
+        if (ingredients && ingredients.length > 0) {
+          // Calculate total deduction per inventory item
+          const deductMap = new Map<string, number>()
+          for (const oi of orderItems as { menu_item_id: string; qty: number }[]) {
+            const ings = ingredients.filter((g: { menu_item_id: string; inventory_item_id: string; quantity: number }) => g.menu_item_id === oi.menu_item_id)
+            for (const ing of ings) {
+              const prev = deductMap.get(ing.inventory_item_id) ?? 0
+              deductMap.set(ing.inventory_item_id, prev + ing.quantity * oi.qty)
+            }
+          }
+
+          // Fetch current stock and update
+          const invIds = [...deductMap.keys()]
+          const { data: invItems } = await supabase
+            .from('inventory_items')
+            .select('id, current_stock')
+            .in('id', invIds)
+
+          if (invItems) {
+            await Promise.all(
+              (invItems as { id: string; current_stock: number }[]).map(inv => {
+                const deduct = deductMap.get(inv.id) ?? 0
+                const newStock = Math.max(0, inv.current_stock - deduct)
+                return supabase.from('inventory_items').update({ current_stock: newStock }).eq('id', inv.id)
+              })
+            )
+          }
+        }
+      }
+    }
+
     setPaidAmount(amountPaid)
     setChangeAmt(changeAmount)
     setPaid(true)
@@ -386,7 +452,14 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
           <ArrowLeft className="w-5 h-5" />
         </button>
         <div className="flex flex-1 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
-          {ACTION_TABS.map(tab => (
+          {ACTION_TABS.filter(tab =>
+            tab.id === 'surcharge' ? p('dashboard.surcharge') :
+            tab.id === 'gratuity'  ? p('dashboard.gratuity')  :
+            tab.id === 'discount'  ? p('dashboard.discount')  :
+            tab.id === 'note'      ? p('dashboard.note')      :
+            tab.id === 'split'     ? p('dashboard.split_bill'):
+            tab.id === 'paylater'  ? p('dashboard.pay_later') : true
+          ).map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(activeTab === tab.id ? null : tab.id)}
@@ -755,59 +828,71 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
               >
                 <Delete className="w-5 h-5" />
               </button>
-              <button
-                onClick={() => { setInvoiceMode('receipt'); setShowInvoice(true) }}
-                className="flex-1 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 text-sm font-semibold flex items-center justify-center gap-1.5 transition-all active:scale-95 touch-manipulation"
-              >
-                <Printer className="w-4 h-4" />Receipt
-              </button>
-              <button
-                onClick={() => !paying && !paid && !(entered !== '' && enteredNum < finalTotal) && setShowConfirm(true)}
-                disabled={paying || paid || (entered !== '' && enteredNum < finalTotal)}
-                className={cn(
-                  'flex-[2] flex flex-col items-center justify-center gap-2 text-lg font-bold transition-all active:scale-95 touch-manipulation',
-                  paid
-                    ? 'bg-emerald-500 text-white'
+              {p('dashboard.receipt') && (
+                <button
+                  onClick={() => { setInvoiceMode('receipt'); setShowInvoice(true) }}
+                  className="flex-1 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 text-sm font-semibold flex items-center justify-center gap-1.5 transition-all active:scale-95 touch-manipulation"
+                >
+                  <Printer className="w-4 h-4" />Receipt
+                </button>
+              )}
+              {p('dashboard.pay') && (
+                <button
+                  onClick={() => !paying && !paid && !(entered !== '' && enteredNum < finalTotal) && setShowConfirm(true)}
+                  disabled={paying || paid || (entered !== '' && enteredNum < finalTotal)}
+                  className={cn(
+                    'flex-[2] flex flex-col items-center justify-center gap-2 text-lg font-bold transition-all active:scale-95 touch-manipulation',
+                    paid
+                      ? 'bg-emerald-500 text-white'
+                      : paying
+                        ? 'bg-amber-500/70 text-white cursor-wait'
+                        : entered !== '' && enteredNum < finalTotal
+                          ? 'bg-white/4 text-white/20 cursor-not-allowed'
+                          : 'bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/20'
+                  )}
+                >
+                  {paid
+                    ? <><Check className="w-6 h-6" />Paid!</>
                     : paying
-                      ? 'bg-amber-500/70 text-white cursor-wait'
-                      : entered !== '' && enteredNum < finalTotal
-                        ? 'bg-white/4 text-white/20 cursor-not-allowed'
-                        : 'bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/20'
-                )}
-              >
-                {paid
-                  ? <><Check className="w-6 h-6" />Paid!</>
-                  : paying
-                    ? <><Loader2 className="w-6 h-6 animate-spin" />Processing</>
-                    : 'Pay'}
-              </button>
+                      ? <><Loader2 className="w-6 h-6 animate-spin" />Processing</>
+                      : 'Pay'}
+                </button>
+              )}
             </div>
           )}
 
           {/* Action buttons row */}
-          <div className="shrink-0 grid grid-cols-3 gap-px bg-white/5 border-t border-white/8">
-            <button className="h-12 bg-rose-600 hover:bg-rose-500 text-white text-sm font-medium flex items-center justify-center gap-2 transition-all active:scale-95 touch-manipulation">
-              Drawer
-            </button>
-            <button onClick={openMemberPicker} className="h-12 bg-amber-600 hover:bg-amber-500 text-white text-sm font-medium flex items-center justify-center gap-2 transition-all active:scale-95 touch-manipulation px-2 overflow-hidden">
-              <Star className="w-4 h-4 shrink-0" />
-              <span className="truncate">{selectedMember ? selectedMember.name : 'Member'}</span>
-              {selectedMember && (
-                <span role="button" onClick={e => { e.stopPropagation(); setSelectedMember(null) }} className="shrink-0 text-white/60 hover:text-white cursor-pointer">
-                  <X className="w-3.5 h-3.5" />
-                </span>
+          {(p('dashboard.drawer') || p('dashboard.member') || p('dashboard.customer')) && (
+            <div className="shrink-0 flex gap-px bg-white/5 border-t border-white/8">
+              {p('dashboard.drawer') && (
+                <button className="flex-1 h-12 bg-rose-600 hover:bg-rose-500 text-white text-sm font-medium flex items-center justify-center gap-2 transition-all active:scale-95 touch-manipulation">
+                  Drawer
+                </button>
               )}
-            </button>
-            <button onClick={openCustomerPicker} className="h-12 bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium flex items-center justify-center gap-2 transition-all active:scale-95 touch-manipulation px-2 overflow-hidden">
-              <Users className="w-4 h-4 shrink-0" />
-              <span className="truncate">{selectedCustomer ? selectedCustomer.name : 'Customer'}</span>
-              {selectedCustomer && (
-                <span role="button" onClick={e => { e.stopPropagation(); persistCustomer(null) }} className="shrink-0 text-white/60 hover:text-white cursor-pointer">
-                  <X className="w-3.5 h-3.5" />
-                </span>
+              {p('dashboard.member') && (
+                <button onClick={openMemberPicker} className="flex-1 h-12 bg-amber-600 hover:bg-amber-500 text-white text-sm font-medium flex items-center justify-center gap-2 transition-all active:scale-95 touch-manipulation px-2 overflow-hidden">
+                  <Star className="w-4 h-4 shrink-0" />
+                  <span className="truncate">{selectedMember ? selectedMember.name : 'Member'}</span>
+                  {selectedMember && (
+                    <span role="button" onClick={e => { e.stopPropagation(); setSelectedMember(null) }} className="shrink-0 text-white/60 hover:text-white cursor-pointer">
+                      <X className="w-3.5 h-3.5" />
+                    </span>
+                  )}
+                </button>
               )}
-            </button>
-          </div>
+              {p('dashboard.customer') && (
+                <button onClick={openCustomerPicker} className="flex-1 h-12 bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium flex items-center justify-center gap-2 transition-all active:scale-95 touch-manipulation px-2 overflow-hidden">
+                  <Users className="w-4 h-4 shrink-0" />
+                  <span className="truncate">{selectedCustomer ? selectedCustomer.name : 'Customer'}</span>
+                  {selectedCustomer && (
+                    <span role="button" onClick={e => { e.stopPropagation(); persistCustomer(null) }} className="shrink-0 text-white/60 hover:text-white cursor-pointer">
+                      <X className="w-3.5 h-3.5" />
+                    </span>
+                  )}
+                </button>
+              )}
+            </div>
+          )}
 
         </div>
       </div>

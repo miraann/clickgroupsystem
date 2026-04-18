@@ -1,55 +1,39 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { Plus, Pencil, Trash2, Gift, X, ToggleLeft, ToggleRight, Loader2, AlertCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
+import { useComboDiscounts, type CachedCombo } from '@/hooks/useComboDiscounts'
 
-interface Combo {
-  id: string
-  name: string
-  description: string
-  buy_qty: number
-  get_qty: number
-  discount_pct: number
-  active: boolean
-  sort_order: number
-}
+type Combo = CachedCombo
 
 const EMPTY_FORM = { name: '', description: '', buy_qty: 2, get_qty: 1, discount_pct: 100, active: true }
 
 export default function ComboDiscountPage() {
   const supabase = createClient()
+  const { t } = useLanguage()
 
   const [restaurantId, setRestaurantId] = useState<string | null>(null)
-  const [combos, setCombos]             = useState<Combo[]>([])
-  const [loading, setLoading]           = useState(true)
-  const [error, setError]               = useState<string | null>(null)
+  const [mounted, setMounted]           = useState(false)
 
-  const [modal, setModal]               = useState(false)
-  const [editId, setEditId]             = useState<string | null>(null)
-  const [form, setForm]                 = useState(EMPTY_FORM)
-  const [saving, setSaving]             = useState(false)
-  const [deleteId, setDeleteId]         = useState<string | null>(null)
+  useEffect(() => {
+    setRestaurantId(localStorage.getItem('restaurant_id'))
+    setMounted(true)
+  }, [])
 
-  // ── Load ───────────────────────────────────────────────────
-  const load = useCallback(async () => {
-    setLoading(true); setError(null)
-    const { data: rest } = await supabase.from('restaurants').select('id').limit(1).maybeSingle()
-    if (!rest) { setError('Restaurant not found'); setLoading(false); return }
-    setRestaurantId(rest.id)
+  const { data: swrCombos, isLoading: swrLoading, error: swrError, mutate } = useComboDiscounts(restaurantId)
+  const loading = !mounted || swrLoading
+  const error   = swrError ? (swrError as Error).message : null
 
-    const { data, error: err } = await supabase
-      .from('combo_discounts')
-      .select('*')
-      .eq('restaurant_id', rest.id)
-      .order('sort_order')
+  const [combos, setCombos] = useState<Combo[]>([])
+  useEffect(() => { if (swrCombos) setCombos(swrCombos) }, [swrCombos])
 
-    if (err) { setError(err.message); setLoading(false); return }
-    setCombos((data ?? []) as Combo[])
-    setLoading(false)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => { load() }, [load])
+  const [modal,    setModal]    = useState(false)
+  const [editId,   setEditId]   = useState<string | null>(null)
+  const [form,     setForm]     = useState(EMPTY_FORM)
+  const [saving,   setSaving]   = useState(false)
+  const [deleteId, setDeleteId] = useState<string | null>(null)
 
   // ── Open add/edit ──────────────────────────────────────────
   const openAdd = () => { setEditId(null); setForm(EMPTY_FORM); setModal(true) }
@@ -66,15 +50,23 @@ export default function ComboDiscountPage() {
     const payload = { name: form.name, description: form.description, buy_qty: form.buy_qty, get_qty: form.get_qty, discount_pct: form.discount_pct, active: form.active, updated_at: new Date().toISOString() }
 
     if (editId) {
-      const { error } = await supabase.from('combo_discounts').update(payload).eq('id', editId)
-      if (!error) setCombos(cs => cs.map(c => c.id === editId ? { ...c, ...payload } : c))
+      const { error: err } = await supabase.from('combo_discounts').update(payload).eq('id', editId)
+      if (!err) {
+        const updated = combos.map(c => c.id === editId ? { ...c, ...payload } : c)
+        setCombos(updated)
+        mutate(updated, false)
+      }
     } else {
       const nextOrder = combos.length > 0 ? Math.max(...combos.map(c => c.sort_order)) + 1 : 0
-      const { data, error } = await supabase
+      const { data, error: err } = await supabase
         .from('combo_discounts')
         .insert({ restaurant_id: restaurantId, ...payload, sort_order: nextOrder })
         .select().single()
-      if (!error && data) setCombos(cs => [...cs, data as Combo])
+      if (!err && data) {
+        const updated = [...combos, data as Combo]
+        setCombos(updated)
+        mutate(updated, false)
+      }
     }
     setSaving(false)
     setModal(false)
@@ -83,7 +75,9 @@ export default function ComboDiscountPage() {
   // ── Toggle active ──────────────────────────────────────────
   const toggleActive = async (c: Combo) => {
     const newVal = !c.active
-    setCombos(cs => cs.map(x => x.id === c.id ? { ...x, active: newVal } : x))
+    const updated = combos.map(x => x.id === c.id ? { ...x, active: newVal } : x)
+    setCombos(updated)
+    mutate(updated, false)
     await supabase.from('combo_discounts').update({ active: newVal, updated_at: new Date().toISOString() }).eq('id', c.id)
   }
 
@@ -92,8 +86,12 @@ export default function ComboDiscountPage() {
     if (deleteId !== id) {
       setDeleteId(id); setTimeout(() => setDeleteId(d => d === id ? null : d), 3000); return
     }
-    const { error } = await supabase.from('combo_discounts').delete().eq('id', id)
-    if (!error) setCombos(cs => cs.filter(c => c.id !== id))
+    const { error: err } = await supabase.from('combo_discounts').delete().eq('id', id)
+    if (!err) {
+      const updated = combos.filter(c => c.id !== id)
+      setCombos(updated)
+      mutate(updated, false)
+    }
     setDeleteId(null)
   }
 
@@ -107,7 +105,7 @@ export default function ComboDiscountPage() {
         <p className="text-sm text-rose-400 font-semibold">Failed to load</p>
         <p className="text-xs text-white/40 mt-1 font-mono">{error}</p>
         <p className="text-xs text-white/30 mt-1">Run <code className="text-amber-400">supabase-menu-schema.sql</code> first.</p>
-        <button onClick={load} className="mt-2 px-3 py-1.5 rounded-lg bg-white/8 text-xs text-white/50 hover:bg-white/12 active:scale-95 transition-all">Retry</button>
+        <button onClick={() => mutate()} className="mt-2 px-3 py-1.5 rounded-lg bg-white/8 text-xs text-white/50 hover:bg-white/12 active:scale-95 transition-all">Retry</button>
       </div>
     </div>
   )
@@ -121,13 +119,13 @@ export default function ComboDiscountPage() {
             <Gift className="w-5 h-5 text-violet-400" />
           </div>
           <div>
-            <h1 className="text-lg font-semibold text-white">Combo Discounts</h1>
-            <p className="text-xs text-white/40">Buy X get Y promotions</p>
+            <h1 className="text-lg font-semibold text-white">{t.combo_title}</h1>
+            <p className="text-xs text-white/40">{t.combo_subtitle}</p>
           </div>
           <span className="px-2 py-0.5 rounded-full bg-white/8 text-xs text-white/50">{combos.length}</span>
         </div>
         <button onClick={openAdd} className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-xl active:scale-95 transition-all">
-          <Plus className="w-4 h-4" /> Add Combo
+          <Plus className="w-4 h-4" /> {t.combo_add}
         </button>
       </div>
 
@@ -156,12 +154,12 @@ export default function ComboDiscountPage() {
               </button>
               <button onClick={() => handleDelete(c.id)} className={cn('h-8 rounded-lg flex items-center justify-center transition-all active:scale-95 text-xs font-medium shrink-0',
                 deleteId === c.id ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30 px-2' : 'w-8 bg-white/5 hover:bg-rose-500/10 text-white/40 hover:text-rose-400')}>
-                {deleteId === c.id ? 'Confirm?' : <Trash2 className="w-3.5 h-3.5" />}
+                {deleteId === c.id ? t.delete : <Trash2 className="w-3.5 h-3.5" />}
               </button>
             </div>
           </div>
         ))}
-        {combos.length === 0 && <div className="text-center py-16 text-white/25 text-sm">No combo discounts yet.</div>}
+        {combos.length === 0 && <div className="text-center py-16 text-white/25 text-sm">{t.combo_no_data}</div>}
       </div>
 
       {/* Modal */}
@@ -169,7 +167,7 @@ export default function ComboDiscountPage() {
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="w-full max-w-md bg-[#0d1220]/95 backdrop-blur-2xl border border-white/15 rounded-3xl p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-base font-semibold text-white">{editId ? 'Edit Combo' : 'Add Combo Discount'}</h2>
+              <h2 className="text-base font-semibold text-white">{editId ? `${t.edit} ${t.combo_title}` : `${t.add} ${t.combo_title}`}</h2>
               <button onClick={() => setModal(false)} className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-all active:scale-95">
                 <X className="w-4 h-4" />
               </button>
@@ -177,7 +175,7 @@ export default function ComboDiscountPage() {
 
             <div className="space-y-4">
               <div>
-                <label className="block text-xs text-white/50 mb-1.5 font-medium">Name *</label>
+                <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.combo_name} *</label>
                 <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Buy 2 Get 1 Free"
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500/50 transition-colors" />
               </div>
@@ -188,7 +186,7 @@ export default function ComboDiscountPage() {
               </div>
 
               <div className="grid grid-cols-3 gap-3">
-                {([{ k: 'buy_qty', label: 'Buy Qty' }, { k: 'get_qty', label: 'Get Qty' }, { k: 'discount_pct', label: 'Discount %' }] as const).map(({ k, label }) => (
+                {([{ k: 'buy_qty', label: t.combo_items }, { k: 'get_qty', label: t.combo_items }, { k: 'discount_pct', label: t.combo_discount }] as const).map(({ k, label }) => (
                   <div key={k}>
                     <label className="block text-xs text-white/50 mb-1.5 font-medium">{label}</label>
                     <input type="number" min="0" value={form[k]} onChange={e => setForm(f => ({ ...f, [k]: parseFloat(e.target.value) || 0 }))}
@@ -198,7 +196,7 @@ export default function ComboDiscountPage() {
               </div>
 
               <div className="flex items-center justify-between p-3 bg-white/3 rounded-xl">
-                <span className="text-sm text-white/70">Active</span>
+                <span className="text-sm text-white/70">{t.disc_active}</span>
                 <button onClick={() => setForm(f => ({ ...f, active: !f.active }))} className="active:scale-95">
                   {form.active ? <ToggleRight className="w-6 h-6 text-amber-400" /> : <ToggleLeft className="w-6 h-6 text-white/25" />}
                 </button>
@@ -206,11 +204,11 @@ export default function ComboDiscountPage() {
             </div>
 
             <div className="flex gap-3 mt-6">
-              <button onClick={() => setModal(false)} className="flex-1 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 text-sm font-medium transition-all active:scale-95">Cancel</button>
+              <button onClick={() => setModal(false)} className="flex-1 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 text-sm font-medium transition-all active:scale-95">{t.cancel}</button>
               <button onClick={handleSave} disabled={!form.name.trim() || saving}
                 className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium transition-all active:scale-95 flex items-center justify-center gap-2">
                 {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-                {editId ? 'Save Changes' : 'Add Combo'}
+                {editId ? t.save_changes : t.combo_add}
               </button>
             </div>
           </div>

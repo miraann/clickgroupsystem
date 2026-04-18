@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
-import { X, Printer, Loader2, ImageIcon } from 'lucide-react'
+import { X, Printer, Loader2, ImageIcon, CheckCircle2, AlertCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 
@@ -122,6 +122,50 @@ export default function InvoiceModal({
 
   const handlePrint = () => window.print()
 
+  const [printStatus, setPrintStatus] = useState<'idle' | 'sending' | 'ok' | 'error'>('idle')
+  const [printError,  setPrintError]  = useState('')
+
+  const handleHardwarePrint = async () => {
+    setPrintStatus('sending')
+    setPrintError('')
+    const now = new Date()
+    try {
+      const res = await fetch('/api/print/receipt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          restaurantId,
+          tableNum,
+          invoiceNum,
+          orderNum,
+          cashier,
+          dateStr: now.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }),
+          timeStr: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
+          items,
+          subtotal,
+          discount,
+          surcharge,
+          total,
+          paymentMethod,
+          amountPaid,
+          change: changeAmount,
+          note: note ?? null,
+        }),
+      })
+      const json = await res.json()
+      if (json.ok) {
+        setPrintStatus('ok')
+        setTimeout(() => setPrintStatus('idle'), 3000)
+      } else {
+        setPrintError(json.error ?? 'Print failed')
+        setPrintStatus('error')
+      }
+    } catch {
+      setPrintError('Could not reach print server')
+      setPrintStatus('error')
+    }
+  }
+
 
   if (loading) return (
     <div className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm flex items-center justify-center">
@@ -134,22 +178,55 @@ export default function InvoiceModal({
       <div className="relative w-full max-w-sm">
 
         {/* Action buttons above receipt */}
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-3 gap-2">
+
+          {/* Hardware print (ESC/POS) */}
           <button
-            onClick={handlePrint}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 border border-white/15 text-white/70 text-sm font-medium hover:bg-white/15 active:scale-95 transition-all"
+            onClick={handleHardwarePrint}
+            disabled={printStatus === 'sending'}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all active:scale-95 border ${
+              printStatus === 'ok'
+                ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400'
+                : printStatus === 'error'
+                ? 'bg-rose-500/15 border-rose-500/30 text-rose-400'
+                : 'bg-white/10 border-white/15 text-white/70 hover:bg-white/15'
+            } disabled:opacity-50`}
           >
-            <Printer className="w-4 h-4" />
-            Print
+            {printStatus === 'sending' ? <Loader2 className="w-4 h-4 animate-spin" />
+              : printStatus === 'ok'   ? <CheckCircle2 className="w-4 h-4" />
+              : printStatus === 'error' ? <AlertCircle className="w-4 h-4" />
+              : <Printer className="w-4 h-4" />}
+            {printStatus === 'sending' ? 'Sending…'
+              : printStatus === 'ok'   ? 'Printed!'
+              : printStatus === 'error' ? 'Failed'
+              : 'Print'}
           </button>
-          <button
-            onClick={onClose}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold active:scale-95 transition-all shadow-lg shadow-amber-500/30"
-          >
-            <X className="w-4 h-4" />
-            Done
-          </button>
+
+          <div className="flex items-center gap-2">
+            {/* Browser print fallback */}
+            <button
+              onClick={handlePrint}
+              className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/6 border border-white/10 text-white/40 text-xs font-medium hover:bg-white/10 hover:text-white/60 active:scale-95 transition-all"
+              title="Print using browser"
+            >
+              Browser print
+            </button>
+            <button
+              onClick={onClose}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold active:scale-95 transition-all shadow-lg shadow-amber-500/30"
+            >
+              <X className="w-4 h-4" />
+              Done
+            </button>
+          </div>
         </div>
+
+        {/* Print error message */}
+        {printStatus === 'error' && printError && (
+          <div className="mb-3 px-4 py-2.5 rounded-xl bg-rose-500/10 border border-rose-500/25 text-rose-400 text-xs">
+            {printError}
+          </div>
+        )}
 
         {/* ── Receipt ── */}
         <div id="invoice-print" className="bg-white rounded-2xl shadow-2xl shadow-black/50 overflow-hidden text-[11px] font-sans">

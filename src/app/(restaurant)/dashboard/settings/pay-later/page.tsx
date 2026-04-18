@@ -9,6 +9,7 @@ import {
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 // ── Types ─────────────────────────────────────────────────────────
 interface PayLater {
@@ -59,6 +60,7 @@ function isOverdue(rec: PayLater) {
 export default function PayLaterPage() {
   const supabase = createClient()
   const { formatPrice } = useDefaultCurrency()
+  const { t } = useLanguage()
 
   const [restaurantId, setRestaurantId] = useState<string | null>(null)
   const [records, setRecords]           = useState<PayLater[]>([])
@@ -84,7 +86,7 @@ export default function PayLaterPage() {
     supabase.auth.getUser().then(({ data: { user } }) => {
       setCashier(user?.user_metadata?.full_name ?? user?.email ?? 'Staff')
     })
-    supabase.from('restaurants').select('id').limit(1).maybeSingle().then(({ data: rest }) => {
+    supabase.from('restaurants').select('id').eq('id', typeof window !== 'undefined' ? (localStorage.getItem('restaurant_id') ?? '') : '').maybeSingle().then(({ data: rest }) => {
       if (!rest) return
       setRestaurantId(rest.id)
       load(rest.id)
@@ -133,7 +135,7 @@ export default function PayLaterPage() {
       {/* ── Summary cards ── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-rose-500/20 via-rose-500/10 to-transparent border border-rose-500/25 p-4">
-          <p className="text-xs font-semibold text-rose-400/70 uppercase tracking-wider mb-1">Outstanding</p>
+          <p className="text-xs font-semibold text-rose-400/70 uppercase tracking-wider mb-1">{t.pl_outstanding}</p>
           <p className="text-xl font-extrabold text-white tabular-nums">{formatPrice(outstanding)}</p>
           <p className="text-xs text-white/30 mt-0.5">{totalAccounts} account{totalAccounts !== 1 ? 's' : ''}</p>
           <DollarSign className="absolute bottom-3 right-3 w-7 h-7 text-rose-500/15" />
@@ -165,7 +167,7 @@ export default function PayLaterPage() {
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Search name, phone, order ref…"
+            placeholder={`${t.search}…`}
             className="w-full pl-9 pr-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500/40 transition-colors"
           />
         </div>
@@ -183,16 +185,16 @@ export default function PayLaterPage() {
           onClick={() => setShowAdd(true)}
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold active:scale-95 transition-all shadow-lg shadow-amber-500/25 shrink-0"
         >
-          <Plus className="w-4 h-4" />Add Pay Later
+          <Plus className="w-4 h-4" />{t.pl_title}
         </button>
       </div>
 
       {/* ── List ── */}
       <div className="rounded-2xl border border-white/8">
         <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-3 px-5 py-3 bg-white/3 border-b border-white/8 text-xs font-semibold text-white/30 uppercase tracking-wider rounded-t-2xl">
-          <span>Customer</span>
-          <span className="w-36 text-right">Balance</span>
-          <span className="w-28">Date</span>
+          <span>{t.pl_customer}</span>
+          <span className="w-36 text-right">{t.pl_amount}</span>
+          <span className="w-28">{t.pl_due}</span>
           <span className="w-24">Status</span>
           <span className="w-16" />
         </div>
@@ -202,7 +204,7 @@ export default function PayLaterPage() {
             <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
               <CreditCard className="w-6 h-6 text-white/20" />
             </div>
-            <p className="text-white/30 text-sm">No pay later records</p>
+            <p className="text-white/30 text-sm">{t.pl_no_data}</p>
             <button onClick={() => setShowAdd(true)} className="text-xs text-amber-400 hover:text-amber-300 transition-colors">
               + Add first record
             </button>
@@ -317,6 +319,7 @@ function AddPayLaterModal({ restaurantId, cashier, onClose, onSaved }: {
   onClose: () => void; onSaved: (r: PayLater) => void
 }) {
   const supabase = createClient()
+  const { t } = useLanguage()
   const [name, setName]       = useState('')
   const [phone, setPhone]     = useState('')
   const [amount, setAmount]   = useState('')
@@ -358,7 +361,7 @@ function AddPayLaterModal({ restaurantId, cashier, onClose, onSaved }: {
             <div className="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center">
               <CreditCard className="w-4 h-4 text-amber-400" />
             </div>
-            <h3 className="text-base font-bold text-white">Add Pay Later</h3>
+            <h3 className="text-base font-bold text-white">{t.pl_title}</h3>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-all">
             <X className="w-4 h-4" />
@@ -439,10 +442,10 @@ function AddPayLaterModal({ restaurantId, cashier, onClose, onSaved }: {
         </div>
 
         <div className="px-6 py-4 border-t border-white/8 bg-white/2 flex gap-3">
-          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl bg-white/6 hover:bg-white/10 text-white/60 text-sm font-medium transition-all active:scale-95">Cancel</button>
+          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl bg-white/6 hover:bg-white/10 text-white/60 text-sm font-medium transition-all active:scale-95">{t.cancel}</button>
           <button onClick={handleSave} disabled={saving}
             className="flex-[2] py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white text-sm font-bold transition-all active:scale-95 flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20">
-            {saving ? <><Loader2 className="w-4 h-4 animate-spin" />Saving…</> : <><Plus className="w-4 h-4" />Save Record</>}
+            {saving ? <><Loader2 className="w-4 h-4 animate-spin" />{t.loading}</> : <><Plus className="w-4 h-4" />{t.save_changes}</>}
           </button>
         </div>
       </div>
@@ -459,6 +462,7 @@ function ViewPayLaterModal({ record, restaurantId, cashier, onClose, onDelete, o
 }) {
   const supabase = createClient()
   const { formatPrice } = useDefaultCurrency()
+  const { t } = useLanguage()
   const [payments, setPayments]   = useState<Payment[]>([])
   const [loadingPay, setLoadingPay] = useState(true)
   const [showPayForm, setShowPayForm] = useState(false)
@@ -638,10 +642,10 @@ function ViewPayLaterModal({ record, restaurantId, cashier, onClose, onDelete, o
               {err && <p className="text-xs text-rose-400">{err}</p>}
               <div className="flex gap-2">
                 <button onClick={() => { setShowPayForm(false); setErr(null) }}
-                  className="flex-1 py-2 rounded-xl bg-white/5 hover:bg-white/8 text-white/50 text-xs font-medium transition-all">Cancel</button>
+                  className="flex-1 py-2 rounded-xl bg-white/5 hover:bg-white/8 text-white/50 text-xs font-medium transition-all">{t.cancel}</button>
                 <button onClick={handlePay} disabled={saving}
                   className="flex-[2] py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5">
-                  {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><ArrowDownLeft className="w-3.5 h-3.5" />Confirm Payment</>}
+                  {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><ArrowDownLeft className="w-3.5 h-3.5" />{t.pl_mark_paid}</>}
                 </button>
               </div>
             </div>
@@ -652,7 +656,7 @@ function ViewPayLaterModal({ record, restaurantId, cashier, onClose, onDelete, o
         <div className="px-6 py-4 border-t border-white/8 bg-white/2 flex gap-3 shrink-0">
           <button onClick={() => onDelete(record.id)}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 text-sm font-medium transition-all active:scale-95">
-            <Trash2 className="w-4 h-4" />Delete
+            <Trash2 className="w-4 h-4" />{t.delete}
           </button>
           {record.status !== 'paid' && (
             <button onClick={() => { setShowPayForm(v => !v); setErr(null) }}

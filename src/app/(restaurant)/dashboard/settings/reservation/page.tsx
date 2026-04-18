@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 // ── Types ─────────────────────────────────────────────────────────
 interface Reservation {
@@ -60,6 +61,7 @@ function todayStr() { return new Date().toISOString().slice(0, 10) }
 
 export default function ReservationPage() {
   const supabase = createClient()
+  const { t } = useLanguage()
 
   const [restaurantId, setRestaurantId]   = useState<string | null>(null)
   const [reservations, setReservations]   = useState<Reservation[]>([])
@@ -82,10 +84,10 @@ export default function ReservationPage() {
   const [statusLoading, setStatusLoading] = useState<string | null>(null)
 
   // ── Load ─────────────────────────────────────────────────────────
-  const load = useCallback(async (rid: string, date: string) => {
+  const load = useCallback(async (rid: string, _date?: string) => {
     setLoading(true); setErr(null)
     const [{ data: resData, error }, { data: tabData }, { data: grpData }] = await Promise.all([
-      supabase.from('reservations').select('*').eq('restaurant_id', rid).eq('date', date).order('time'),
+      supabase.from('reservations').select('*').eq('restaurant_id', rid).order('date').order('time'),
       supabase.from('tables').select('id,table_number,name,capacity,group_id').eq('restaurant_id', rid).eq('active', true).order('seq'),
       supabase.from('table_groups').select('id,name').eq('restaurant_id', rid).order('sort_order'),
     ])
@@ -97,9 +99,17 @@ export default function ReservationPage() {
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    supabase.from('restaurants').select('id').limit(1).maybeSingle().then(({ data }) => {
-      if (data?.id) { setRestaurantId(data.id); load(data.id, dateFilter) }
-    })
+    const storedId = typeof window !== 'undefined' ? localStorage.getItem('restaurant_id') : null
+    if (storedId) {
+      setRestaurantId(storedId)
+      load(storedId, dateFilter)
+    } else {
+      // fallback: take first restaurant
+      supabase.from('restaurants').select('id').limit(1).maybeSingle().then(({ data }) => {
+        if (data?.id) { setRestaurantId(data.id); load(data.id, dateFilter) }
+        else setLoading(false)
+      })
+    }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleDateChange = (d: string) => {
@@ -176,6 +186,7 @@ export default function ReservationPage() {
 
   // ── Filtered list ────────────────────────────────────────────────
   const filtered = reservations.filter(r => {
+    if (r.date !== dateFilter) return false
     if (statusFilter !== 'all' && r.status !== statusFilter) return false
     if (search) {
       const q = search.toLowerCase()
@@ -198,8 +209,8 @@ export default function ReservationPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-white">Reservations</h1>
-          <p className="text-xs text-white/35 mt-0.5">Manage table bookings and guest reservations</p>
+          <h1 className="text-xl font-bold text-white">{t.rsv_title}</h1>
+          <p className="text-xs text-white/35 mt-0.5">{t.rsv_subtitle}</p>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => restaurantId && load(restaurantId, dateFilter)}
@@ -208,7 +219,7 @@ export default function ReservationPage() {
           </button>
           <button onClick={openAdd}
             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500/20 border border-amber-500/30 text-amber-400 text-sm font-semibold hover:bg-amber-500/30 transition-all active:scale-95">
-            <Plus className="w-4 h-4" />New Reservation
+            <Plus className="w-4 h-4" />{t.rsv_add}
           </button>
         </div>
       </div>
@@ -226,7 +237,7 @@ export default function ReservationPage() {
         </div>
         <div className="relative flex-1 min-w-[180px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search guest…"
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t.search}
             className="w-full pl-9 pr-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500/40 transition-colors" />
         </div>
         <div className="flex items-center gap-1.5 flex-wrap">
@@ -236,7 +247,7 @@ export default function ReservationPage() {
                 statusFilter === s
                   ? s === 'all' ? 'bg-white/15 border-white/25 text-white' : `${STATUS_CONFIG[s]?.bg} ${STATUS_CONFIG[s]?.border} ${STATUS_CONFIG[s]?.color}`
                   : 'bg-white/5 border-white/10 text-white/40 hover:text-white/60')}>
-              {s === 'all' ? 'All' : STATUS_CONFIG[s]?.label}
+              {s === 'all' ? t.rsv_all : STATUS_CONFIG[s]?.label}
             </button>
           ))}
         </div>
@@ -245,10 +256,10 @@ export default function ReservationPage() {
       {/* KPI row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: 'Total',       value: total,       color: 'text-white',         bg: 'bg-white/5',         border: 'border-white/10' },
-          { label: 'Pending',     value: pending,     color: 'text-yellow-400',    bg: 'bg-yellow-500/10',   border: 'border-yellow-500/20' },
-          { label: 'Confirmed',   value: confirmed,   color: 'text-emerald-400',   bg: 'bg-emerald-500/10',  border: 'border-emerald-500/20' },
-          { label: 'Exp. Guests', value: totalGuests, color: 'text-amber-400',     bg: 'bg-amber-500/10',    border: 'border-amber-500/20' },
+          { label: t.rsv_all,        value: total,       color: 'text-white',         bg: 'bg-white/5',         border: 'border-white/10' },
+          { label: t.rsv_status,    value: pending,     color: 'text-yellow-400',    bg: 'bg-yellow-500/10',   border: 'border-yellow-500/20' },
+          { label: t.rsv_confirmed, value: confirmed,   color: 'text-emerald-400',   bg: 'bg-emerald-500/10',  border: 'border-emerald-500/20' },
+          { label: t.rsv_party_size,value: totalGuests, color: 'text-amber-400',     bg: 'bg-amber-500/10',    border: 'border-amber-500/20' },
         ].map(k => (
           <div key={k.label} className={cn('rounded-2xl border p-4', k.bg, k.border)}>
             <p className="text-xs text-white/40 mb-1">{k.label}</p>
@@ -271,9 +282,9 @@ export default function ReservationPage() {
       ) : filtered.length === 0 ? (
         <div className="text-center py-16">
           <CalendarDays className="w-10 h-10 text-white/15 mx-auto mb-3" />
-          <p className="text-white/30 text-sm">No reservations for {fmtDate(dateFilter)}</p>
+          <p className="text-white/30 text-sm">{t.rsv_no_data}</p>
           <button onClick={openAdd} className="mt-4 px-4 py-2 rounded-xl bg-amber-500/15 border border-amber-500/25 text-amber-400 text-sm font-semibold hover:bg-amber-500/25 transition-all">
-            Add First Reservation
+            {t.rsv_add}
           </button>
         </div>
       ) : (
@@ -368,7 +379,7 @@ export default function ReservationPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
           <div className="w-full max-w-md bg-[#0d1220] border border-white/15 rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
             <div className="flex items-center justify-between px-6 py-5 border-b border-white/8 shrink-0">
-              <h2 className="text-base font-bold text-white">{editId ? 'Edit Reservation' : 'New Reservation'}</h2>
+              <h2 className="text-base font-bold text-white">{editId ? t.edit : t.rsv_add}</h2>
               <button onClick={() => setModal(false)} className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-all">
                 <X className="w-4 h-4" />
               </button>
@@ -377,7 +388,7 @@ export default function ReservationPage() {
             <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
               {/* Guest name */}
               <div>
-                <label className="text-xs text-white/50 mb-1.5 block">Guest Name <span className="text-rose-400">*</span></label>
+                <label className="text-xs text-white/50 mb-1.5 block">{t.rsv_guest_name} <span className="text-rose-400">*</span></label>
                 <input value={form.guest_name} onChange={e => setForm(f => ({ ...f, guest_name: e.target.value }))}
                   placeholder="Full name"
                   className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/20 focus:outline-none focus:border-amber-500/40 transition-colors" />
@@ -386,13 +397,13 @@ export default function ReservationPage() {
               {/* Phone + Email */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs text-white/50 mb-1.5 block">Phone</label>
+                  <label className="text-xs text-white/50 mb-1.5 block">{t.rsv_guest_phone}</label>
                   <input value={form.guest_phone} onChange={e => setForm(f => ({ ...f, guest_phone: e.target.value }))}
                     placeholder="07xx…" type="tel"
                     className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/20 focus:outline-none focus:border-amber-500/40 transition-colors" />
                 </div>
                 <div>
-                  <label className="text-xs text-white/50 mb-1.5 block">Email</label>
+                  <label className="text-xs text-white/50 mb-1.5 block">{t.rsv_guest_email}</label>
                   <input value={form.guest_email} onChange={e => setForm(f => ({ ...f, guest_email: e.target.value }))}
                     placeholder="email@…" type="email"
                     className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/20 focus:outline-none focus:border-amber-500/40 transition-colors" />
@@ -402,13 +413,13 @@ export default function ReservationPage() {
               {/* Date + Time */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs text-white/50 mb-1.5 block">Date <span className="text-rose-400">*</span></label>
+                  <label className="text-xs text-white/50 mb-1.5 block">{t.rsv_date} <span className="text-rose-400">*</span></label>
                   <input value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
                     type="date"
                     className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white/70 focus:outline-none focus:border-amber-500/40 transition-colors [color-scheme:dark] cursor-pointer" />
                 </div>
                 <div>
-                  <label className="text-xs text-white/50 mb-1.5 block">Time <span className="text-rose-400">*</span></label>
+                  <label className="text-xs text-white/50 mb-1.5 block">{t.rsv_time} <span className="text-rose-400">*</span></label>
                   <input value={form.time} onChange={e => setForm(f => ({ ...f, time: e.target.value }))}
                     type="time"
                     className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white/70 focus:outline-none focus:border-amber-500/40 transition-colors [color-scheme:dark] cursor-pointer" />
@@ -418,7 +429,7 @@ export default function ReservationPage() {
               {/* Party size + Table */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs text-white/50 mb-1.5 block">Guest Num</label>
+                  <label className="text-xs text-white/50 mb-1.5 block">{t.rsv_party_size}</label>
                   <div className="flex items-center gap-2">
                     <button onClick={() => setForm(f => ({ ...f, party_size: Math.max(1, f.party_size - 1) }))}
                       className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/60 hover:bg-white/10 active:scale-95 transition-all text-lg font-bold">−</button>
@@ -428,7 +439,7 @@ export default function ReservationPage() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs text-white/50 block">Table (optional)</label>
+                  <label className="text-xs text-white/50 block">{t.rsv_table}</label>
                   {/* Step 1: Group */}
                   <select
                     value={formGroupId}
@@ -457,7 +468,7 @@ export default function ReservationPage() {
 
               {/* Status */}
               <div>
-                <label className="text-xs text-white/50 mb-1.5 block">Status</label>
+                <label className="text-xs text-white/50 mb-1.5 block">{t.rsv_status}</label>
                 <div className="flex gap-2 flex-wrap">
                   {(Object.keys(STATUS_CONFIG) as Reservation['status'][]).map(s => {
                     const sc = STATUS_CONFIG[s]
@@ -474,7 +485,7 @@ export default function ReservationPage() {
 
               {/* Note */}
               <div>
-                <label className="text-xs text-white/50 mb-1.5 block">Note</label>
+                <label className="text-xs text-white/50 mb-1.5 block">{t.rsv_note}</label>
                 <textarea value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))}
                   placeholder="Special requests, allergies, occasion…"
                   rows={2}
@@ -491,11 +502,11 @@ export default function ReservationPage() {
             <div className="flex gap-3 px-6 py-4 border-t border-white/8 shrink-0">
               <button onClick={() => setModal(false)}
                 className="flex-1 py-2.5 rounded-xl bg-white/8 hover:bg-white/12 text-white/60 text-sm font-medium transition-all active:scale-95">
-                Cancel
+                {t.cancel}
               </button>
               <button onClick={handleSave} disabled={saving}
                 className="flex-[2] py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white text-sm font-bold transition-all active:scale-95 flex items-center justify-center gap-2">
-                {saving ? <><Loader2 className="w-4 h-4 animate-spin" />Saving…</> : <><Check className="w-4 h-4" />{editId ? 'Update' : 'Save Reservation'}</>}
+                {saving ? <><Loader2 className="w-4 h-4 animate-spin" />{t.save_changes}</> : <><Check className="w-4 h-4" />{editId ? t.save_changes : t.save_changes}</>}
               </button>
             </div>
           </div>
@@ -506,13 +517,13 @@ export default function ReservationPage() {
       {deleteId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
           <div className="w-full max-w-xs bg-[#0d1220] border border-white/15 rounded-2xl p-6 shadow-2xl">
-            <h3 className="text-base font-bold text-white mb-1">Delete Reservation</h3>
+            <h3 className="text-base font-bold text-white mb-1">{t.delete}</h3>
             <p className="text-sm text-white/50 mb-5">This action cannot be undone.</p>
             <div className="flex gap-3">
               <button onClick={() => setDeleteId(null)}
-                className="flex-1 py-2.5 rounded-xl bg-white/8 hover:bg-white/12 text-white/60 text-sm font-medium transition-all active:scale-95">Cancel</button>
+                className="flex-1 py-2.5 rounded-xl bg-white/8 hover:bg-white/12 text-white/60 text-sm font-medium transition-all active:scale-95">{t.cancel}</button>
               <button onClick={handleDelete}
-                className="flex-1 py-2.5 rounded-xl bg-rose-500 hover:bg-rose-600 text-white text-sm font-bold transition-all active:scale-95">Delete</button>
+                className="flex-1 py-2.5 rounded-xl bg-rose-500 hover:bg-rose-600 text-white text-sm font-bold transition-all active:scale-95">{t.delete}</button>
             </div>
           </div>
         </div>

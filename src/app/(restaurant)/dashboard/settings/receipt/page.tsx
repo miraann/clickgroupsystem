@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import InvoiceViewModal from '@/components/restaurant/invoice-view-modal'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 interface RS {
   id?: string
@@ -921,6 +922,7 @@ function RecoverTableTab({ restaurantId }: { restaurantId: string }) {
 // ── Main Page ──────────────────────────────────────────────────
 export default function ReceiptSettingsPage() {
   const supabase = createClient()
+  const { t } = useLanguage()
   const fileRef   = useRef<HTMLInputElement>(null)
   const qrFileRef = useRef<HTMLInputElement>(null)
 
@@ -943,7 +945,7 @@ export default function ReceiptSettingsPage() {
   const load = useCallback(async () => {
     setLoading(true)
     const { data: rest } = await supabase
-      .from('restaurants').select('id, name').limit(1).maybeSingle()
+      .from('restaurants').select('id, name').eq('id', typeof window !== 'undefined' ? (localStorage.getItem('restaurant_id') ?? '') : '').maybeSingle()
     if (!rest) { setLoading(false); return }
     setRestaurantId(rest.id)
     setRestaurantName(rest.name)
@@ -1053,10 +1055,10 @@ export default function ReceiptSettingsPage() {
       {/* ── Tab bar ── */}
       <div className="flex flex-wrap gap-1 mb-6 p-1 rounded-2xl bg-white/4 border border-white/8 w-fit">
         {([
-          { key: 'invoices',    icon: <FileText    className="w-4 h-4" />,  label: 'All Invoices' },
-          { key: 'settings',   icon: <Receipt     className="w-4 h-4" />,  label: 'Receipt Settings' },
-          { key: 'invoice-num',icon: <FileText    className="w-4 h-4" />,  label: 'Invoice Number' },
-          { key: 'order-num',  icon: <Hash        className="w-4 h-4" />,  label: 'Order Number' },
+          { key: 'invoices',    icon: <FileText    className="w-4 h-4" />,  label: t.rec_recent },
+          { key: 'settings',   icon: <Receipt     className="w-4 h-4" />,  label: t.rec_title },
+          { key: 'invoice-num',icon: <FileText    className="w-4 h-4" />,  label: t.in_title },
+          { key: 'order-num',  icon: <Hash        className="w-4 h-4" />,  label: t.on_title },
           { key: 'recover',    icon: <RotateCcw   className="w-4 h-4" />,  label: 'Recover Table' },
         ] as const).map(({ key, icon, label }) => (
           <button
@@ -1087,7 +1089,7 @@ export default function ReceiptSettingsPage() {
 
               {/* Logo upload */}
               <div>
-                <label className="block text-xs text-white/50 mb-2">Logo</label>
+                <label className="block text-xs text-white/50 mb-2">{t.rec_logo}</label>
                 <div className="flex items-center gap-3">
                   <div className="w-16 h-16 rounded-xl bg-white/5 border border-white/10 overflow-hidden flex items-center justify-center shrink-0">
                     {form.logo_url
@@ -1102,7 +1104,7 @@ export default function ReceiptSettingsPage() {
                       className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/8 border border-white/12 text-xs text-white/60 hover:bg-white/12 active:scale-95 transition-all disabled:opacity-50"
                     >
                       {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-                      {uploading ? 'Uploading…' : 'Upload Logo'}
+                      {uploading ? t.saving_ : t.rec_upload_logo}
                     </button>
                     {form.logo_url && (
                       <button
@@ -1119,7 +1121,7 @@ export default function ReceiptSettingsPage() {
                 </div>
               </div>
 
-              <Field label="Shop / Restaurant Name (overrides default)">
+              <Field label={t.rec_shop_name}>
                 <input
                   value={form.shop_name}
                   onChange={e => set('shop_name', e.target.value)}
@@ -1128,7 +1130,7 @@ export default function ReceiptSettingsPage() {
                 />
               </Field>
 
-              <Field label="Currency Symbol">
+              <Field label={t.rec_currency}>
                 <input
                   value={form.currency_symbol}
                   onChange={e => set('currency_symbol', e.target.value)}
@@ -1142,7 +1144,7 @@ export default function ReceiptSettingsPage() {
             <section className="rounded-2xl bg-white/4 border border-white/8 p-4 space-y-4">
               <p className="text-xs font-bold text-white/40 uppercase tracking-widest">Contact Info</p>
 
-              <Field label="Phone Number">
+              <Field label={t.rec_phone}>
                 <input
                   value={form.phone}
                   onChange={e => set('phone', e.target.value)}
@@ -1151,7 +1153,7 @@ export default function ReceiptSettingsPage() {
                 />
               </Field>
 
-              <Field label="Address">
+              <Field label={t.rec_address}>
                 <textarea
                   value={form.address}
                   onChange={e => set('address', e.target.value)}
@@ -1166,7 +1168,7 @@ export default function ReceiptSettingsPage() {
             <section className="rounded-2xl bg-white/4 border border-white/8 p-4 space-y-4">
               <p className="text-xs font-bold text-white/40 uppercase tracking-widest">Receipt Content</p>
 
-              <Field label="Thank You Message">
+              <Field label={t.rec_thank_you}>
                 <input
                   value={form.thank_you_msg}
                   onChange={e => set('thank_you_msg', e.target.value)}
@@ -1232,9 +1234,9 @@ export default function ReceiptSettingsPage() {
               <p className="text-xs font-bold text-white/40 uppercase tracking-widest">Show / Hide</p>
 
               {([
-                ['show_logo',    'Show Logo on Receipt'],
-                ['show_phone',   'Show Phone Number'],
-                ['show_address', 'Show Address'],
+                ['show_logo',    t.rec_show_logo],
+                ['show_phone',   t.rec_show_phone],
+                ['show_address', t.rec_show_address],
               ] as [keyof RS, string][]).map(([key, label]) => (
                 <div key={key} className="flex items-center justify-between">
                   <span className="text-sm text-white/70">{label}</span>
@@ -1258,10 +1260,10 @@ export default function ReceiptSettingsPage() {
               className="w-full h-12 rounded-2xl bg-amber-500 hover:bg-amber-600 disabled:opacity-60 text-white font-semibold text-sm flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg shadow-amber-500/20"
             >
               {saving
-                ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</>
+                ? <><Loader2 className="w-4 h-4 animate-spin" /> {t.saving_}</>
                 : saved
-                  ? <><Check className="w-4 h-4" /> Saved!</>
-                  : <><Save className="w-4 h-4" /> Save Receipt Settings</>}
+                  ? <><Check className="w-4 h-4" /> {t.saved_}</>
+                  : <><Save className="w-4 h-4" /> {t.save_changes}</>}
             </button>
           </div>
 
@@ -1269,7 +1271,7 @@ export default function ReceiptSettingsPage() {
           <div className="shrink-0 sticky top-6">
             <div className="flex items-center gap-2 mb-3">
               <Eye className="w-4 h-4 text-white/30" />
-              <p className="text-xs font-bold text-white/30 uppercase tracking-widest">Live Preview</p>
+              <p className="text-xs font-bold text-white/30 uppercase tracking-widest">{t.rec_preview}</p>
             </div>
             <InvoicePreview s={form} restaurantName={restaurantName} />
           </div>

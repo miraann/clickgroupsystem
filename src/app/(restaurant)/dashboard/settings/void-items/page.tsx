@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { Ban, Loader2, AlertCircle, Search, Calendar, ChevronDown } from 'lucide-react'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 
@@ -19,6 +20,7 @@ type DateFilter = 'today' | '7d' | '30d' | 'all'
 
 export default function VoidItemsPage() {
   const supabase = createClient()
+  const { t } = useLanguage()
 
   const [restaurantId, setRestaurantId] = useState<string | null>(null)
   const [items, setItems]               = useState<VoidItem[]>([])
@@ -30,7 +32,7 @@ export default function VoidItemsPage() {
   const load = useCallback(async () => {
     setLoading(true); setError(null)
 
-    const { data: rest } = await supabase.from('restaurants').select('id').limit(1).maybeSingle()
+    const { data: rest } = await supabase.from('restaurants').select('id').eq('id', typeof window !== 'undefined' ? (localStorage.getItem('restaurant_id') ?? '') : '').maybeSingle()
     if (!rest) { setError('Restaurant not found'); setLoading(false); return }
     setRestaurantId(rest.id)
 
@@ -106,8 +108,8 @@ export default function VoidItemsPage() {
           <Ban className="w-5 h-5 text-rose-400" />
         </div>
         <div>
-          <h1 className="text-lg font-semibold text-white">Void Items</h1>
-          <p className="text-xs text-white/40">All voided order items and reasons</p>
+          <h1 className="text-lg font-semibold text-white">{t.vi_title}</h1>
+          <p className="text-xs text-white/40">{t.vi_subtitle}</p>
         </div>
       </div>
 
@@ -127,7 +129,7 @@ export default function VoidItemsPage() {
         {/* Search */}
         <div className="relative flex-1 min-w-40">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/25" />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search item or reason…"
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder={`${t.search}…`}
             className="w-full bg-white/5 border border-white/8 rounded-xl pl-9 pr-3.5 py-2 text-sm text-white placeholder-white/25 focus:outline-none focus:border-rose-500/40 transition-colors" />
         </div>
       </div>
@@ -156,7 +158,7 @@ export default function VoidItemsPage() {
           <div className="w-14 h-14 rounded-2xl bg-white/4 border border-white/8 flex items-center justify-center">
             <Ban className="w-6 h-6 text-white/15" />
           </div>
-          <p className="text-sm text-white/25">{search ? 'No matching void items' : 'No void items for this period'}</p>
+          <p className="text-sm text-white/25">{search ? 'No matching void items' : t.vi_no_data}</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -176,7 +178,7 @@ export default function VoidItemsPage() {
                   <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-white/8 text-white/40">×{item.qty}</span>
                 </div>
                 {item.void_reason ? (
-                  <p className="text-xs text-rose-400/70 mt-0.5">Reason: {item.void_reason}</p>
+                  <p className="text-xs text-rose-400/70 mt-0.5">{t.vi_reason}: {item.void_reason}</p>
                 ) : (
                   <p className="text-xs text-white/20 mt-0.5 italic">No reason recorded</p>
                 )}

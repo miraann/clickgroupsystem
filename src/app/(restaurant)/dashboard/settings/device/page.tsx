@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 import {
   Monitor, MonitorCheck, Plus, Pencil, Trash2,
   X, Loader2, ToggleLeft, ToggleRight, Check,
@@ -95,6 +96,7 @@ function connInfo(c: ConnectionType) {
 // ── Main Page ──────────────────────────────────────────────────
 export default function DevicePage() {
   const supabase = createClient()
+  const { t } = useLanguage()
 
   const [tab, setTab] = useState<'kds' | 'printers' | 'other'>('kds')
   const [restaurantId, setRestaurantId] = useState<string | null>(null)
@@ -158,7 +160,7 @@ export default function DevicePage() {
   // ── Init ──────────────────────────────────────────────────
   useEffect(() => {
     const init = async () => {
-      const { data: rest } = await supabase.from('restaurants').select('id').limit(1).maybeSingle()
+      const { data: rest } = await supabase.from('restaurants').select('id').eq('id', typeof window !== 'undefined' ? (localStorage.getItem('restaurant_id') ?? '') : '').maybeSingle()
       if (!rest) { setKdsError('Restaurant not found'); setKdsLoading(false); setPrtLoading(false); return }
       setRestaurantId(rest.id)
       await Promise.all([loadKds(rest.id), loadPrinters(rest.id)])
@@ -350,8 +352,8 @@ export default function DevicePage() {
       {/* Tab bar */}
       <div className="flex gap-1 mb-6 p-1 rounded-2xl bg-white/4 border border-white/8 w-fit">
         {([
-          { key: 'kds',      icon: <MonitorCheck className="w-4 h-4" />, label: 'KDS Stations' },
-          { key: 'printers', icon: <Printer      className="w-4 h-4" />, label: 'Printers'     },
+          { key: 'kds',      icon: <MonitorCheck className="w-4 h-4" />, label: t.dev_kds },
+          { key: 'printers', icon: <Printer      className="w-4 h-4" />, label: t.dev_printers },
           { key: 'other',    icon: <Monitor      className="w-4 h-4" />, label: 'Other Devices' },
         ] as const).map(({ key, icon, label }) => (
           <button key={key} onClick={() => setTab(key)}
@@ -371,14 +373,14 @@ export default function DevicePage() {
                 <MonitorCheck className="w-5 h-5 text-amber-400" />
               </div>
               <div>
-                <h1 className="text-lg font-semibold text-white">KDS Stations</h1>
-                <p className="text-xs text-white/40">Kitchen display screens by station</p>
+                <h1 className="text-lg font-semibold text-white">{t.dev_kds}</h1>
+                <p className="text-xs text-white/40">{t.dev_subtitle}</p>
               </div>
               <span className="px-2 py-0.5 rounded-full bg-white/8 text-xs text-white/50">{stations.length}</span>
             </div>
             <button onClick={openKdsAdd}
               className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-xl active:scale-95 transition-all">
-              <Plus className="w-4 h-4" /> Add Station
+              <Plus className="w-4 h-4" /> {t.dev_add_station}
             </button>
           </div>
 
@@ -389,7 +391,7 @@ export default function DevicePage() {
           ) : stations.length === 0 ? (
             <div className="text-center py-20 text-white/25">
               <MonitorCheck className="w-12 h-12 mx-auto mb-3 opacity-20" />
-              <p className="text-sm font-medium">No KDS stations yet</p>
+              <p className="text-sm font-medium">{t.dev_no_stations}</p>
               <p className="text-xs mt-1">Add stations like &quot;Salad Kitchen&quot;, &quot;Pizza Kitchen&quot;, &quot;Grill&quot;…</p>
             </div>
           ) : (
@@ -455,14 +457,14 @@ export default function DevicePage() {
                 <Printer className="w-5 h-5 text-blue-400" />
               </div>
               <div>
-                <h1 className="text-lg font-semibold text-white">Printers</h1>
-                <p className="text-xs text-white/40">Manage receipt, kitchen, and label printers</p>
+                <h1 className="text-lg font-semibold text-white">{t.dev_printers}</h1>
+                <p className="text-xs text-white/40">{t.dev_subtitle}</p>
               </div>
               <span className="px-2 py-0.5 rounded-full bg-white/8 text-xs text-white/50">{printers.length}</span>
             </div>
             <button onClick={openPrtAdd}
               className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-xl active:scale-95 transition-all">
-              <Plus className="w-4 h-4" /> Add Printer
+              <Plus className="w-4 h-4" /> {t.dev_add_printer}
             </button>
           </div>
 
@@ -473,7 +475,7 @@ export default function DevicePage() {
           ) : printers.length === 0 ? (
             <div className="text-center py-20 text-white/25">
               <Printer className="w-12 h-12 mx-auto mb-3 opacity-20" />
-              <p className="text-sm font-medium">No printers configured</p>
+              <p className="text-sm font-medium">{t.dev_no_printers}</p>
               <p className="text-xs mt-1">Add a receipt printer, kitchen printer, or label printer</p>
             </div>
           ) : (
@@ -604,7 +606,7 @@ export default function DevicePage() {
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="w-full max-w-md bg-[#0d1220]/95 backdrop-blur-2xl border border-white/15 rounded-3xl p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-base font-semibold text-white">{kdsEditId ? 'Edit KDS Station' : 'Add KDS Station'}</h2>
+              <h2 className="text-base font-semibold text-white">{kdsEditId ? t.edit : t.dev_add_station}</h2>
               <button onClick={() => setKdsModal(false)}
                 className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-all active:scale-95">
                 <X className="w-4 h-4" />
@@ -613,7 +615,7 @@ export default function DevicePage() {
             <div className="space-y-4">
               {/* Name */}
               <div>
-                <label className="block text-xs text-white/50 mb-1.5 font-medium">Station Name *</label>
+                <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.dev_station_name} *</label>
                 <input value={kdsForm.name} onChange={e => setKdsForm(f => ({ ...f, name: e.target.value }))}
                   placeholder="e.g. Pizza Kitchen, Salad Station…"
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500/50 transition-colors" />
@@ -664,7 +666,7 @@ export default function DevicePage() {
               </div>
               {/* Active */}
               <div className="flex items-center justify-between p-3 bg-white/3 rounded-xl">
-                <span className="text-sm text-white/70">Active</span>
+                <span className="text-sm text-white/70">{t.dev_active}</span>
                 <button onClick={() => setKdsForm(f => ({ ...f, active: !f.active }))} className="active:scale-95">
                   {kdsForm.active ? <ToggleRight className="w-6 h-6 text-amber-400" /> : <ToggleLeft className="w-6 h-6 text-white/25" />}
                 </button>
@@ -673,12 +675,12 @@ export default function DevicePage() {
             <div className="flex gap-3 mt-6">
               <button onClick={() => setKdsModal(false)}
                 className="flex-1 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 text-sm font-medium transition-all active:scale-95">
-                Cancel
+                {t.cancel}
               </button>
               <button onClick={handleKdsSave} disabled={!kdsForm.name.trim() || kdsSaving}
                 className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white text-sm font-medium transition-all active:scale-95 flex items-center justify-center gap-2">
                 {kdsSaving && <Loader2 className="w-4 h-4 animate-spin" />}
-                {kdsEditId ? 'Save Changes' : 'Add Station'}
+                {kdsEditId ? t.save_changes : t.dev_add_station}
               </button>
             </div>
           </div>
@@ -691,7 +693,7 @@ export default function DevicePage() {
           <div className="w-full max-w-md bg-[#0d1220]/95 backdrop-blur-2xl border border-white/15 rounded-3xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
 
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-base font-semibold text-white">{prtEditId ? 'Edit Printer' : 'Add Printer'}</h2>
+              <h2 className="text-base font-semibold text-white">{prtEditId ? t.edit : t.dev_add_printer}</h2>
               <button onClick={() => setPrtModal(false)}
                 className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-all active:scale-95">
                 <X className="w-4 h-4" />
@@ -702,7 +704,7 @@ export default function DevicePage() {
 
               {/* Name */}
               <div>
-                <label className="block text-xs text-white/50 mb-1.5 font-medium">Printer Name *</label>
+                <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.dev_printer_name} *</label>
                 <input value={prtForm.name} onChange={e => setPrtForm(f => ({ ...f, name: e.target.value }))}
                   placeholder="e.g. Kitchen Printer, Cashier Receipt…"
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500/50 transition-colors" />
@@ -710,7 +712,7 @@ export default function DevicePage() {
 
               {/* Purpose */}
               <div>
-                <label className="block text-xs text-white/50 mb-2 font-medium">Purpose</label>
+                <label className="block text-xs text-white/50 mb-2 font-medium">{t.dev_purpose}</label>
                 <div className="grid grid-cols-2 gap-2">
                   {PURPOSE_OPTIONS.map(opt => (
                     <button key={opt.value} onClick={() => setPrtForm(f => ({ ...f, purpose: opt.value }))}
@@ -726,7 +728,7 @@ export default function DevicePage() {
 
               {/* Connection type */}
               <div>
-                <label className="block text-xs text-white/50 mb-2 font-medium">Connection Type</label>
+                <label className="block text-xs text-white/50 mb-2 font-medium">{t.dev_connection}</label>
                 <div className="space-y-2">
                   {CONNECTION_OPTIONS.map(opt => (
                     <button key={opt.value} onClick={() => setPrtForm(f => ({ ...f, connection_type: opt.value }))}
@@ -756,13 +758,13 @@ export default function DevicePage() {
                     <Wifi className="w-3.5 h-3.5 text-blue-400" /> IP / Network Settings
                   </p>
                   <div>
-                    <label className="block text-xs text-white/40 mb-1">IP Address</label>
+                    <label className="block text-xs text-white/40 mb-1">{t.dev_ip_address}</label>
                     <input value={prtForm.ip_address} onChange={e => setPrtForm(f => ({ ...f, ip_address: e.target.value }))}
                       placeholder="192.168.1.100"
                       className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/25 font-mono focus:outline-none focus:border-amber-500/50 transition-colors" />
                   </div>
                   <div>
-                    <label className="block text-xs text-white/40 mb-1">Port <span className="text-white/25">(default 9100)</span></label>
+                    <label className="block text-xs text-white/40 mb-1">{t.dev_port} <span className="text-white/25">(default 9100)</span></label>
                     <input type="number" value={prtForm.port} onChange={e => setPrtForm(f => ({ ...f, port: parseInt(e.target.value) || 9100 }))}
                       placeholder="9100"
                       className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/25 font-mono focus:outline-none focus:border-amber-500/50 transition-colors" />
@@ -844,7 +846,7 @@ export default function DevicePage() {
 
               {/* Active */}
               <div className="flex items-center justify-between p-3 bg-white/3 rounded-xl">
-                <span className="text-sm text-white/70">Active</span>
+                <span className="text-sm text-white/70">{t.dev_active}</span>
                 <button onClick={() => setPrtForm(f => ({ ...f, active: !f.active }))} className="active:scale-95">
                   {prtForm.active ? <ToggleRight className="w-6 h-6 text-amber-400" /> : <ToggleLeft className="w-6 h-6 text-white/25" />}
                 </button>
@@ -854,12 +856,12 @@ export default function DevicePage() {
             <div className="flex gap-3 mt-6">
               <button onClick={() => setPrtModal(false)}
                 className="flex-1 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 text-sm font-medium transition-all active:scale-95">
-                Cancel
+                {t.cancel}
               </button>
               <button onClick={handlePrtSave} disabled={!prtForm.name.trim() || prtSaving}
                 className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white text-sm font-medium transition-all active:scale-95 flex items-center justify-center gap-2">
                 {prtSaving && <Loader2 className="w-4 h-4 animate-spin" />}
-                {prtEditId ? 'Save Changes' : 'Add Printer'}
+                {prtEditId ? t.save_changes : t.dev_add_printer}
               </button>
             </div>
           </div>

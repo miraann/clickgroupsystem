@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { ActivitySquare, Search, Clock, Flame, CheckCheck, Loader2, ChevronDown, ChevronUp, X, Eye, User, QrCode, Calendar, Hash, UtensilsCrossed } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -208,6 +209,7 @@ function OrderDetailModal({ record, onClose }: { record: KdsOrderRecord; onClose
 function OrderRow({ record }: { record: KdsOrderRecord }) {
   const [open, setOpen] = useState(false)
   const [showModal, setShowModal] = useState(false)
+  const { t } = useLanguage()
 
   const pendingSecs  = record.items.filter(i => i.sent_at && i.cooking_started_at).map(i => secsBetween(i.sent_at!, i.cooking_started_at!))
   const cookingSecs  = record.items.filter(i => i.cooking_started_at && i.ready_at)
@@ -286,11 +288,11 @@ function OrderRow({ record }: { record: KdsOrderRecord }) {
         <div className="border-t border-white/6 px-4 py-3 space-y-2">
           {/* Column headers */}
           <div className="grid grid-cols-12 gap-2 text-[10px] font-bold text-white/25 uppercase tracking-wider pb-1 border-b border-white/6">
-            <div className="col-span-4">Item</div>
-            <div className="col-span-1 text-center">Qty</div>
-            <div className="col-span-3 text-center">Wait (pending)</div>
-            <div className="col-span-3 text-center">Cook time</div>
-            <div className="col-span-1 text-center">Status</div>
+            <div className="col-span-4">{t.vi_item}</div>
+            <div className="col-span-1 text-center">{t.vi_qty}</div>
+            <div className="col-span-3 text-center">{t.kds_pending}</div>
+            <div className="col-span-3 text-center">{t.kds_cooking}</div>
+            <div className="col-span-1 text-center">{t.kds_done}</div>
           </div>
           {record.items.map(item => {
             const waitSecs = item.sent_at && item.cooking_started_at ? secsBetween(item.sent_at, item.cooking_started_at) : null
@@ -351,6 +353,7 @@ function OrderRow({ record }: { record: KdsOrderRecord }) {
 
 export default function KdsMonitorPage() {
   const supabase = createClient()
+  const { t } = useLanguage()
   const [records, setRecords]   = useState<KdsOrderRecord[]>([])
   const [filtered, setFiltered] = useState<KdsOrderRecord[]>([])
   const [loading, setLoading]   = useState(true)
@@ -368,7 +371,7 @@ export default function KdsMonitorPage() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const { data: rest } = await supabase.from('restaurants').select('id').limit(1).maybeSingle()
+    const { data: rest } = await supabase.from('restaurants').select('id').eq('id', typeof window !== 'undefined' ? (localStorage.getItem('restaurant_id') ?? '') : '').maybeSingle()
     if (!rest) { setLoading(false); return }
 
     const [{ data: items }, { data: tablesData }] = await Promise.all([
@@ -445,8 +448,8 @@ export default function KdsMonitorPage() {
           <ActivitySquare className="w-5 h-5 text-amber-400" />
         </div>
         <div>
-          <h1 className="text-lg font-bold text-white">KDS Monitor</h1>
-          <p className="text-xs text-white/35">Track pending wait and cooking times per order</p>
+          <h1 className="text-lg font-bold text-white">{t.kds_title}</h1>
+          <p className="text-xs text-white/35">{t.kds_subtitle}</p>
         </div>
       </div>
 
@@ -459,13 +462,13 @@ export default function KdsMonitorPage() {
           {/* Stats */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <StatCard
-              label="Avg Wait (Pending)"
+              label={t.kds_pending}
               value={avgPending !== null ? fmtSecs(avgPending) : '—'}
               sub="Sent to kitchen → chef started"
               color="border-amber-500/20 bg-amber-500/5"
             />
             <StatCard
-              label="Avg Cook Time"
+              label={t.kds_cooking}
               value={avgCook !== null ? fmtSecs(avgCook) : '—'}
               sub="Start cooking → ready"
               color="border-blue-500/20 bg-blue-500/5"
@@ -490,7 +493,7 @@ export default function KdsMonitorPage() {
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Search by order number (ORD-008), table, or item name…"
+              placeholder={`${t.search}…`}
               className="w-full pl-9 pr-9 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-amber-500/50 focus:bg-white/7"
             />
             {search && (
@@ -511,18 +514,18 @@ export default function KdsMonitorPage() {
           {filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 gap-3">
               <ActivitySquare className="w-10 h-10 text-white/10" />
-              <p className="text-white/30 text-sm">{search ? 'No results found' : 'No KDS data yet'}</p>
+              <p className="text-white/30 text-sm">{search ? 'No results found' : t.kds_no_orders}</p>
             </div>
           ) : (
             <div className="space-y-2">
               {/* Table header */}
               <div className="grid grid-cols-12 gap-2 px-4 text-[10px] font-bold text-white/20 uppercase tracking-wider">
-                <div className="col-span-1">Order #</div>
-                <div className="col-span-1">Table</div>
-                <div className="col-span-3">Date</div>
-                <div className="col-span-2">Items</div>
-                <div className="col-span-2 text-center">Avg Wait</div>
-                <div className="col-span-2 text-center">Avg Cook</div>
+                <div className="col-span-1">{t.kds_order}</div>
+                <div className="col-span-1">{t.kds_table}</div>
+                <div className="col-span-3">{t.kds_time}</div>
+                <div className="col-span-2">{t.kds_items}</div>
+                <div className="col-span-2 text-center">{t.kds_pending}</div>
+                <div className="col-span-2 text-center">{t.kds_cooking}</div>
                 <div className="col-span-1" />
               </div>
               {filtered.map(record => (

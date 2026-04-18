@@ -10,6 +10,7 @@ import {
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts'
@@ -80,6 +81,7 @@ function ChartTooltip({ active, payload, label, formatPrice }: any) {
 export default function ExpensePage() {
   const supabase = createClient()
   const { formatPrice } = useDefaultCurrency()
+  const { t } = useLanguage()
 
   const [restaurantId, setRestaurantId] = useState<string | null>(null)
   const [expenses, setExpenses]         = useState<Expense[]>([])
@@ -130,7 +132,7 @@ export default function ExpensePage() {
     supabase.auth.getUser().then(({ data: { user } }) => {
       setCashierName(user?.user_metadata?.full_name ?? user?.email ?? 'Staff')
     })
-    supabase.from('restaurants').select('id').limit(1).maybeSingle().then(({ data: rest }) => {
+    supabase.from('restaurants').select('id').eq('id', typeof window !== 'undefined' ? (localStorage.getItem('restaurant_id') ?? '') : '').maybeSingle().then(({ data: rest }) => {
       if (!rest) return
       setRestaurantId(rest.id)
       load(rest.id)
@@ -201,7 +203,7 @@ export default function ExpensePage() {
         {/* Total */}
         <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-500/20 via-amber-500/10 to-transparent border border-amber-500/25 p-5">
           <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full bg-amber-500/10 blur-2xl" />
-          <p className="text-xs font-semibold text-amber-400/70 uppercase tracking-wider mb-1">Total Expenses</p>
+          <p className="text-xs font-semibold text-amber-400/70 uppercase tracking-wider mb-1">{t.exp_total}</p>
           <p className="text-2xl font-extrabold text-white tabular-nums">{formatPrice(totalAll)}</p>
           <p className="text-xs text-white/30 mt-1">{expenses.length} records</p>
           <DollarSign className="absolute bottom-4 right-4 w-8 h-8 text-amber-500/20" />
@@ -210,7 +212,7 @@ export default function ExpensePage() {
         {/* Monthly trend */}
         <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-500/20 via-blue-500/10 to-transparent border border-blue-500/25 p-5">
           <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full bg-blue-500/10 blur-2xl" />
-          <p className="text-xs font-semibold text-blue-400/70 uppercase tracking-wider mb-1">This Month</p>
+          <p className="text-xs font-semibold text-blue-400/70 uppercase tracking-wider mb-1">{t.exp_this_month}</p>
           <p className="text-2xl font-extrabold text-white tabular-nums">{formatPrice(thisMonth)}</p>
           <div className="flex items-center gap-1 mt-1">
             {monthTrend > 0
@@ -269,7 +271,7 @@ export default function ExpensePage() {
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Search expenses…"
+              placeholder={`${t.search}…`}
               className="w-full pl-9 pr-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500/40 transition-colors"
             />
           </div>
@@ -277,7 +279,7 @@ export default function ExpensePage() {
             onClick={() => setShowAdd(true)}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold active:scale-95 transition-all shadow-lg shadow-amber-500/25 shrink-0"
           >
-            <Plus className="w-4 h-4" />Add Expense
+            <Plus className="w-4 h-4" />{t.exp_add}
           </button>
         </div>
 
@@ -353,9 +355,9 @@ export default function ExpensePage() {
       <div className="rounded-2xl border border-white/8">
         {/* Header */}
         <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 px-5 py-3 bg-white/3 border-b border-white/8 text-xs font-semibold text-white/30 uppercase tracking-wider rounded-t-2xl">
-          <span>Expense</span>
-          <span className="text-right w-28">Amount</span>
-          <span className="w-32">Date</span>
+          <span>{t.exp_title}</span>
+          <span className="text-right w-28">{t.exp_amount}</span>
+          <span className="w-32">{t.exp_date}</span>
           <span className="w-24">Status</span>
           <span className="w-8" />
         </div>
@@ -365,7 +367,7 @@ export default function ExpensePage() {
             <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
               <Receipt className="w-6 h-6 text-white/20" />
             </div>
-            <p className="text-white/30 text-sm">No expenses found</p>
+            <p className="text-white/30 text-sm">{t.exp_no_data}</p>
             <button onClick={() => setShowAdd(true)} className="text-xs text-amber-400 hover:text-amber-300 transition-colors">
               + Add your first expense
             </button>
@@ -507,19 +509,20 @@ function ExpenseDetailModal({
   onDelete: (id: string) => void
 }) {
   const { formatPrice } = useDefaultCurrency()
+  const { t } = useLanguage()
   const CatIcon = category ? (CAT_ICONS[category.icon] ?? LayoutGrid) : LayoutGrid
   const status  = STATUS_CFG[expense.status ?? 'paid'] ?? STATUS_CFG.paid
   const StatusIcon = status.icon
 
   const rows: [string, React.ReactNode][] = [
-    ['Title',          <span key="t" className="text-white font-semibold">{expense.title}</span>],
-    ['Category',       category
+    [t.exp_title,      <span key="t" className="text-white font-semibold">{expense.title}</span>],
+    [t.exp_category,   category
       ? <span key="c" className="flex items-center gap-1.5">
           <CatIcon className="w-3.5 h-3.5" style={{ color: category.color }} />
           <span style={{ color: category.color }} className="font-semibold">{category.name}</span>
         </span>
       : <span key="c" className="text-white/30">Uncategorized</span>],
-    ['Amount',         <span key="a" className="text-amber-400 font-bold tabular-nums text-base">{formatPrice(expense.amount ?? 0)}</span>],
+    [t.exp_amount,     <span key="a" className="text-amber-400 font-bold tabular-nums text-base">{formatPrice(expense.amount ?? 0)}</span>],
     ['Status',         <span key="s" className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-lg border text-[10px] font-bold', status.color)}>
                          <StatusIcon className="w-2.5 h-2.5" />{status.label}
                        </span>],
@@ -567,7 +570,7 @@ function ExpenseDetailModal({
           {/* Note */}
           {expense.note && (
             <div className="pt-1">
-              <p className="text-xs text-white/35 mb-1.5">Note</p>
+              <p className="text-xs text-white/35 mb-1.5">{t.exp_note}</p>
               <p className="text-sm text-white/60 bg-white/5 border border-white/8 rounded-xl px-4 py-2.5 leading-relaxed">{expense.note}</p>
             </div>
           )}
@@ -600,13 +603,13 @@ function ExpenseDetailModal({
             onClick={() => onDelete(expense.id)}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 text-sm font-medium transition-all active:scale-95"
           >
-            <Trash2 className="w-4 h-4" />Delete
+            <Trash2 className="w-4 h-4" />{t.delete}
           </button>
           <button
             onClick={onClose}
             className="flex-1 py-2.5 rounded-xl bg-white/6 hover:bg-white/10 text-white/60 text-sm font-medium transition-all active:scale-95"
           >
-            Close
+            {t.cancel}
           </button>
         </div>
       </div>
@@ -625,6 +628,7 @@ interface AddProps {
 
 function AddExpenseModal({ restaurantId, categories, cashier, onClose, onSaved }: AddProps) {
   const supabase = createClient()
+  const { t } = useLanguage()
   const fileRef = useRef<HTMLInputElement>(null)
 
   const [title, setTitle]         = useState('')
@@ -704,7 +708,7 @@ function AddExpenseModal({ restaurantId, categories, cashier, onClose, onSaved }
             <div className="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center">
               <DollarSign className="w-4 h-4 text-amber-400" />
             </div>
-            <h3 className="text-base font-bold text-white">Add Expense</h3>
+            <h3 className="text-base font-bold text-white">{t.exp_add}</h3>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-all">
             <X className="w-4 h-4" />
@@ -853,7 +857,7 @@ function AddExpenseModal({ restaurantId, categories, cashier, onClose, onSaved }
             onClick={onClose}
             className="flex-1 py-2.5 rounded-xl bg-white/6 hover:bg-white/10 text-white/60 text-sm font-medium transition-all active:scale-95"
           >
-            Cancel
+            {t.cancel}
           </button>
           <button
             onClick={handleSave}
@@ -861,8 +865,8 @@ function AddExpenseModal({ restaurantId, categories, cashier, onClose, onSaved }
             className="flex-[2] py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white text-sm font-bold transition-all active:scale-95 flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20"
           >
             {saving || uploading
-              ? <><Loader2 className="w-4 h-4 animate-spin" />{uploading ? 'Uploading…' : 'Saving…'}</>
-              : <><Plus className="w-4 h-4" />Save Expense</>
+              ? <><Loader2 className="w-4 h-4 animate-spin" />{uploading ? 'Uploading…' : t.loading}</>
+              : <><Plus className="w-4 h-4" />{t.exp_add}</>
             }
           </button>
         </div>

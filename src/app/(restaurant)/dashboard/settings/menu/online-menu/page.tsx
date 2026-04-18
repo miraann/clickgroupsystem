@@ -1,8 +1,10 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { Globe, Copy, Check, Loader2, Save, ExternalLink, UtensilsCrossed, Plus } from 'lucide-react'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { createClient } from '@/lib/supabase/client'
+import { useOnlineMenuSettings } from '@/hooks/useOnlineMenuSettings'
 
 // ── Types ──────────────────────────────────────────────────────
 type TemplateId    = 'classic' | 'dark' | 'warm' | 'bold' | 'elegant' | 'neon'
@@ -558,64 +560,45 @@ const SURFACE_PREVIEWS: { id: SurfaceStyle; label: string; desc: string }[] = [
 // ── Main page ──────────────────────────────────────────────────
 export default function OnlineMenuTemplatePage() {
   const supabase = createClient()
+  const { t } = useLanguage()
   const [restaurantId, setRestaurantId] = useState<string | null>(null)
-  const [settings, setSettings]         = useState<MenuSettings>(DEFAULT)
-  const [preview, setPreview]           = useState<PreviewData | null>(null)
-  const [loading, setLoading]           = useState(true)
-  const [saving, setSaving]             = useState(false)
-  const [saved, setSaved]               = useState(false)
-  const [copied, setCopied]             = useState(false)
-  const [error, setError]               = useState<string | null>(null)
+  const [mounted, setMounted] = useState(false)
 
-  const load = useCallback(async () => {
-    const { data: rest } = await supabase.from('restaurants').select('id, name, logo_url, settings').limit(1).maybeSingle()
-    if (!rest?.id) { setLoading(false); return }
-    setRestaurantId(rest.id)
+  useEffect(() => {
+    setRestaurantId(localStorage.getItem('restaurant_id'))
+    setMounted(true)
+  }, [])
 
-    const [tplRes, catsRes, itemsRes, eventsRes] = await Promise.all([
-      supabase.from('menu_template_settings').select('*').eq('restaurant_id', rest.id).maybeSingle(),
-      supabase.from('menu_categories').select('id, name, color, icon').eq('restaurant_id', rest.id).eq('active', true).order('sort_order').limit(5),
-      supabase.from('menu_items').select('id, name, price, image_url, description, category_id').eq('restaurant_id', rest.id).eq('available', true).order('sort_order').limit(4),
-      supabase.from('events_offers').select('id, title, image_url, date_label').eq('restaurant_id', rest.id).eq('active', true).order('sort_order').limit(4),
-    ])
+  const { data: swrData, isLoading: swrLoading, mutate } = useOnlineMenuSettings(restaurantId)
+  const loading = !mounted || swrLoading
 
-    if (tplRes.data) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const d = tplRes.data as any
+  const [settings, setSettings] = useState<MenuSettings>(DEFAULT)
+  const [preview,  setPreview]  = useState<PreviewData | null>(null)
+  const [saving,   setSaving]   = useState(false)
+  const [saved,    setSaved]    = useState(false)
+  const [copied,   setCopied]   = useState(false)
+  const [error,    setError]    = useState<string | null>(null)
+
+  // Sync local state from SWR cache
+  useEffect(() => {
+    if (!swrData) return
+    if (swrData.settings) {
+      const d = swrData.settings
       setSettings({
-        template:          d.template          ?? DEFAULT.template,
-        primary_color:     d.primary_color     ?? DEFAULT.primary_color,
-        surface_style:     d.surface_style     ?? DEFAULT.surface_style,
-        category_style:    d.category_style    ?? DEFAULT.category_style,
-        item_style:        d.item_style        ?? DEFAULT.item_style,
-        event_style:       d.event_style       ?? DEFAULT.event_style,
-        social_style:      d.social_style      ?? DEFAULT.social_style,
-        show_prices:       d.show_prices       ?? true,
-        show_descriptions: d.show_descriptions ?? true,
-        welcome_text:      d.welcome_text      ?? null,
+        template:          (d.template          ?? DEFAULT.template)          as TemplateId,
+        primary_color:     d.primary_color      ?? DEFAULT.primary_color,
+        surface_style:     (d.surface_style     ?? DEFAULT.surface_style)     as SurfaceStyle,
+        category_style:    (d.category_style    ?? DEFAULT.category_style)    as CategoryStyle,
+        item_style:        (d.item_style        ?? DEFAULT.item_style)        as ItemStyle,
+        event_style:       (d.event_style       ?? DEFAULT.event_style)       as EventStyle,
+        social_style:      (d.social_style      ?? DEFAULT.social_style)      as SocialStyle,
+        show_prices:       d.show_prices        ?? true,
+        show_descriptions: d.show_descriptions  ?? true,
+        welcome_text:      d.welcome_text       ?? null,
       })
     }
-    // Build social links from restaurant settings
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const rs = (rest as any).settings ?? {}
-    const SOCIAL_MAP = [
-      { key: 'facebook',  label: 'Facebook',  bg: '#1877f2' },
-      { key: 'instagram', label: 'Instagram', bg: '#e1306c' },
-      { key: 'whatsapp',  label: 'WhatsApp',  bg: '#25d366' },
-      { key: 'snapchat',  label: 'Snapchat',  bg: '#fffc00' },
-      { key: 'tiktok',    label: 'TikTok',    bg: '#010101' },
-      { key: 'twitter',   label: 'X',         bg: '#14171a' },
-      { key: 'youtube',   label: 'YouTube',   bg: '#ff0000' },
-      { key: 'maps_url',  label: 'Location',  bg: '#10b981' },
-    ]
-    const socialLinks = SOCIAL_MAP.filter(s => rs[s.key]?.trim())
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    setPreview({ name: rest.name, logo_url: rest.logo_url, categories: (catsRes.data ?? []) as any, items: (itemsRes.data ?? []) as any, events: (eventsRes.data ?? []) as any, socialLinks })
-    setLoading(false)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => { load() }, [load])
+    setPreview(swrData.preview)
+  }, [swrData])
 
   const save = async () => {
     if (!restaurantId) return
@@ -624,6 +607,8 @@ export default function OnlineMenuTemplatePage() {
       .from('menu_template_settings')
       .upsert({ ...settings, restaurant_id: restaurantId, updated_at: new Date().toISOString() }, { onConflict: 'restaurant_id' })
     if (err) { setError(err.message); setSaving(false); return }
+    // Update SWR cache with saved settings
+    mutate(prev => prev ? { ...prev, settings: { ...settings } } : prev, false)
     setSaving(false); setSaved(true)
     setTimeout(() => setSaved(false), 2500)
   }
@@ -659,16 +644,16 @@ export default function OnlineMenuTemplatePage() {
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-base font-bold text-white flex items-center gap-2">
-              <Globe className="w-4 h-4 text-amber-400" /> Online Menu Style
+              <Globe className="w-4 h-4 text-amber-400" /> {t.om_title}
             </h2>
-            <p className="text-xs text-white/40 mt-0.5">Customize every aspect of your guest-facing menu</p>
+            <p className="text-xs text-white/40 mt-0.5">{t.om_subtitle}</p>
           </div>
           <button onClick={save} disabled={saving}
             className={cn('shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all active:scale-95',
               saved ? 'bg-emerald-500/20 border border-emerald-500/30 text-emerald-400'
                     : 'bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/25')}>
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : saved ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
-            {saved ? 'Saved!' : saving ? 'Saving…' : 'Save'}
+            {saved ? t.saved_ : saving ? t.save_changes : t.save_changes}
           </button>
         </div>
 
@@ -679,7 +664,7 @@ export default function OnlineMenuTemplatePage() {
           {/* Browse-only link */}
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-white/30 mb-1.5 flex items-center gap-1.5">
-              <Globe className="w-3 h-3" /> Guest Menu (Browse Only)
+              <Globe className="w-3 h-3" /> {t.om_link}
             </p>
             <div className="flex items-center gap-2">
               <div className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded-xl px-3 py-2 flex items-center gap-2 overflow-hidden">
@@ -689,7 +674,7 @@ export default function OnlineMenuTemplatePage() {
                 className={cn('shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition-all active:scale-95 border',
                   copied ? 'bg-emerald-500/15 border-emerald-500/25 text-emerald-400' : 'bg-white/8 border-white/12 text-white/60 hover:text-white')}>
                 {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                {copied ? 'Copied' : 'Copy'}
+                {copied ? t.om_copied : t.om_copy}
               </button>
               {publicUrl && (
                 <a href={publicUrl} target="_blank" rel="noopener noreferrer"
@@ -719,7 +704,7 @@ export default function OnlineMenuTemplatePage() {
                   if (url) { navigator.clipboard.writeText(url) }
                 }}
                 className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition-all active:scale-95 border bg-white/8 border-white/12 text-white/60 hover:text-white">
-                <Copy className="w-3.5 h-3.5" /> Copy
+                <Copy className="w-3.5 h-3.5" /> {t.om_copy}
               </button>
               {restaurantId && typeof window !== 'undefined' && (
                 <a href={`${window.location.origin}/order/${restaurantId}`} target="_blank" rel="noopener noreferrer"

@@ -1,41 +1,27 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 import {
   Plus, Pencil, Trash2, CreditCard, X,
   ToggleLeft, ToggleRight, Star, Loader2, AlertCircle,
   Coins,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { usePaymentMethods, type CachedPayMethod, type CachedCurrency } from '@/hooks/usePaymentMethods'
 
 // ── Types ──────────────────────────────────────────────────────
 type IconType = 'cash' | 'card' | 'online' | 'wallet' | 'other'
-
-interface PayMethod {
-  id: string
-  name: string
-  icon_type: IconType
-  active: boolean
-  is_default: boolean
-  sort_order: number
-}
-
-interface Currency {
-  id: string
-  name: string
-  symbol: string
-  decimal_places: number
-  is_default: boolean
-  sort_order: number
-}
+type PayMethod = CachedPayMethod & { icon_type: IconType }
+type Currency  = CachedCurrency
 
 // ── Constants ──────────────────────────────────────────────────
-const ICONS: { value: IconType; label: string; emoji: string }[] = [
-  { value: 'cash',   label: 'Cash',   emoji: '💵' },
-  { value: 'card',   label: 'Card',   emoji: '💳' },
-  { value: 'online', label: 'Online', emoji: '🌐' },
-  { value: 'wallet', label: 'Wallet', emoji: '👛' },
-  { value: 'other',  label: 'Other',  emoji: '🏦' },
+const ICONS: { value: IconType; labelKey: 'pm_cash' | 'pm_card' | 'pm_online' | string; emoji: string }[] = [
+  { value: 'cash',   labelKey: 'pm_cash',   emoji: '💵' },
+  { value: 'card',   labelKey: 'pm_card',   emoji: '💳' },
+  { value: 'online', labelKey: 'pm_online', emoji: '🌐' },
+  { value: 'wallet', labelKey: 'wallet',    emoji: '👛' },
+  { value: 'other',  labelKey: 'other',     emoji: '🏦' },
 ]
 
 const DECIMAL_OPTIONS = [
@@ -60,19 +46,28 @@ function getEmoji(type: IconType) { return ICONS.find(i => i.value === type)?.em
 
 // ── Main Page ──────────────────────────────────────────────────
 export default function PaymentMethodPage() {
+  const { t } = useLanguage()
   const supabase = createClient()
 
   const [tab, setTab]                   = useState<'currency' | 'payment'>('currency')
   const [restaurantId, setRestaurantId] = useState<string | null>(null)
-  const [loading, setLoading]           = useState(true)
-  const [error, setError]               = useState<string | null>(null)
+  const [mounted, setMounted]           = useState(false)
+
+  useEffect(() => {
+    setRestaurantId(localStorage.getItem('restaurant_id'))
+    setMounted(true)
+  }, [])
+
+  const { data: swrData, isLoading: swrLoading, error: swrError, mutate } = usePaymentMethods(restaurantId)
+  const loading = !mounted || swrLoading
+  const error   = swrError ? (swrError as Error).message : null
 
   // Payment methods state
-  const [methods, setMethods]   = useState<PayMethod[]>([])
-  const [payModal, setPayModal] = useState(false)
-  const [editPayId, setEditPayId] = useState<string | null>(null)
-  const [payForm, setPayForm]   = useState(EMPTY_PAY)
-  const [paySaving, setPaySaving] = useState(false)
+  const [methods, setMethods]         = useState<PayMethod[]>([])
+  const [payModal, setPayModal]       = useState(false)
+  const [editPayId, setEditPayId]     = useState<string | null>(null)
+  const [payForm, setPayForm]         = useState(EMPTY_PAY)
+  const [paySaving, setPaySaving]     = useState(false)
   const [deletePayId, setDeletePayId] = useState<string | null>(null)
 
   // Currency state
@@ -83,25 +78,12 @@ export default function PaymentMethodPage() {
   const [curSaving, setCurSaving]     = useState(false)
   const [deleteCurId, setDeleteCurId] = useState<string | null>(null)
 
-  // ── Load ───────────────────────────────────────────────────
-  const load = useCallback(async () => {
-    setLoading(true); setError(null)
-    const { data: rest } = await supabase.from('restaurants').select('id').limit(1).maybeSingle()
-    if (!rest) { setError('Restaurant not found'); setLoading(false); return }
-    setRestaurantId(rest.id)
-
-    const [{ data: pm, error: pmErr }, { data: cur, error: curErr }] = await Promise.all([
-      supabase.from('payment_methods').select('*').eq('restaurant_id', rest.id).order('sort_order'),
-      supabase.from('currencies').select('*').eq('restaurant_id', rest.id).order('sort_order'),
-    ])
-
-    if (pmErr || curErr) { setError((pmErr || curErr)!.message); setLoading(false); return }
-    setMethods((pm ?? []) as PayMethod[])
-    setCurrencies((cur ?? []) as Currency[])
-    setLoading(false)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => { load() }, [load])
+  // Sync local state from SWR cache
+  useEffect(() => {
+    if (!swrData) return
+    setMethods(swrData.methods as PayMethod[])
+    setCurrencies(swrData.currencies)
+  }, [swrData])
 
   // ── Currency CRUD ──────────────────────────────────────────
   const openAddCur = () => { setEditCurId(null); setCurForm(EMPTY_CUR); setCurModal(true) }
@@ -134,11 +116,13 @@ export default function PaymentMethodPage() {
     if (editCurId) {
       const { error: err } = await supabase.from('currencies').update(payload).eq('id', editCurId)
       if (!err) {
-        setCurrencies(cs => cs.map(c => {
+        const updated = currencies.map(c => {
           if (c.id === editCurId) return { ...c, ...payload }
           if (curForm.is_default) return { ...c, is_default: false }
           return c
-        }))
+        })
+        setCurrencies(updated)
+        mutate(prev => prev ? { ...prev, currencies: updated } : prev, false)
       }
     } else {
       const nextOrder = currencies.length > 0 ? Math.max(...currencies.map(c => c.sort_order)) + 1 : 0
@@ -147,10 +131,12 @@ export default function PaymentMethodPage() {
         .insert({ restaurant_id: restaurantId, ...payload, sort_order: nextOrder })
         .select().single()
       if (!err && data) {
-        setCurrencies(cs => [
-          ...cs.map(c => curForm.is_default ? { ...c, is_default: false } : c),
+        const updated = [
+          ...currencies.map(c => curForm.is_default ? { ...c, is_default: false } : c),
           data as Currency,
-        ])
+        ]
+        setCurrencies(updated)
+        mutate(prev => prev ? { ...prev, currencies: updated } : prev, false)
       }
     }
 
@@ -162,7 +148,9 @@ export default function PaymentMethodPage() {
     if (!restaurantId) return
     await supabase.from('currencies').update({ is_default: false, updated_at: new Date().toISOString() }).eq('restaurant_id', restaurantId)
     await supabase.from('currencies').update({ is_default: true, updated_at: new Date().toISOString() }).eq('id', c.id)
-    setCurrencies(cs => cs.map(x => ({ ...x, is_default: x.id === c.id })))
+    const updated = currencies.map(x => ({ ...x, is_default: x.id === c.id }))
+    setCurrencies(updated)
+    mutate(prev => prev ? { ...prev, currencies: updated } : prev, false)
   }
 
   const deleteCurrency = async (id: string) => {
@@ -170,7 +158,11 @@ export default function PaymentMethodPage() {
       setDeleteCurId(id); setTimeout(() => setDeleteCurId(d => d === id ? null : d), 3000); return
     }
     const { error: err } = await supabase.from('currencies').delete().eq('id', id)
-    if (!err) setCurrencies(cs => cs.filter(c => c.id !== id))
+    if (!err) {
+      const updated = currencies.filter(c => c.id !== id)
+      setCurrencies(updated)
+      mutate(prev => prev ? { ...prev, currencies: updated } : prev, false)
+    }
     setDeleteCurId(null)
   }
 
@@ -195,11 +187,13 @@ export default function PaymentMethodPage() {
     if (editPayId) {
       const { error: err } = await supabase.from('payment_methods').update(payload).eq('id', editPayId)
       if (!err) {
-        setMethods(ms => ms.map(m => {
+        const updated = methods.map(m => {
           if (m.id === editPayId) return { ...m, ...payload }
           if (payForm.is_default) return { ...m, is_default: false }
           return m
-        }))
+        })
+        setMethods(updated)
+        mutate(prev => prev ? { ...prev, methods: updated } : prev, false)
       }
     } else {
       const nextOrder = methods.length > 0 ? Math.max(...methods.map(m => m.sort_order)) + 1 : 0
@@ -208,10 +202,12 @@ export default function PaymentMethodPage() {
         .insert({ restaurant_id: restaurantId, ...payload, sort_order: nextOrder })
         .select().single()
       if (!err && data) {
-        setMethods(ms => [
-          ...ms.map(m => payForm.is_default ? { ...m, is_default: false } : m),
+        const updated = [
+          ...methods.map(m => payForm.is_default ? { ...m, is_default: false } : m),
           data as PayMethod,
-        ])
+        ]
+        setMethods(updated)
+        mutate(prev => prev ? { ...prev, methods: updated } : prev, false)
       }
     }
 
@@ -223,12 +219,16 @@ export default function PaymentMethodPage() {
     if (!restaurantId) return
     await supabase.from('payment_methods').update({ is_default: false, updated_at: new Date().toISOString() }).eq('restaurant_id', restaurantId)
     await supabase.from('payment_methods').update({ is_default: true, updated_at: new Date().toISOString() }).eq('id', m.id)
-    setMethods(ms => ms.map(x => ({ ...x, is_default: x.id === m.id })))
+    const updated = methods.map(x => ({ ...x, is_default: x.id === m.id }))
+    setMethods(updated)
+    mutate(prev => prev ? { ...prev, methods: updated } : prev, false)
   }
 
   const toggleActive = async (m: PayMethod) => {
     const newVal = !m.active
-    setMethods(ms => ms.map(x => x.id === m.id ? { ...x, active: newVal } : x))
+    const updated = methods.map(x => x.id === m.id ? { ...x, active: newVal } : x)
+    setMethods(updated)
+    mutate(prev => prev ? { ...prev, methods: updated } : prev, false)
     await supabase.from('payment_methods').update({ active: newVal, updated_at: new Date().toISOString() }).eq('id', m.id)
   }
 
@@ -237,7 +237,11 @@ export default function PaymentMethodPage() {
       setDeletePayId(id); setTimeout(() => setDeletePayId(d => d === id ? null : d), 3000); return
     }
     const { error: err } = await supabase.from('payment_methods').delete().eq('id', id)
-    if (!err) setMethods(ms => ms.filter(m => m.id !== id))
+    if (!err) {
+      const updated = methods.filter(m => m.id !== id)
+      setMethods(updated)
+      mutate(prev => prev ? { ...prev, methods: updated } : prev, false)
+    }
     setDeletePayId(null)
   }
 
@@ -250,7 +254,7 @@ export default function PaymentMethodPage() {
       <div>
         <p className="text-sm text-rose-400 font-semibold">Failed to load</p>
         <p className="text-xs text-white/40 mt-1 font-mono">{error}</p>
-        <button onClick={load} className="mt-2 px-3 py-1.5 rounded-lg bg-white/8 text-xs text-white/50 hover:bg-white/12 active:scale-95 transition-all">Retry</button>
+        <button onClick={() => mutate()} className="mt-2 px-3 py-1.5 rounded-lg bg-white/8 text-xs text-white/50 hover:bg-white/12 active:scale-95 transition-all">Retry</button>
       </div>
     </div>
   )
@@ -349,14 +353,14 @@ export default function PaymentMethodPage() {
                 <CreditCard className="w-5 h-5 text-indigo-400" />
               </div>
               <div>
-                <h1 className="text-lg font-semibold text-white">Payment Methods</h1>
-                <p className="text-xs text-white/40">Accepted payment types</p>
+                <h1 className="text-lg font-semibold text-white">{t.pm_title}</h1>
+                <p className="text-xs text-white/40">{t.pm_subtitle}</p>
               </div>
               <span className="px-2 py-0.5 rounded-full bg-white/8 text-xs text-white/50">{methods.length}</span>
             </div>
             <button onClick={openAddPay}
               className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-xl active:scale-95 transition-all">
-              <Plus className="w-4 h-4" /> Add Method
+              <Plus className="w-4 h-4" /> {t.pm_add}
             </button>
           </div>
 
@@ -399,7 +403,7 @@ export default function PaymentMethodPage() {
                 </button>
               </div>
             ))}
-            {methods.length === 0 && <div className="text-center py-16 text-white/25 text-sm">No payment methods yet.</div>}
+            {methods.length === 0 && <div className="text-center py-16 text-white/25 text-sm">{t.pm_no_data}</div>}
           </div>
         </div>
       )}
@@ -496,7 +500,7 @@ export default function PaymentMethodPage() {
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="w-full max-w-md bg-[#0d1220]/95 backdrop-blur-2xl border border-white/15 rounded-3xl p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-base font-semibold text-white">{editPayId ? 'Edit Method' : 'Add Payment Method'}</h2>
+              <h2 className="text-base font-semibold text-white">{editPayId ? t.edit : t.pm_add}</h2>
               <button onClick={() => setPayModal(false)}
                 className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-all active:scale-95">
                 <X className="w-4 h-4" />
@@ -505,21 +509,21 @@ export default function PaymentMethodPage() {
 
             <div className="space-y-4">
               <div>
-                <label className="block text-xs text-white/50 mb-1.5 font-medium">Name *</label>
+                <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.pm_name} *</label>
                 <input value={payForm.name} onChange={e => setPayForm(f => ({ ...f, name: e.target.value }))}
                   placeholder="e.g. Cash"
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500/50 transition-colors" />
               </div>
 
               <div>
-                <label className="block text-xs text-white/50 mb-2 font-medium">Icon Type</label>
+                <label className="block text-xs text-white/50 mb-2 font-medium">{t.pm_type}</label>
                 <div className="grid grid-cols-5 gap-2">
                   {ICONS.map(ic => (
                     <button key={ic.value} onClick={() => setPayForm(f => ({ ...f, icon_type: ic.value }))}
                       className={cn('flex flex-col items-center gap-1 p-2 rounded-xl transition-all active:scale-95',
                         payForm.icon_type === ic.value ? 'bg-amber-500/20 border border-amber-500/30' : 'bg-white/5 border border-white/10 hover:bg-white/8')}>
                       <span className="text-xl">{ic.emoji}</span>
-                      <span className={cn('text-[10px]', payForm.icon_type === ic.value ? 'text-amber-400' : 'text-white/40')}>{ic.label}</span>
+                      <span className={cn('text-[10px]', payForm.icon_type === ic.value ? 'text-amber-400' : 'text-white/40')}>{ic.emoji}</span>
                     </button>
                   ))}
                 </div>

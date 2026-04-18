@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import dynamic from 'next/dynamic'
 import { useParams } from 'next/navigation'
+import NextImage from 'next/image'
 import {
   Loader2, UtensilsCrossed, MapPin, ShoppingCart, Plus, Minus, X,
   CheckCircle2, ChevronRight, User, Phone, AlertCircle,
@@ -10,6 +11,7 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import { assignOrderNumber } from '@/lib/orderNumber'
+import { useRestaurantMenu } from '@/hooks/useRestaurantMenu'
 
 const LocationPickerMap = dynamic(
   () => import('@/components/delivery/LocationPickerMap'),
@@ -25,7 +27,10 @@ interface Restaurant { id: string; name: string; logo_url: string | null; settin
 interface Category   { id: string; name: string; color: string; icon: string | null; sort_order: number }
 interface EventOffer { id: string; title: string; description: string | null; date_label: string | null; image_url: string | null }
 interface MenuItem   { id: string; name: string; description: string | null; price: number; image_url: string | null; category_id: string | null }
-interface CartEntry  { qty: number }
+interface KitchenNote { id: string; text: string }
+interface GuestSelectedOption { modifier_id: string; modifier_name: string; option_id: string; option_name: string; price: number }
+interface CartEntry  { qty: number; selectedOptions: GuestSelectedOption[]; noteIds: string[]; customNote: string }
+interface ModGroup { id: string; name: string; required: boolean; min_select: number; max_select: number; options: { id: string; name: string; price: number }[] }
 
 type TemplateId = 'classic' | 'dark' | 'warm' | 'bold' | 'elegant' | 'neon'
 
@@ -825,6 +830,7 @@ export default function DeliveryOrderPage() {
   const [categories, setCategories] = useState<Category[]>([])
   const [events, setEvents]         = useState<EventOffer[]>([])
   const [menuItems, setMenuItems]   = useState<MenuItem[]>([])
+  const [kitchenNotes, setKitchenNotes] = useState<KitchenNote[]>([])
   const [loading, setLoading]       = useState(true)
 
   // Template
@@ -842,6 +848,19 @@ export default function DeliveryOrderPage() {
   const [minOrder, setMinOrder]               = useState(0)
   const [estimatedTime, setEstimatedTime]     = useState(30)
 
+  // Story viewer
+  const [storyIdx, setStoryIdx]     = useState<number | null>(null)
+  const [storyKey, setStoryKey]     = useState(0)
+  const storyTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const openStory  = (idx: number) => { setStoryIdx(idx); setStoryKey(k => k + 1) }
+  const closeStory = () => { setStoryIdx(null); if (storyTimer.current) clearTimeout(storyTimer.current) }
+  const goPrev = (e: React.MouseEvent) => { e.stopPropagation(); if (storyIdx !== null && storyIdx > 0) openStory(storyIdx - 1) }
+  const goNext = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (storyIdx !== null && storyIdx < events.length - 1) openStory(storyIdx + 1)
+    else closeStory()
+  }
+
   // Category / items nav
   const [activeId, setActiveId]     = useState<string | null>(null)
   const [showItems, setShowItems]   = useState(false)
@@ -850,6 +869,7 @@ export default function DeliveryOrderPage() {
   const [cart, setCart]             = useState<Map<string, CartEntry>>(new Map())
   const [showCart, setShowCart]     = useState(false)
   const [showModal, setShowModal]   = useState(false)
+  const [itemModalId, setItemModalId] = useState<string | null>(null)
 
   // Order
   const [placing, setPlacing]       = useState(false)
@@ -861,7 +881,10 @@ export default function DeliveryOrderPage() {
     let total = 0
     cart.forEach((entry, id) => {
       const item = menuItems.find(m => m.id === id)
-      if (item) total += item.price * entry.qty
+      if (item) {
+        const modPrice = entry.selectedOptions.reduce((s, o) => s + o.price, 0)
+        total += (item.price + modPrice) * entry.qty
+      }
     })
     return total
   }, [cart, menuItems])
@@ -875,52 +898,57 @@ export default function DeliveryOrderPage() {
     return result
   }, [cart, menuItems])
 
-  const load = useCallback(async () => {
-    const [restRes, catsRes, eventsRes, itemsRes, tplRes] = await Promise.all([
-      supabase.from('restaurants').select('id, name, logo_url, settings').eq('id', restaurantId).maybeSingle(),
-      supabase.from('menu_categories').select('id, name, color, icon, sort_order').eq('restaurant_id', restaurantId).eq('active', true).order('sort_order'),
-      supabase.from('events_offers').select('id, title, description, date_label, image_url').eq('restaurant_id', restaurantId).eq('active', true).order('sort_order'),
-      supabase.from('menu_items').select('id, name, description, price, image_url, category_id').eq('restaurant_id', restaurantId).eq('available', true).order('sort_order'),
-      supabase.from('menu_template_settings').select('*').eq('restaurant_id', restaurantId).maybeSingle(),
-    ])
+  useEffect(() => {
+    if (storyIdx === null) return
+    storyTimer.current = setTimeout(() => {
+      if (storyIdx < events.length - 1) openStory(storyIdx + 1)
+      else closeStory()
+    }, 10000)
+    return () => { if (storyTimer.current) clearTimeout(storyTimer.current) }
+  }, [storyIdx, storyKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
-    if (!restRes.data) { setLoading(false); return }
-    setRestaurant(restRes.data as Restaurant)
-    setCategories((catsRes.data ?? []) as Category[])
-    setEvents((eventsRes.data ?? []) as EventOffer[])
-    setMenuItems((itemsRes.data ?? []) as MenuItem[])
+  // ── SWR: cached menu data (instant on repeat visits) ──────────
+  const { data: menuData, isLoading: menuLoading } = useRestaurantMenu(restaurantId ?? null)
+
+  useEffect(() => {
+    if (menuLoading) return
+    if (!menuData?.restaurant) { setLoading(false); return }
+
+    setRestaurant(menuData.restaurant as unknown as Restaurant)
+    setCategories((menuData.categories) as unknown as Category[])
+    setEvents((menuData.offers) as unknown as EventOffer[])
+    setMenuItems((menuData.items) as unknown as MenuItem[])
+    setKitchenNotes((menuData.notes) as unknown as KitchenNote[])
 
     // Load template
-    if (tplRes.data) {
+    if (menuData.template) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const d = tplRes.data as any
+      const d = menuData.template as any
       const tplId = (d.template ?? 'classic') as TemplateId
       setTpl(TEMPLATE_CONFIGS[tplId] ?? TEMPLATE_CONFIGS.classic)
-      if (d.primary_color)   setPrimaryColor(d.primary_color)
-      if (d.category_style)  setCategoryStyle(d.category_style)
-      if (d.item_style)      setItemStyle(d.item_style)
-      if (d.show_prices      !== undefined) setShowPrices(d.show_prices)
+      if (d.primary_color)    setPrimaryColor(d.primary_color)
+      if (d.category_style)   setCategoryStyle(d.category_style)
+      if (d.item_style)       setItemStyle(d.item_style)
+      if (d.show_prices       !== undefined) setShowPrices(d.show_prices)
       if (d.show_descriptions !== undefined) setShowDescs(d.show_descriptions)
-      if (d.welcome_text)    setWelcomeText(d.welcome_text)
+      if (d.welcome_text)     setWelcomeText(d.welcome_text)
     }
 
     // Load delivery settings from restaurant.settings
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const rs = ((restRes.data as any).settings ?? {}) as Record<string, unknown>
+    const rs = ((menuData.restaurant as any).settings ?? {}) as Record<string, unknown>
     setDeliveryEnabled(rs.delivery_enabled === true)
     setDeliveryFee(Number(rs.default_delivery_fee ?? 0))
     setMinOrder(Number(rs.min_order_amount ?? 0))
     setEstimatedTime(Number(rs.estimated_delivery_time ?? 30))
 
     setLoading(false)
-  }, [restaurantId]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => { load() }, [load])
+  }, [menuData, menuLoading]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const addOne = (id: string) => setCart(prev => {
     const next = new Map(prev)
     const e = next.get(id)
-    next.set(id, e ? { qty: e.qty + 1 } : { qty: 1 })
+    next.set(id, e ? { ...e, qty: e.qty + 1 } : { qty: 1, selectedOptions: [], noteIds: [], customNote: '' })
     return next
   })
 
@@ -929,9 +957,19 @@ export default function DeliveryOrderPage() {
     const e = next.get(id)
     if (!e) return prev
     if (e.qty <= 1) next.delete(id)
-    else next.set(id, { qty: e.qty - 1 })
+    else next.set(id, { ...e, qty: e.qty - 1 })
     return next
   })
+
+  const confirmItem = (id: string, entry: CartEntry) => {
+    setCart(prev => {
+      const next = new Map(prev)
+      if (entry.qty <= 0) next.delete(id)
+      else next.set(id, entry)
+      return next
+    })
+    setItemModalId(null)
+  }
 
   const getQty = (id: string) => cart.get(id)?.qty ?? 0
 
@@ -960,15 +998,23 @@ export default function DeliveryOrderPage() {
     await assignOrderNumber(supabase, restaurant.id, newOrder.id)
 
     // Insert order items
-    const rows = cartItems.map(({ item, entry }) => ({
-      order_id:   newOrder.id,
-      item_name:  item.name,
-      item_price: item.price,
-      qty:        entry.qty,
-      status:     'pending',
-      note:       null,
-      station_id: null,
-    }))
+    const rows = cartItems.map(({ item, entry }) => {
+      const modPrice = entry.selectedOptions.reduce((s, o) => s + o.price, 0)
+      const noteParts = [
+        ...entry.selectedOptions.map(o => o.option_name),
+        ...entry.noteIds.map(nid => kitchenNotes.find(k => k.id === nid)?.text ?? '').filter(Boolean),
+        entry.customNote.trim(),
+      ].filter(Boolean)
+      return {
+        order_id:   newOrder.id,
+        item_name:  item.name,
+        item_price: item.price + modPrice,
+        qty:        entry.qty,
+        status:     'pending',
+        note:       noteParts.length > 0 ? noteParts.join(', ') : null,
+        station_id: null,
+      }
+    })
     const { error: itemsErr } = await supabase.from('order_items').insert(rows)
     if (itemsErr) { setPlaceError(itemsErr.message); setPlacing(false); return }
 
@@ -1031,10 +1077,10 @@ export default function DeliveryOrderPage() {
       <style>{`.scroll-hide::-webkit-scrollbar{display:none}`}</style>
 
       {/* Logo */}
-      <div className="w-32 h-32 rounded-full overflow-hidden shadow-xl"
+      <div className="w-32 h-32 rounded-full overflow-hidden shadow-xl relative"
         style={{ outline: `4px solid ${primaryColor}`, outlineOffset: '4px', background: '#f3f4f6' }}>
         {restaurant.logo_url
-          ? <img src={restaurant.logo_url} alt={restaurant.name} className="w-full h-full object-cover" />
+          ? <NextImage src={restaurant.logo_url} alt={restaurant.name} fill className="object-cover" />
           : <div className="w-full h-full flex items-center justify-center" style={{ background: primaryColor }}>
               <span className="text-white text-5xl font-bold">{restaurant.name.charAt(0).toUpperCase()}</span>
             </div>}
@@ -1226,9 +1272,9 @@ export default function DeliveryOrderPage() {
                     <div key={item.id}
                       className={`flex gap-3 rounded-2xl border shadow-sm overflow-hidden ${tpl.itemCardBg} ${tpl.itemCardBorder}`}
                       style={{ boxShadow: qty > 0 ? `0 0 0 2px ${primaryColor}` : undefined }}>
-                      <div className="w-20 h-20 shrink-0 bg-gray-100 overflow-hidden">
+                      <div className="w-20 h-20 shrink-0 bg-gray-100 overflow-hidden relative">
                         {item.image_url
-                          ? <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+                          ? <NextImage src={item.image_url} alt={item.name} fill className="object-cover" />
                           : <div className="w-full h-full flex items-center justify-center"><UtensilsCrossed className="w-5 h-5 text-gray-200" /></div>}
                       </div>
                       <div className="flex flex-col justify-center flex-1 py-3 pr-3 gap-1.5">
@@ -1297,7 +1343,7 @@ export default function DeliveryOrderPage() {
                       style={{ boxShadow: qty > 0 ? `0 0 0 2px ${primaryColor}` : undefined }}>
                       <div className="relative w-full aspect-square bg-gray-50">
                         {item.image_url
-                          ? <img src={item.image_url} alt={item.name} className="absolute inset-0 w-full h-full object-cover" />
+                          ? <NextImage src={item.image_url} alt={item.name} fill className="object-cover" />
                           : <div className="absolute inset-0 flex items-center justify-center"><UtensilsCrossed className="w-5 h-5 text-gray-200" /></div>}
                         {qty > 0 && (
                           <div className="absolute top-1.5 left-1.5 w-5 h-5 rounded-full flex items-center justify-center shadow"
@@ -1344,12 +1390,13 @@ export default function DeliveryOrderPage() {
               <h2 className={`text-lg font-bold mb-3 px-6 ${tpl.sectionTitle}`}>Event &amp; Offers</h2>
               <div className="scroll-hide flex gap-5 overflow-x-auto px-6 pb-4 pt-2"
                 style={{ scrollbarWidth: 'none' } as React.CSSProperties}>
-                {events.map(ev => (
-                  <div key={ev.id} className="shrink-0 rounded-2xl p-[3px] shadow-lg"
+                {events.map((ev, idx) => (
+                  <div key={ev.id} onClick={() => openStory(idx)}
+                    className="shrink-0 rounded-2xl p-[3px] shadow-lg cursor-pointer active:scale-95 transition-transform"
                     style={{ background: primaryColor, boxShadow: `0 4px 18px ${primaryColor}55` }}>
                     <div className="relative rounded-[14px] overflow-hidden w-40 h-56">
                       {ev.image_url
-                        ? <img src={ev.image_url} alt={ev.title} className="absolute inset-0 w-full h-full object-cover" />
+                        ? <NextImage src={ev.image_url} alt={ev.title} fill className="object-cover" />
                         : <div className="absolute inset-0 bg-gradient-to-br from-amber-400 to-orange-500" />}
                       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
                       <div className="absolute bottom-0 left-0 right-0 p-2">
@@ -1429,28 +1476,51 @@ export default function DeliveryOrderPage() {
             </div>
 
             <div className="flex-1 overflow-y-auto px-5 py-3 space-y-3">
-              {cartItems.map(({ item, entry }) => (
-                <div key={item.id} className="flex items-center gap-3 px-3 py-3 rounded-2xl border border-gray-100 bg-gray-50">
-                  <div className="w-11 h-11 rounded-xl overflow-hidden bg-gray-200 shrink-0">
-                    {item.image_url
-                      ? <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
-                      : <div className="w-full h-full flex items-center justify-center"><UtensilsCrossed className="w-4 h-4 text-gray-300" /></div>}
+              {cartItems.map(({ item, entry }) => {
+                const modPrice = entry.selectedOptions.reduce((s, o) => s + o.price, 0)
+                const lineTotal = (item.price + modPrice) * entry.qty
+                const allNotes = [
+                  ...entry.selectedOptions.map(o => o.option_name),
+                  ...entry.noteIds.map(nid => kitchenNotes.find(k => k.id === nid)?.text ?? '').filter(Boolean),
+                  entry.customNote.trim(),
+                ].filter(Boolean)
+                return (
+                  <div key={item.id} className="rounded-2xl border border-gray-100 bg-gray-50 overflow-hidden">
+                    <div className="flex items-center gap-3 px-3 pt-3">
+                      <div className="w-11 h-11 rounded-xl overflow-hidden bg-gray-200 shrink-0 relative">
+                        {item.image_url
+                          ? <NextImage src={item.image_url} alt={item.name} fill className="object-cover" />
+                          : <div className="w-full h-full flex items-center justify-center"><UtensilsCrossed className="w-4 h-4 text-gray-300" /></div>}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold text-gray-900 line-clamp-1">{item.name}</p>
+                        <p className="text-xs font-bold mt-0.5" style={{ color: primaryColor }}>{formatPrice(lineTotal)}</p>
+                      </div>
+                      <div className="flex items-center gap-1 rounded-xl border border-gray-200 bg-white shrink-0">
+                        <button onClick={() => removeOne(item.id)} className="w-8 h-8 flex items-center justify-center text-gray-500 active:scale-90">
+                          <Minus className="w-3.5 h-3.5" />
+                        </button>
+                        <span className="text-sm font-bold text-gray-800 w-5 text-center tabular-nums">{entry.qty}</span>
+                        <button onClick={() => addOne(item.id)} className="w-8 h-8 flex items-center justify-center text-gray-500 active:scale-90">
+                          <Plus className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 px-3 pb-3 pt-2">
+                      <button
+                        onClick={() => setItemModalId(item.id)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-600 text-xs font-semibold active:scale-95 transition-all shrink-0"
+                      >
+                        <ChevronRight className="w-3 h-3" />
+                        {allNotes.length > 0 ? 'Edit' : 'Add notes & modifiers'}
+                      </button>
+                      {allNotes.length > 0 && (
+                        <p className="text-[11px] text-gray-500 line-clamp-1 flex-1 min-w-0">{allNotes.join(' · ')}</p>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-gray-900 line-clamp-1">{item.name}</p>
-                    <p className="text-xs font-bold mt-0.5" style={{ color: primaryColor }}>{formatPrice(item.price * entry.qty)}</p>
-                  </div>
-                  <div className="flex items-center gap-1 rounded-xl border border-gray-200 bg-white shrink-0">
-                    <button onClick={() => removeOne(item.id)} className="w-8 h-8 flex items-center justify-center text-gray-500 active:scale-90">
-                      <Minus className="w-3.5 h-3.5" />
-                    </button>
-                    <span className="text-sm font-bold text-gray-800 w-5 text-center tabular-nums">{entry.qty}</span>
-                    <button onClick={() => addOne(item.id)} className="w-8 h-8 flex items-center justify-center text-gray-500 active:scale-90">
-                      <Plus className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
 
             {/* Totals */}
@@ -1484,6 +1554,24 @@ export default function DeliveryOrderPage() {
         </div>
       )}
 
+      {/* ── Item customize modal ── */}
+      {itemModalId && (() => {
+        const item = menuItems.find(m => m.id === itemModalId)
+        if (!item) return null
+        const existing = cart.get(itemModalId) ?? { qty: 1, selectedOptions: [], noteIds: [], customNote: '' }
+        return (
+          <DeliveryItemModal
+            item={item}
+            initial={existing}
+            kitchenNotes={kitchenNotes}
+            supabase={supabase}
+            formatPrice={formatPrice}
+            onConfirm={entry => confirmItem(itemModalId, entry)}
+            onClose={() => setItemModalId(null)}
+          />
+        )
+      })()}
+
       {/* ── Delivery Modal ── */}
       {showModal && (
         <DeliveryModal
@@ -1500,6 +1588,282 @@ export default function DeliveryOrderPage() {
           minOrder={minOrder}
         />
       )}
+
+      {/* ── Story Viewer ── */}
+      {storyIdx !== null && events[storyIdx] && (() => {
+        const ev = events[storyIdx]
+        return (
+          <div className="fixed inset-0 z-[200] bg-black flex items-center justify-center"
+            style={{ animation: 'story-fadein 0.25s ease forwards' }}>
+
+            <style>{`
+              @keyframes story-fadein   { from{opacity:0} to{opacity:1} }
+              @keyframes story-progress { from{transform:scaleX(0)} to{transform:scaleX(1)} }
+              @keyframes story-slideup  { from{opacity:0;transform:translateY(40px)} to{opacity:1;transform:translateY(0)} }
+              @keyframes story-badge    { from{opacity:0;transform:translateY(-14px) scale(.88)} to{opacity:1;transform:translateY(0) scale(1)} }
+              @keyframes story-desc     { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
+            `}</style>
+
+            {/* Desktop arrows */}
+            {storyIdx > 0 && (
+              <button onClick={goPrev}
+                className="absolute left-4 top-1/2 -translate-y-1/2 z-30 w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm hidden sm:flex items-center justify-center active:scale-90 transition-transform">
+                <ChevronRight className="w-5 h-5 text-white rotate-180" />
+              </button>
+            )}
+            {storyIdx < events.length - 1 && (
+              <button onClick={goNext}
+                className="absolute right-4 top-1/2 -translate-y-1/2 z-30 w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm hidden sm:flex items-center justify-center active:scale-90 transition-transform">
+                <ChevronRight className="w-5 h-5 text-white" />
+              </button>
+            )}
+
+            {/* 9:16 canvas */}
+            <div className="relative overflow-hidden"
+              style={{ height: '100dvh', width: 'calc(100dvh * 9 / 16)', maxWidth: '100vw', maxHeight: '1920px' }}>
+
+              {/* Background */}
+              <div className="absolute inset-0">
+                {ev.image_url
+                  ? <NextImage src={ev.image_url} alt={ev.title} fill className="object-cover" />
+                  : <div className="w-full h-full bg-gradient-to-br from-amber-400 via-orange-500 to-rose-500" />
+                }
+                <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-transparent via-40% to-black/85" />
+                <div className="absolute inset-0 bg-black/15" />
+              </div>
+
+              {/* Progress bars */}
+              <div className="absolute top-0 left-0 right-0 flex gap-1.5 px-4 pt-4 z-10">
+                {events.map((_, i) => (
+                  <div key={i} className="flex-1 h-[3px] rounded-full bg-white/30 overflow-hidden">
+                    {i === storyIdx && (
+                      <div key={storyKey} className="h-full bg-white rounded-full origin-left"
+                        style={{ animation: 'story-progress 10s linear forwards' }} />
+                    )}
+                    {i < storyIdx && <div className="h-full bg-white rounded-full w-full" />}
+                  </div>
+                ))}
+              </div>
+
+              {/* Header */}
+              <div className="absolute top-10 left-0 right-0 flex items-center justify-between px-5 z-10">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-full border-2 border-white/40 overflow-hidden bg-amber-400 flex items-center justify-center text-black font-black text-sm shrink-0">
+                    {restaurant?.logo_url
+                      ? <NextImage src={restaurant.logo_url} alt="" fill className="object-cover" />
+                      : (restaurant?.name?.[0] ?? 'R')}
+                  </div>
+                  <div>
+                    <p className="text-white text-sm font-bold leading-tight">{restaurant?.name}</p>
+                    <p className="text-white/55 text-[11px]">Event &amp; Offers</p>
+                  </div>
+                </div>
+                <button onClick={closeStory}
+                  className="w-9 h-9 rounded-full bg-white/15 backdrop-blur-sm flex items-center justify-center active:scale-90 transition-transform">
+                  <X className="w-4 h-4 text-white" />
+                </button>
+              </div>
+
+              {/* Bottom content */}
+              <div className="absolute bottom-0 left-0 right-0 px-6 pb-14 z-10 space-y-4">
+                {ev.date_label && (
+                  <div key={`badge-${storyKey}`}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-400 text-black text-sm font-bold shadow-lg shadow-amber-400/30"
+                    style={{ animation: 'story-badge 0.55s cubic-bezier(0.34,1.56,0.64,1) 0.1s both' }}>
+                    {ev.date_label}
+                  </div>
+                )}
+                <h2 key={`title-${storyKey}`} className="text-white font-black leading-[1.1]"
+                  style={{ fontSize: 'clamp(1.75rem, 7vw, 3rem)', textShadow: '0 2px 24px rgba(0,0,0,0.65)', animation: 'story-slideup 0.55s cubic-bezier(0.22,1,0.36,1) 0.22s both' }}>
+                  {ev.title}
+                </h2>
+                {ev.description && (
+                  <p key={`desc-${storyKey}`} className="text-white/90 leading-relaxed"
+                    style={{ fontSize: 'clamp(0.9rem, 2.5vw, 1.15rem)', textShadow: '0 1px 12px rgba(0,0,0,0.7)', animation: 'story-desc 0.6s ease 0.45s both' }}>
+                    {ev.description}
+                  </p>
+                )}
+                <p className="text-white/40 text-xs font-medium">{storyIdx + 1} / {events.length}</p>
+              </div>
+
+              {/* Tap zones */}
+              <div className="absolute inset-0 flex z-20">
+                <div className="w-1/3 h-full cursor-pointer" onClick={goPrev} />
+                <div className="w-2/3 h-full cursor-pointer" onClick={goNext} />
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+    </div>
+  )
+}
+
+// ── Delivery Item Modal ───────────────────────────────────────
+function DeliveryItemModal({ item, initial, kitchenNotes, supabase, formatPrice, onConfirm, onClose }: {
+  item: MenuItem
+  initial: CartEntry
+  kitchenNotes: KitchenNote[]
+  supabase: ReturnType<typeof import('@/lib/supabase/client').createClient>
+  formatPrice: (n: number) => string
+  onConfirm: (entry: CartEntry) => void
+  onClose: () => void
+}) {
+  const [local, setLocal] = useState<CartEntry>({ ...initial, selectedOptions: [...initial.selectedOptions], noteIds: [...initial.noteIds] })
+  const [modGroups, setModGroups] = useState<ModGroup[]>([])
+  const [loadingMods, setLoadingMods] = useState(true)
+
+  useEffect(() => {
+    supabase
+      .from('menu_item_modifiers')
+      .select('menu_modifiers(id,name,required,min_select,max_select,modifier_options(id,name,price,sort_order))')
+      .eq('item_id', item.id)
+      .then(({ data }) => {
+        if (data) {
+          setModGroups((data as any[])
+            .map(r => r.menu_modifiers).filter(Boolean)
+            .map((m: any) => ({
+              id: m.id, name: m.name, required: m.required,
+              min_select: m.min_select, max_select: m.max_select,
+              options: [...(m.modifier_options ?? [])].sort((a: any, b: any) => a.sort_order - b.sort_order),
+            })))
+        }
+        setLoadingMods(false)
+      })
+  }, [item.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const toggleNote = (id: string) =>
+    setLocal(e => ({
+      ...e,
+      noteIds: e.noteIds.includes(id) ? e.noteIds.filter(n => n !== id) : [...e.noteIds, id],
+    }))
+
+  const toggleOption = (group: ModGroup, opt: { id: string; name: string; price: number }) =>
+    setLocal(e => {
+      const already = e.selectedOptions.find(o => o.option_id === opt.id)
+      if (already) return { ...e, selectedOptions: e.selectedOptions.filter(o => o.option_id !== opt.id) }
+      const filtered = group.max_select === 1
+        ? e.selectedOptions.filter(o => o.modifier_id !== group.id)
+        : [...e.selectedOptions]
+      return { ...e, selectedOptions: [...filtered, { modifier_id: group.id, modifier_name: group.name, option_id: opt.id, option_name: opt.name, price: opt.price }] }
+    })
+
+  const modPrice = local.selectedOptions.reduce((s, o) => s + o.price, 0)
+  const lineTotal = (item.price + modPrice) * local.qty
+  const isEditing = initial.qty > 0
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+      <div
+        className="relative bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden flex flex-col max-h-[88vh]"
+        onClick={e => e.stopPropagation()}
+      >
+        {item.image_url ? (
+          <div className="shrink-0 relative h-40 overflow-hidden">
+            <NextImage src={item.image_url} alt={item.name} fill className="object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
+            <button onClick={onClose} className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center text-white active:scale-95">
+              <X className="w-4 h-4" />
+            </button>
+            <div className="absolute bottom-3 left-4 right-14">
+              <p className="text-base font-extrabold text-white leading-tight">{item.name}</p>
+              <p className="text-sm font-bold text-amber-400 mt-0.5">{formatPrice(item.price + modPrice)}</p>
+            </div>
+          </div>
+        ) : (
+          <div className="shrink-0 flex items-center justify-between px-4 py-4 border-b border-gray-100">
+            <div>
+              <p className="text-base font-extrabold text-gray-900">{item.name}</p>
+              <p className="text-sm font-bold text-amber-500 mt-0.5">{formatPrice(item.price + modPrice)}</p>
+            </div>
+            <button onClick={onClose} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 active:scale-95">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
+        <div className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-gray-100">
+          <span className="text-sm font-semibold text-gray-600">Quantity</span>
+          <div className="flex items-center rounded-xl border-2 border-amber-400 overflow-hidden">
+            <button onClick={() => setLocal(e => ({ ...e, qty: Math.max(1, e.qty - 1) }))} className="w-9 h-9 flex items-center justify-center text-amber-600 bg-amber-50 active:bg-amber-100 transition-all">
+              <Minus className="w-3.5 h-3.5" />
+            </button>
+            <span className="w-9 text-center text-sm font-extrabold text-gray-900 tabular-nums">{local.qty}</span>
+            <button onClick={() => setLocal(e => ({ ...e, qty: e.qty + 1 }))} className="w-9 h-9 flex items-center justify-center text-white bg-amber-500 active:bg-amber-600 transition-all">
+              <Plus className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
+          {loadingMods ? (
+            <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 text-amber-400 animate-spin" /></div>
+          ) : modGroups.map(group => (
+            <div key={group.id} className="px-4 py-3">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm font-bold text-gray-900">{group.name}</span>
+                  {group.required && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-100 text-red-500 font-bold">Required</span>}
+                </div>
+                <span className="text-xs text-gray-400">{group.max_select === 1 ? 'Choose 1' : `Up to ${group.max_select}`}</span>
+              </div>
+              <div className="space-y-1.5">
+                {group.options.map(opt => {
+                  const selected = local.selectedOptions.some(o => o.option_id === opt.id)
+                  return (
+                    <button key={opt.id} onClick={() => toggleOption(group, opt)}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border-2 transition-all active:scale-[0.98] ${selected ? 'border-amber-400 bg-amber-50' : 'border-gray-100 bg-gray-50'}`}>
+                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${selected ? 'border-amber-500 bg-amber-500' : 'border-gray-300'}`}>
+                        {selected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                      </div>
+                      <span className={`flex-1 text-sm font-medium text-left ${selected ? 'text-amber-800' : 'text-gray-700'}`}>{opt.name}</span>
+                      {opt.price > 0 && <span className={`text-xs font-bold tabular-nums ${selected ? 'text-amber-600' : 'text-gray-400'}`}>+{formatPrice(opt.price)}</span>}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
+
+          {kitchenNotes.length > 0 && (
+            <div className="px-4 py-3">
+              <p className="text-sm font-bold text-gray-900 mb-2">Kitchen Notes</p>
+              <div className="flex flex-wrap gap-2">
+                {kitchenNotes.map(note => {
+                  const active = local.noteIds.includes(note.id)
+                  return (
+                    <button key={note.id} onClick={() => toggleNote(note.id)}
+                      className={`px-3 py-1.5 rounded-full border-2 text-xs font-semibold transition-all active:scale-95 ${active ? 'border-orange-400 bg-orange-500 text-white' : 'border-gray-200 bg-white text-gray-600'}`}>
+                      {note.text}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          <div className="px-4 py-3">
+            <p className="text-sm font-bold text-gray-900 mb-2">Special Request <span className="text-xs text-gray-400 font-normal ml-1">Optional</span></p>
+            <input
+              value={local.customNote}
+              onChange={e => setLocal(en => ({ ...en, customNote: e.target.value }))}
+              placeholder="e.g. No onions, extra sauce…"
+              className="w-full border-2 border-gray-100 rounded-xl px-3 py-2.5 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-amber-300 bg-gray-50"
+            />
+          </div>
+        </div>
+
+        <div className="shrink-0 px-4 pb-4 pt-3 border-t border-gray-100">
+          <button
+            onClick={() => onConfirm(local)}
+            className="w-full py-3.5 rounded-2xl bg-amber-500 text-white text-sm font-extrabold shadow-lg shadow-amber-400/30 active:scale-[0.98] transition-all flex items-center justify-between px-4"
+          >
+            <span>{isEditing ? 'Update' : 'Add to Order'}</span>
+            <span className="bg-white/25 px-3 py-1 rounded-xl text-sm font-bold">{formatPrice(lineTotal)}</span>
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

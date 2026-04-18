@@ -1,7 +1,8 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { cn } from '@/lib/utils'
-import { Plus, Pencil, Trash2, UtensilsCrossed, X, ToggleLeft, ToggleRight, Loader2, AlertCircle, Sliders, ImageIcon, GripVertical } from 'lucide-react'
+import { Plus, Pencil, Trash2, UtensilsCrossed, X, ToggleLeft, ToggleRight, Loader2, AlertCircle, Sliders, ImageIcon, GripVertical, Package } from 'lucide-react'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { createClient } from '@/lib/supabase/client'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import {
@@ -14,8 +15,11 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
-interface Category { id: string; name: string; color: string }
-interface Modifier  { id: string; name: string; required: boolean }
+interface Category  { id: string; name: string; color: string }
+interface Modifier   { id: string; name: string; required: boolean }
+interface InvItem    { id: string; name: string; sku: string | null; unit_id: string | null }
+interface InvUnit    { id: string; abbreviation: string }
+interface Ingredient { inventory_item_id: string; quantity: number }
 interface Item {
   id: string
   category_id: string | null
@@ -33,6 +37,7 @@ const EMPTY_FORM = { name: '', category_id: '', price: 0, cost: 0, description: 
 
 export default function ItemPage() {
   const supabase = createClient()
+  const { t } = useLanguage()
   const { symbol: cur, decimalPlaces, formatPrice } = useDefaultCurrency()
 
   const [restaurantId, setRestaurantId]   = useState<string | null>(null)
@@ -54,18 +59,26 @@ export default function ItemPage() {
   const [deleteId, setDeleteId]           = useState<string | null>(null)
   const [filterCatId, setFilterCatId]     = useState<string | 'all'>('all')
 
+  // Inventory
+  const [invItems, setInvItems]           = useState<InvItem[]>([])
+  const [invUnits, setInvUnits]           = useState<InvUnit[]>([])
+  const [ingredients, setIngredients]     = useState<Ingredient[]>([])
+  const [addIngId, setAddIngId]           = useState('')
+
   // ── Load ───────────────────────────────────────────────────
   const load = useCallback(async () => {
     setLoading(true); setError(null)
-    const { data: rest } = await supabase.from('restaurants').select('id').limit(1).maybeSingle()
+    const { data: rest } = await supabase.from('restaurants').select('id').eq('id', typeof window !== 'undefined' ? (localStorage.getItem('restaurant_id') ?? '') : '').maybeSingle()
     if (!rest) { setError('Restaurant not found'); setLoading(false); return }
     setRestaurantId(rest.id)
 
-    const [{ data: cats, error: e1 }, { data: its, error: e2 }, { data: mods, error: e3 }, { data: itemMods, error: e4 }] = await Promise.all([
+    const [{ data: cats, error: e1 }, { data: its, error: e2 }, { data: mods, error: e3 }, { data: itemMods, error: e4 }, { data: invs }, { data: units }] = await Promise.all([
       supabase.from('menu_categories').select('id, name, color').eq('restaurant_id', rest.id).order('sort_order'),
       supabase.from('menu_items').select('*').eq('restaurant_id', rest.id).order('sort_order'),
       supabase.from('menu_modifiers').select('id, name, required').eq('restaurant_id', rest.id).order('sort_order'),
       supabase.from('menu_item_modifiers').select('item_id, modifier_id'),
+      supabase.from('inventory_items').select('id, name, sku, unit_id').eq('restaurant_id', rest.id).eq('active', true).order('name'),
+      supabase.from('inventory_units').select('id, abbreviation').eq('restaurant_id', rest.id),
     ])
 
     if (e1 || e2 || e3 || e4) { setError((e1 || e2 || e3 || e4)!.message); setLoading(false); return }
@@ -73,6 +86,8 @@ export default function ItemPage() {
     setCategories((cats ?? []) as Category[])
     setItems((its ?? []) as Item[])
     setModifiers((mods ?? []) as Modifier[])
+    setInvItems((invs ?? []) as InvItem[])
+    setInvUnits((units ?? []) as InvUnit[])
 
     // Build item → modifier_ids map
     const map = new Map<string, string[]>()
@@ -94,15 +109,21 @@ export default function ItemPage() {
     setEditId(null)
     setForm({ ...EMPTY_FORM, category_id: categories[0]?.id ?? '' })
     setSelectedModIds([])
+    setIngredients([])
+    setAddIngId('')
     setSaveError(null)
     setModal(true)
   }
 
-  const openEdit = (item: Item) => {
+  const openEdit = async (item: Item) => {
     setEditId(item.id)
     setForm({ name: item.name, category_id: item.category_id ?? '', price: item.price, cost: item.cost ?? 0, description: item.description ?? '', image_url: item.image_url ?? '', available: item.available, has_modifiers: item.has_modifiers })
     setSelectedModIds(itemModMap.get(item.id) ?? [])
+    setAddIngId('')
     setSaveError(null)
+    // Load existing ingredients
+    const { data: ings } = await supabase.from('menu_item_ingredients').select('inventory_item_id, quantity').eq('menu_item_id', item.id)
+    setIngredients((ings ?? []) as Ingredient[])
     setModal(true)
   }
 
@@ -181,6 +202,14 @@ export default function ItemPage() {
         )
       }
       setItemModMap(m => new Map(m).set(itemId!, selectedModIds))
+
+      // Sync ingredients: delete old, insert new
+      await supabase.from('menu_item_ingredients').delete().eq('menu_item_id', itemId)
+      if (ingredients.length > 0) {
+        await supabase.from('menu_item_ingredients').insert(
+          ingredients.map(ing => ({ restaurant_id: restaurantId, menu_item_id: itemId, inventory_item_id: ing.inventory_item_id, quantity: ing.quantity }))
+        )
+      }
     }
 
     setSaving(false)
@@ -252,13 +281,13 @@ export default function ItemPage() {
             <UtensilsCrossed className="w-5 h-5 text-amber-400" />
           </div>
           <div>
-            <h1 className="text-lg font-semibold text-white">Items</h1>
-            <p className="text-xs text-white/40">Menu items and dishes</p>
+            <h1 className="text-lg font-semibold text-white">{t.item_title}</h1>
+            <p className="text-xs text-white/40">{t.item_subtitle}</p>
           </div>
           <span className="px-2 py-0.5 rounded-full bg-white/8 text-xs text-white/50">{items.length}</span>
         </div>
         <button onClick={openAdd} className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-xl active:scale-95 touch-manipulation transition-all">
-          <Plus className="w-4 h-4" /> Add Item
+          <Plus className="w-4 h-4" /> {t.item_add}
         </button>
       </div>
 
@@ -302,7 +331,7 @@ export default function ItemPage() {
             ))}
             {filtered.length === 0 && (
               <div className="text-center py-16 text-white/25 text-sm">
-                {categories.length === 0 ? 'Add categories first before adding items.' : 'No items yet. Add your first item.'}
+                {t.item_no_data}
               </div>
             )}
           </div>
@@ -314,7 +343,7 @@ export default function ItemPage() {
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="w-full max-w-md bg-[#0d1220]/95 backdrop-blur-2xl border border-white/15 rounded-3xl p-6 shadow-2xl max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-base font-semibold text-white">{editId ? 'Edit Item' : 'Add Item'}</h2>
+              <h2 className="text-base font-semibold text-white">{editId ? t.edit : t.item_add}</h2>
               <button onClick={() => setModal(false)} className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-all active:scale-95">
                 <X className="w-4 h-4" />
               </button>
@@ -323,7 +352,7 @@ export default function ItemPage() {
             <div className="space-y-4">
               {/* Name */}
               <div>
-                <label className="block text-xs text-white/50 mb-1.5 font-medium">Name *</label>
+                <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.item_name} *</label>
                 <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Item name"
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500/50 transition-colors" />
               </div>
@@ -331,7 +360,7 @@ export default function ItemPage() {
               {/* Category + Price + Cost */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs text-white/50 mb-1.5 font-medium">Category</label>
+                  <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.item_category}</label>
                   <select value={form.category_id} onChange={e => setForm(f => ({ ...f, category_id: e.target.value }))}
                     className="w-full bg-[#0d1220] border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500/50 transition-colors">
                     <option value="">No Category</option>
@@ -434,6 +463,72 @@ export default function ItemPage() {
                         </button>
                       )
                     })}
+                  </div>
+                </div>
+              )}
+
+              {/* Inventory Ingredients */}
+              {invItems.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Package className="w-3.5 h-3.5 text-emerald-400" />
+                    <label className="text-xs text-white/50 font-medium">
+                      Inventory Ingredients
+                      {ingredients.length > 0 && <span className="ml-1.5 text-emerald-400">{ingredients.length} linked</span>}
+                    </label>
+                  </div>
+
+                  {/* Current ingredients list */}
+                  {ingredients.length > 0 && (
+                    <div className="space-y-1.5 mb-3">
+                      {ingredients.map(ing => {
+                        const inv = invItems.find(i => i.id === ing.inventory_item_id)
+                        const unit = invUnits.find(u => u.id === inv?.unit_id)
+                        return (
+                          <div key={ing.inventory_item_id} className="flex items-center gap-2 p-2.5 rounded-xl bg-emerald-500/8 border border-emerald-500/20">
+                            <Package className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                            <span className="flex-1 text-xs text-white font-medium truncate">{inv?.name ?? '—'}</span>
+                            <input
+                              type="number" min="0.01" step="0.01"
+                              value={ing.quantity}
+                              onChange={e => setIngredients(gs => gs.map(g => g.inventory_item_id === ing.inventory_item_id ? { ...g, quantity: parseFloat(e.target.value) || 1 } : g))}
+                              className="w-16 bg-white/8 border border-white/10 rounded-lg px-2 py-1 text-xs text-white text-center focus:outline-none focus:border-emerald-500/50"
+                            />
+                            {unit && <span className="text-[10px] text-white/40 w-6 shrink-0">{unit.abbreviation}</span>}
+                            <button
+                              onClick={() => setIngredients(gs => gs.filter(g => g.inventory_item_id !== ing.inventory_item_id))}
+                              className="w-6 h-6 rounded-lg flex items-center justify-center text-white/30 hover:text-rose-400 hover:bg-rose-500/10 transition-all active:scale-95 shrink-0">
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+
+                  {/* Add ingredient */}
+                  <div className="flex gap-2">
+                    <select
+                      value={addIngId}
+                      onChange={e => setAddIngId(e.target.value)}
+                      className="flex-1 bg-[#0d1220] border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500/50 transition-colors"
+                    >
+                      <option value="">Select inventory item…</option>
+                      {invItems.filter(i => !ingredients.find(g => g.inventory_item_id === i.id)).map(i => (
+                        <option key={i.id} value={i.id}>{i.name}{i.sku ? ` (${i.sku})` : ''}</option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={() => {
+                        if (!addIngId) return
+                        setIngredients(gs => [...gs, { inventory_item_id: addIngId, quantity: 1 }])
+                        setAddIngId('')
+                      }}
+                      disabled={!addIngId}
+                      className="px-3 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 disabled:opacity-30 text-white text-xs font-medium transition-all active:scale-95 flex items-center gap-1 shrink-0"
+                    >
+                      <Plus className="w-3.5 h-3.5" /> Add
+                    </button>
                   </div>
                 </div>
               )}

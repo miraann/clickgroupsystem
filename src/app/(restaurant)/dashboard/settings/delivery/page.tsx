@@ -9,6 +9,8 @@ import {
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
+import { useDeliverySettings, type CachedDeliveryZone } from '@/hooks/useDeliverySettings'
 
 // ── Types ──────────────────────────────────────────────────────
 interface DeliveryZone {
@@ -443,15 +445,25 @@ function DeliveryHistoryTab({ restaurantId, formatPrice }: { restaurantId: strin
 export default function DeliveryPage() {
   const supabase = createClient()
   const { formatPrice } = useDefaultCurrency()
+  const { t } = useLanguage()
 
   const [tab, setTab]                   = useState<'history' | 'settings'>('history')
   const [restaurantId, setRestaurantId] = useState<string | null>(null)
-  const [general, setGeneral]           = useState<GeneralSettings>(GENERAL_DEFAULTS)
-  const [zones, setZones]               = useState<DeliveryZone[]>([])
-  const [loading, setLoading]           = useState(true)
-  const [saving, setSaving]             = useState(false)
-  const [saved, setSaved]               = useState(false)
-  const [err, setErr]                   = useState<string | null>(null)
+  const [mounted, setMounted]           = useState(false)
+
+  useEffect(() => {
+    setRestaurantId(localStorage.getItem('restaurant_id'))
+    setMounted(true)
+  }, [])
+
+  const { data: swrData, isLoading: swrLoading, mutate } = useDeliverySettings(restaurantId)
+  const loading = !mounted || swrLoading
+
+  const [general, setGeneral] = useState<GeneralSettings>(GENERAL_DEFAULTS)
+  const [zones, setZones]     = useState<DeliveryZone[]>([])
+  const [saving, setSaving]   = useState(false)
+  const [saved, setSaved]     = useState(false)
+  const [err, setErr]         = useState<string | null>(null)
 
   // Zone modal
   const [zoneModal, setZoneModal]   = useState(false)
@@ -461,37 +473,12 @@ export default function DeliveryPage() {
   const [zoneErr, setZoneErr]       = useState<string | null>(null)
   const [deleteId, setDeleteId]     = useState<string | null>(null)
 
-  const load = useCallback(async () => {
-    const { data: rest } = await supabase
-      .from('restaurants')
-      .select('id, settings')
-      .limit(1)
-      .maybeSingle()
-    if (!rest?.id) { setLoading(false); return }
-    setRestaurantId(rest.id)
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const s = (rest.settings ?? {}) as any
-    setGeneral({
-      delivery_enabled:        s.delivery_enabled        ?? false,
-      show_delivery_button:    s.show_delivery_button    ?? true,
-      default_delivery_fee:    Number(s.default_delivery_fee ?? 0),
-      min_order_amount:        Number(s.min_order_amount  ?? 0),
-      estimated_delivery_time: Number(s.estimated_delivery_time ?? 30),
-      free_delivery_above:     s.free_delivery_above != null ? Number(s.free_delivery_above) : null,
-      delivery_note:           s.delivery_note           ?? '',
-    })
-
-    const { data: zoneData } = await supabase
-      .from('delivery_zones')
-      .select('*')
-      .eq('restaurant_id', rest.id)
-      .order('sort_order')
-    setZones((zoneData ?? []) as DeliveryZone[])
-    setLoading(false)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => { load() }, [load])
+  // Sync local state from SWR cache
+  useEffect(() => {
+    if (!swrData) return
+    setGeneral(swrData.general)
+    setZones(swrData.zones as DeliveryZone[])
+  }, [swrData])
 
   const saveGeneral = async () => {
     if (!restaurantId) return
@@ -514,6 +501,7 @@ export default function DeliveryPage() {
     const { error } = await supabase.from('restaurants').update({ settings: merged }).eq('id', restaurantId)
     setSaving(false)
     if (error) { setErr(error.message); return }
+    mutate(prev => prev ? { ...prev, general } : prev, false)
     setSaved(true)
     setTimeout(() => setSaved(false), 2500)
   }
@@ -556,18 +544,23 @@ export default function DeliveryPage() {
       if (error) { setZoneErr(error.message); setZoneSaving(false); return }
     }
 
-    setZoneSaving(false); setZoneModal(false); load()
+    setZoneSaving(false); setZoneModal(false)
+    mutate()
   }
 
   const deleteZone = async (id: string) => {
     await supabase.from('delivery_zones').delete().eq('id', id)
     setDeleteId(null)
-    setZones(prev => prev.filter(z => z.id !== id))
+    const updated = zones.filter(z => z.id !== id)
+    setZones(updated)
+    mutate(prev => prev ? { ...prev, zones: updated as CachedDeliveryZone[] } : prev, false)
   }
 
   const toggleZoneActive = async (z: DeliveryZone) => {
+    const updated = zones.map(x => x.id === z.id ? { ...x, active: !x.active } : x)
+    setZones(updated)
+    mutate(prev => prev ? { ...prev, zones: updated as CachedDeliveryZone[] } : prev, false)
     await supabase.from('delivery_zones').update({ active: !z.active }).eq('id', z.id)
-    setZones(prev => prev.map(x => x.id === z.id ? { ...x, active: !x.active } : x))
   }
 
   if (loading) return (
@@ -588,7 +581,7 @@ export default function DeliveryPage() {
             <Truck className="w-5 h-5 text-indigo-400" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-white">Delivery</h1>
+            <h1 className="text-lg font-bold text-white">{t.del_title}</h1>
             <p className="text-xs text-white/40">{activeZones} active zone{activeZones !== 1 ? 's' : ''}</p>
           </div>
         </div>
@@ -602,7 +595,7 @@ export default function DeliveryPage() {
             )}
           >
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : saved ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
-            {saved ? 'Saved' : 'Save Settings'}
+            {saved ? t.saved_ : t.save_changes}
           </button>
         )}
       </div>
@@ -616,7 +609,7 @@ export default function DeliveryPage() {
             tab === 'history' ? 'bg-indigo-500/25 text-indigo-300 shadow-sm' : 'text-white/40 hover:text-white/60'
           )}
         >
-          <History className="w-4 h-4" /> Delivery History
+          <History className="w-4 h-4" /> {t.del_orders}
         </button>
         <button
           onClick={() => setTab('settings')}
@@ -654,8 +647,8 @@ export default function DeliveryPage() {
                     : <ToggleLeft  className="w-5 h-5 text-white/30" />}
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-white">Delivery Orders</p>
-                  <p className="text-xs text-white/40">Accept delivery orders from customers</p>
+                  <p className="text-sm font-semibold text-white">{t.del_enabled}</p>
+                  <p className="text-xs text-white/40">{t.del_enabled_desc}</p>
                 </div>
               </div>
               <Toggle
@@ -682,8 +675,8 @@ export default function DeliveryPage() {
                     : <ToggleLeft  className="w-5 h-5 text-white/30" />}
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-white">Delivery Button on Dashboard</p>
-                  <p className="text-xs text-white/40">Show the Delivery button in the bottom action bar</p>
+                  <p className="text-sm font-semibold text-white">{t.del_show_btn}</p>
+                  <p className="text-xs text-white/40">{t.del_show_btn_desc}</p>
                 </div>
               </div>
               <Toggle
@@ -702,30 +695,30 @@ export default function DeliveryPage() {
 
           {/* General Settings */}
           <div className="rounded-2xl border border-white/8 bg-white/3 p-5 space-y-5">
-            <h2 className="text-sm font-bold text-white/70 uppercase tracking-wider">General Settings</h2>
+            <h2 className="text-sm font-bold text-white/70 uppercase tracking-wider">{t.del_general}</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field label="Default Delivery Fee" icon={DollarSign}>
+              <Field label={t.del_fee} icon={DollarSign}>
                 <input type="number" min="0" step="0.01" value={general.default_delivery_fee}
                   onChange={e => setGeneral(g => ({ ...g, default_delivery_fee: parseFloat(e.target.value) || 0 }))}
                   className={inputCls} placeholder="0.00" />
               </Field>
-              <Field label="Minimum Order Amount" icon={ShoppingCart}>
+              <Field label={t.del_min_order} icon={ShoppingCart}>
                 <input type="number" min="0" step="0.01" value={general.min_order_amount}
                   onChange={e => setGeneral(g => ({ ...g, min_order_amount: parseFloat(e.target.value) || 0 }))}
                   className={inputCls} placeholder="0.00" />
               </Field>
-              <Field label="Estimated Delivery Time (min)" icon={Clock}>
+              <Field label={t.del_est_time} icon={Clock}>
                 <input type="number" min="1" value={general.estimated_delivery_time}
                   onChange={e => setGeneral(g => ({ ...g, estimated_delivery_time: parseInt(e.target.value) || 30 }))}
                   className={inputCls} placeholder="30" />
               </Field>
-              <Field label="Free Delivery Above (optional)" icon={Package}>
+              <Field label={t.del_free_above} icon={Package}>
                 <input type="number" min="0" step="0.01" value={general.free_delivery_above ?? ''}
                   onChange={e => { const v = e.target.value; setGeneral(g => ({ ...g, free_delivery_above: v === '' ? null : parseFloat(v) || 0 })) }}
                   className={inputCls} placeholder="Leave empty to disable" />
               </Field>
             </div>
-            <Field label="Delivery Note / Instructions" icon={MapPin}>
+            <Field label={t.del_note} icon={MapPin}>
               <textarea value={general.delivery_note}
                 onChange={e => setGeneral(g => ({ ...g, delivery_note: e.target.value }))}
                 rows={2} className={cn(inputCls, 'resize-none')}
@@ -736,10 +729,10 @@ export default function DeliveryPage() {
           {/* Delivery Zones */}
           <div className="rounded-2xl border border-white/8 bg-white/3 p-5 space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-bold text-white/70 uppercase tracking-wider">Delivery Zones</h2>
+              <h2 className="text-sm font-bold text-white/70 uppercase tracking-wider">{t.del_zones}</h2>
               <button onClick={openAddZone}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-500/15 text-indigo-400 border border-indigo-500/25 text-xs font-semibold hover:bg-indigo-500/25 transition-all">
-                <Plus className="w-3.5 h-3.5" /> Add Zone
+                <Plus className="w-3.5 h-3.5" /> {t.del_add_zone}
               </button>
             </div>
 
@@ -748,7 +741,7 @@ export default function DeliveryPage() {
                 <div className="w-14 h-14 rounded-2xl bg-white/5 flex items-center justify-center">
                   <MapPin className="w-7 h-7 text-white/15" />
                 </div>
-                <p className="text-sm text-white/30">No delivery zones yet</p>
+                <p className="text-sm text-white/30">{t.del_no_zones}</p>
                 <button onClick={openAddZone} className="text-xs text-indigo-400 hover:text-indigo-300 font-semibold transition-colors">
                   + Add your first zone
                 </button>
@@ -798,7 +791,7 @@ export default function DeliveryPage() {
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm px-4" onClick={() => setZoneModal(false)}>
           <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0e1120] shadow-2xl p-5 space-y-4" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-white">{editZone ? 'Edit Zone' : 'Add Delivery Zone'}</h3>
+              <h3 className="text-base font-bold text-white">{editZone ? t.edit : t.del_add_zone}</h3>
               <button onClick={() => setZoneModal(false)} className="w-7 h-7 rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:bg-white/8 transition-all">
                 <X className="w-4 h-4" />
               </button>
@@ -809,26 +802,26 @@ export default function DeliveryPage() {
               </div>
             )}
             <div className="space-y-3">
-              <Field label="Zone Name" icon={MapPin}>
+              <Field label={t.del_zone_name} icon={MapPin}>
                 <input type="text" value={zoneForm.name} onChange={e => setZoneForm(f => ({ ...f, name: e.target.value }))}
                   className={inputCls} placeholder="e.g. City Center, North Side" autoFocus />
               </Field>
-              <Field label="Area / Description (optional)">
+              <Field label={t.del_zone_area}>
                 <input type="text" value={zoneForm.area} onChange={e => setZoneForm(f => ({ ...f, area: e.target.value }))}
                   className={inputCls} placeholder="e.g. Within 5km radius" />
               </Field>
               <div className="grid grid-cols-3 gap-3">
-                <Field label="Delivery Fee" icon={DollarSign}>
+                <Field label={t.del_fee} icon={DollarSign}>
                   <input type="number" min="0" step="0.01" value={zoneForm.delivery_fee}
                     onChange={e => setZoneForm(f => ({ ...f, delivery_fee: parseFloat(e.target.value) || 0 }))}
                     className={inputCls} placeholder="0.00" />
                 </Field>
-                <Field label="Min Order" icon={ShoppingCart}>
+                <Field label={t.del_min_order} icon={ShoppingCart}>
                   <input type="number" min="0" step="0.01" value={zoneForm.min_order}
                     onChange={e => setZoneForm(f => ({ ...f, min_order: parseFloat(e.target.value) || 0 }))}
                     className={inputCls} placeholder="0.00" />
                 </Field>
-                <Field label="Est. Time (min)" icon={Clock}>
+                <Field label={t.del_est_time} icon={Clock}>
                   <input type="number" min="1" value={zoneForm.estimated_time}
                     onChange={e => setZoneForm(f => ({ ...f, estimated_time: parseInt(e.target.value) || 30 }))}
                     className={inputCls} placeholder="30" />
@@ -845,12 +838,12 @@ export default function DeliveryPage() {
             <div className="flex gap-2 pt-1">
               <button onClick={() => setZoneModal(false)}
                 className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white/40 hover:text-white/60 border border-white/8 hover:bg-white/5 transition-all">
-                Cancel
+                {t.cancel}
               </button>
               <button onClick={saveZone} disabled={zoneSaving}
                 className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 hover:bg-indigo-500/30 transition-all flex items-center justify-center gap-2 disabled:opacity-50">
                 {zoneSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                {editZone ? 'Save Changes' : 'Add Zone'}
+                {editZone ? t.save_changes : t.del_add_zone}
               </button>
             </div>
           </div>
@@ -872,10 +865,10 @@ export default function DeliveryPage() {
             </div>
             <div className="flex gap-2">
               <button onClick={() => setDeleteId(null)} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white/40 border border-white/8 hover:bg-white/5 transition-all">
-                Cancel
+                {t.cancel}
               </button>
               <button onClick={() => deleteZone(deleteId)} className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-rose-500/20 text-rose-400 border border-rose-500/30 hover:bg-rose-500/30 transition-all">
-                Delete
+                {t.delete}
               </button>
             </div>
           </div>

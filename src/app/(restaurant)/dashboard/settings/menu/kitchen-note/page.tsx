@@ -3,11 +3,13 @@ import { useState, useEffect, useCallback } from 'react'
 import { cn } from '@/lib/utils'
 import { Plus, Trash2, ChefHat, ToggleLeft, ToggleRight, Loader2, AlertCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 interface KNote { id: string; text: string; active: boolean; sort_order: number }
 
 export default function KitchenNotePage() {
   const supabase = createClient()
+  const { t } = useLanguage()
 
   const [restaurantId, setRestaurantId] = useState<string | null>(null)
   const [notes, setNotes]               = useState<KNote[]>([])
@@ -20,7 +22,7 @@ export default function KitchenNotePage() {
   // ── Load ───────────────────────────────────────────────────
   const load = useCallback(async () => {
     setLoading(true); setError(null)
-    const { data: rest } = await supabase.from('restaurants').select('id').limit(1).maybeSingle()
+    const { data: rest } = await supabase.from('restaurants').select('id').eq('id', typeof window !== 'undefined' ? (localStorage.getItem('restaurant_id') ?? '') : '').maybeSingle()
     if (!rest) { setError('Restaurant not found'); setLoading(false); return }
     setRestaurantId(rest.id)
 
@@ -95,8 +97,8 @@ export default function KitchenNotePage() {
           <ChefHat className="w-5 h-5 text-amber-400" />
         </div>
         <div>
-          <h1 className="text-lg font-semibold text-white">Kitchen Notes</h1>
-          <p className="text-xs text-white/40">Predefined notes sent to kitchen</p>
+          <h1 className="text-lg font-semibold text-white">{t.kn_title}</h1>
+          <p className="text-xs text-white/40">{t.kn_subtitle}</p>
         </div>
         <span className="px-2 py-0.5 rounded-full bg-white/8 text-xs text-white/50">{notes.length}</span>
       </div>
@@ -107,7 +109,7 @@ export default function KitchenNotePage() {
           value={newText}
           onChange={e => setNewText(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && add()}
-          placeholder="Type a kitchen note and press Enter..."
+          placeholder={t.kn_name}
           className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500/50 transition-colors"
         />
         <button
@@ -116,7 +118,7 @@ export default function KitchenNotePage() {
           className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white text-sm font-medium rounded-xl active:scale-95 transition-all flex items-center gap-1.5"
         >
           {adding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-          Add
+          {t.kn_add}
         </button>
       </div>
 
@@ -137,11 +139,11 @@ export default function KitchenNotePage() {
               className={cn('h-8 rounded-lg flex items-center justify-center transition-all active:scale-95 text-xs font-medium shrink-0',
                 deleteId === n.id ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30 px-2' : 'w-8 bg-white/5 hover:bg-rose-500/10 text-white/40 hover:text-rose-400')}
             >
-              {deleteId === n.id ? 'Confirm?' : <Trash2 className="w-3.5 h-3.5" />}
+              {deleteId === n.id ? t.delete : <Trash2 className="w-3.5 h-3.5" />}
             </button>
           </div>
         ))}
-        {notes.length === 0 && <div className="text-center py-12 text-white/25 text-sm">No kitchen notes yet.</div>}
+        {notes.length === 0 && <div className="text-center py-12 text-white/25 text-sm">{t.kn_no_data}</div>}
       </div>
     </div>
   )

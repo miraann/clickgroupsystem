@@ -1,16 +1,17 @@
 'use client'
-import { useState, useEffect, useCallback, Suspense } from 'react'
+import { useState, useEffect, useCallback, useRef, Suspense } from 'react'
 import { useParams, useSearchParams, useRouter } from 'next/navigation'
 import {
   ArrowLeft, Users, Minus, Plus, X, Delete,
   Send, ChefHat, ShoppingBag, CreditCard, Printer,
-  Loader2, AlertCircle, Trash2, Tag, ArrowRightLeft, DollarSign, ChevronRight, Pencil,
+  Loader2, AlertCircle, Trash2, Tag, ArrowRightLeft, DollarSign, ChevronRight, Pencil, Monitor,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import PaymentScreen from '@/components/restaurant/payment-screen'
 import { assignOrderNumber } from '@/lib/orderNumber'
+import { usePermissions } from '@/lib/permissions/PermissionsContext'
 
 // ── Types ─────────────────────────────────────────────────────
 interface DbCategory { id: string; name: string; color: string }
@@ -57,6 +58,8 @@ function OrderPage() {
   const router = useRouter()
   const supabase = createClient()
   const { symbol: cur, formatPrice } = useDefaultCurrency()
+  const { can, isOwner } = usePermissions()
+  const p = (key: string) => isOwner || can(key)
 
   const isTakeout      = searchParams.get('source') === 'takeout'
   const takeoutName    = searchParams.get('name') ?? null
@@ -85,6 +88,27 @@ function OrderPage() {
   const [sending, setSending]               = useState(false)
   const [sendError, setSendError]           = useState<string | null>(null)
   const [showPayment, setShowPayment]       = useState(false)
+  const showPaymentRef  = useRef(false)
+  const restaurantIdRef = useRef<string | null>(null)
+  useEffect(() => { showPaymentRef.current  = showPayment },  [showPayment])
+  useEffect(() => { restaurantIdRef.current = restaurantId }, [restaurantId])
+
+  // Browser back button while payment modal is open → close modal + broadcast idle
+  useEffect(() => {
+    const handler = () => {
+      if (!showPaymentRef.current) return
+      setShowPayment(false)
+      const rid = restaurantIdRef.current
+      if (rid) {
+        supabase.channel(`cfd-sync-${rid}`)
+          .send({ type: 'broadcast', event: 'table_change', payload: { table: 'idle' } })
+          .catch(() => {})
+      }
+    }
+    window.addEventListener('popstate', handler)
+    return () => window.removeEventListener('popstate', handler)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   const [initError, setInitError]           = useState<string | null>(null)
   const [loading, setLoading]               = useState(true)
 
@@ -106,7 +130,7 @@ function OrderPage() {
   const init = useCallback(async () => {
     setLoading(true); setInitError(null)
 
-    const { data: rest } = await supabase.from('restaurants').select('id,name').limit(1).maybeSingle()
+    const { data: rest } = await supabase.from('restaurants').select('id,name').eq('id', typeof window !== 'undefined' ? (localStorage.getItem('restaurant_id') ?? '') : '').maybeSingle()
     if (!rest) { setInitError('Restaurant not found.'); setLoading(false); return }
     setRestaurantId(rest.id)
     setRestaurantName(rest.name ?? '')
@@ -225,14 +249,15 @@ function OrderPage() {
       const modPrice = entry.selectedOptions.reduce((s, o) => s + o.price, 0)
       const allParts = [...modNames, ...noteTexts]
       return {
-        order_id:   oid,
-        item_name:  item.name,
-        item_price: Number(item.price) + modPrice,
-        qty:        entry.qty,
-        status:     'sent',
-        sent_at:    new Date().toISOString(),
-        note:       allParts.length > 0 ? allParts.join(' · ') : null,
-        station_id: item.category_id ? (catStationMap.get(item.category_id) ?? null) : null,
+        order_id:     oid,
+        menu_item_id: menuId,
+        item_name:    item.name,
+        item_price:   Number(item.price) + modPrice,
+        qty:          entry.qty,
+        status:       'sent',
+        sent_at:      new Date().toISOString(),
+        note:         allParts.length > 0 ? allParts.join(' · ') : null,
+        station_id:   item.category_id ? (catStationMap.get(item.category_id) ?? null) : null,
       }
     })
 
@@ -601,8 +626,26 @@ function OrderPage() {
             </p>
           </div>
           <div className="flex gap-2">
+            {restaurantId && p('dashboard.cfd') && (
+              <button
+                onClick={() => window.open(`/cfd/${restaurantId}/${isTakeout ? 'takeout' : table}`, 'CFD', 'width=1024,height=768,menubar=no,toolbar=no,location=no,status=no')}
+                className="flex items-center gap-1.5 px-3 h-12 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 text-sm font-medium active:scale-95 transition-all touch-manipulation"
+                title="Open Customer Facing Display"
+              >
+                <Monitor className="w-4 h-4" />
+                <span className="hidden sm:inline">CFD</span>
+              </button>
+            )}
             {sentTotal > 0 && (
-              <button onClick={() => setShowPayment(true)}
+              <button onClick={() => {
+                window.history.pushState({ payment: true }, '')
+                setShowPayment(true)
+                if (restaurantId) {
+                  supabase.channel(`cfd-sync-${restaurantId}`)
+                    .send({ type: 'broadcast', event: 'table_change', payload: { table: isTakeout ? 'takeout' : table } })
+                    .catch(() => {})
+                }
+              }}
                 className="flex items-center gap-2 px-5 h-12 rounded-xl bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 text-sm font-semibold active:scale-95 transition-all touch-manipulation">
                 <CreditCard className="w-4 h-4" />Pay
               </button>
@@ -670,14 +713,15 @@ function OrderPage() {
               const modPrice  = e.selectedOptions.reduce((s, o) => s + o.price, 0)
               const allParts  = [...modNames, ...noteTexts]
               const row = {
-                order_id:   oid,
-                item_name:  item.name,
-                item_price: Number(item.price) + modPrice,
-                qty:        e.qty,
-                status:     'sent',
-                sent_at:    new Date().toISOString(),
-                note:       allParts.length > 0 ? allParts.join(' · ') : null,
-                station_id: item.category_id ? (catStationMap.get(item.category_id) ?? null) : null,
+                order_id:     oid,
+                menu_item_id: item.id,
+                item_name:    item.name,
+                item_price:   Number(item.price) + modPrice,
+                qty:          e.qty,
+                status:       'sent',
+                sent_at:      new Date().toISOString(),
+                note:         allParts.length > 0 ? allParts.join(' · ') : null,
+                station_id:   item.category_id ? (catStationMap.get(item.category_id) ?? null) : null,
               }
               const { data: inserted, error } = await supabase
                 .from('order_items').insert([row]).select('id,item_name,item_price,qty,status,note')
@@ -782,8 +826,15 @@ function OrderPage() {
           guests={guestCount}
           items={sentItems.map(i => ({ name: i.item_name, price: i.item_price, qty: i.qty }))}
           total={grandTotal}
-          onClose={() => setShowPayment(false)}
-          onPaid={() => { window.location.href = '/dashboard' }}
+          onClose={() => window.history.back()}
+          onPaid={() => {
+            if (restaurantId) {
+              supabase.channel(`cfd-sync-${restaurantId}`)
+                .send({ type: 'broadcast', event: 'table_change', payload: { table: 'idle' } })
+                .catch(() => {})
+            }
+            window.location.href = '/dashboard'
+          }}
         />
       )}
     </div>
@@ -900,6 +951,9 @@ function OrderedItemModal({ item, restaurantId, currentTable, supabase, formatPr
   onTransferred: () => void
   onClose: () => void
 }) {
+  const { can, isOwner } = usePermissions()
+  const ap = (key: string) => isOwner || can(key)
+
   type View = 'menu' | 'void' | 'discount' | 'transfer' | 'price'
   const [view, setView]               = useState<View>('menu')
   const [discountType, setDiscountType] = useState<'pct' | 'fixed'>('pct')
@@ -993,12 +1047,14 @@ function OrderedItemModal({ item, restaurantId, currentTable, supabase, formatPr
           {/* ── Main menu ── */}
           {view === 'menu' && (
             <div className="grid grid-cols-2 gap-3">
-              {([
-                { id: 'void',     icon: <Trash2 className="w-6 h-6" />,         label: 'Void',     sub: 'Remove item',          color: 'border-rose-500/30 bg-rose-500/10 text-rose-400 hover:bg-rose-500/18' },
-                { id: 'discount', icon: <Tag className="w-6 h-6" />,             label: 'Discount', sub: 'Apply item discount',   color: 'border-amber-500/30 bg-amber-500/10 text-amber-400 hover:bg-amber-500/18' },
-                { id: 'transfer', icon: <ArrowRightLeft className="w-6 h-6" />,  label: 'Transfer', sub: 'Move to another table', color: 'border-blue-500/30 bg-blue-500/10 text-blue-400 hover:bg-blue-500/18' },
-                { id: 'price',    icon: <DollarSign className="w-6 h-6" />,      label: 'Price',    sub: 'Change item price',     color: 'border-violet-500/30 bg-violet-500/10 text-violet-400 hover:bg-violet-500/18' },
-              ] as const).map(a => (
+              {(
+                [
+                  { id: 'void'     as View, icon: <Trash2 className="w-6 h-6" />,        label: 'Void',     sub: 'Remove item',          color: 'border-rose-500/30 bg-rose-500/10 text-rose-400 hover:bg-rose-500/18',        perm: 'dashboard.void'          },
+                  { id: 'discount' as View, icon: <Tag className="w-6 h-6" />,            label: 'Discount', sub: 'Apply item discount',   color: 'border-amber-500/30 bg-amber-500/10 text-amber-400 hover:bg-amber-500/18',   perm: 'dashboard.item_discount' },
+                  { id: 'transfer' as View, icon: <ArrowRightLeft className="w-6 h-6" />, label: 'Transfer', sub: 'Move to another table', color: 'border-blue-500/30 bg-blue-500/10 text-blue-400 hover:bg-blue-500/18',       perm: 'dashboard.transfer'      },
+                  { id: 'price'    as View, icon: <DollarSign className="w-6 h-6" />,     label: 'Price',    sub: 'Change item price',     color: 'border-violet-500/30 bg-violet-500/10 text-violet-400 hover:bg-violet-500/18', perm: 'dashboard.price'        },
+                ]
+              ).filter(a => ap(a.perm)).map(a => (
                 <button key={a.id} onClick={() => setView(a.id)}
                   className={cn('flex flex-col items-center justify-center gap-2 py-5 rounded-2xl border transition-all active:scale-95', a.color)}>
                   {a.icon}

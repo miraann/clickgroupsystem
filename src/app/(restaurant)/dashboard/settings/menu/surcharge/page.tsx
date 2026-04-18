@@ -1,18 +1,12 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { Plus, Pencil, Trash2, X, ToggleLeft, ToggleRight, Loader2, AlertCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
+import { useSurcharges, type CachedSurcharge } from '@/hooks/useSurcharges'
 
-interface Surcharge {
-  id: string
-  name: string
-  type: 'percentage' | 'fixed'
-  value: number
-  applied_to: string
-  active: boolean
-  sort_order: number
-}
+type Surcharge = CachedSurcharge
 
 const APPLIED_OPTIONS = ['All', 'Dine In', 'Delivery', 'Takeout']
 const APPLIED_COLORS: Record<string, string> = {
@@ -25,37 +19,29 @@ const EMPTY_FORM = { name: '', type: 'percentage' as 'percentage' | 'fixed', val
 
 export default function SurchargePage() {
   const supabase = createClient()
+  const { t } = useLanguage()
 
   const [restaurantId, setRestaurantId] = useState<string | null>(null)
-  const [surcharges, setSurcharges]     = useState<Surcharge[]>([])
-  const [loading, setLoading]           = useState(true)
-  const [error, setError]               = useState<string | null>(null)
+  const [mounted, setMounted]           = useState(false)
 
-  const [modal, setModal]               = useState(false)
-  const [editId, setEditId]             = useState<string | null>(null)
-  const [form, setForm]                 = useState(EMPTY_FORM)
-  const [saving, setSaving]             = useState(false)
-  const [deleteId, setDeleteId]         = useState<string | null>(null)
+  useEffect(() => {
+    setRestaurantId(localStorage.getItem('restaurant_id'))
+    setMounted(true)
+  }, [])
 
-  // ── Load ───────────────────────────────────────────────────
-  const load = useCallback(async () => {
-    setLoading(true); setError(null)
-    const { data: rest } = await supabase.from('restaurants').select('id').limit(1).maybeSingle()
-    if (!rest) { setError('Restaurant not found'); setLoading(false); return }
-    setRestaurantId(rest.id)
+  const { data: swrData, isLoading: swrLoading, error: swrError, mutate } = useSurcharges(restaurantId)
+  const loading  = !mounted || swrLoading
+  const error    = swrError ? (swrError as Error).message : null
+  const currency = swrData?.currency ?? { symbol: '$', decimal_places: 2 }
 
-    const { data, error: err } = await supabase
-      .from('surcharges')
-      .select('*')
-      .eq('restaurant_id', rest.id)
-      .order('sort_order')
+  const [surcharges, setSurcharges] = useState<Surcharge[]>([])
+  useEffect(() => { if (swrData) setSurcharges(swrData.surcharges) }, [swrData])
 
-    if (err) { setError(err.message); setLoading(false); return }
-    setSurcharges((data ?? []) as Surcharge[])
-    setLoading(false)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => { load() }, [load])
+  const [modal,    setModal]    = useState(false)
+  const [editId,   setEditId]   = useState<string | null>(null)
+  const [form,     setForm]     = useState(EMPTY_FORM)
+  const [saving,   setSaving]   = useState(false)
+  const [deleteId, setDeleteId] = useState<string | null>(null)
 
   // ── Open add/edit ──────────────────────────────────────────
   const openAdd = () => { setEditId(null); setForm(EMPTY_FORM); setModal(true) }
@@ -72,15 +58,23 @@ export default function SurchargePage() {
     const payload = { name: form.name, type: form.type, value: form.value, applied_to: form.applied_to, active: form.active, updated_at: new Date().toISOString() }
 
     if (editId) {
-      const { error } = await supabase.from('surcharges').update(payload).eq('id', editId)
-      if (!error) setSurcharges(ss => ss.map(s => s.id === editId ? { ...s, ...payload } : s))
+      const { error: err } = await supabase.from('surcharges').update(payload).eq('id', editId)
+      if (!err) {
+        const updated = surcharges.map(s => s.id === editId ? { ...s, ...payload } : s)
+        setSurcharges(updated)
+        mutate(prev => prev ? { ...prev, surcharges: updated } : prev, false)
+      }
     } else {
       const nextOrder = surcharges.length > 0 ? Math.max(...surcharges.map(s => s.sort_order)) + 1 : 0
-      const { data, error } = await supabase
+      const { data, error: err } = await supabase
         .from('surcharges')
         .insert({ restaurant_id: restaurantId, ...payload, sort_order: nextOrder })
         .select().single()
-      if (!error && data) setSurcharges(ss => [...ss, data as Surcharge])
+      if (!err && data) {
+        const updated = [...surcharges, data as Surcharge]
+        setSurcharges(updated)
+        mutate(prev => prev ? { ...prev, surcharges: updated } : prev, false)
+      }
     }
     setSaving(false)
     setModal(false)
@@ -89,7 +83,9 @@ export default function SurchargePage() {
   // ── Toggle active ──────────────────────────────────────────
   const toggleActive = async (s: Surcharge) => {
     const newVal = !s.active
-    setSurcharges(ss => ss.map(x => x.id === s.id ? { ...x, active: newVal } : x))
+    const updated = surcharges.map(x => x.id === s.id ? { ...x, active: newVal } : x)
+    setSurcharges(updated)
+    mutate(prev => prev ? { ...prev, surcharges: updated } : prev, false)
     await supabase.from('surcharges').update({ active: newVal, updated_at: new Date().toISOString() }).eq('id', s.id)
   }
 
@@ -98,8 +94,12 @@ export default function SurchargePage() {
     if (deleteId !== id) {
       setDeleteId(id); setTimeout(() => setDeleteId(d => d === id ? null : d), 3000); return
     }
-    const { error } = await supabase.from('surcharges').delete().eq('id', id)
-    if (!error) setSurcharges(ss => ss.filter(s => s.id !== id))
+    const { error: err } = await supabase.from('surcharges').delete().eq('id', id)
+    if (!err) {
+      const updated = surcharges.filter(s => s.id !== id)
+      setSurcharges(updated)
+      mutate(prev => prev ? { ...prev, surcharges: updated } : prev, false)
+    }
     setDeleteId(null)
   }
 
@@ -113,7 +113,7 @@ export default function SurchargePage() {
         <p className="text-sm text-rose-400 font-semibold">Failed to load</p>
         <p className="text-xs text-white/40 mt-1 font-mono">{error}</p>
         <p className="text-xs text-white/30 mt-1">Run <code className="text-amber-400">supabase-menu-schema.sql</code> first.</p>
-        <button onClick={load} className="mt-2 px-3 py-1.5 rounded-lg bg-white/8 text-xs text-white/50 hover:bg-white/12 active:scale-95 transition-all">Retry</button>
+        <button onClick={() => mutate()} className="mt-2 px-3 py-1.5 rounded-lg bg-white/8 text-xs text-white/50 hover:bg-white/12 active:scale-95 transition-all">Retry</button>
       </div>
     </div>
   )
@@ -127,13 +127,13 @@ export default function SurchargePage() {
             <span className="text-rose-400 font-bold text-base">%+</span>
           </div>
           <div>
-            <h1 className="text-lg font-semibold text-white">Surcharges</h1>
-            <p className="text-xs text-white/40">Service charges and fees</p>
+            <h1 className="text-lg font-semibold text-white">{t.sur_title}</h1>
+            <p className="text-xs text-white/40">{t.sur_subtitle}</p>
           </div>
           <span className="px-2 py-0.5 rounded-full bg-white/8 text-xs text-white/50">{surcharges.length}</span>
         </div>
         <button onClick={openAdd} className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-xl active:scale-95 transition-all">
-          <Plus className="w-4 h-4" /> Add Surcharge
+          <Plus className="w-4 h-4" /> {t.sur_add}
         </button>
       </div>
 
@@ -143,7 +143,7 @@ export default function SurchargePage() {
           <div key={s.id} className={cn('flex items-center gap-3 p-4 bg-white/5 border rounded-2xl transition-all', s.active ? 'border-white/10' : 'border-white/5 opacity-60')}>
             <div className="w-10 h-10 rounded-xl bg-rose-500/15 border border-rose-500/20 flex items-center justify-center shrink-0">
               <span className="text-xs font-bold text-rose-400">
-                {s.type === 'percentage' ? `${s.value}%` : `$${Number(s.value).toFixed(0)}`}
+                {s.type === 'percentage' ? `${s.value}%` : `${currency.symbol}${Number(s.value).toFixed(currency.decimal_places)}`}
               </span>
             </div>
             <div className="flex-1 min-w-0">
@@ -154,7 +154,7 @@ export default function SurchargePage() {
                 </span>
               </div>
               <p className="text-xs text-white/40 mt-0.5">
-                {s.type === 'percentage' ? `${s.value}% surcharge` : `$${Number(s.value).toFixed(2)} flat fee`}
+                {s.type === 'percentage' ? `${s.value}% surcharge` : `${currency.symbol}${Number(s.value).toFixed(currency.decimal_places)} flat fee`}
               </p>
             </div>
             <button onClick={() => toggleActive(s)} className="active:scale-95 shrink-0">
@@ -165,11 +165,11 @@ export default function SurchargePage() {
             </button>
             <button onClick={() => handleDelete(s.id)} className={cn('h-8 rounded-lg flex items-center justify-center transition-all active:scale-95 text-xs font-medium shrink-0',
               deleteId === s.id ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30 px-2' : 'w-8 bg-white/5 hover:bg-rose-500/10 text-white/40 hover:text-rose-400')}>
-              {deleteId === s.id ? 'Confirm?' : <Trash2 className="w-3.5 h-3.5" />}
+              {deleteId === s.id ? t.delete : <Trash2 className="w-3.5 h-3.5" />}
             </button>
           </div>
         ))}
-        {surcharges.length === 0 && <div className="text-center py-16 text-white/25 text-sm">No surcharges yet.</div>}
+        {surcharges.length === 0 && <div className="text-center py-16 text-white/25 text-sm">{t.sur_no_data}</div>}
       </div>
 
       {/* Modal */}
@@ -177,7 +177,7 @@ export default function SurchargePage() {
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="w-full max-w-md bg-[#0d1220]/95 backdrop-blur-2xl border border-white/15 rounded-3xl p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-base font-semibold text-white">{editId ? 'Edit Surcharge' : 'Add Surcharge'}</h2>
+              <h2 className="text-base font-semibold text-white">{editId ? `${t.edit} ${t.sur_title}` : `${t.add} ${t.sur_title}`}</h2>
               <button onClick={() => setModal(false)} className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-all active:scale-95">
                 <X className="w-4 h-4" />
               </button>
@@ -185,19 +185,19 @@ export default function SurchargePage() {
 
             <div className="space-y-4">
               <div>
-                <label className="block text-xs text-white/50 mb-1.5 font-medium">Name *</label>
+                <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.sur_name} *</label>
                 <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Service Charge"
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500/50 transition-colors" />
               </div>
 
               <div>
-                <label className="block text-xs text-white/50 mb-2 font-medium">Type</label>
+                <label className="block text-xs text-white/50 mb-2 font-medium">{t.sur_type}</label>
                 <div className="grid grid-cols-2 gap-2">
-                  {(['percentage', 'fixed'] as const).map(t => (
-                    <button key={t} onClick={() => setForm(f => ({ ...f, type: t }))}
+                  {(['percentage', 'fixed'] as const).map(stype => (
+                    <button key={stype} onClick={() => setForm(f => ({ ...f, type: stype }))}
                       className={cn('py-2.5 rounded-xl text-sm font-medium transition-all active:scale-95',
-                        form.type === t ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-white/5 text-white/50 border border-white/10 hover:bg-white/8')}>
-                      {t === 'percentage' ? 'Percentage (%)' : 'Fixed ($)'}
+                        form.type === stype ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-white/5 text-white/50 border border-white/10 hover:bg-white/8')}>
+                      {stype === 'percentage' ? t.disc_pct : `${t.disc_fixed} (${currency.symbol})`}
                     </button>
                   ))}
                 </div>
@@ -205,7 +205,7 @@ export default function SurchargePage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs text-white/50 mb-1.5 font-medium">Value {form.type === 'percentage' ? '(%)' : '($)'}</label>
+                  <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.sur_value} {form.type === 'percentage' ? '(%)' : `(${currency.symbol})`}</label>
                   <input type="number" min="0" value={form.value} onChange={e => setForm(f => ({ ...f, value: parseFloat(e.target.value) || 0 }))}
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500/50 transition-colors" />
                 </div>
@@ -219,7 +219,7 @@ export default function SurchargePage() {
               </div>
 
               <div className="flex items-center justify-between p-3 bg-white/3 rounded-xl">
-                <span className="text-sm text-white/70">Active</span>
+                <span className="text-sm text-white/70">{t.disc_active}</span>
                 <button onClick={() => setForm(f => ({ ...f, active: !f.active }))} className="active:scale-95">
                   {form.active ? <ToggleRight className="w-6 h-6 text-amber-400" /> : <ToggleLeft className="w-6 h-6 text-white/25" />}
                 </button>
@@ -227,11 +227,11 @@ export default function SurchargePage() {
             </div>
 
             <div className="flex gap-3 mt-6">
-              <button onClick={() => setModal(false)} className="flex-1 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 text-sm font-medium transition-all active:scale-95">Cancel</button>
+              <button onClick={() => setModal(false)} className="flex-1 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 text-sm font-medium transition-all active:scale-95">{t.cancel}</button>
               <button onClick={handleSave} disabled={!form.name.trim() || saving}
                 className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium transition-all active:scale-95 flex items-center justify-center gap-2">
                 {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-                {editId ? 'Save Changes' : 'Add Surcharge'}
+                {editId ? t.save_changes : t.sur_add}
               </button>
             </div>
           </div>

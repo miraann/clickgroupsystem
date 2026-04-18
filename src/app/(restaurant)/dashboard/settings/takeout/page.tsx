@@ -5,6 +5,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 interface Toggle { on: boolean; onChange: (v: boolean) => void }
 function Toggle({ on, onChange }: Toggle) {
@@ -38,6 +39,7 @@ const DEFAULTS: TakeoutSettings = {
 
 export default function TakeoutSettingsPage() {
   const supabase = createClient()
+  const { t } = useLanguage()
   const [restaurantId, setRestaurantId] = useState<string | null>(null)
   const [settings, setSettings] = useState<TakeoutSettings>(DEFAULTS)
   const [loading, setLoading]   = useState(true)
@@ -46,7 +48,7 @@ export default function TakeoutSettingsPage() {
   const [saved, setSaved]       = useState(false)
 
   const load = useCallback(async () => {
-    const { data: rest } = await supabase.from('restaurants').select('id, settings').limit(1).maybeSingle()
+    const { data: rest } = await supabase.from('restaurants').select('id, settings').eq('id', typeof window !== 'undefined' ? (localStorage.getItem('restaurant_id') ?? '') : '').maybeSingle()
     if (!rest) { setLoading(false); return }
     setRestaurantId(rest.id)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -106,8 +108,8 @@ export default function TakeoutSettingsPage() {
             <ShoppingBag className="w-5 h-5 text-amber-400" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-white">Takeout</h1>
-            <p className="text-xs text-white/40">Manage takeout / pickup orders</p>
+            <h1 className="text-lg font-bold text-white">{t.to_title}</h1>
+            <p className="text-xs text-white/40">{t.to_subtitle}</p>
           </div>
         </div>
         <button
@@ -121,7 +123,7 @@ export default function TakeoutSettingsPage() {
           )}
         >
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-          {saved ? 'Saved!' : 'Save Settings'}
+          {saved ? t.saved_ : t.save_changes}
         </button>
       </div>
 
@@ -143,8 +145,8 @@ export default function TakeoutSettingsPage() {
                 : <ToggleLeft  className="w-5 h-5 text-white/30" />}
             </div>
             <div>
-              <p className="text-sm font-semibold text-white">Takeout Orders</p>
-              <p className="text-xs text-white/40">Allow staff to create takeout orders</p>
+              <p className="text-sm font-semibold text-white">{t.to_enabled}</p>
+              <p className="text-xs text-white/40">{t.to_enabled_desc}</p>
             </div>
           </div>
           <Toggle on={settings.takeout_enabled} onChange={v => autoSaveToggle('takeout_enabled', v)} />
@@ -161,8 +163,8 @@ export default function TakeoutSettingsPage() {
                 : <ToggleLeft  className="w-5 h-5 text-white/30" />}
             </div>
             <div>
-              <p className="text-sm font-semibold text-white">Takeout Button on Dashboard</p>
-              <p className="text-xs text-white/40">Show the Takeout button in the bottom action bar</p>
+              <p className="text-sm font-semibold text-white">{t.to_button}</p>
+              <p className="text-xs text-white/40">{t.to_button_desc}</p>
             </div>
           </div>
           <Toggle on={settings.show_takeout_button} onChange={v => autoSaveToggle('show_takeout_button', v)} />
@@ -171,12 +173,12 @@ export default function TakeoutSettingsPage() {
 
       {/* General settings */}
       <div className="rounded-2xl border border-white/8 bg-white/3 p-5 space-y-5">
-        <h2 className="text-sm font-bold text-white/70 uppercase tracking-wider">General Settings</h2>
+        <h2 className="text-sm font-bold text-white/70 uppercase tracking-wider">{t.to_general}</h2>
 
         <div className="space-y-1.5">
           <label className="flex items-center gap-1.5 text-[11px] font-semibold text-white/40 uppercase tracking-wider">
             <Clock className="w-3.5 h-3.5" />
-            Estimated Prep Time (min)
+            {t.to_prep_time}
           </label>
           <input
             type="number"
@@ -185,7 +187,7 @@ export default function TakeoutSettingsPage() {
             onChange={e => setSettings(s => ({ ...s, estimated_prep_time: Number(e.target.value) }))}
             className="w-full px-4 py-3 rounded-2xl text-sm text-white bg-white/7 border border-white/10 focus:border-indigo-500/50 outline-none transition-all"
           />
-          <p className="text-[11px] text-white/30">Shown to staff when creating a takeout order</p>
+          <p className="text-[11px] text-white/30">{t.to_prep_hint}</p>
         </div>
       </div>
 
@@ -193,10 +195,8 @@ export default function TakeoutSettingsPage() {
       <div className="rounded-2xl border border-white/6 bg-white/2 p-5 flex items-start gap-3">
         <Package className="w-5 h-5 text-white/25 shrink-0 mt-0.5" />
         <div className="space-y-1">
-          <p className="text-sm font-semibold text-white/50">How Takeout Works</p>
-          <p className="text-xs text-white/30 leading-relaxed">
-            Staff creates a takeout order from the dashboard, adds items, and processes payment. The order is tracked separately from dine-in tables and appears in the Takeout Orders list.
-          </p>
+          <p className="text-sm font-semibold text-white/50">{t.to_how_works}</p>
+          <p className="text-xs text-white/30 leading-relaxed">{t.to_how_works_desc}</p>
         </div>
       </div>
 

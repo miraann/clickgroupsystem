@@ -11,7 +11,31 @@
       "Bash(for d:*)",
       "Bash(do)",
       "Read(//g/clickgroupsystem/**)",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(npx --prefix g:/clickgroupsystem tsc --noEmit)",
+      "Bash(next build:*)",
+      "Bash(python3 -c \"import sys,json; lines=sys.stdin.read\\(\\).strip\\(\\).split\\('\\\\n'\\); [print\\(json.loads\\(l\\).get\\('message',{}\\).get\\('content',''\\)[:500] if isinstance\\(json.loads\\(l\\).get\\('message',{}\\).get\\('content',''\\),str\\) else ''\\) for l in lines[-5:] if l]\")",
+      "Bash(python3 -c ':*)",
+      "Bash(grep -r \"table_number\\\\|tables.*name\\\\b\" g:/clickgroupsystem/supabase-*.sql)",
+      "Bash(grep -r \"menu_template\" g:/clickgroupsystem/supabase-*.sql)",
+      "Bash(grep -ril \"menu_template\" g:/clickgroupsystem/supabase-*.sql g:/clickgroupsystem/src/)",
+      "Bash(grep -r \"dine_in\\\\|dine-in\\\\|dinein\" g:/clickgroupsystem/supabase-*.sql)",
+      "Bash(grep -l \"SettingsPlaceholder\" G:/clickgroupsystem/src/app/\\\\\\(restaurant\\\\\\)/dashboard/settings/**/*.tsx)",
+      "Bash(grep -rL \"useLanguage\" src/app/\\\\\\(restaurant\\\\\\)/dashboard/settings/**/*.tsx)",
+      "Bash(grep -v \"layout\\\\|page.tsx$\")",
+      "Bash(grep -r \"export default\" /g/clickgroupsystem/src/app/cfd/*/page.tsx)",
+      "Bash(grep -l \"export\\\\|^'\" /g/clickgroupsystem/src/app/cfd/*/page.tsx)",
+      "Bash(xargs -I {} bash -c \"echo '=== {} ===' && head -10 {}\")",
+      "Bash(grep -rn \"supabase\\\\|storage\" .env*)",
+      "Bash(sed -i 's|<img src={item\\\\.image_url} alt={item\\\\.name} className=\"w-full h-full object-cover\" />|<NextImage src={item.image_url} alt={item.name} fill className=\"object-cover\" />|g' 'src/app/guest/[tableId]/page.tsx')",
+      "Bash(sed -i 's|<img src={item\\\\.image_url} alt={item\\\\.name} className=\"absolute inset-0 w-full h-full object-cover\" />|<NextImage src={item.image_url} alt={item.name} fill className=\"object-cover\" />|g' 'src/app/guest/[tableId]/page.tsx')",
+      "Bash(sed -i 's|<img src={ev\\\\.image_url} alt={ev\\\\.title} className=\"w-full h-full object-cover\" />|<NextImage src={ev.image_url} alt={ev.title} fill className=\"object-cover\" />|g' 'src/app/guest/[tableId]/page.tsx')",
+      "Bash(sed -i 's|<img src={ev\\\\.image_url} alt={ev\\\\.title} className=\"absolute inset-0 w-full h-full object-cover\" />|<NextImage src={ev.image_url} alt={ev.title} fill className=\"object-cover\" />|g' 'src/app/guest/[tableId]/page.tsx')",
+      "Bash(sed -i 's|<img src={restaurant\\\\.logo_url} alt=\"\" className=\"w-full h-full object-cover\" />|<NextImage src={restaurant.logo_url} alt=\"\" fill className=\"object-cover\" />|g' 'src/app/guest/[tableId]/page.tsx')",
+      "Bash(xargs -I{} grep -n \"useState.*typeof window\" \"{}\")",
+      "Bash(node -e ' *)",
+      "Bash(grep -v \"//.*typeof\")",
+      "Bash(find g:/clickgroupsystem/src/app/\\\\\\(restaurant\\\\\\)/dashboard -maxdepth 1 -name \"layout.tsx\" -exec cat {} \\\\;)"
     ]
   }
 }

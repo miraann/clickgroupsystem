@@ -1,9 +1,10 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'next/navigation'
-import { Loader2, UtensilsCrossed, MapPin } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
+import NextImage from 'next/image'
+import { Loader2, UtensilsCrossed, MapPin, X, ChevronLeft, ChevronRight, Calendar } from 'lucide-react'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
+import { useRestaurantMenu } from '@/hooks/useRestaurantMenu'
 
 // ── Types ─────────────────────────────────────────────────────
 type TemplateId = 'classic' | 'dark' | 'warm' | 'bold' | 'elegant' | 'neon'
@@ -121,7 +122,6 @@ function buildHref(key: string, value: string) {
 
 export default function PublicMenuPage() {
   const { restaurantId } = useParams<{ restaurantId: string }>()
-  const supabase = createClient()
   const { formatPrice } = useDefaultCurrency()
 
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null)
@@ -134,27 +134,46 @@ export default function PublicMenuPage() {
   const [welcomeText, setWelcomeText] = useState<string | null>(null)
   const [loading, setLoading]       = useState(true)
 
+  // ── SWR: cached menu data ──────────────────────────────────────
+  const { data: menuData, isLoading: menuLoading } = useRestaurantMenu(restaurantId ?? null)
+
   const [activeId, setActiveId]     = useState<string | null>(null)
   const [showItems, setShowItems]   = useState(false)
 
-  const load = useCallback(async () => {
-    const [restRes, catsRes, eventsRes, itemsRes, tplRes] = await Promise.all([
-      supabase.from('restaurants').select('id, name, logo_url, settings').eq('id', restaurantId).maybeSingle(),
-      supabase.from('menu_categories').select('id, name, color, icon, sort_order').eq('restaurant_id', restaurantId).eq('active', true).order('sort_order'),
-      supabase.from('events_offers').select('id, title, description, date_label, image_url').eq('restaurant_id', restaurantId).eq('active', true).order('sort_order'),
-      supabase.from('menu_items').select('id, name, description, price, image_url, category_id').eq('restaurant_id', restaurantId).eq('available', true).order('sort_order'),
-      supabase.from('menu_template_settings').select('*').eq('restaurant_id', restaurantId).maybeSingle(),
-    ])
+  // Story viewer
+  const [storyIdx, setStoryIdx]     = useState<number | null>(null)
+  const [storyKey, setStoryKey]     = useState(0) // resets animation
+  const storyTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-    if (!restRes.data) { setLoading(false); return }
-    setRestaurant(restRes.data as Restaurant)
-    setCategories((catsRes.data ?? []) as Category[])
-    setEvents((eventsRes.data ?? []) as EventOffer[])
-    setItems((itemsRes.data ?? []) as MenuItem[])
+  const openStory = (idx: number) => { setStoryIdx(idx); setStoryKey(k => k + 1) }
+  const closeStory = () => { setStoryIdx(null); if (storyTimer.current) clearTimeout(storyTimer.current) }
+  const goPrev = (e: React.MouseEvent) => { e.stopPropagation(); if (storyIdx !== null && storyIdx > 0) openStory(storyIdx - 1) }
+  const goNext = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (storyIdx !== null && storyIdx < events.length - 1) openStory(storyIdx + 1)
+    else closeStory()
+  }
 
-    if (tplRes.data) {
+  useEffect(() => {
+    if (storyIdx === null) return
+    storyTimer.current = setTimeout(() => {
+      if (storyIdx < events.length - 1) openStory(storyIdx + 1)
+      else closeStory()
+    }, 10000)
+    return () => { if (storyTimer.current) clearTimeout(storyTimer.current) }
+  }, [storyIdx, storyKey]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Populate state from SWR cached data
+  useEffect(() => {
+    if (menuLoading) return
+    if (!menuData?.restaurant) { setLoading(false); return }
+    setRestaurant(menuData.restaurant as unknown as Restaurant)
+    setCategories(menuData.categories as unknown as Category[])
+    setEvents(menuData.offers as unknown as EventOffer[])
+    setItems(menuData.items as unknown as MenuItem[])
+    if (menuData.template) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const d = tplRes.data as any
+      const d = menuData.template as any
       const id = (d.template ?? 'classic') as TemplateId
       setTpl(TEMPLATES[id] ?? TEMPLATES.classic)
       setShowPrices(d.show_prices ?? true)
@@ -162,9 +181,7 @@ export default function PublicMenuPage() {
       setWelcomeText(d.welcome_text ?? null)
     }
     setLoading(false)
-  }, [restaurantId]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => { load() }, [load])
+  }, [menuData, menuLoading]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) return (
     <div className={`min-h-screen ${TEMPLATES.classic.pageBg} flex items-center justify-center`}>
@@ -199,10 +216,10 @@ export default function PublicMenuPage() {
       <style>{`.scroll-hide::-webkit-scrollbar{display:none}`}</style>
 
       {/* Logo */}
-      <div className="w-32 h-32 rounded-full overflow-hidden shadow-xl"
+      <div className="w-32 h-32 rounded-full overflow-hidden shadow-xl relative"
         style={{ outline: `4px solid ${tpl.catAccent}`, outlineOffset: '4px', background: '#f3f4f6' }}>
         {restaurant.logo_url
-          ? <img src={restaurant.logo_url} alt={restaurant.name} className="w-full h-full object-cover" />
+          ? <NextImage src={restaurant.logo_url} alt={restaurant.name} fill className="object-cover" />
           : <div className="w-full h-full flex items-center justify-center" style={{ background: tpl.catAccent }}>
               <span className="text-white text-5xl font-bold">{restaurant.name.charAt(0).toUpperCase()}</span>
             </div>
@@ -297,9 +314,9 @@ export default function PublicMenuPage() {
             <div className="space-y-3">
               {activeItems.map(item => (
                 <div key={item.id} className={`flex gap-3 rounded-2xl border shadow-sm overflow-hidden ${tpl.cardBg} ${tpl.cardBorder}`}>
-                  <div className="w-20 h-20 shrink-0 bg-gray-100 overflow-hidden">
+                  <div className="w-20 h-20 shrink-0 bg-gray-100 overflow-hidden relative">
                     {item.image_url
-                      ? <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+                      ? <NextImage src={item.image_url} alt={item.name} fill className="object-cover" />
                       : <div className="w-full h-full flex items-center justify-center"><UtensilsCrossed className="w-5 h-5 text-gray-200" /></div>
                     }
                   </div>
@@ -319,7 +336,7 @@ export default function PublicMenuPage() {
                 <div key={item.id} className={`rounded-2xl border shadow-sm overflow-hidden flex flex-col ${tpl.cardBg} ${tpl.cardBorder}`}>
                   <div className="relative w-full aspect-square" style={{ background: isDark ? 'rgba(255,255,255,0.05)' : '#f9fafb' }}>
                     {item.image_url
-                      ? <img src={item.image_url} alt={item.name} className="absolute inset-0 w-full h-full object-cover" />
+                      ? <NextImage src={item.image_url} alt={item.name} fill className="object-cover" />
                       : <div className="absolute inset-0 flex items-center justify-center"><UtensilsCrossed className="w-5 h-5 text-gray-200" /></div>
                     }
                   </div>
@@ -345,18 +362,23 @@ export default function PublicMenuPage() {
               <h2 className={`text-lg font-bold mb-3 px-6 ${tpl.sectionTitle}`}>Event &amp; Offers</h2>
               <div className="scroll-hide flex gap-3 overflow-x-auto px-6 pb-2"
                 style={{ scrollbarWidth: 'none' } as React.CSSProperties}>
-                {events.map(ev => (
-                  <div key={ev.id} className="relative rounded-2xl overflow-hidden shadow-sm shrink-0 w-40 h-56">
+                {events.map((ev, idx) => (
+                  <button key={ev.id} onClick={() => openStory(idx)}
+                    className="relative rounded-2xl overflow-hidden shadow-lg shrink-0 w-40 h-56 active:scale-95 transition-transform ring-2 ring-amber-400/60 ring-offset-2 ring-offset-transparent">
                     {ev.image_url
-                      ? <img src={ev.image_url} alt={ev.title} className="absolute inset-0 w-full h-full object-cover" />
+                      ? <NextImage src={ev.image_url} alt={ev.title} fill className="object-cover" />
                       : <div className="absolute inset-0 bg-gradient-to-br from-amber-400 to-orange-500" />
                     }
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-                    <div className="absolute bottom-0 left-0 right-0 p-2">
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                    {/* Story ring indicator */}
+                    <div className="absolute top-2 left-2 right-2 h-0.5 bg-white/30 rounded-full">
+                      <div className="h-full bg-white rounded-full w-1/3" />
+                    </div>
+                    <div className="absolute bottom-0 left-0 right-0 p-3">
                       <p className="text-white text-xs font-bold leading-snug line-clamp-2">{ev.title}</p>
                       {ev.date_label && <p className="text-white/70 text-[10px] mt-0.5">{ev.date_label}</p>}
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             </div>
@@ -384,6 +406,137 @@ export default function PublicMenuPage() {
           <p className="mt-6 text-xs text-gray-300">Powered by ClickGroup</p>
         </>
       )}
+
+      {/* ── Story Viewer ── */}
+      {storyIdx !== null && events[storyIdx] && (() => {
+        const ev = events[storyIdx]
+        return (
+          <div className="fixed inset-0 z-[200] bg-black flex items-center justify-center"
+            style={{ animation: 'story-fadein 0.25s ease forwards' }}>
+
+            <style>{`
+              @keyframes story-fadein    { from{opacity:0} to{opacity:1} }
+              @keyframes story-progress  { from{transform:scaleX(0)} to{transform:scaleX(1)} }
+              @keyframes story-slideup   { from{opacity:0;transform:translateY(40px)} to{opacity:1;transform:translateY(0)} }
+              @keyframes story-badge     { from{opacity:0;transform:translateY(-14px) scale(.88)} to{opacity:1;transform:translateY(0) scale(1)} }
+              @keyframes story-desc      { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
+              @keyframes story-count     { from{opacity:0} to{opacity:1} }
+            `}</style>
+
+            {/* Desktop nav arrows — outside canvas so they're always reachable */}
+            {storyIdx > 0 && (
+              <button onClick={goPrev}
+                className="absolute left-4 top-1/2 -translate-y-1/2 z-30 w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm items-center justify-center active:scale-90 transition-transform hidden sm:flex">
+                <ChevronLeft className="w-5 h-5 text-white" />
+              </button>
+            )}
+            {storyIdx < events.length - 1 && (
+              <button onClick={goNext}
+                className="absolute right-4 top-1/2 -translate-y-1/2 z-30 w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm items-center justify-center active:scale-90 transition-transform hidden sm:flex">
+                <ChevronRight className="w-5 h-5 text-white" />
+              </button>
+            )}
+
+            {/* ── 1080 × 1920 canvas (9:16) ── */}
+            <div className="relative overflow-hidden"
+              style={{
+                /* Fill height first, cap at 1920px; width follows 9:16 ratio */
+                height: '100dvh',
+                width: 'calc(100dvh * 9 / 16)',
+                maxWidth: '100vw',
+                maxHeight: '1920px',
+                /* On very wide screens where height hits 1920px, cap width at 1080px */
+              }}>
+
+              {/* Background */}
+              <div className="absolute inset-0">
+                {ev.image_url
+                  ? <NextImage src={ev.image_url} alt={ev.title} fill className="object-cover" />
+                  : <div className="w-full h-full bg-gradient-to-br from-amber-400 via-orange-500 to-rose-500" />
+                }
+                <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-transparent via-40% to-black/85" />
+                <div className="absolute inset-0 bg-black/15" />
+              </div>
+
+              {/* Progress bars */}
+              <div className="absolute top-0 left-0 right-0 flex gap-1.5 px-4 pt-4 z-10">
+                {events.map((_, i) => (
+                  <div key={i} className="flex-1 h-[3px] rounded-full bg-white/30 overflow-hidden">
+                    {i === storyIdx && (
+                      <div key={storyKey} className="h-full bg-white rounded-full origin-left"
+                        style={{ animation: 'story-progress 10s linear forwards' }} />
+                    )}
+                    {i < storyIdx && <div className="h-full bg-white rounded-full w-full" />}
+                  </div>
+                ))}
+              </div>
+
+              {/* Header */}
+              <div className="absolute top-10 left-0 right-0 flex items-center justify-between px-5 z-10">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-full border-2 border-white/40 overflow-hidden bg-amber-400 flex items-center justify-center text-black font-black text-sm shrink-0">
+                    {restaurant?.logo_url
+                      ? <NextImage src={restaurant.logo_url} alt="" fill className="object-cover" />
+                      : (restaurant?.name?.[0] ?? 'R')}
+                  </div>
+                  <div>
+                    <p className="text-white text-sm font-bold leading-tight">{restaurant?.name}</p>
+                    <p className="text-white/55 text-[11px]">Event &amp; Offers</p>
+                  </div>
+                </div>
+                <button onClick={closeStory}
+                  className="w-9 h-9 rounded-full bg-white/15 backdrop-blur-sm flex items-center justify-center active:scale-90 transition-transform">
+                  <X className="w-4 h-4 text-white" />
+                </button>
+              </div>
+
+              {/* Bottom content */}
+              <div className="absolute bottom-0 left-0 right-0 px-6 pb-14 z-10 space-y-4">
+                {ev.date_label && (
+                  <div key={`badge-${storyKey}`}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-400 text-black text-sm font-bold shadow-lg shadow-amber-400/30"
+                    style={{ animation: 'story-badge 0.55s cubic-bezier(0.34,1.56,0.64,1) 0.1s both' }}>
+                    <Calendar className="w-3.5 h-3.5" />
+                    {ev.date_label}
+                  </div>
+                )}
+
+                <h2 key={`title-${storyKey}`} className="text-white font-black leading-[1.1]"
+                  style={{
+                    fontSize: 'clamp(1.75rem, 7vw, 3rem)',
+                    textShadow: '0 2px 24px rgba(0,0,0,0.65)',
+                    animation: 'story-slideup 0.55s cubic-bezier(0.22,1,0.36,1) 0.22s both',
+                  }}>
+                  {ev.title}
+                </h2>
+
+                {ev.description && (
+                  <p key={`desc-${storyKey}`}
+                    className="text-white/90 leading-relaxed"
+                    style={{
+                      fontSize: 'clamp(0.9rem, 2.5vw, 1.15rem)',
+                      textShadow: '0 1px 12px rgba(0,0,0,0.7)',
+                      animation: 'story-desc 0.6s ease 0.45s both',
+                    }}>
+                    {ev.description}
+                  </p>
+                )}
+
+                <p key={`count-${storyKey}`} className="text-white/40 text-xs font-medium"
+                  style={{ animation: 'story-count 0.5s ease 0.65s both' }}>
+                  {storyIdx + 1} / {events.length}
+                </p>
+              </div>
+
+              {/* Tap zones */}
+              <div className="absolute inset-0 flex z-20">
+                <div className="w-1/3 h-full cursor-pointer" onClick={goPrev} />
+                <div className="w-2/3 h-full cursor-pointer" onClick={goNext} />
+              </div>
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }

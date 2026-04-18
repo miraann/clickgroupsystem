@@ -1,10 +1,12 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { Plus, Pencil, Trash2, Layers, X, Loader2, AlertCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { useTableGroups, type CachedTableGroup } from '@/hooks/useTableGroups'
 
-interface TableGroup { id: string; name: string; color: string; sort_order: number }
+type TableGroup = CachedTableGroup
 
 const COLOR_PRESETS = [
   { value: '#f59e0b', label: 'Amber' },
@@ -20,38 +22,24 @@ const COLOR_PRESETS = [
 const EMPTY_FORM = { name: '', color: '#f59e0b' }
 
 export default function TableGroupPage() {
+  const { t } = useLanguage()
   const supabase = createClient()
 
   const [restaurantId, setRestaurantId] = useState<string | null>(null)
-  const [groups, setGroups]             = useState<TableGroup[]>([])
-  const [loading, setLoading]           = useState(true)
-  const [error, setError]               = useState<string | null>(null)
+  useEffect(() => { setRestaurantId(localStorage.getItem('restaurant_id')) }, [])
+
+  const { data: swrGroups, isLoading: loading, error: swrError, mutate } = useTableGroups(restaurantId)
+
+  const [groups, setGroups] = useState<TableGroup[]>([])
+  useEffect(() => { if (swrGroups) setGroups(swrGroups) }, [swrGroups])
+
+  const error = swrError ? (swrError as Error).message : null
 
   const [modalOpen, setModalOpen]       = useState(false)
   const [editId, setEditId]             = useState<string | null>(null)
   const [form, setForm]                 = useState(EMPTY_FORM)
   const [saving, setSaving]             = useState(false)
   const [deleteId, setDeleteId]         = useState<string | null>(null)
-
-  // ── Load ───────────────────────────────────────────────────
-  const load = useCallback(async () => {
-    setLoading(true); setError(null)
-    const { data: rest } = await supabase.from('restaurants').select('id').limit(1).maybeSingle()
-    if (!rest) { setError('Restaurant not found'); setLoading(false); return }
-    setRestaurantId(rest.id)
-
-    const { data, error: err } = await supabase
-      .from('table_groups')
-      .select('*')
-      .eq('restaurant_id', rest.id)
-      .order('sort_order')
-
-    if (err) { setError(err.message); setLoading(false); return }
-    setGroups((data ?? []) as TableGroup[])
-    setLoading(false)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => { load() }, [load])
 
   // ── Open add/edit ──────────────────────────────────────────
   const openAdd = () => {
@@ -77,7 +65,9 @@ export default function TableGroupPage() {
         .update({ name: form.name, color: form.color })
         .eq('id', editId)
       if (!error) {
-        setGroups(gs => gs.map(g => g.id === editId ? { ...g, name: form.name, color: form.color } : g))
+        const updated = groups.map(g => g.id === editId ? { ...g, name: form.name, color: form.color } : g)
+        setGroups(updated)
+        mutate(updated, false)
       }
     } else {
       const nextOrder = groups.length > 0 ? Math.max(...groups.map(g => g.sort_order)) + 1 : 0
@@ -87,7 +77,9 @@ export default function TableGroupPage() {
         .select()
         .single()
       if (!error && data) {
-        setGroups(gs => [...gs, data as TableGroup])
+        const updated = [...groups, data as TableGroup]
+        setGroups(updated)
+        mutate(updated, false)
       }
     }
 
@@ -103,7 +95,11 @@ export default function TableGroupPage() {
       return
     }
     const { error } = await supabase.from('table_groups').delete().eq('id', id)
-    if (!error) setGroups(gs => gs.filter(g => g.id !== id))
+    if (!error) {
+      const updated = groups.filter(g => g.id !== id)
+      setGroups(updated)
+      mutate(updated, false)
+    }
     setDeleteId(null)
   }
 
@@ -120,7 +116,7 @@ export default function TableGroupPage() {
       <div>
         <p className="text-sm text-rose-400 font-semibold">Failed to load</p>
         <p className="text-xs text-white/40 mt-1 font-mono">{error}</p>
-        <button onClick={load} className="mt-2 px-3 py-1.5 rounded-lg bg-white/8 text-xs text-white/50 hover:bg-white/12 active:scale-95 transition-all">Retry</button>
+        <button onClick={() => mutate()} className="mt-2 px-3 py-1.5 rounded-lg bg-white/8 text-xs text-white/50 hover:bg-white/12 active:scale-95 transition-all">Retry</button>
       </div>
     </div>
   )
@@ -134,8 +130,8 @@ export default function TableGroupPage() {
             <Layers className="w-5 h-5 text-amber-400" />
           </div>
           <div>
-            <h1 className="text-lg font-semibold text-white">Table Groups</h1>
-            <p className="text-xs text-white/40">Organize tables into zones</p>
+            <h1 className="text-lg font-semibold text-white">{t.tg_title}</h1>
+            <p className="text-xs text-white/40">{t.tg_subtitle}</p>
           </div>
           <span className="ml-1 px-2 py-0.5 rounded-full bg-white/8 text-xs text-white/50 font-medium">{groups.length}</span>
         </div>
@@ -143,7 +139,7 @@ export default function TableGroupPage() {
           onClick={openAdd}
           className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-xl active:scale-95 touch-manipulation transition-all"
         >
-          <Plus className="w-4 h-4" /> Add Group
+          <Plus className="w-4 h-4" /> {t.tg_add}
         </button>
       </div>
 
@@ -181,7 +177,7 @@ export default function TableGroupPage() {
           </div>
         ))}
         {groups.length === 0 && (
-          <div className="text-center py-16 text-white/25 text-sm">No table groups yet. Add your first group.</div>
+          <div className="text-center py-16 text-white/25 text-sm">{t.tg_no_data}</div>
         )}
       </div>
 
@@ -190,7 +186,7 @@ export default function TableGroupPage() {
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="w-full max-w-md bg-[#0d1220]/95 backdrop-blur-2xl border border-white/15 rounded-3xl p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-base font-semibold text-white">{editId ? 'Edit Group' : 'Add Group'}</h2>
+              <h2 className="text-base font-semibold text-white">{editId ? t.edit : t.tg_add}</h2>
               <button onClick={() => setModalOpen(false)} className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-all active:scale-95">
                 <X className="w-4 h-4" />
               </button>
@@ -198,7 +194,7 @@ export default function TableGroupPage() {
 
             <div className="space-y-4">
               <div>
-                <label className="block text-xs text-white/50 mb-1.5 font-medium">Name *</label>
+                <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.tg_name} *</label>
                 <input
                   type="text"
                   value={form.name}
@@ -209,7 +205,7 @@ export default function TableGroupPage() {
               </div>
 
               <div>
-                <label className="block text-xs text-white/50 mb-2 font-medium">Color</label>
+                <label className="block text-xs text-white/50 mb-2 font-medium">{t.tg_color}</label>
                 <div className="flex gap-2 flex-wrap">
                   {COLOR_PRESETS.map(c => (
                     <button
@@ -229,7 +225,7 @@ export default function TableGroupPage() {
 
             <div className="flex gap-3 mt-6">
               <button onClick={() => setModalOpen(false)} className="flex-1 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 text-sm font-medium transition-all active:scale-95">
-                Cancel
+                {t.cancel}
               </button>
               <button
                 onClick={handleSave}
@@ -237,7 +233,7 @@ export default function TableGroupPage() {
                 className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium transition-all active:scale-95 flex items-center justify-center gap-2"
               >
                 {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-                {editId ? 'Save Changes' : 'Add Group'}
+                {editId ? t.save_changes : t.tg_add}
               </button>
             </div>
           </div>
