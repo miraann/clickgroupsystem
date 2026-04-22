@@ -7,7 +7,7 @@ import {
   Store, UtensilsCrossed, Coffee, Truck, ShoppingBag,
   Wine, CalendarDays, Monitor, SlidersHorizontal, Settings2,
   Receipt, BarChart3, Database, Users, UserCircle,
-  CreditCard, ChefHat, ArrowLeft, ChevronRight,
+  CreditCard, ChefHat, ArrowLeft, ChevronRight, Menu as MenuIcon, X as XIcon,
   DollarSign, Star, Ban, ActivitySquare, Package, MessageCircle,
 } from 'lucide-react'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
@@ -91,6 +91,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
   const { can, isOwner } = usePermissions()
   const [moduleEnabled, setModuleEnabled] = useState<boolean | null>(null)
   const [activeModuleKey, setActiveModuleKey] = useState<string | null>(null)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   useEffect(() => {
     const key = getSettingsModuleKey(pathname)
@@ -122,6 +123,13 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
       {/* Top bar */}
       <header className="sticky top-0 z-30 border-b border-white/8 bg-[#060810]/80 backdrop-blur-2xl">
         <div className={cn('flex items-center gap-3 px-5 py-4', isRTL && 'flex-row-reverse')}>
+          {/* Mobile sidebar toggle */}
+          <button
+            onClick={() => setSidebarOpen(v => !v)}
+            className="sm:hidden w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
+          >
+            {sidebarOpen ? <XIcon className="w-4 h-4" /> : <MenuIcon className="w-4 h-4" />}
+          </button>
           <button
             onClick={() => router.push('/dashboard')}
             className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
@@ -147,10 +155,22 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
 
       <div className="flex flex-1 overflow-hidden">
 
+        {/* Mobile overlay backdrop */}
+        {sidebarOpen && (
+          <div
+            className="sm:hidden fixed inset-0 z-30 bg-black/50 backdrop-blur-sm"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+
         {/* Sidebar */}
         <aside className={cn(
-          'w-60 shrink-0 border-white/8 bg-black/20 backdrop-blur-xl overflow-y-auto',
+          'shrink-0 border-white/8 bg-black/20 backdrop-blur-xl overflow-y-auto transition-all duration-300',
           isRTL ? 'border-l' : 'border-r',
+          // Desktop: always visible at fixed width
+          'hidden sm:block sm:w-60',
+          // Mobile: fixed drawer that slides in
+          sidebarOpen && 'fixed inset-y-0 left-0 z-40 w-64 flex flex-col !block top-[57px]',
         )}>
           <nav className="p-3 space-y-5">
             {NAV_GROUPS.map((group) => {
@@ -175,6 +195,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
                       <Link
                         key={item.href}
                         href={item.href}
+                        onClick={() => setSidebarOpen(false)}
                         className={cn(
                           'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 group',
                           isRTL && 'flex-row-reverse',
@@ -203,7 +224,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
         </aside>
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6">
           {moduleEnabled === false && activeModuleKey
             ? <UpgradeWall moduleName={moduleLabel(activeModuleKey)} />
             : children}
