@@ -85,6 +85,7 @@ function OrderPage() {
 
   const [activeCategory, setActiveCategory] = useState<string>('')
   const [activeTab, setActiveTab]           = useState<'ordering' | 'ordered'>('ordering')
+  const [mobilePanel, setMobilePanel]       = useState<'menu' | 'order'>('menu')
   const [sending, setSending]               = useState(false)
   const [sendError, setSendError]           = useState<string | null>(null)
   const [showPayment, setShowPayment]       = useState(false)
@@ -441,7 +442,10 @@ function OrderPage() {
       <div className="flex flex-1 overflow-hidden">
 
         {/* ── Left: Order panel ── */}
-        <div className="w-80 xl:w-96 shrink-0 flex flex-col border-r border-white/8 bg-white/[0.01]">
+        <div className={cn(
+          'shrink-0 flex-col border-r border-white/8 bg-white/[0.01]',
+          mobilePanel === 'order' ? 'flex w-full sm:w-80 xl:w-96' : 'hidden sm:flex sm:w-80 xl:w-96'
+        )}>
 
           {/* Tabs */}
           <div className="shrink-0 flex border-b border-white/8">
@@ -533,7 +537,7 @@ function OrderPage() {
         </div>
 
         {/* ── Right: Menu panel ── */}
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className={cn('flex-1 flex-col overflow-hidden', mobilePanel === 'menu' ? 'flex' : 'hidden sm:flex')}>
 
           {/* Category scroll */}
           <div className="shrink-0 flex items-center gap-2 px-4 py-3 overflow-x-auto border-b border-white/8" style={{ scrollbarWidth: 'none' }}>
@@ -558,7 +562,7 @@ function OrderPage() {
                 <p className="text-xs text-white/15">Add items in Settings → Menu → Item</p>
               </div>
             ) : (
-              <div className="grid grid-cols-3 gap-3 xl:grid-cols-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
                 {visible.map(item => {
                   const qty = draftQty(item.id)
                   return (
@@ -615,6 +619,21 @@ function OrderPage() {
 
       {/* ── Bottom bar ── */}
       <div className="shrink-0 border-t border-white/8 bg-[#060810]/90 backdrop-blur-2xl px-4 py-3">
+        {/* Mobile panel toggle */}
+        <div className="sm:hidden flex gap-1.5 mb-3">
+          <button
+            onClick={() => setMobilePanel('menu')}
+            className={cn('flex-1 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all active:scale-95 touch-manipulation',
+              mobilePanel === 'menu' ? 'bg-amber-500/20 border border-amber-500/40 text-amber-400' : 'bg-white/5 border border-white/8 text-white/30 hover:text-white/50')}
+          >Menu</button>
+          <button
+            onClick={() => setMobilePanel('order')}
+            className={cn('flex-1 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all active:scale-95 touch-manipulation',
+              mobilePanel === 'order' ? 'bg-amber-500/20 border border-amber-500/40 text-amber-400' : 'bg-white/5 border border-white/8 text-white/30 hover:text-white/50')}
+          >
+            Order{draft.size + sentItems.length > 0 ? ` (${draft.size + sentItems.length})` : ''}
+          </button>
+        </div>
         {sendError && (
           <p className="text-xs text-rose-400 font-mono mb-2 px-1 break-all">Send failed: {sendError}</p>
         )}
