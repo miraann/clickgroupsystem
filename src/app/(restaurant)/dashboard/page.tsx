@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, memo } from 'react'
 import { mutate as swrMutate } from 'swr'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -172,7 +172,7 @@ function QuickMenu({ table, onClose, onQuickPay, router }: {
 }
 
 // ── Enhanced Table Card ────────────────────────────────────────
-function TableCard({ table, onSelect, onLongPress, formatPrice, hasWaiterCall }: {
+const TableCard = memo(function TableCard({ table, onSelect, onLongPress, formatPrice, hasWaiterCall }: {
   table: Table
   onSelect: (t: Table) => void
   onLongPress: (t: Table) => void
@@ -219,12 +219,11 @@ function TableCard({ table, onSelect, onLongPress, formatPrice, hasWaiterCall }:
 
   return (
     <motion.button
-      layout
-      initial={{ opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.9 }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
       whileTap={{ scale: 0.93 }}
-      transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+      transition={{ duration: 0.15 }}
       onPointerDown={startPress}
       onPointerUp={endPress}
       onPointerLeave={endPress}
@@ -313,7 +312,7 @@ function TableCard({ table, onSelect, onLongPress, formatPrice, hasWaiterCall }:
       )}
     </motion.button>
   )
-}
+})
 
 export default function TablesPage() {
   const router = useRouter()
@@ -625,6 +624,20 @@ export default function TablesPage() {
     dirty:     tables.filter(t => t.status === 'dirty').length,
   }
 
+  const handleSelect = useCallback(async (t: Table) => {
+    if (t.status === 'reserved') {
+      const supabase = createClient()
+      const today = new Date().toISOString().slice(0, 10)
+      const { data } = await supabase.from('reservations').select('id,guest_name,guest_phone,party_size,date,time,note,status').eq('table_id', t.id).eq('date', today).in('status', ['pending','confirmed']).order('time').limit(1).maybeSingle()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if (data) { setReservationDetail(data as any); return }
+    }
+    if (t.status === 'available' || t.status === 'reserved') setGuestTable(t)
+    else setSelectedTable(t)
+  }, [setReservationDetail, setGuestTable, setSelectedTable])
+
+  const handleLongPress = useCallback((t: Table) => setQuickMenuTable(t), [setQuickMenuTable])
+
   return (
     <div className="min-h-screen bg-[#060810] flex flex-col">
 
@@ -840,16 +853,7 @@ export default function TablesPage() {
         {/* Tables grid */}
         <div className="flex flex-wrap gap-2">
           {filtered.map(table => (
-            <TableCard key={table.id} table={table} hasWaiterCall={waiterCalls.some(c => c.table_number === table.label)} onSelect={async t => {
-              if (t.status === 'reserved') {
-                const supabase = createClient()
-                const today = new Date().toISOString().slice(0, 10)
-                const { data } = await supabase.from('reservations').select('id,guest_name,guest_phone,party_size,date,time,note,status').eq('table_id', t.id).eq('date', today).in('status', ['pending','confirmed']).order('time').limit(1).maybeSingle()
-                if (data) { setReservationDetail(data as typeof reservationDetail); return }
-              }
-              if (t.status === 'available' || t.status === 'reserved') setGuestTable(t)
-              else setSelectedTable(t)
-            }} onLongPress={t => setQuickMenuTable(t)} cur={cur} formatPrice={formatPrice} />
+            <TableCard key={table.id} table={table} hasWaiterCall={waiterCalls.some(c => c.table_number === table.label)} onSelect={handleSelect} onLongPress={handleLongPress} cur={cur} formatPrice={formatPrice} />
           ))}
         </div>
       </div>
