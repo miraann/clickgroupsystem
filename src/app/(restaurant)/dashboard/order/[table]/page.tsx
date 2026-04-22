@@ -9,7 +9,8 @@ import {
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
-import PaymentScreen from '@/components/restaurant/payment-screen'
+import dynamic from 'next/dynamic'
+const PaymentScreen = dynamic(() => import('@/components/restaurant/payment-screen'), { ssr: false })
 import { assignOrderNumber } from '@/lib/orderNumber'
 import { usePermissions } from '@/lib/permissions/PermissionsContext'
 
@@ -578,7 +579,7 @@ function OrderPage() {
 
                       {/* Background: image or gradient placeholder */}
                       {item.image_url ? (
-                        <img src={item.image_url} alt={item.name}
+                        <img src={item.image_url} alt={item.name} loading="lazy" decoding="async"
                           className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
                       ) : (
                         <div className="absolute inset-0 bg-gradient-to-br from-white/6 via-white/3 to-transparent flex items-center justify-center">
@@ -601,10 +602,10 @@ function OrderPage() {
 
                       {/* Center label */}
                       <div className="absolute inset-0 flex flex-col items-center justify-center p-3 z-10">
-                        <p className={cn('text-3xl font-bold leading-tight line-clamp-2 text-center drop-shadow-lg', qty > 0 ? 'text-white' : 'text-white/90')}>
+                        <p className={cn('text-base sm:text-2xl font-bold leading-tight line-clamp-2 text-center drop-shadow-lg', qty > 0 ? 'text-white' : 'text-white/90')}>
                           {item.name}
                         </p>
-                        <p className={cn('text-3xl font-extrabold tabular-nums mt-1 drop-shadow-lg', qty > 0 ? 'text-amber-400' : 'text-amber-300/80')}>
+                        <p className={cn('text-sm sm:text-2xl font-extrabold tabular-nums mt-1 drop-shadow-lg', qty > 0 ? 'text-amber-400' : 'text-amber-300/80')}>
                           {formatPrice(Number(item.price))}
                         </p>
                       </div>
@@ -1269,7 +1270,7 @@ function ItemModal({ item, entry, kitchenNotes, supabase, formatPrice, sending, 
         {/* Hero image header */}
         {item.image_url ? (
           <div className="shrink-0 relative h-44 overflow-hidden">
-            <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+            <img src={item.image_url} alt={item.name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
             <div className="absolute inset-0 bg-gradient-to-t from-[#0d1220]/90 via-[#0d1220]/30 to-transparent" />
             <button onClick={onClose} className="absolute top-3 right-3 w-8 h-8 rounded-xl bg-black/40 backdrop-blur-sm border border-white/10 flex items-center justify-center text-white/70 hover:text-white transition-all active:scale-95">
               <X className="w-4 h-4" />

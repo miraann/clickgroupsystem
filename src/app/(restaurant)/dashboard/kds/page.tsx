@@ -874,14 +874,14 @@ function KdsPage() {
     <div className="min-h-screen bg-[#0a0a0f] text-white flex flex-col">
 
       {/* ── Header ── */}
-      <header className="flex items-center justify-between px-6 py-4 border-b border-white/8 bg-black/30 backdrop-blur-sm sticky top-0 z-10">
+      <header className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-white/8 bg-black/30 backdrop-blur-sm sticky top-0 z-10">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-amber-500/15 flex items-center justify-center">
             <ChefHat className="w-5 h-5 text-amber-400" />
           </div>
           <div>
             <h1 className="text-base font-bold text-white">Kitchen Display</h1>
-            <p className="text-xs text-white/40">
+            <p className="hidden sm:block text-xs text-white/40">
               {now.toLocaleDateString('en-GB')} · {now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
             </p>
           </div>
@@ -1001,7 +1001,7 @@ function KdsPage() {
       )}
 
       {/* ── Body ── */}
-      <main className="flex-1 p-6">
+      <main className="flex-1 p-3 sm:p-6">
         {loading ? (
           <div className="flex items-center justify-center h-64">
             <RefreshCw className="w-8 h-8 text-amber-400 animate-spin" />
@@ -1040,7 +1040,7 @@ function KdsPage() {
       </main>
 
       {/* ── Legend ── */}
-      <footer className="px-6 py-3 border-t border-white/6 flex flex-wrap items-center gap-4 text-xs text-white/30">
+      <footer className="hidden sm:flex px-6 py-3 border-t border-white/6 flex-wrap items-center gap-4 text-xs text-white/30">
         <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-amber-400" /> New — waiting to cook</div>
         <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" /> Cooking — in progress</div>
         <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-400" /> Ready — done</div>
