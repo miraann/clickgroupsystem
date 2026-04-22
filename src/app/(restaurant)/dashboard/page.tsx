@@ -211,12 +211,11 @@ function TableCard({ table, onSelect, onLongPress, formatPrice, hasWaiterCall }:
     if (!didLongPress.current) onSelect(table)
   }
 
-  const w = isRound
-    ? (table.status === 'occupied' || isBillReq ? 110 : 90)
-    : isRect
-      ? (table.status === 'occupied' || isBillReq ? 190 : 175)
-      : (table.status === 'occupied' || isBillReq ? 110 : 90)
-  const h = table.status === 'occupied' || isBillReq ? 110 : 90
+  const isOccupied = table.status === 'occupied' || isBillReq
+  const w = isRound ? (isOccupied ? 110 : 90) : isRect ? (isOccupied ? 190 : 175) : (isOccupied ? 110 : 90)
+  const h = isOccupied ? 110 : 90
+  const cardW = isRound ? `min(${w}px, 26vw)` : `min(${w}px, 44vw)`
+  const cardH = isRound ? `min(${h}px, 26vw)` : `min(${h}px, 25vw)`
 
   return (
     <motion.button
@@ -230,9 +229,9 @@ function TableCard({ table, onSelect, onLongPress, formatPrice, hasWaiterCall }:
       onPointerUp={endPress}
       onPointerLeave={endPress}
       onClick={handleClick}
-      style={{ width: w, height: h }}
+      style={{ width: cardW, height: cardH }}
       className={cn(
-        'relative border backdrop-blur-xl p-3 text-left shrink-0 touch-manipulation shadow-lg flex flex-col',
+        'relative border backdrop-blur-xl p-2 sm:p-3 text-left shrink-0 touch-manipulation shadow-lg flex flex-col',
         isRound ? 'rounded-full items-center justify-center text-center' : 'rounded-2xl',
         cfg.bg, cfg.border, cfg.glow, cfg.hover,
         isBillReq && 'animate-pulse',
@@ -650,7 +649,7 @@ export default function TablesPage() {
             <p className="text-xl font-bold text-white tabular-nums">
               {time.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: true })}
             </p>
-            <p className="text-xs text-white/25 tabular-nums">
+            <p className="hidden sm:block text-xs text-white/25 tabular-nums">
               {time.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
             </p>
           </div>
@@ -668,12 +667,12 @@ export default function TablesPage() {
               </div>
             )}
             {can('finance.report') && (
-              <Link href="/dashboard/reports" className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 transition-all active:scale-95">
+              <Link href="/dashboard/reports" className="hidden sm:flex w-10 h-10 rounded-xl bg-white/5 border border-white/10 items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 transition-all active:scale-95">
                 <DollarSign className="w-4.5 h-4.5" size={18} />
               </Link>
             )}
             {can('settings.users') && (
-              <Link href="/dashboard/staff" className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 transition-all active:scale-95">
+              <Link href="/dashboard/staff" className="hidden sm:flex w-10 h-10 rounded-xl bg-white/5 border border-white/10 items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 transition-all active:scale-95">
                 <Users className="w-4.5 h-4.5" size={18} />
               </Link>
             )}
@@ -695,21 +694,21 @@ export default function TablesPage() {
               )}
             </button>
             {can('kds') && (
-              <Link href="/dashboard/kds" className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-amber-400 hover:bg-amber-500/10 hover:border-amber-500/30 transition-all active:scale-95" title="Kitchen Display">
+              <Link href="/dashboard/kds" className="hidden sm:flex w-10 h-10 rounded-xl bg-white/5 border border-white/10 items-center justify-center text-white/40 hover:text-amber-400 hover:bg-amber-500/10 hover:border-amber-500/30 transition-all active:scale-95" title="Kitchen Display">
                 <ChefHat size={18} />
               </Link>
             )}
             {can('dashboard.cfd') && cachedRestaurantId && (
               <button
                 onClick={() => window.open(`/cfd/${cachedRestaurantId}`, 'CFD', 'width=1024,height=768,menubar=no,toolbar=no,location=no,status=no')}
-                className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 hover:bg-blue-500/20 hover:border-blue-500/40 transition-all active:scale-95"
+                className="hidden sm:flex w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 items-center justify-center text-blue-400 hover:bg-blue-500/20 hover:border-blue-500/40 transition-all active:scale-95"
                 title="Customer Facing Display"
               >
                 <Monitor size={18} />
               </button>
             )}
             {can('guests') && (
-              <Link href="/dashboard/guests" className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-amber-400 hover:bg-amber-500/10 hover:border-amber-500/30 transition-all active:scale-95" title="Guest Tracking">
+              <Link href="/dashboard/guests" className="hidden sm:flex w-10 h-10 rounded-xl bg-white/5 border border-white/10 items-center justify-center text-white/40 hover:text-amber-400 hover:bg-amber-500/10 hover:border-amber-500/30 transition-all active:scale-95" title="Guest Tracking">
                 <Users size={18} />
               </Link>
             )}
@@ -778,15 +777,15 @@ export default function TablesPage() {
                 filter === s.status ? 'bg-white/5' : 'hover:bg-white/3'
               )}
             >
-              <span className={cn('text-lg font-bold tabular-nums', s.color)}>{s.count}</span>
-              <span className="text-xs text-white/30">{s.label}</span>
+              <span className={cn('text-base sm:text-lg font-bold tabular-nums', s.color)}>{s.count}</span>
+              <span className="text-[10px] sm:text-xs text-white/30 truncate">{s.label}</span>
             </button>
           ))}
         </div>
       </header>
 
       {/* Main content */}
-      <div className="flex-1 p-4">
+      <div className="flex-1 p-3 sm:p-4">
         {/* Group tabs */}
         {groups.length > 0 && (
           <div className="flex gap-2 mb-3 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
@@ -857,7 +856,10 @@ export default function TablesPage() {
 
       {/* Bottom action bar */}
       <div className="sticky bottom-0 z-30 border-t border-white/8 bg-[#060810]/90 backdrop-blur-2xl px-4 py-3">
-        <div className={cn('grid gap-2 max-w-lg mx-auto', `grid-cols-${3 + (showDeliveryButton ? 1 : 0) + (showTakeoutButton ? 1 : 0)}`)}>
+        <div className={cn(
+          'grid gap-2 max-w-2xl mx-auto',
+          (showDeliveryButton && showTakeoutButton) ? 'grid-cols-2 sm:grid-cols-5' : (showDeliveryButton || showTakeoutButton) ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-2 sm:grid-cols-3'
+        )}>
           <button className="flex items-center justify-center gap-1.5 h-12 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-sm font-semibold transition-all shadow-lg shadow-amber-500/25 touch-manipulation">
             <Plus className="w-4 h-4" />
             {tr.new_order}
