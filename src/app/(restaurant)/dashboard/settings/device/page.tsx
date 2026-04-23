@@ -6,9 +6,10 @@ import { useLanguage } from '@/lib/i18n/LanguageContext'
 import {
   Monitor, MonitorCheck, Plus, Pencil, Trash2,
   X, Loader2, ToggleLeft, ToggleRight, Check,
-  ChefHat, Tag, Printer, Wifi, Bluetooth, Cable,
+  ChefHat, Tag, Printer, Wifi, Bluetooth,
   Usb, Receipt, UtensilsCrossed, Tag as LabelIcon,
   Wine, Activity, AlertCircle, CheckCircle2, WifiOff, Ruler,
+  ScanLine, Radio,
 } from 'lucide-react'
 
 // ── Types ──────────────────────────────────────────────────────
@@ -42,6 +43,16 @@ interface PrinterDevice {
   paper_width: number | null
   active: boolean
   sort_order: number
+}
+
+interface DetectedDevice {
+  id: string
+  name: string
+  connection_type: 'usb' | 'bluetooth' | 'network'
+  address: string
+  port?: number
+  manufacturer?: string
+  status: 'online' | 'offline'
 }
 
 // ── Constants ──────────────────────────────────────────────────
@@ -93,6 +104,174 @@ function connInfo(c: ConnectionType) {
   return CONNECTION_OPTIONS.find(o => o.value === c) ?? CONNECTION_OPTIONS[0]
 }
 
+// ── Scan phase label ───────────────────────────────────────────
+const SCAN_PHASES = ['usb', 'bluetooth', 'network', null] as const
+type ScanPhase = typeof SCAN_PHASES[number]
+
+function ScanPhaseBadge({ phase }: { phase: ScanPhase }) {
+  if (!phase) return null
+  const info = {
+    usb:       { icon: <Usb       className="w-3 h-3" />, label: 'Scanning USB…',       color: 'text-blue-400'    },
+    bluetooth: { icon: <Bluetooth className="w-3 h-3" />, label: 'Scanning Bluetooth…', color: 'text-indigo-400'  },
+    network:   { icon: <Wifi      className="w-3 h-3" />, label: 'Scanning Network…',   color: 'text-cyan-400'    },
+  }[phase]
+  return (
+    <span className={cn('flex items-center gap-1.5 text-xs font-medium', info.color)}>
+      {info.icon}{info.label}
+    </span>
+  )
+}
+
+// ── Known thermal-printer USB vendor IDs ───────────────────────
+const PRINTER_VENDOR_IDS = new Set([
+  0x04b8, // Epson
+  0x0519, // Star Micronics
+  0x1504, // Bixolon
+  0x1584, // Citizen
+  0x154f, // SNBC
+  0x0fe6, // ICS/Wonderful
+  0x2730, // Birch
+  0x0dd4, // Custom/Sewoo
+  0x067b, // Prolific USB-serial
+  0x1a86, // WCH CH340/CH341
+  0x0483, // STMicroelectronics (some POS hardware)
+])
+
+async function sendUsbTestPage(
+  printerName: string,
+  paperWidth: number,
+  existingDevices: any[]
+): Promise<string> {
+  // Prefer already-authorized printer devices; fall back to any, then picker
+  let dev =
+    existingDevices.find((d: any) => PRINTER_VENDOR_IDS.has(d.vendorId)) ??
+    existingDevices[0] ??
+    null
+
+  if (!dev) {
+    // First time: let user pick the USB device to authorize it
+    dev = await (navigator as any).usb.requestDevice({ filters: [] })
+  }
+
+  await dev.open()
+  try {
+    if (dev.configuration === null) await dev.selectConfiguration(1)
+
+    // Find bulk-OUT endpoint (scan all interfaces)
+    let ifaceNum = 0, epNum = 1
+    outer: for (const iface of dev.configuration.interfaces) {
+      for (const alt of iface.alternates) {
+        const ep = alt.endpoints.find((e: any) => e.direction === 'out' && e.type === 'bulk')
+        if (ep) { ifaceNum = iface.interfaceNumber; epNum = ep.endpointNumber; break outer }
+      }
+    }
+
+    await dev.claimInterface(ifaceNum)
+    try {
+      const ESC = 0x1B, GS = 0x1D
+      const cols = paperWidth >= 80 ? 42 : paperWidth >= 58 ? 32 : 24
+      const line = '-'.repeat(cols)
+      const enc  = new TextEncoder()
+
+      const bytes = new Uint8Array([
+        ESC, 0x40,            // initialize
+        ESC, 0x61, 0x01,      // center
+        ESC, 0x45, 0x01,      // bold on
+        ...enc.encode('TEST PRINT\n'),
+        ESC, 0x45, 0x00,      // bold off
+        ...enc.encode('ClickGroup POS\n'),
+        ...enc.encode(line + '\n'),
+        ESC, 0x61, 0x00,      // left align
+        ...enc.encode(`Printer : ${printerName}\n`),
+        ...enc.encode(`Paper   : ${paperWidth} mm\n`),
+        ...enc.encode(`Status  : OK\n`),
+        ESC, 0x61, 0x01,      // center
+        ...enc.encode(line + '\n'),
+        ...enc.encode('** PRINTER READY **\n'),
+        0x0A, 0x0A, 0x0A,     // line feeds before cut
+        GS, 0x56, 0x42, 0x10, // partial cut
+      ])
+
+      await dev.transferOut(epNum, bytes)
+      return `Test page sent to ${dev.productName ?? 'USB printer'}`
+    } finally {
+      await dev.releaseInterface(ifaceNum)
+    }
+  } finally {
+    await dev.close()
+  }
+}
+
+// Common BLE thermal printer service UUIDs (tried in order)
+const BT_PRINTER_SERVICES = [
+  '000018f0-0000-1000-8000-00805f9b34fb', // Generic Printer (Epson, Star, etc.)
+  '0000ffe0-0000-1000-8000-00805f9b34fb', // BLE serial (many cheap thermal printers)
+  'e7810a71-73ae-499d-8c15-faa9aef0c3f2', // ESC/POS BLE (some brands)
+  '49535343-fe7d-4ae5-8fa9-9fafd205e455', // Nordic UART compatible
+]
+
+async function sendBtTestPage(printerName: string, paperWidth: number): Promise<string> {
+  const bt = (navigator as any).bluetooth
+
+  const ESC = 0x1B, GS = 0x1D
+  const cols = paperWidth >= 80 ? 42 : paperWidth >= 58 ? 32 : 24
+  const divider = '-'.repeat(cols)
+  const enc = new TextEncoder()
+
+  const bytes = new Uint8Array([
+    ESC, 0x40,
+    ESC, 0x61, 0x01,
+    ESC, 0x45, 0x01, ...enc.encode('TEST PRINT\n'), ESC, 0x45, 0x00,
+    ...enc.encode('ClickGroup POS\n'),
+    ...enc.encode(divider + '\n'),
+    ESC, 0x61, 0x00,
+    ...enc.encode(`Printer : ${printerName}\n`),
+    ...enc.encode(`Paper   : ${paperWidth} mm\n`),
+    ...enc.encode(`Type    : Bluetooth\n`),
+    ...enc.encode(`Status  : OK\n`),
+    ESC, 0x61, 0x01,
+    ...enc.encode(divider + '\n'),
+    ...enc.encode('** PRINTER READY **\n'),
+    0x0A, 0x0A, 0x0A,
+    GS, 0x56, 0x42, 0x10,
+  ])
+
+  // Try already-authorized devices first (no picker dialog)
+  let dev: any = null
+  try { const devs = await bt.getDevices(); dev = devs[0] ?? null } catch {}
+
+  if (!dev) {
+    // First time — show picker and authorize with all common printer services
+    dev = await bt.requestDevice({ acceptAllDevices: true, optionalServices: BT_PRINTER_SERVICES })
+  }
+
+  const server = await dev.gatt.connect()
+  try {
+    for (const serviceUuid of BT_PRINTER_SERVICES) {
+      try {
+        const service = await server.getPrimaryService(serviceUuid)
+        const chars   = await service.getCharacteristics()
+        const writable = chars.find((c: any) => c.properties.write || c.properties.writeWithoutResponse)
+        if (!writable) continue
+
+        // Write in 512-byte BLE-safe chunks
+        for (let i = 0; i < bytes.length; i += 512) {
+          const chunk = bytes.slice(i, Math.min(i + 512, bytes.length))
+          if (writable.properties.writeWithoutResponse) {
+            await writable.writeValueWithoutResponse(chunk)
+          } else {
+            await writable.writeValue(chunk)
+          }
+        }
+        return `Test page sent to ${dev.name ?? 'Bluetooth printer'}`
+      } catch { /* try next service UUID */ }
+    }
+    throw new Error('No writable printer characteristic found — pair the printer first via the BT button, then test again')
+  } finally {
+    server.disconnect()
+  }
+}
+
 // ── Main Page ──────────────────────────────────────────────────
 export default function DevicePage() {
   const supabase = createClient()
@@ -124,6 +303,18 @@ export default function DevicePage() {
 
   // Test connection state: id → { status, message }
   const [testResults, setTestResults] = useState<Record<string, { status: 'testing' | 'ok' | 'fail'; message?: string }>>({})
+
+  // Auto-detect state
+  const [scanning, setScanning]           = useState(false)
+  const [scanPhase, setScanPhase]         = useState<ScanPhase>(null)
+  const [scanProgress, setScanProgress]   = useState(0)
+  const [detectedDevices, setDetectedDevices] = useState<DetectedDevice[]>([])
+  const [showDetected, setShowDetected]   = useState(false)
+  const [detectedTest, setDetectedTest]   = useState<Record<string, 'testing' | 'ok' | 'fail'>>({})
+
+  // System USB paths (for modal dropdown + scan auto-match)
+  const [sysPaths, setSysPaths]           = useState<{ path: string; label: string; matchName: string }[]>([])
+  const [sysPathsLoading, setSysPathsLoading] = useState(false)
 
   // ── Load KDS ──────────────────────────────────────────────
   const loadKds = useCallback(async (restId: string) => {
@@ -167,6 +358,223 @@ export default function DevicePage() {
     }
     init()
   }, [loadKds, loadPrinters]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── USB live connect/disconnect events ────────────────────
+  useEffect(() => {
+    if (typeof navigator === 'undefined' || !('usb' in navigator)) return
+    const nav = navigator as any
+    const onConnect = (e: any) => {
+      const d = e.device
+      const id = `usb-${d.vendorId}-${d.productId}`
+      setDetectedDevices(prev => {
+        if (prev.some(x => x.id === id)) return prev.map(x => x.id === id ? { ...x, status: 'online' as const } : x)
+        return [...prev, {
+          id,
+          name: d.productName || `USB Device (${d.vendorId}:${d.productId})`,
+          connection_type: 'usb' as const,
+          address: '',
+          manufacturer: d.manufacturerName,
+          status: 'online' as const,
+        }]
+      })
+      setShowDetected(true)
+    }
+    const onDisconnect = (e: any) => {
+      const id = `usb-${e.device.vendorId}-${e.device.productId}`
+      setDetectedDevices(prev => prev.map(x => x.id === id ? { ...x, status: 'offline' as const } : x))
+    }
+    nav.usb.addEventListener('connect', onConnect)
+    nav.usb.addEventListener('disconnect', onDisconnect)
+    return () => {
+      nav.usb.removeEventListener('connect', onConnect)
+      nav.usb.removeEventListener('disconnect', onDisconnect)
+    }
+  }, [])
+
+  // ══════════════════════════════════════════════════════════
+  // Auto-detect handlers
+  // ══════════════════════════════════════════════════════════
+
+  // Fetch OS-level USB paths (Windows printer ports + COM ports, Linux /dev/*)
+  const fetchSysPaths = async () => {
+    setSysPathsLoading(true)
+    try {
+      const res  = await fetch('/api/devices/usb-paths')
+      const { entries } = await res.json()
+      setSysPaths(entries ?? [])
+      return entries ?? [] as { path: string; label: string; matchName: string }[]
+    } catch {
+      return []
+    } finally {
+      setSysPathsLoading(false)
+    }
+  }
+
+  // Match a USB device name against the OS path list
+  function matchPath(
+    deviceName: string,
+    paths: { path: string; label: string; matchName: string }[]
+  ): string {
+    if (!paths.length) return ''
+    const words = deviceName.toLowerCase().split(/\s+/).filter(w => w.length > 2)
+    const hit = paths.find(p => words.some(w => p.matchName.includes(w)))
+    return hit?.path ?? ''
+  }
+
+  const scanDevices = async () => {
+    setScanning(true)
+    setScanProgress(0)
+    setDetectedDevices([])
+    setShowDetected(false)
+    const found: DetectedDevice[] = []
+
+    // ── USB + system paths (run together) ─────────────────
+    setScanPhase('usb')
+    setScanProgress(5)
+    const [usbDevs, paths] = await Promise.all([
+      (async () => {
+        if (typeof navigator === 'undefined' || !('usb' in navigator)) return []
+        try { return await (navigator as any).usb.getDevices() } catch { return [] }
+      })(),
+      fetchSysPaths(),
+    ])
+    for (const d of usbDevs) {
+      const name = d.productName || `USB Device (${d.vendorId}:${d.productId})`
+      found.push({
+        id:              `usb-${d.vendorId}-${d.productId}`,
+        name,
+        connection_type: 'usb',
+        address:         matchPath(name, paths),   // ← auto-filled path
+        manufacturer:    d.manufacturerName || undefined,
+        status:          'online',
+      })
+    }
+    setScanProgress(25)
+
+    // ── Bluetooth ─────────────────────────────────────────
+    setScanPhase('bluetooth')
+    if (typeof navigator !== 'undefined' && 'bluetooth' in navigator) {
+      try {
+        const btDevs = await (navigator as any).bluetooth.getDevices()
+        for (const d of btDevs) {
+          found.push({
+            id: `bt-${d.id}`,
+            name: d.name || `Bluetooth Device`,
+            connection_type: 'bluetooth',
+            address: d.id,
+            status: 'online',
+          })
+        }
+      } catch {}
+    }
+    setScanProgress(50)
+
+    // ── Network (backend subnet scanner) ──────────────────
+    setScanPhase('network')
+    let fakeProgress = 50
+    const progressInterval = setInterval(() => {
+      fakeProgress = Math.min(fakeProgress + 3, 92)
+      setScanProgress(fakeProgress)
+    }, 400)
+    try {
+      const res = await fetch('/api/devices/scan', { method: 'POST' })
+      const { devices: netDevs } = await res.json()
+      for (const d of (netDevs ?? [])) {
+        found.push({
+          id: d.id,
+          name: d.name,
+          connection_type: 'network',
+          address: d.ip,
+          port: d.port,
+          status: 'online',
+        })
+      }
+    } catch {}
+    clearInterval(progressInterval)
+    setScanProgress(100)
+    setScanPhase(null)
+
+    setDetectedDevices(found)
+    setShowDetected(true)
+    setScanning(false)
+  }
+
+  // Request NEW USB device (shows OS picker — authorizes a new device)
+  const requestNewUsb = async () => {
+    if (typeof navigator === 'undefined' || !('usb' in navigator)) return
+    try {
+      const d = await (navigator as any).usb.requestDevice({ filters: [] })
+      const id = `usb-${d.vendorId}-${d.productId}`
+      setDetectedDevices(prev => {
+        if (prev.some(x => x.id === id)) return prev
+        return [...prev, {
+          id,
+          name: d.productName || `USB Device (${d.vendorId}:${d.productId})`,
+          connection_type: 'usb' as const,
+          address: '',
+          manufacturer: d.manufacturerName || undefined,
+          status: 'online' as const,
+        }]
+      })
+      setShowDetected(true)
+    } catch {}
+  }
+
+  // Request NEW Bluetooth device (shows OS picker)
+  const requestNewBt = async () => {
+    if (typeof navigator === 'undefined' || !('bluetooth' in navigator)) return
+    try {
+      const d = await (navigator as any).bluetooth.requestDevice({ acceptAllDevices: true })
+      const id = `bt-${d.id}`
+      setDetectedDevices(prev => {
+        if (prev.some(x => x.id === id)) return prev
+        return [...prev, {
+          id,
+          name: d.name || `Bluetooth Device`,
+          connection_type: 'bluetooth' as const,
+          address: d.id,
+          status: 'online' as const,
+        }]
+      })
+      setShowDetected(true)
+    } catch {}
+  }
+
+  // Pre-fill the Add Printer modal from a detected device
+  const addDetectedToSystem = (d: DetectedDevice) => {
+    const conn: ConnectionType =
+      d.connection_type === 'network'   ? 'ip'
+      : d.connection_type === 'bluetooth' ? 'bluetooth'
+      : 'usb'
+    setPrtEditId(null)
+    setPrtForm({
+      ...EMPTY_PRINTER_FORM,
+      name:            d.name,
+      connection_type: conn,
+      ip_address:      conn === 'ip'        ? d.address : '',
+      port:            d.port ?? 9100,
+      bt_address:      conn === 'bluetooth' ? d.address : '',
+      usb_path:        conn === 'usb'       ? (d.address || '') : '',
+    })
+    setPrtModal(true)
+  }
+
+  // Test connection for a detected network device — prints a test invoice
+  const testDetectedNetwork = async (d: DetectedDevice) => {
+    if (d.connection_type !== 'network') return
+    setDetectedTest(prev => ({ ...prev, [d.id]: 'testing' }))
+    try {
+      const res = await fetch('/api/printer/print-test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ip: d.address, port: d.port ?? 9100, name: d.name, paper_width: 80 }),
+      })
+      const json = await res.json()
+      setDetectedTest(prev => ({ ...prev, [d.id]: json.ok ? 'ok' : 'fail' }))
+    } catch {
+      setDetectedTest(prev => ({ ...prev, [d.id]: 'fail' }))
+    }
+  }
 
   // ══════════════════════════════════════════════════════════
   // KDS handlers
@@ -284,23 +692,23 @@ export default function DevicePage() {
     setPrtDeleteId(null)
   }
 
-  // ── Test printer connection ────────────────────────────────
+  // ── Test configured printer connection ────────────────────────────────
   const testPrinter = async (p: PrinterDevice) => {
     setTestResults(prev => ({ ...prev, [p.id]: { status: 'testing' } }))
 
     if (p.connection_type === 'ip') {
       try {
-        const res = await fetch('/api/printer/test', {
+        const res = await fetch('/api/printer/print-test', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ip: p.ip_address, port: p.port ?? 9100 }),
+          body: JSON.stringify({ ip: p.ip_address, port: p.port ?? 9100, name: p.name, paper_width: p.paper_width ?? 80 }),
         })
         const json = await res.json()
         setTestResults(prev => ({
           ...prev,
           [p.id]: json.ok
-            ? { status: 'ok',   message: `Reachable at ${p.ip_address}:${p.port ?? 9100}` }
-            : { status: 'fail', message: json.error ?? 'Could not connect' },
+            ? { status: 'ok',   message: `Test receipt printed to ${p.ip_address}` }
+            : { status: 'fail', message: json.error ?? 'Print failed' },
         }))
       } catch {
         setTestResults(prev => ({ ...prev, [p.id]: { status: 'fail', message: 'Network error' } }))
@@ -312,35 +720,52 @@ export default function DevicePage() {
         return
       }
       try {
-        // Request any Bluetooth device — user will see the OS picker
-        const device = await (navigator as any).bluetooth.requestDevice({ acceptAllDevices: true })
-        setTestResults(prev => ({
-          ...prev,
-          [p.id]: { status: 'ok', message: `Found: ${device.name ?? 'Unknown device'}` },
-        }))
+        const msg = await sendBtTestPage(p.name, p.paper_width ?? 80)
+        setTestResults(prev => ({ ...prev, [p.id]: { status: 'ok', message: msg } }))
       } catch (e: any) {
-        const msg = e?.message?.includes('cancelled') || e?.message?.includes('cancel')
-          ? 'Pairing cancelled'
-          : (e?.message ?? 'Bluetooth error')
+        const raw = e?.message ?? ''
+        const msg = raw.includes('cancelled') || raw.includes('cancel') ? 'Pairing cancelled' : raw
         setTestResults(prev => ({ ...prev, [p.id]: { status: 'fail', message: msg } }))
       }
 
     } else if (p.connection_type === 'usb') {
+      // ── Path set → server-side write (works on Windows & Linux) ──
+      if (p.usb_path) {
+        try {
+          const res = await fetch('/api/printer/print-test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path: p.usb_path, name: p.name, paper_width: p.paper_width ?? 80 }),
+          })
+          const json = await res.json()
+          setTestResults(prev => ({
+            ...prev,
+            [p.id]: json.ok
+              ? { status: 'ok',   message: `Test page sent to ${p.usb_path}` }
+              : { status: 'fail', message: json.error ?? 'Print failed' },
+          }))
+        } catch {
+          setTestResults(prev => ({ ...prev, [p.id]: { status: 'fail', message: 'Server error' } }))
+        }
+        return
+      }
+
+      // ── No path set → try WebUSB (requires no Windows kernel driver) ──
       if (!('usb' in navigator)) {
-        setTestResults(prev => ({ ...prev, [p.id]: { status: 'fail', message: 'WebUSB not supported (use Chrome/Edge)' } }))
+        setTestResults(prev => ({ ...prev, [p.id]: { status: 'fail', message: 'WebUSB not supported — use Chrome/Edge or set a device path in printer settings' } }))
         return
       }
       try {
-        const device = await (navigator as any).usb.requestDevice({ filters: [] })
-        setTestResults(prev => ({
-          ...prev,
-          [p.id]: { status: 'ok', message: `Found: ${device.productName ?? 'USB device'} (${device.manufacturerName ?? ''})` },
-        }))
+        const authorized = await (navigator as any).usb.getDevices()
+        const msg = await sendUsbTestPage(p.name, p.paper_width ?? 80, authorized)
+        setTestResults(prev => ({ ...prev, [p.id]: { status: 'ok', message: msg } }))
       } catch (e: any) {
-        const msg = e?.message?.includes('No device selected') || e?.message?.includes('cancelled')
-          ? 'No device selected'
-          : (e?.message ?? 'USB error')
-        setTestResults(prev => ({ ...prev, [p.id]: { status: 'fail', message: msg } }))
+        const raw = e?.message ?? ''
+        const hint =
+          raw.includes('Access') || raw.includes('claim') || raw.includes('busy') || raw.includes('open')
+            ? ' — Edit the printer and set the COM port (e.g. COM3) or device path'
+            : ''
+        setTestResults(prev => ({ ...prev, [p.id]: { status: 'fail', message: raw + hint } }))
       }
     }
   }
@@ -451,7 +876,7 @@ export default function DevicePage() {
       {/* ══ Printers tab ══ */}
       {tab === 'printers' && (
         <div>
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between mb-5">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-blue-500/15 flex items-center justify-center">
                 <Printer className="w-5 h-5 text-blue-400" />
@@ -468,12 +893,173 @@ export default function DevicePage() {
             </button>
           </div>
 
+          {/* ── Auto-Detect Panel ── */}
+          <div className="mb-6 rounded-2xl border border-white/10 bg-white/3 overflow-hidden">
+            {/* Header row */}
+            <div className="flex items-center gap-4 px-4 py-3.5">
+              <div className="w-8 h-8 rounded-lg bg-cyan-500/15 flex items-center justify-center shrink-0">
+                <Radio className="w-4 h-4 text-cyan-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-white">Auto-Detect Devices</p>
+                <p className="text-xs text-white/35">Scans USB, Bluetooth, and local network (LAN) for printers</p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                {/* Request USB */}
+                <button onClick={requestNewUsb} title="Authorize new USB device"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white/40 hover:text-white text-[11px] font-medium transition-all active:scale-95 border border-white/8">
+                  <Usb className="w-3 h-3" /> USB
+                </button>
+                {/* Request BT */}
+                <button onClick={requestNewBt} title="Pair new Bluetooth device"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white/40 hover:text-white text-[11px] font-medium transition-all active:scale-95 border border-white/8">
+                  <Bluetooth className="w-3 h-3" /> Pair BT
+                </button>
+                {/* Scan button */}
+                <button onClick={scanDevices} disabled={scanning}
+                  className={cn(
+                    'flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all active:scale-95 disabled:opacity-60',
+                    scanning
+                      ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
+                      : 'bg-cyan-500 hover:bg-cyan-600 text-white shadow-lg shadow-cyan-500/20'
+                  )}>
+                  {scanning
+                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    : <ScanLine className="w-3.5 h-3.5" />}
+                  {scanning ? 'Scanning…' : 'Scan'}
+                </button>
+              </div>
+            </div>
+
+            {/* Progress bar */}
+            {scanning && (
+              <div className="px-4 pb-3">
+                <div className="flex items-center justify-between mb-1.5">
+                  <ScanPhaseBadge phase={scanPhase} />
+                  <span className="text-[11px] text-white/30">{scanProgress}%</span>
+                </div>
+                <div className="h-1 bg-white/8 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full transition-all duration-500"
+                    style={{ width: `${scanProgress}%` }}
+                  />
+                </div>
+                <p className="text-[10px] text-white/25 mt-1.5">
+                  Network scan probes 254 addresses — this may take a few seconds.
+                </p>
+              </div>
+            )}
+
+            {/* Results */}
+            {showDetected && !scanning && (
+              <div className="border-t border-white/8 px-4 py-3">
+                {detectedDevices.length === 0 ? (
+                  <div className="flex items-center gap-3 py-2 text-white/30">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <div>
+                      <p className="text-xs font-medium">No devices found</p>
+                      <p className="text-[10px]">Make sure printers are on and connected. Use USB/Pair BT buttons to authorize devices manually.</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <p className="text-[11px] text-white/35 font-medium mb-2">{detectedDevices.length} device{detectedDevices.length !== 1 ? 's' : ''} found</p>
+                    {detectedDevices.map(d => {
+                      const connIcon =
+                        d.connection_type === 'usb'       ? <Usb       className="w-3.5 h-3.5 text-blue-400" />
+                        : d.connection_type === 'bluetooth' ? <Bluetooth className="w-3.5 h-3.5 text-indigo-400" />
+                        : <Wifi className="w-3.5 h-3.5 text-cyan-400" />
+
+                      const connColor =
+                        d.connection_type === 'usb'       ? 'bg-blue-500/15 text-blue-400'
+                        : d.connection_type === 'bluetooth' ? 'bg-indigo-500/15 text-indigo-400'
+                        : 'bg-cyan-500/15 text-cyan-400'
+
+                      const testState = detectedTest[d.id]
+
+                      return (
+                        <div key={d.id} className={cn(
+                          'flex items-center gap-3 p-3 rounded-xl border transition-all',
+                          d.status === 'offline'
+                            ? 'bg-white/2 border-white/5 opacity-50'
+                            : 'bg-white/5 border-white/10'
+                        )}>
+                          {/* Type icon */}
+                          <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center shrink-0', connColor.split(' ')[0])}>
+                            {connIcon}
+                          </div>
+
+                          {/* Info */}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-semibold text-white truncate">{d.name}</p>
+                            <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                              <span className={cn('text-[10px] px-1.5 py-0.5 rounded-md font-medium', connColor)}>
+                                {d.connection_type === 'usb' ? 'USB' : d.connection_type === 'bluetooth' ? 'Bluetooth' : 'Network'}
+                              </span>
+                              {d.address && (
+                                <span className="text-[10px] text-white/30 font-mono">
+                                  {d.address}{d.port ? `:${d.port}` : ''}
+                                </span>
+                              )}
+                              {d.manufacturer && (
+                                <span className="text-[10px] text-white/25">{d.manufacturer}</span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Status */}
+                          <span className={cn(
+                            'text-[10px] px-2 py-0.5 rounded-full font-medium shrink-0',
+                            d.status === 'online' ? 'bg-emerald-500/15 text-emerald-400' : 'bg-white/8 text-white/30'
+                          )}>
+                            {d.status}
+                          </span>
+
+                          {/* Test (network only) */}
+                          {d.connection_type === 'network' && (
+                            <button
+                              onClick={() => testDetectedNetwork(d)}
+                              disabled={testState === 'testing'}
+                              title="Test connection"
+                              className={cn(
+                                'w-7 h-7 rounded-lg flex items-center justify-center transition-all active:scale-95 shrink-0 border',
+                                testState === 'ok'      ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400'
+                                : testState === 'fail'  ? 'bg-rose-500/15 border-rose-500/30 text-rose-400'
+                                : testState === 'testing' ? 'bg-white/8 border-white/10 text-white/40'
+                                : 'bg-white/5 border-white/10 text-white/30 hover:text-cyan-400 hover:border-cyan-500/30 hover:bg-cyan-500/10'
+                              )}>
+                              {testState === 'testing'
+                                ? <Loader2 className="w-3 h-3 animate-spin" />
+                                : testState === 'ok'
+                                ? <CheckCircle2 className="w-3 h-3" />
+                                : testState === 'fail'
+                                ? <WifiOff className="w-3 h-3" />
+                                : <Activity className="w-3 h-3" />}
+                            </button>
+                          )}
+
+                          {/* Add to System */}
+                          <button
+                            onClick={() => addDetectedToSystem(d)}
+                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 text-[11px] font-medium transition-all active:scale-95 shrink-0 border border-amber-500/20">
+                            <Plus className="w-3 h-3" /> Add
+                          </button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* ── Configured Printers List ── */}
           {prtLoading ? (
             <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 text-amber-400 animate-spin" /></div>
           ) : prtError ? (
             <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-sm text-rose-400">{prtError}</div>
           ) : printers.length === 0 ? (
-            <div className="text-center py-20 text-white/25">
+            <div className="text-center py-14 text-white/25">
               <Printer className="w-12 h-12 mx-auto mb-3 opacity-20" />
               <p className="text-sm font-medium">{t.dev_no_printers}</p>
               <p className="text-xs mt-1">Add a receipt printer, kitchen printer, or label printer</p>
@@ -504,19 +1090,15 @@ export default function DevicePage() {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-white truncate">{p.name}</p>
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
-                        {/* Purpose badge */}
                         <span className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-medium"
                           style={{ backgroundColor: purpose.color + '20', color: purpose.color }}>
                           {purpose.label}
                         </span>
-                        {/* Connection badge */}
                         <span className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-medium bg-white/8 text-white/50">
                           {conn.icon}
                           {conn.label}
                         </span>
-                        {/* Connection detail */}
                         <span className="text-[10px] text-white/30 font-mono">{connDetail}</span>
-                        {/* Paper width badge */}
                         {p.paper_width && (
                           <span className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-medium bg-amber-500/10 text-amber-400/70">
                             <Ruler className="w-2.5 h-2.5" />{p.paper_width} mm
@@ -785,7 +1367,7 @@ export default function DevicePage() {
                       className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/25 font-mono focus:outline-none focus:border-amber-500/50 transition-colors" />
                   </div>
                   <p className="text-[11px] text-white/25 leading-relaxed">
-                    Pair the printer in your device's Bluetooth settings first, then enter the device address or name here.
+                    Pair the printer in your device&apos;s Bluetooth settings first, then enter the device address or name here.
                   </p>
                 </div>
               )}
@@ -793,23 +1375,68 @@ export default function DevicePage() {
               {/* USB fields */}
               {prtForm.connection_type === 'usb' && (
                 <div className="space-y-3 p-4 rounded-2xl bg-white/3 border border-white/8">
-                  <p className="text-xs font-medium text-white/50 flex items-center gap-1.5">
-                    <Usb className="w-3.5 h-3.5 text-blue-400" /> USB / Serial Settings
-                  </p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-medium text-white/50 flex items-center gap-1.5">
+                      <Usb className="w-3.5 h-3.5 text-blue-400" /> USB / Serial Settings
+                    </p>
+                    {/* Detect from OS */}
+                    <button
+                      onClick={async () => { await fetchSysPaths() }}
+                      disabled={sysPathsLoading}
+                      className="flex items-center gap-1.5 text-[11px] text-cyan-400 hover:text-cyan-300 disabled:opacity-50 transition-colors">
+                      {sysPathsLoading
+                        ? <Loader2 className="w-3 h-3 animate-spin" />
+                        : <ScanLine className="w-3 h-3" />}
+                      Detect from system
+                    </button>
+                  </div>
+
+                  {/* Path input */}
                   <div>
                     <label className="block text-xs text-white/40 mb-1">Port / Device Path</label>
                     <input value={prtForm.usb_path} onChange={e => setPrtForm(f => ({ ...f, usb_path: e.target.value }))}
                       placeholder="COM3  or  /dev/ttyUSB0"
                       className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/25 font-mono focus:outline-none focus:border-amber-500/50 transition-colors" />
                   </div>
-                  <div className="flex gap-2 flex-wrap">
-                    {['COM1', 'COM2', 'COM3', 'COM4', '/dev/ttyUSB0', '/dev/usb/lp0'].map(preset => (
-                      <button key={preset} onClick={() => setPrtForm(f => ({ ...f, usb_path: preset }))}
-                        className="text-[10px] px-2 py-1 rounded-lg bg-white/8 text-white/40 hover:bg-white/12 hover:text-white/60 font-mono transition-all active:scale-95">
-                        {preset}
-                      </button>
-                    ))}
-                  </div>
+
+                  {/* System-detected paths */}
+                  {sysPaths.length > 0 && (
+                    <div>
+                      <p className="text-[10px] text-white/30 mb-1.5">Detected on this machine:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {sysPaths.map((sp, i) => (
+                          <button
+                            key={`${sp.path}-${i}`}
+                            onClick={() => setPrtForm(f => ({ ...f, usb_path: sp.path }))}
+                            className={cn(
+                              'text-[10px] px-2.5 py-1.5 rounded-lg font-mono transition-all active:scale-95 border text-left',
+                              prtForm.usb_path === sp.path
+                                ? 'bg-amber-500/20 border-amber-500/40 text-amber-300'
+                                : 'bg-white/8 border-white/10 text-white/50 hover:bg-white/12 hover:text-white/80'
+                            )}>
+                            <span className="font-semibold">{sp.path}</span>
+                            {sp.label !== sp.path && (
+                              <span className="ml-1.5 text-white/30 font-sans">
+                                {sp.label.replace(` — ${sp.path}`, '').slice(0, 22)}
+                              </span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Static fallback presets */}
+                  {sysPaths.length === 0 && !sysPathsLoading && (
+                    <div className="flex gap-2 flex-wrap">
+                      {['COM1', 'COM2', 'COM3', 'COM4', '/dev/ttyUSB0', '/dev/usb/lp0'].map(preset => (
+                        <button key={preset} onClick={() => setPrtForm(f => ({ ...f, usb_path: preset }))}
+                          className="text-[10px] px-2 py-1 rounded-lg bg-white/8 text-white/40 hover:bg-white/12 hover:text-white/60 font-mono transition-all active:scale-95">
+                          {preset}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
