@@ -455,15 +455,33 @@ export default function DevicePage() {
     setScanPhase('bluetooth')
     if (typeof navigator !== 'undefined' && 'bluetooth' in navigator) {
       try {
+        // Silent: already browser-authorized devices
         const btDevs = await (navigator as any).bluetooth.getDevices()
         for (const d of btDevs) {
           found.push({
             id: `bt-${d.id}`,
-            name: d.name || `Bluetooth Device`,
+            name: d.name || 'Bluetooth Device',
             connection_type: 'bluetooth',
             address: d.id,
             status: 'online',
           })
+        }
+        // None found → show OS picker so user can select their paired printer
+        // (scan button click counts as user gesture, so requestDevice is allowed here)
+        if (btDevs.length === 0) {
+          try {
+            const d = await (navigator as any).bluetooth.requestDevice({
+              acceptAllDevices: true,
+              optionalServices: BT_PRINTER_SERVICES,
+            })
+            found.push({
+              id: `bt-${d.id}`,
+              name: d.name || 'Bluetooth Device',
+              connection_type: 'bluetooth',
+              address: d.id,
+              status: 'online',
+            })
+          } catch { /* user dismissed picker — not an error */ }
         }
       } catch {}
     }
@@ -524,7 +542,10 @@ export default function DevicePage() {
   const requestNewBt = async () => {
     if (typeof navigator === 'undefined' || !('bluetooth' in navigator)) return
     try {
-      const d = await (navigator as any).bluetooth.requestDevice({ acceptAllDevices: true })
+      const d = await (navigator as any).bluetooth.requestDevice({
+        acceptAllDevices: true,
+        optionalServices: BT_PRINTER_SERVICES,
+      })
       const id = `bt-${d.id}`
       setDetectedDevices(prev => {
         if (prev.some(x => x.id === id)) return prev
