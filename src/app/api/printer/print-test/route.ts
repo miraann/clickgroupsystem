@@ -20,7 +20,7 @@ function padRow(left: string, right: string, cols: number): string {
 
 function buildInvoiceBytes(printerName: string, paperWidth: number): Buffer {
   const cols = paperWidth >= 80 ? 42 : paperWidth >= 58 ? 32 : 24
-  const div  = '─'.repeat(cols)
+  const div  = '='.repeat(cols)
   const thin = '-'.repeat(cols)
   const now  = new Date()
   const dateStr = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
@@ -81,7 +81,7 @@ function buildInvoiceBytes(printerName: string, paperWidth: number): Buffer {
     ...CMD.center,
     ...line('Thank you for your visit!'),
     ...line('Powered by ClickGroup POS'),
-    ...line('─── TEST RECEIPT ───'),
+    ...line('--- TEST RECEIPT ---'),
     ...feed(4),
     ...CMD.cut,
   )
