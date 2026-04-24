@@ -18,7 +18,6 @@ export const escpos = {
   normalSize:   () => cmd(ESC, 0x21, 0x00),
   feed:         (n = 3) => cmd(ESC, 0x64, n),
   cut:          () => cmd(GS,  0x56, 0x42, 0x10),
-  text:         (s: string) => enc(s),
 }
 
 function cols(paperWidth: number): number {
@@ -27,48 +26,27 @@ function cols(paperWidth: number): number {
   return 48
 }
 
-// Left-right two-column row
-function twoCol(left: string, right: string, width: number): string {
+// Left-right two-column row — returns encoded Uint8Array
+function rowBytes(left: string, right: string, width: number): Uint8Array {
   const space = width - right.length
   const l = left.length >= space ? left.slice(0, space - 1) + ' ' : left.padEnd(space)
-  return l + right + '\n'
+  return enc(l + right + '\n')
 }
 
-// Three-column row: Item | Qty | Price
-function threeCol(left: string, mid: string, right: string, width: number): string {
+// Three-column row: Item | Qty | Price — returns encoded Uint8Array
+function threeColBytes(left: string, mid: string, right: string, width: number): Uint8Array {
   const rightW = Math.min(12, Math.floor(width * 0.30))
   const midW   = 5
   const leftW  = width - midW - rightW
   const l = left.length > leftW ? left.slice(0, leftW - 1) + ' ' : left.padEnd(leftW)
   const m = mid.padStart(midW)
   const r = right.padStart(rightW)
-  return l + m + r + '\n'
+  return enc(l + m + r + '\n')
 }
 
-function divider(width: number, char = '-'): string {
-  return char.repeat(width) + '\n'
-}
-
-// ESC/POS QR code (GS ( k commands — supported by most thermal printers)
-function makeQrBytes(data: string): Uint8Array {
-  const dataBytes = enc(data)
-  const len       = dataBytes.length + 3
-  const pL        = len & 0xFF
-  const pH        = (len >> 8) & 0xFF
-
-  const header = new Uint8Array([
-    GS, 0x28, 0x6B, 4, 0, 49, 65, 50, 0,   // model 2
-    GS, 0x28, 0x6B, 3, 0, 49, 67, 5,        // cell size 5
-    GS, 0x28, 0x6B, 3, 0, 49, 69, 48,       // error correction M
-    GS, 0x28, 0x6B, pL, pH, 49, 80, 48,     // store data
-  ])
-  const footer = new Uint8Array([GS, 0x28, 0x6B, 3, 0, 49, 81, 48]) // print
-
-  const out = new Uint8Array(header.length + dataBytes.length + footer.length)
-  out.set(header)
-  out.set(dataBytes, header.length)
-  out.set(footer, header.length + dataBytes.length)
-  return out
+// Plain ASCII divider — returns encoded Uint8Array
+function divBytes(width: number, char = '-'): Uint8Array {
+  return enc(char.repeat(width) + '\n')
 }
 
 function concat(...arrays: Uint8Array[]): Uint8Array {
@@ -103,16 +81,18 @@ export interface ReceiptPayload {
   paperWidth:     number
   note?:          string | null
   mode?:          'receipt' | 'payment'
-  qrUrl?:         string | null
   poweredBy?:     string | null
 }
 
 export function buildReceiptBytes(d: ReceiptPayload): Uint8Array {
   const W   = cols(d.paperWidth)
-  const t   = (s: string) => enc(s)
   const fmt = (n: number) => `${d.currencySymbol}${n.toLocaleString('en-US')}`
-  const div = (ch = '-')  => t(divider(W, ch))
-  const row = (l: string, r: string) => t(twoCol(l, r, W))
+  const div = (ch = '-')  => divBytes(W, ch)
+  const row = (l: string, r: string) => rowBytes(l, r, W)
+
+  const tableLabel = d.guests
+    ? `Table ${d.tableNum} - ${d.guests} guests`
+    : `Table ${d.tableNum}`
 
   const parts: Uint8Array[] = [
     escpos.init(),
@@ -120,10 +100,10 @@ export function buildReceiptBytes(d: ReceiptPayload): Uint8Array {
     // ── Restaurant name + contact (centered) ──────────────
     escpos.alignCenter(),
     escpos.boldOn(), escpos.doubleSize(),
-    t(d.restaurantName.toUpperCase() + '\n'),
+    enc(d.restaurantName.toUpperCase() + '\n'),
     escpos.normalSize(), escpos.boldOff(),
-    ...(d.phone   ? [t(d.phone   + '\n')] : []),
-    ...(d.address ? [t(d.address + '\n')] : []),
+    ...(d.phone   ? [enc(d.phone   + '\n')] : []),
+    ...(d.address ? [enc(d.address + '\n')] : []),
 
     // ── Date | Invoice two-column header ──────────────────
     escpos.alignLeft(),
@@ -134,92 +114,79 @@ export function buildReceiptBytes(d: ReceiptPayload): Uint8Array {
     row(d.cashier,  d.cashier),
     div(),
 
-    // ── Table · guests | Order number ─────────────────────
-    t(twoCol(
-      `Table ${d.tableNum}${d.guests ? ` · ${d.guests} guests` : ''}`,
-      d.orderNum,
-      W
-    )),
+    // ── Table - guests | Order number ─────────────────────
+    row(tableLabel, d.orderNum),
     div(),
 
     // ── Payment method (centered) ─────────────────────────
     escpos.alignCenter(),
-    t('Payment Method\n'),
+    enc('Payment Method\n'),
     escpos.boldOn(),
-    t(d.paymentMethod + '\n'),
+    enc(d.paymentMethod + '\n'),
     escpos.boldOff(),
     escpos.alignLeft(),
     div(),
 
     // ── Items header ──────────────────────────────────────
     escpos.boldOn(),
-    t(threeCol('Item', 'Qty', 'Price', W)),
+    threeColBytes('Item', 'Qty', 'Price', W),
     escpos.boldOff(),
     div(),
 
     // ── Items ─────────────────────────────────────────────
     ...d.items.map(item =>
-      t(threeCol(item.name, String(item.qty), fmt(item.price * item.qty), W))
+      threeColBytes(item.name, String(item.qty), fmt(item.price * item.qty), W)
     ),
     div(),
 
     // ── Totals ────────────────────────────────────────────
-    t(row('Subtotal', fmt(d.subtotal))),
-    ...(d.discount  > 0 ? [t(row('Discount',  `-${fmt(d.discount)}`))]  : []),
-    ...(d.surcharge > 0 ? [t(row('Surcharge', `+${fmt(d.surcharge)}`))] : []),
+    row('Subtotal', fmt(d.subtotal)),
+    ...(d.discount  > 0 ? [row('Discount',  `-${fmt(d.discount)}`)]  : []),
+    ...(d.surcharge > 0 ? [row('Surcharge', `+${fmt(d.surcharge)}`)] : []),
     escpos.boldOn(),
-    t(row('Total', fmt(d.total))),
+    row('Total', fmt(d.total)),
     escpos.boldOff(),
 
     // ── Total Amount box ──────────────────────────────────
     div('='),
     escpos.alignCenter(),
-    t('Total Amount\n'),
+    enc('Total Amount\n'),
     escpos.boldOn(), escpos.doubleHeight(),
-    t(fmt(d.total) + '\n'),
+    enc(fmt(d.total) + '\n'),
     escpos.normalSize(), escpos.boldOff(),
   ]
 
   // ── Payment mode: PAID stamp ──────────────────────────
   if (d.mode === 'payment') {
     parts.push(
-      t('\n'),
+      enc('\n'),
       escpos.boldOn(),
-      t('*** PAID ***\n'),
+      enc('*** PAID ***\n'),
       escpos.boldOff(),
-      t(`${d.dateStr}  ${d.timeStr}\n`),
+      enc(`${d.dateStr}  ${d.timeStr}\n`),
     )
   }
 
   parts.push(div('='))
 
-  // ── Receipt mode: QR code + Feedback ──────────────────
+  // ── Receipt mode: feedback write-in ───────────────────
   if (d.mode !== 'payment') {
-    if (d.qrUrl) {
-      parts.push(
-        escpos.alignCenter(),
-        makeQrBytes(d.qrUrl),
-        t('\n'),
-        div(),
-      )
-    }
-    // Feedback write-in section
     const line = '_'.repeat(W)
     parts.push(
       escpos.alignCenter(),
       escpos.boldOn(),
-      t('YOUR FEEDBACK\n'),
+      enc('YOUR FEEDBACK\n'),
       escpos.boldOff(),
       escpos.alignLeft(),
       div(),
-      t('NAME:\n'),
-      t(line + '\n\n'),
-      t('PHONE / EMAIL:\n'),
-      t(line + '\n\n'),
-      t('FEEDBACK:\n'),
-      t(line + '\n\n'),
-      t(line + '\n\n'),
-      t(line + '\n\n'),
+      enc('NAME:\n'),
+      enc(line + '\n\n'),
+      enc('PHONE / EMAIL:\n'),
+      enc(line + '\n\n'),
+      enc('FEEDBACK:\n'),
+      enc(line + '\n\n'),
+      enc(line + '\n\n'),
+      enc(line + '\n\n'),
       div(),
     )
   }
@@ -228,7 +195,7 @@ export function buildReceiptBytes(d: ReceiptPayload): Uint8Array {
   if (d.note?.trim()) {
     parts.push(
       escpos.alignCenter(),
-      t(d.note.trim() + '\n'),
+      enc(d.note.trim() + '\n'),
       div(),
     )
   }
@@ -237,9 +204,11 @@ export function buildReceiptBytes(d: ReceiptPayload): Uint8Array {
   parts.push(
     escpos.alignCenter(),
     escpos.boldOn(),
-    t('\n' + d.thankYouMsg + '\n'),
+    enc('\n' + d.thankYouMsg + '\n'),
     escpos.boldOff(),
-    ...(d.poweredBy ? [t(`Powered by ClickGroup · ${d.poweredBy}\n`)] : [t('Powered by ClickGroup\n')]),
+    enc(d.poweredBy
+      ? `Powered by ClickGroup - ${d.poweredBy}\n`
+      : 'Powered by ClickGroup\n'),
     escpos.feed(4),
     escpos.cut(),
   )

@@ -171,7 +171,6 @@ export async function POST(req: NextRequest) {
       change:         body.change,
       note:           body.note,
       mode:           body.mode ?? 'payment',
-      qrUrl:          body.qrUrl ?? null,
     }
 
     const bytes  = buildReceiptBytes(payload)
