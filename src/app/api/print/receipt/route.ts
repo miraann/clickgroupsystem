@@ -7,6 +7,8 @@ import { join } from 'path'
 import { tmpdir, platform } from 'os'
 import { createClient } from '@supabase/supabase-js'
 import { buildReceiptBytes, ReceiptPayload } from '@/lib/escpos'
+import sharp from 'sharp'
+import QRCode from 'qrcode'
 
 export const runtime = 'nodejs'
 
@@ -98,6 +100,80 @@ $m::FreeHGlobal($pb);$m::FreeHGlobal($di);$m::FreeHGlobal($dn);$m::FreeHGlobal($
   }
 }
 
+// ESC/POS GS v 0 raster bitmap — 1-bit, row-padded to byte boundary
+function gsv0(pixels: Uint8Array, widthPx: number, heightPx: number): Uint8Array {
+  const bytesPerRow = Math.ceil(widthPx / 8)
+  const header = new Uint8Array([
+    0x1d, 0x76, 0x30, 0x00,           // GS v 0, mode 0
+    bytesPerRow & 0xff, (bytesPerRow >> 8) & 0xff,
+    heightPx   & 0xff, (heightPx   >> 8) & 0xff,
+  ])
+  // pixels is already 1-bit packed row data (1=black)
+  const out = new Uint8Array(header.length + pixels.length)
+  out.set(header, 0)
+  out.set(pixels, header.length)
+  return out
+}
+
+async function makeLogoBitmap(logoUrl: string, paperWidthMm: number): Promise<Uint8Array | null> {
+  try {
+    const dotsPerMm = paperWidthMm >= 80 ? 8 : 8   // ~203 dpi = 8 dots/mm
+    const maxWidthPx = Math.floor(paperWidthMm * dotsPerMm * 0.45) // 45% of paper
+    const res = await fetch(logoUrl, { signal: AbortSignal.timeout(6000) })
+    if (!res.ok) return null
+    const buf = Buffer.from(await res.arrayBuffer())
+    const { data, info } = await sharp(buf)
+      .resize(maxWidthPx, null, { fit: 'inside', withoutEnlargement: true })
+      .greyscale()
+      .threshold(128)   // 1-bit: white=0, black=255
+      .raw()
+      .toBuffer({ resolveWithObject: true })
+    const W = info.width, H = info.height
+    const bytesPerRow = Math.ceil(W / 8)
+    const packed = new Uint8Array(bytesPerRow * H)
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        if (data[y * W + x] < 128) {   // dark pixel → set bit
+          packed[y * bytesPerRow + Math.floor(x / 8)] |= 0x80 >> (x % 8)
+        }
+      }
+    }
+    return gsv0(packed, W, H)
+  } catch {
+    return null
+  }
+}
+
+async function makeQrBitmap(url: string, paperWidthMm: number): Promise<Uint8Array | null> {
+  try {
+    const qr = QRCode.create(url, { errorCorrectionLevel: 'M' })
+    const modules = qr.modules
+    const size = modules.size
+    const dotsPerMm = paperWidthMm >= 80 ? 8 : 8
+    const maxPx = Math.floor(paperWidthMm * dotsPerMm * 0.40)   // 40% of paper
+    const scale = Math.max(2, Math.floor(maxPx / size))
+    const W = size * scale, H = size * scale
+    const bytesPerRow = Math.ceil(W / 8)
+    const packed = new Uint8Array(bytesPerRow * H)
+    for (let row = 0; row < size; row++) {
+      for (let col = 0; col < size; col++) {
+        if (modules.get(row, col)) {
+          for (let sy = 0; sy < scale; sy++) {
+            for (let sx = 0; sx < scale; sx++) {
+              const px = col * scale + sx
+              const py = row * scale + sy
+              packed[py * bytesPerRow + Math.floor(px / 8)] |= 0x80 >> (px % 8)
+            }
+          }
+        }
+      }
+    }
+    return gsv0(packed, W, H)
+  } catch {
+    return null
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json() as {
@@ -146,6 +222,15 @@ export async function POST(req: NextRequest) {
     ])
 
     const rsAny = rs as Record<string, unknown> | null
+    const paperWidth = (printer as { paper_width?: number }).paper_width ?? 80
+    const logoUrl = (rsAny?.logo_url as string | null) ?? null
+    const qrUrl   = body.mode !== 'payment' ? ((rsAny?.qr_url as string | null) ?? null) : null
+
+    const [logoBitmap, qrBitmap] = await Promise.all([
+      logoUrl ? makeLogoBitmap(logoUrl, paperWidth) : Promise.resolve(null),
+      qrUrl   ? makeQrBitmap(qrUrl, paperWidth)     : Promise.resolve(null),
+    ])
+
     const payload: ReceiptPayload = {
       restaurantName: (rsAny?.shop_name as string) || (rest as { name?: string } | null)?.name || 'Restaurant',
       address:        (rsAny?.address        as string | null) ?? null,
@@ -153,7 +238,7 @@ export async function POST(req: NextRequest) {
       thankYouMsg:    (rsAny?.thank_you_msg  as string)       ?? 'Thank you for your visit!',
       currencySymbol: (rsAny?.currency_symbol as string)      ?? '',
       poweredBy:      (rsAny?.phone          as string | null) ?? null,
-      paperWidth:     (printer as { paper_width?: number }).paper_width ?? 80,
+      paperWidth,
       tableNum:       body.tableNum,
       guests:         body.guests,
       invoiceNum:     body.invoiceNum,
@@ -171,6 +256,8 @@ export async function POST(req: NextRequest) {
       change:         body.change,
       note:           body.note,
       mode:           body.mode ?? 'payment',
+      logoBitmap,
+      qrBitmap,
     }
 
     const bytes  = buildReceiptBytes(payload)

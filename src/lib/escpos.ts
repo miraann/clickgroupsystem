@@ -82,6 +82,8 @@ export interface ReceiptPayload {
   note?:          string | null
   mode?:          'receipt' | 'payment'
   poweredBy?:     string | null
+  logoBitmap?:    Uint8Array | null
+  qrBitmap?:      Uint8Array | null
 }
 
 export function buildReceiptBytes(d: ReceiptPayload): Uint8Array {
@@ -96,6 +98,9 @@ export function buildReceiptBytes(d: ReceiptPayload): Uint8Array {
 
   const parts: Uint8Array[] = [
     escpos.init(),
+
+    // ── Logo bitmap (centered) ────────────────────────────
+    ...(d.logoBitmap ? [escpos.alignCenter(), d.logoBitmap] : []),
 
     // ── Restaurant name + contact (centered) ──────────────
     escpos.alignCenter(),
@@ -168,6 +173,11 @@ export function buildReceiptBytes(d: ReceiptPayload): Uint8Array {
   }
 
   parts.push(div('='))
+
+  // ── QR bitmap (receipt mode only, centered) ──────────
+  if (d.mode !== 'payment' && d.qrBitmap) {
+    parts.push(escpos.alignCenter(), d.qrBitmap)
+  }
 
   // ── Receipt mode: feedback write-in ───────────────────
   if (d.mode !== 'payment') {
