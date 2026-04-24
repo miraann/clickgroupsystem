@@ -977,20 +977,29 @@ export default function ReceiptSettingsPage() {
 
   useEffect(() => { load() }, [load])
 
+  const uploadImage = async (file: File, type: 'logo' | 'qr'): Promise<string> => {
+    const fd = new FormData()
+    fd.append('file', file)
+    fd.append('restaurantId', restaurantId!)
+    fd.append('type', type)
+    const res  = await fetch('/api/upload/receipt-image', { method: 'POST', body: fd })
+    const json = await res.json() as { ok: boolean; url?: string; error?: string }
+    if (!json.ok) throw new Error(json.error ?? 'Upload failed')
+    return json.url!
+  }
+
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file || !restaurantId) return
     setUploadError(null)
-    const localUrl = URL.createObjectURL(file)
-    set('logo_url', localUrl)
+    set('logo_url', URL.createObjectURL(file))
     setUploading(true)
-    const ext  = file.name.split('.').pop()
-    const path = `receipt/${restaurantId}/logo.${ext}`
-    const { error: upErr } = await supabase.storage
-      .from('menu-images').upload(path, file, { upsert: true })
-    if (upErr) { setUploadError(upErr.message); setUploading(false); return }
-    const { data: pub } = supabase.storage.from('menu-images').getPublicUrl(path)
-    set('logo_url', pub.publicUrl)
+    try {
+      const url = await uploadImage(file, 'logo')
+      set('logo_url', url)
+    } catch (err: unknown) {
+      setUploadError(err instanceof Error ? err.message : 'Upload failed')
+    }
     setUploading(false)
   }
 
@@ -998,16 +1007,14 @@ export default function ReceiptSettingsPage() {
     const file = e.target.files?.[0]
     if (!file || !restaurantId) return
     setUploadQrError(null)
-    const localUrl = URL.createObjectURL(file)
-    set('qr_url', localUrl)
+    set('qr_url', URL.createObjectURL(file))
     setUploadingQr(true)
-    const ext  = file.name.split('.').pop()
-    const path = `receipt/${restaurantId}/qr.${ext}`
-    const { error: upErr } = await supabase.storage
-      .from('menu-images').upload(path, file, { upsert: true })
-    if (upErr) { setUploadQrError(upErr.message); setUploadingQr(false); return }
-    const { data: pub } = supabase.storage.from('menu-images').getPublicUrl(path)
-    set('qr_url', pub.publicUrl)
+    try {
+      const url = await uploadImage(file, 'qr')
+      set('qr_url', url)
+    } catch (err: unknown) {
+      setUploadQrError(err instanceof Error ? err.message : 'Upload failed')
+    }
     setUploadingQr(false)
   }
 
