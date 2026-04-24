@@ -101,22 +101,25 @@ $m::FreeHGlobal($pb);$m::FreeHGlobal($di);$m::FreeHGlobal($dn);$m::FreeHGlobal($
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json() as {
-      restaurantId: string
-      tableNum:     string
-      invoiceNum:   string
-      orderNum:     string
-      cashier:      string
-      dateStr:      string
-      timeStr:      string
-      items:        { name: string; qty: number; price: number }[]
-      subtotal:     number
-      discount:     number
-      surcharge:    number
-      total:        number
+      restaurantId:  string
+      tableNum:      string
+      guests?:       number
+      invoiceNum:    string
+      orderNum:      string
+      cashier:       string
+      dateStr:       string
+      timeStr:       string
+      items:         { name: string; qty: number; price: number }[]
+      subtotal:      number
+      discount:      number
+      surcharge:     number
+      total:         number
       paymentMethod: string
-      amountPaid:   number
-      change:       number
-      note?:        string | null
+      amountPaid:    number
+      change:        number
+      note?:         string | null
+      mode?:         'receipt' | 'payment'
+      qrUrl?:        string | null
     }
 
     const { restaurantId } = body
@@ -142,14 +145,17 @@ export async function POST(req: NextRequest) {
       supabase.from('restaurants').select('name').eq('id', restaurantId).maybeSingle(),
     ])
 
+    const rsAny = rs as Record<string, unknown> | null
     const payload: ReceiptPayload = {
-      restaurantName: (rs as { shop_name?: string } | null)?.shop_name || (rest as { name?: string } | null)?.name || 'Restaurant',
-      address:        (rs as { address?: string } | null)?.address        ?? null,
-      phone:          (rs as { phone?: string }   | null)?.phone          ?? null,
-      thankYouMsg:    (rs as { thank_you_msg?: string } | null)?.thank_you_msg   ?? 'Thank you for your visit!',
-      currencySymbol: (rs as { currency_symbol?: string } | null)?.currency_symbol ?? '',
+      restaurantName: (rsAny?.shop_name as string) || (rest as { name?: string } | null)?.name || 'Restaurant',
+      address:        (rsAny?.address        as string | null) ?? null,
+      phone:          (rsAny?.phone          as string | null) ?? null,
+      thankYouMsg:    (rsAny?.thank_you_msg  as string)       ?? 'Thank you for your visit!',
+      currencySymbol: (rsAny?.currency_symbol as string)      ?? '',
+      poweredBy:      (rsAny?.phone          as string | null) ?? null,
       paperWidth:     (printer as { paper_width?: number }).paper_width ?? 80,
       tableNum:       body.tableNum,
+      guests:         body.guests,
       invoiceNum:     body.invoiceNum,
       orderNum:       body.orderNum,
       cashier:        body.cashier,
@@ -164,6 +170,8 @@ export async function POST(req: NextRequest) {
       amountPaid:     body.amountPaid,
       change:         body.change,
       note:           body.note,
+      mode:           body.mode ?? 'payment',
+      qrUrl:          body.qrUrl ?? null,
     }
 
     const bytes  = buildReceiptBytes(payload)

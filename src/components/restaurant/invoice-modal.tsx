@@ -143,6 +143,7 @@ export default function InvoiceModal({
         body: JSON.stringify({
           restaurantId,
           tableNum,
+          guests,
           invoiceNum,
           orderNum,
           cashier,
@@ -157,6 +158,8 @@ export default function InvoiceModal({
           amountPaid,
           change: changeAmount,
           note: note ?? null,
+          mode,
+          qrUrl: rs.show_qr ? (rs.qr_url ?? null) : null,
         }),
       })
       const json = await res.json()
