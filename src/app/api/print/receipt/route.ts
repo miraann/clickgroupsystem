@@ -118,7 +118,7 @@ function gsv0(pixels: Uint8Array, widthPx: number, heightPx: number): Uint8Array
 async function makeLogoBitmap(logoUrl: string, paperWidthMm: number): Promise<Uint8Array | null> {
   try {
     const dotsPerMm = paperWidthMm >= 80 ? 8 : 8   // ~203 dpi = 8 dots/mm
-    const maxWidthPx = Math.floor(paperWidthMm * dotsPerMm * 0.45) // 45% of paper
+    const maxWidthPx = Math.floor(paperWidthMm * dotsPerMm * 0.90) // 90% of paper
     const res = await fetch(logoUrl, { signal: AbortSignal.timeout(6000) })
     if (!res.ok) return null
     const buf = Buffer.from(await res.arrayBuffer())

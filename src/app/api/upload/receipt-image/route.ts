@@ -3,14 +3,22 @@ import { createClient } from '@supabase/supabase-js'
 
 export const runtime = 'nodejs'
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { persistSession: false } }
-)
-
 export async function POST(req: NextRequest) {
   try {
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (!serviceKey) {
+      return NextResponse.json(
+        { ok: false, error: 'SUPABASE_SERVICE_ROLE_KEY is not set in environment variables. Add it to .env.local.' },
+        { status: 500 }
+      )
+    }
+
+    const supabaseAdmin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      serviceKey,
+      { auth: { persistSession: false } }
+    )
+
     const formData = await req.formData()
     const file         = formData.get('file')         as File   | null
     const restaurantId = formData.get('restaurantId') as string | null

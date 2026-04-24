@@ -8,6 +8,7 @@ const enc = (s: string)          => new TextEncoder().encode(s)
 
 export const escpos = {
   init:         () => cmd(ESC, 0x40),
+  doubleStrike: (on: boolean) => cmd(ESC, 0x47, on ? 0x01 : 0x00),
   alignLeft:    () => cmd(ESC, 0x61, 0x00),
   alignCenter:  () => cmd(ESC, 0x61, 0x01),
   alignRight:   () => cmd(ESC, 0x61, 0x02),
@@ -35,11 +36,14 @@ function rowBytes(left: string, right: string, width: number): Uint8Array {
 
 // Three-column row: Item | Qty | Price — returns encoded Uint8Array
 function threeColBytes(left: string, mid: string, right: string, width: number): Uint8Array {
-  const rightW = Math.min(12, Math.floor(width * 0.30))
-  const midW   = 5
+  const rightW = Math.min(14, Math.floor(width * 0.35))  // wider for "10,000 IQD"
+  const midW   = 6
   const leftW  = width - midW - rightW
   const l = left.length > leftW ? left.slice(0, leftW - 1) + ' ' : left.padEnd(leftW)
-  const m = mid.padStart(midW)
+  // center qty within its column
+  const pad = midW - mid.length
+  const lPad = Math.floor(pad / 2)
+  const m = ' '.repeat(Math.max(0, lPad)) + mid + ' '.repeat(Math.max(0, pad - lPad))
   const r = right.padStart(rightW)
   return enc(l + m + r + '\n')
 }
@@ -88,7 +92,7 @@ export interface ReceiptPayload {
 
 export function buildReceiptBytes(d: ReceiptPayload): Uint8Array {
   const W   = cols(d.paperWidth)
-  const fmt = (n: number) => `${d.currencySymbol}${n.toLocaleString('en-US')}`
+  const fmt = (n: number) => `${n.toLocaleString('en-US')}${d.currencySymbol ? ' ' + d.currencySymbol : ''}`
   const div = (ch = '-')  => divBytes(W, ch)
   const row = (l: string, r: string) => rowBytes(l, r, W)
 
@@ -98,6 +102,7 @@ export function buildReceiptBytes(d: ReceiptPayload): Uint8Array {
 
   const parts: Uint8Array[] = [
     escpos.init(),
+    escpos.doubleStrike(true),
 
     // ── Logo bitmap (centered) ────────────────────────────
     ...(d.logoBitmap ? [escpos.alignCenter(), d.logoBitmap] : []),
