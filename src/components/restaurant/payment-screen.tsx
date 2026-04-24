@@ -999,7 +999,7 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
       </div>
     )}
 
-    {/* Invoice modal — shown after payment */}
+    {/* Invoice modal — shown after payment or when Receipt is clicked */}
     {showInvoice && (
       <InvoiceModal
         mode={invoiceMode}
@@ -1022,7 +1022,8 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
         customerPhone={selectedMember?.phone ?? selectedCustomer?.phone ?? null}
         invoiceNum={generatedInvoiceNum || previewInvoiceNum}
         orderNum={generatedOrderNum || orderNum}
-        onClose={() => { setShowInvoice(false); onPaid() }}
+        autoPrint={true}
+        onClose={() => { setShowInvoice(false); if (invoiceMode === 'payment') onPaid() }}
       />
     )}
 

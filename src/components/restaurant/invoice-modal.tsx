@@ -27,6 +27,7 @@ interface Props {
   customerPhone?: string | null
   invoiceNum?: string
   orderNum?: string
+  autoPrint?: boolean
   onClose: () => void
 }
 
@@ -57,6 +58,7 @@ export default function InvoiceModal({
   amountPaid, changeAmount, cashier, note,
   customerName, customerPhone,
   invoiceNum: invoiceNumProp, orderNum: orderNumProp,
+  autoPrint = false,
   onClose,
 }: Props) {
   const supabase = createClient()
@@ -124,6 +126,11 @@ export default function InvoiceModal({
 
   const [printStatus, setPrintStatus] = useState<'idle' | 'sending' | 'ok' | 'error'>('idle')
   const [printError,  setPrintError]  = useState('')
+
+  // Auto-print once data has loaded (when autoPrint prop is true)
+  useEffect(() => {
+    if (!loading && autoPrint) handleHardwarePrint()
+  }, [loading]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleHardwarePrint = async () => {
     setPrintStatus('sending')
