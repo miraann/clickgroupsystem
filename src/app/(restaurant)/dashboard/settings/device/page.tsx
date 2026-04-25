@@ -105,15 +105,14 @@ function connInfo(c: ConnectionType) {
 }
 
 // ── Scan phase label ───────────────────────────────────────────
-const SCAN_PHASES = ['usb', 'bluetooth', 'network', null] as const
+const SCAN_PHASES = ['usb', 'bluetooth', null] as const
 type ScanPhase = typeof SCAN_PHASES[number]
 
 function ScanPhaseBadge({ phase }: { phase: ScanPhase }) {
   if (!phase) return null
   const info = {
-    usb:       { icon: <Usb       className="w-3 h-3" />, label: 'Scanning USB…',       color: 'text-blue-400'    },
-    bluetooth: { icon: <Bluetooth className="w-3 h-3" />, label: 'Scanning Bluetooth…', color: 'text-indigo-400'  },
-    network:   { icon: <Wifi      className="w-3 h-3" />, label: 'Scanning Network…',   color: 'text-cyan-400'    },
+    usb:       { icon: <Usb       className="w-3 h-3" />, label: 'Scanning USB…',       color: 'text-blue-400'   },
+    bluetooth: { icon: <Bluetooth className="w-3 h-3" />, label: 'Scanning Bluetooth…', color: 'text-indigo-400' },
   }[phase]
   return (
     <span className={cn('flex items-center gap-1.5 text-xs font-medium', info.color)}>
@@ -312,9 +311,6 @@ export default function DevicePage() {
   const [showDetected, setShowDetected]   = useState(false)
   const [detectedTest, setDetectedTest]   = useState<Record<string, 'testing' | 'ok' | 'fail'>>({})
 
-  // System USB paths (for modal dropdown + scan auto-match)
-  const [sysPaths, setSysPaths]           = useState<{ path: string; label: string; matchName: string }[]>([])
-  const [sysPathsLoading, setSysPathsLoading] = useState(false)
 
   // ── Load KDS ──────────────────────────────────────────────
   const loadKds = useCallback(async (restId: string) => {
@@ -395,32 +391,6 @@ export default function DevicePage() {
   // Auto-detect handlers
   // ══════════════════════════════════════════════════════════
 
-  // Fetch OS-level USB paths (Windows printer ports + COM ports, Linux /dev/*)
-  const fetchSysPaths = async () => {
-    setSysPathsLoading(true)
-    try {
-      const res  = await fetch('/api/devices/usb-paths')
-      const { entries } = await res.json()
-      setSysPaths(entries ?? [])
-      return entries ?? [] as { path: string; label: string; matchName: string }[]
-    } catch {
-      return []
-    } finally {
-      setSysPathsLoading(false)
-    }
-  }
-
-  // Match a USB device name against the OS path list
-  function matchPath(
-    deviceName: string,
-    paths: { path: string; label: string; matchName: string }[]
-  ): string {
-    if (!paths.length) return ''
-    const words = deviceName.toLowerCase().split(/\s+/).filter(w => w.length > 2)
-    const hit = paths.find(p => words.some(w => p.matchName.includes(w)))
-    return hit?.path ?? ''
-  }
-
   const scanDevices = async () => {
     setScanning(true)
     setScanProgress(0)
@@ -428,34 +398,30 @@ export default function DevicePage() {
     setShowDetected(false)
     const found: DetectedDevice[] = []
 
-    // ── USB + system paths (run together) ─────────────────
+    // ── USB (WebUSB — works from any origin including cloud) ──
     setScanPhase('usb')
-    setScanProgress(5)
-    const [usbDevs, paths] = await Promise.all([
-      (async () => {
-        if (typeof navigator === 'undefined' || !('usb' in navigator)) return []
-        try { return await (navigator as any).usb.getDevices() } catch { return [] }
-      })(),
-      fetchSysPaths(),
-    ])
-    for (const d of usbDevs) {
-      const name = d.productName || `USB Device (${d.vendorId}:${d.productId})`
-      found.push({
-        id:              `usb-${d.vendorId}-${d.productId}`,
-        name,
-        connection_type: 'usb',
-        address:         matchPath(name, paths),   // ← auto-filled path
-        manufacturer:    d.manufacturerName || undefined,
-        status:          'online',
-      })
+    setScanProgress(20)
+    if (typeof navigator !== 'undefined' && 'usb' in navigator) {
+      try {
+        const usbDevs = await (navigator as any).usb.getDevices()
+        for (const d of usbDevs) {
+          found.push({
+            id:              `usb-${d.vendorId}-${d.productId}`,
+            name:            d.productName || `USB Device (${d.vendorId}:${d.productId})`,
+            connection_type: 'usb',
+            address:         '',
+            manufacturer:    d.manufacturerName || undefined,
+            status:          'online',
+          })
+        }
+      } catch {}
     }
-    setScanProgress(25)
+    setScanProgress(50)
 
     // ── Bluetooth ─────────────────────────────────────────
     setScanPhase('bluetooth')
     if (typeof navigator !== 'undefined' && 'bluetooth' in navigator) {
       try {
-        // Silent: already browser-authorized devices
         const btDevs = await (navigator as any).bluetooth.getDevices()
         for (const d of btDevs) {
           found.push({
@@ -466,8 +432,6 @@ export default function DevicePage() {
             status: 'online',
           })
         }
-        // None found → show OS picker so user can select their paired printer
-        // (scan button click counts as user gesture, so requestDevice is allowed here)
         if (btDevs.length === 0) {
           try {
             const d = await (navigator as any).bluetooth.requestDevice({
@@ -481,34 +445,10 @@ export default function DevicePage() {
               address: d.id,
               status: 'online',
             })
-          } catch { /* user dismissed picker — not an error */ }
+          } catch { /* user dismissed picker */ }
         }
       } catch {}
     }
-    setScanProgress(50)
-
-    // ── Network (backend subnet scanner) ──────────────────
-    setScanPhase('network')
-    let fakeProgress = 50
-    const progressInterval = setInterval(() => {
-      fakeProgress = Math.min(fakeProgress + 3, 92)
-      setScanProgress(fakeProgress)
-    }, 400)
-    try {
-      const res = await fetch('/api/devices/scan', { method: 'POST' })
-      const { devices: netDevs } = await res.json()
-      for (const d of (netDevs ?? [])) {
-        found.push({
-          id: d.id,
-          name: d.name,
-          connection_type: 'network',
-          address: d.ip,
-          port: d.port,
-          status: 'online',
-        })
-      }
-    } catch {}
-    clearInterval(progressInterval)
     setScanProgress(100)
     setScanPhase(null)
 
@@ -718,22 +658,15 @@ export default function DevicePage() {
     setTestResults(prev => ({ ...prev, [p.id]: { status: 'testing' } }))
 
     if (p.connection_type === 'ip') {
-      try {
-        const res = await fetch('/api/printer/print-test', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ip: p.ip_address, port: p.port ?? 9100, name: p.name, paper_width: p.paper_width ?? 80 }),
-        })
-        const json = await res.json()
-        setTestResults(prev => ({
-          ...prev,
-          [p.id]: json.ok
-            ? { status: 'ok',   message: `Test receipt printed to ${p.ip_address}` }
-            : { status: 'fail', message: json.error ?? 'Print failed' },
-        }))
-      } catch {
-        setTestResults(prev => ({ ...prev, [p.id]: { status: 'fail', message: 'Network error' } }))
-      }
+      // IP printing from the cloud server cannot reach LAN printers.
+      // For online deployment, IP printers must be publicly accessible or use a USB printer instead.
+      setTestResults(prev => ({
+        ...prev,
+        [p.id]: {
+          status: 'fail',
+          message: 'IP printer test is not available in cloud mode. Use a USB printer, or ensure the printer IP is publicly accessible.',
+        },
+      }))
 
     } else if (p.connection_type === 'bluetooth') {
       if (!('bluetooth' in navigator)) {
@@ -750,30 +683,8 @@ export default function DevicePage() {
       }
 
     } else if (p.connection_type === 'usb') {
-      // ── Path set → server-side write (works on Windows & Linux) ──
-      if (p.usb_path) {
-        try {
-          const res = await fetch('/api/printer/print-test', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ path: p.usb_path, name: p.name, paper_width: p.paper_width ?? 80 }),
-          })
-          const json = await res.json()
-          setTestResults(prev => ({
-            ...prev,
-            [p.id]: json.ok
-              ? { status: 'ok',   message: `Test page sent to ${p.usb_path}` }
-              : { status: 'fail', message: json.error ?? 'Print failed' },
-          }))
-        } catch {
-          setTestResults(prev => ({ ...prev, [p.id]: { status: 'fail', message: 'Server error' } }))
-        }
-        return
-      }
-
-      // ── No path set → try WebUSB (requires no Windows kernel driver) ──
       if (!('usb' in navigator)) {
-        setTestResults(prev => ({ ...prev, [p.id]: { status: 'fail', message: 'WebUSB not supported — use Chrome/Edge or set a device path in printer settings' } }))
+        setTestResults(prev => ({ ...prev, [p.id]: { status: 'fail', message: 'WebUSB not supported — use Chrome or Edge browser' } }))
         return
       }
       try {
@@ -782,10 +693,9 @@ export default function DevicePage() {
         setTestResults(prev => ({ ...prev, [p.id]: { status: 'ok', message: msg } }))
       } catch (e: any) {
         const raw = e?.message ?? ''
-        const hint =
-          raw.includes('Access') || raw.includes('claim') || raw.includes('busy') || raw.includes('open')
-            ? ' — Edit the printer and set the COM port (e.g. COM3) or device path'
-            : ''
+        const hint = raw.includes('No authorized') || raw.includes('no device')
+          ? ' — Click the USB button above to authorize your printer first.'
+          : ''
         setTestResults(prev => ({ ...prev, [p.id]: { status: 'fail', message: raw + hint } }))
       }
     }
@@ -1395,69 +1305,14 @@ export default function DevicePage() {
 
               {/* USB fields */}
               {prtForm.connection_type === 'usb' && (
-                <div className="space-y-3 p-4 rounded-2xl bg-white/3 border border-white/8">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-medium text-white/50 flex items-center gap-1.5">
-                      <Usb className="w-3.5 h-3.5 text-blue-400" /> USB / Serial Settings
-                    </p>
-                    {/* Detect from OS */}
-                    <button
-                      onClick={async () => { await fetchSysPaths() }}
-                      disabled={sysPathsLoading}
-                      className="flex items-center gap-1.5 text-[11px] text-cyan-400 hover:text-cyan-300 disabled:opacity-50 transition-colors">
-                      {sysPathsLoading
-                        ? <Loader2 className="w-3 h-3 animate-spin" />
-                        : <ScanLine className="w-3 h-3" />}
-                      Detect from system
-                    </button>
-                  </div>
-
-                  {/* Path input */}
-                  <div>
-                    <label className="block text-xs text-white/40 mb-1">Port / Device Path</label>
-                    <input value={prtForm.usb_path} onChange={e => setPrtForm(f => ({ ...f, usb_path: e.target.value }))}
-                      placeholder="COM3  or  /dev/ttyUSB0"
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/25 font-mono focus:outline-none focus:border-amber-500/50 transition-colors" />
-                  </div>
-
-                  {/* System-detected paths */}
-                  {sysPaths.length > 0 && (
-                    <div>
-                      <p className="text-[10px] text-white/30 mb-1.5">Detected on this machine:</p>
-                      <div className="flex flex-wrap gap-2">
-                        {sysPaths.map((sp, i) => (
-                          <button
-                            key={`${sp.path}-${i}`}
-                            onClick={() => setPrtForm(f => ({ ...f, usb_path: sp.path }))}
-                            className={cn(
-                              'text-[10px] px-2.5 py-1.5 rounded-lg font-mono transition-all active:scale-95 border text-left',
-                              prtForm.usb_path === sp.path
-                                ? 'bg-amber-500/20 border-amber-500/40 text-amber-300'
-                                : 'bg-white/8 border-white/10 text-white/50 hover:bg-white/12 hover:text-white/80'
-                            )}>
-                            <span className="font-semibold">{sp.path}</span>
-                            {sp.label !== sp.path && (
-                              <span className="ml-1.5 text-white/30 font-sans">
-                                {sp.label.replace(` — ${sp.path}`, '').slice(0, 22)}
-                              </span>
-                            )}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Static fallback presets */}
-                  {sysPaths.length === 0 && !sysPathsLoading && (
-                    <div className="flex gap-2 flex-wrap">
-                      {['COM1', 'COM2', 'COM3', 'COM4', '/dev/ttyUSB0', '/dev/usb/lp0'].map(preset => (
-                        <button key={preset} onClick={() => setPrtForm(f => ({ ...f, usb_path: preset }))}
-                          className="text-[10px] px-2 py-1 rounded-lg bg-white/8 text-white/40 hover:bg-white/12 hover:text-white/60 font-mono transition-all active:scale-95">
-                          {preset}
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                <div className="space-y-3 p-4 rounded-2xl bg-blue-500/5 border border-blue-500/15">
+                  <p className="text-xs font-medium text-blue-300 flex items-center gap-1.5">
+                    <Usb className="w-3.5 h-3.5" /> USB via WebUSB
+                  </p>
+                  <p className="text-[11px] text-white/40 leading-relaxed">
+                    Printing uses <strong className="text-white/60">WebUSB</strong> directly from your browser — no driver or path needed.
+                    Click <strong className="text-white/60">USB</strong> on the Auto-Detect panel to authorize your printer in Chrome/Edge, then it will be available for printing.
+                  </p>
                 </div>
               )}
 

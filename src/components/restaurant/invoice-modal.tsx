@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { X, Printer, Loader2, ImageIcon, CheckCircle2, AlertCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
+import { webUsbPrint } from '@/lib/webusb-print'
 
 interface Item { name: string; price: number; qty: number }
 
@@ -137,6 +138,7 @@ export default function InvoiceModal({
     setPrintError('')
     const now = new Date()
     try {
+      // Step 1: build ESC/POS bytes on the server
       const res = await fetch('/api/print/receipt', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -163,15 +165,25 @@ export default function InvoiceModal({
         }),
       })
       const json = await res.json()
-      if (json.ok) {
-        setPrintStatus('ok')
-        setTimeout(() => setPrintStatus('idle'), 3000)
+      if (!json.ok) throw new Error(json.error ?? 'Print failed')
+
+      // Step 2: send bytes to printer from the browser (WebUSB)
+      const bytes = Uint8Array.from(atob(json.bytes), c => c.charCodeAt(0))
+
+      if (json.connectionType === 'usb') {
+        await webUsbPrint(bytes)
       } else {
-        setPrintError(json.error ?? 'Print failed')
-        setPrintStatus('error')
+        throw new Error(
+          'IP/Bluetooth printers require a direct network connection. ' +
+          'Use "Browser Print" or switch to a USB printer.'
+        )
       }
-    } catch {
-      setPrintError('Could not reach print server')
+
+      setPrintStatus('ok')
+      setTimeout(() => setPrintStatus('idle'), 3000)
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Print failed'
+      setPrintError(msg)
       setPrintStatus('error')
     }
   }
