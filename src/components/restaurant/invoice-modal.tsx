@@ -71,6 +71,7 @@ export default function InvoiceModal({
   const [restaurantName, setRestaurantName] = useState('')
   const [invoiceNum, setInvoiceNum] = useState('')
   const [orderNum, setOrderNum]     = useState('')
+  const [paperWidth, setPaperWidth] = useState(58)
 
   const now = new Date()
   const dateStr = now.toLocaleDateString('en-GB', {
@@ -83,11 +84,14 @@ export default function InvoiceModal({
     ranOnce.current = true
     const load = async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const [{ data: rest }, { data: rsData }, { data: orderRecord }] = await Promise.all([
+      const [{ data: rest }, { data: rsData }, { data: orderRecord }, { data: printer }] = await Promise.all([
         supabase.from('restaurants').select('name').eq('id', restaurantId).maybeSingle(),
         supabase.from('receipt_settings').select('*').eq('restaurant_id', restaurantId).maybeSingle(),
         supabase.from('orders').select('order_num').eq('id', orderId).maybeSingle(),
+        supabase.from('printers').select('paper_width').eq('restaurant_id', restaurantId).eq('purpose', 'receipt').eq('active', true).limit(1).maybeSingle(),
       ])
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if ((printer as any)?.paper_width) setPaperWidth((printer as any).paper_width)
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       setRestaurantName((rest as any)?.name ?? '')
@@ -123,7 +127,15 @@ export default function InvoiceModal({
 
   const name = rs.shop_name || restaurantName || 'Restaurant'
 
-  const handlePrint = () => window.print()
+  const handlePrint = () => {
+    // Inject correct paper size before printing, then clean up
+    const style = document.createElement('style')
+    style.id = '__receipt_page_size__'
+    style.textContent = `@page { size: ${paperWidth}mm auto; margin: 2mm; }`
+    document.head.appendChild(style)
+    window.print()
+    setTimeout(() => document.getElementById('__receipt_page_size__')?.remove(), 500)
+  }
 
   const [printStatus, setPrintStatus] = useState<'idle' | 'sending' | 'ok' | 'error'>('idle')
   const [printError,  setPrintError]  = useState('')
@@ -202,40 +214,42 @@ export default function InvoiceModal({
         {/* Action buttons above receipt */}
         <div className="flex items-center justify-between mb-3 gap-2">
 
-          {/* Hardware print (ESC/POS) */}
+          {/* Browser print — primary (works with any Windows USB printer) */}
           <button
-            onClick={handleHardwarePrint}
-            disabled={printStatus === 'sending'}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all active:scale-95 border ${
-              printStatus === 'ok'
-                ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400'
-                : printStatus === 'error'
-                ? 'bg-rose-500/15 border-rose-500/30 text-rose-400'
-                : 'bg-white/10 border-white/15 text-white/70 hover:bg-white/15'
-            } disabled:opacity-50`}
+            onClick={handlePrint}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold active:scale-95 transition-all shadow-lg shadow-amber-500/30"
           >
-            {printStatus === 'sending' ? <Loader2 className="w-4 h-4 animate-spin" />
-              : printStatus === 'ok'   ? <CheckCircle2 className="w-4 h-4" />
-              : printStatus === 'error' ? <AlertCircle className="w-4 h-4" />
-              : <Printer className="w-4 h-4" />}
-            {printStatus === 'sending' ? 'Sending…'
-              : printStatus === 'ok'   ? 'Printed!'
-              : printStatus === 'error' ? 'Failed'
-              : 'Print'}
+            <Printer className="w-4 h-4" />
+            Print
           </button>
 
           <div className="flex items-center gap-2">
-            {/* Browser print fallback */}
+            {/* ESC/POS direct print (WebUSB / Web Serial) */}
             <button
-              onClick={handlePrint}
-              className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/6 border border-white/10 text-white/40 text-xs font-medium hover:bg-white/10 hover:text-white/60 active:scale-95 transition-all"
-              title="Print using browser"
+              onClick={handleHardwarePrint}
+              disabled={printStatus === 'sending'}
+              className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium transition-all active:scale-95 border ${
+                printStatus === 'ok'
+                  ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400'
+                  : printStatus === 'error'
+                  ? 'bg-rose-500/15 border-rose-500/30 text-rose-400'
+                  : 'bg-white/6 border-white/10 text-white/40 hover:bg-white/10 hover:text-white/60'
+              } disabled:opacity-50`}
+              title="ESC/POS direct print via WebUSB (Chrome/Edge)"
             >
-              Browser print
+              {printStatus === 'sending' ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                : printStatus === 'ok'   ? <CheckCircle2 className="w-3.5 h-3.5" />
+                : printStatus === 'error' ? <AlertCircle className="w-3.5 h-3.5" />
+                : <Printer className="w-3.5 h-3.5" />}
+              {printStatus === 'sending' ? 'Sending…'
+                : printStatus === 'ok'   ? 'Sent!'
+                : printStatus === 'error' ? 'ESC/POS failed'
+                : 'ESC/POS'}
             </button>
+
             <button
               onClick={onClose}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold active:scale-95 transition-all shadow-lg shadow-amber-500/30"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/8 border border-white/12 text-white/60 text-sm font-bold active:scale-95 transition-all hover:bg-white/12"
             >
               <X className="w-4 h-4" />
               Done
@@ -243,10 +257,13 @@ export default function InvoiceModal({
           </div>
         </div>
 
-        {/* Print error message */}
+        {/* ESC/POS error — show fallback hint */}
         {printStatus === 'error' && printError && (
-          <div className="mb-3 px-4 py-2.5 rounded-xl bg-rose-500/10 border border-rose-500/25 text-rose-400 text-xs">
-            {printError}
+          <div className="mb-3 px-4 py-2.5 rounded-xl bg-rose-500/10 border border-rose-500/25 text-rose-400 text-xs space-y-1">
+            <p>{printError}</p>
+            <p className="text-white/40">
+              Use the <button onClick={handlePrint} className="underline text-amber-400 hover:text-amber-300">Print</button> button above — it sends through the normal Windows printer driver and works with any USB printer.
+            </p>
           </div>
         )}
 
