@@ -111,7 +111,7 @@ type ScanPhase = typeof SCAN_PHASES[number]
 function ScanPhaseBadge({ phase }: { phase: ScanPhase }) {
   if (!phase) return null
   const info = {
-    usb:       { icon: <Usb       className="w-3 h-3" />, label: 'Scanning USB…',       color: 'text-blue-400'   },
+    usb:       { icon: <Usb       className="w-3 h-3" />, label: 'Select USB devices — Cancel when done',  color: 'text-blue-400'   },
     bluetooth: { icon: <Bluetooth className="w-3 h-3" />, label: 'Scanning Bluetooth…', color: 'text-indigo-400' },
     network:   { icon: <Wifi      className="w-3 h-3" />, label: 'Scanning Network…',   color: 'text-cyan-400'   },
   }[phase]
@@ -168,56 +168,42 @@ async function sendUsbTestPage(
   const bytes = buildTestBytes(printerName, paperWidth)
   const nav   = navigator as any
 
-  // ── Try WebUSB ───────────────────────────────────────────
-  if (nav?.usb) {
-    let dev = existingDevices.find((d: any) => PRINTER_VENDOR_IDS.has(d.vendorId)) ?? existingDevices[0] ?? null
-    if (!dev) dev = await nav.usb.requestDevice({ filters: [] })
+  if (!nav?.usb) throw new Error('WebUSB not supported — use Chrome or Edge browser')
 
-    try {
-      await dev.open()
-      try {
-        if (dev.configuration === null) await dev.selectConfiguration(1)
-        let ifaceNum = 0, epNum = 1
-        outer: for (const iface of dev.configuration.interfaces) {
-          for (const alt of iface.alternates) {
-            const ep = alt.endpoints.find((e: any) => e.direction === 'out' && e.type === 'bulk')
-            if (ep) { ifaceNum = iface.interfaceNumber; epNum = ep.endpointNumber; break outer }
-          }
-        }
-        await dev.claimInterface(ifaceNum)
-        try {
-          await dev.transferOut(epNum, bytes)
-          return `Test page sent to ${dev.productName ?? 'USB printer'}`
-        } finally {
-          await dev.releaseInterface(ifaceNum)
-        }
-      } finally {
-        try { await dev.close() } catch { /* ignore */ }
+  let dev = existingDevices.find((d: any) => PRINTER_VENDOR_IDS.has(d.vendorId)) ?? existingDevices[0] ?? null
+  if (!dev) dev = await nav.usb.requestDevice({ filters: [] })
+
+  try {
+    await dev.open()
+  } catch (e: any) {
+    const msg = e?.message ?? ''
+    if (msg.includes('Access denied') || msg.includes('Access Denied')) {
+      // Windows usbprint.sys owns the device — WebUSB cannot open it directly.
+      // The printer IS connected and ready; use Browser Print (window.print()) instead.
+      return `Device found via Windows print driver — use the Print button on invoices to print.`
+    }
+    throw e
+  }
+
+  try {
+    if (dev.configuration === null) await dev.selectConfiguration(1)
+    let ifaceNum = 0, epNum = 1
+    outer: for (const iface of dev.configuration.interfaces) {
+      for (const alt of iface.alternates) {
+        const ep = alt.endpoints.find((e: any) => e.direction === 'out' && e.type === 'bulk')
+        if (ep) { ifaceNum = iface.interfaceNumber; epNum = ep.endpointNumber; break outer }
       }
-    } catch (e: any) {
-      if (!e?.message?.includes('Access denied') && !e?.message?.includes('Access Denied')) throw e
-      // Fall through to Web Serial
     }
-  }
-
-  // ── Web Serial fallback (Windows usbprint.sys driver conflict) ──
-  if (nav?.serial) {
-    const ports = await nav.serial.getPorts()
-    const port  = ports[0] ?? await nav.serial.requestPort()
-    await port.open({ baudRate: 9600 })
+    await dev.claimInterface(ifaceNum)
     try {
-      const writer = port.writable.getWriter()
-      try { await writer.write(bytes) } finally { writer.releaseLock() }
+      await dev.transferOut(epNum, bytes)
+      return `Test page sent to ${dev.productName ?? 'USB printer'}`
     } finally {
-      await port.close()
+      await dev.releaseInterface(ifaceNum)
     }
-    return `Test page sent via Serial port`
+  } finally {
+    try { await dev.close() } catch { /* ignore */ }
   }
-
-  throw new Error(
-    'Access denied by Windows driver. The printer may also appear as a COM port — ' +
-    'authorize it via Web Serial. Or use "Browser Print" instead.'
-  )
 }
 
 // Common BLE thermal printer service UUIDs (tried in order)
@@ -417,23 +403,47 @@ export default function DevicePage() {
     setShowDetected(false)
     const found: DetectedDevice[] = []
 
-    // ── USB (WebUSB — works from any origin including cloud) ──
+    // ── USB (WebUSB — authorize devices one by one until Cancel) ──
     setScanPhase('usb')
-    setScanProgress(20)
+    setScanProgress(10)
     if (typeof navigator !== 'undefined' && 'usb' in navigator) {
+      const nav = navigator as any
+      // Already-authorized devices (no picker)
       try {
-        const usbDevs = await (navigator as any).usb.getDevices()
+        const usbDevs = await nav.usb.getDevices()
         for (const d of usbDevs) {
-          found.push({
-            id:              `usb-${d.vendorId}-${d.productId}`,
-            name:            d.productName || `USB Device (${d.vendorId}:${d.productId})`,
-            connection_type: 'usb',
-            address:         '',
-            manufacturer:    d.manufacturerName || undefined,
-            status:          'online',
-          })
+          const id = `usb-${d.vendorId}-${d.productId}`
+          if (!found.some(x => x.id === id)) {
+            found.push({
+              id,
+              name:            d.productName || `USB Device (${d.vendorId}:${d.productId})`,
+              connection_type: 'usb',
+              address:         '',
+              manufacturer:    d.manufacturerName || undefined,
+              status:          'online',
+            })
+          }
         }
       } catch {}
+
+      // Loop requestDevice so the user can authorize every connected USB device.
+      // Each call shows the Chrome picker for ONE device; loop until Cancel.
+      try {
+        while (true) {
+          const d = await nav.usb.requestDevice({ filters: [] })
+          const id = `usb-${d.vendorId}-${d.productId}`
+          if (!found.some(x => x.id === id)) {
+            found.push({
+              id,
+              name:            d.productName || `USB Device (${d.vendorId}:${d.productId})`,
+              connection_type: 'usb',
+              address:         '',
+              manufacturer:    d.manufacturerName || undefined,
+              status:          'online',
+            })
+          }
+        }
+      } catch { /* user clicked Cancel — stop asking */ }
     }
     setScanProgress(50)
 
@@ -919,7 +929,7 @@ export default function DevicePage() {
                   />
                 </div>
                 <p className="text-[10px] text-white/25 mt-1.5">
-                  Network scan probes 254 addresses — this may take a few seconds.
+                  USB: select each device in the picker, then click Cancel to continue. Network scan probes 254 addresses.
                 </p>
               </div>
             )}

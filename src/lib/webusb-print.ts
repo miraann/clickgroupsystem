@@ -14,14 +14,38 @@ const PRINTER_VENDOR_IDS = new Set([
   0x0483, // STMicroelectronics (POS58 and others)
 ])
 
-async function webUsbPrint(bytes: Uint8Array): Promise<void> {
+/**
+ * Print ESC/POS bytes to a USB printer via WebUSB.
+ * Throws if the device is claimed by a Windows kernel driver (usbprint.sys).
+ * In that case, use Browser Print (window.print()) instead.
+ */
+export async function browserPrint(bytes: Uint8Array): Promise<void> {
   const nav = navigator as any
+  if (!nav?.usb) {
+    throw new Error('WebUSB not supported. Use Chrome or Edge browser.')
+  }
+
   const devs: any[] = await nav.usb.getDevices()
   let dev = devs.find((d: any) => PRINTER_VENDOR_IDS.has(d.vendorId)) ?? devs[0] ?? null
 
-  if (!dev) dev = await nav.usb.requestDevice({ filters: [] })
+  if (!dev) {
+    dev = await nav.usb.requestDevice({ filters: [] })
+  }
 
-  await dev.open()
+  let lastError = ''
+  try {
+    await dev.open()
+  } catch (e: any) {
+    lastError = e?.message ?? ''
+    if (lastError.includes('Access denied') || lastError.includes('Access Denied')) {
+      throw new Error(
+        'Windows printer driver (usbprint.sys) is blocking direct USB access.\n' +
+        'Use the orange "Print" button instead — it prints through the normal Windows driver and works perfectly.'
+      )
+    }
+    throw e
+  }
+
   try {
     if (dev.configuration === null) await dev.selectConfiguration(1)
 
@@ -51,60 +75,4 @@ async function webUsbPrint(bytes: Uint8Array): Promise<void> {
   } finally {
     try { await dev.close() } catch { /* ignore */ }
   }
-}
-
-async function webSerialPrint(bytes: Uint8Array): Promise<void> {
-  const nav = navigator as any
-  if (!nav?.serial) throw new Error('Web Serial not supported. Use Chrome or Edge browser.')
-
-  // Re-use an already-authorized port, or prompt to pick one
-  const ports = await nav.serial.getPorts()
-  const port  = ports[0] ?? await nav.serial.requestPort()
-
-  // For USB virtual COM ports the baud rate is usually ignored, but 9600 is safe
-  await port.open({ baudRate: 9600 })
-  try {
-    const writer = port.writable.getWriter()
-    try {
-      await writer.write(bytes)
-    } finally {
-      writer.releaseLock()
-    }
-  } finally {
-    await port.close()
-  }
-}
-
-/**
- * Print to a USB thermal printer from the browser.
- * Tries WebUSB first; if Windows blocks it (usbprint.sys driver conflict),
- * automatically falls back to Web Serial (COM port).
- */
-export async function browserPrint(bytes: Uint8Array): Promise<void> {
-  const nav = navigator as any
-
-  if (nav?.usb) {
-    try {
-      await webUsbPrint(bytes)
-      return
-    } catch (e: any) {
-      const msg = e?.message ?? ''
-      // "Access denied" = Windows kernel driver (usbprint.sys) holds the device.
-      // Fall through to Web Serial which accesses the virtual COM port instead.
-      if (!msg.includes('Access denied') && !msg.includes('Access Denied')) throw e
-    }
-  }
-
-  // Web Serial fallback — works if printer enumerates as a COM port (STM32 CDC VCP, CH340, etc.)
-  if (nav?.serial) {
-    await webSerialPrint(bytes)
-    return
-  }
-
-  throw new Error(
-    'Could not access the USB printer.\n' +
-    'On Windows: the printer driver (usbprint.sys) blocks direct USB access. ' +
-    'Check Device Manager — if the printer also shows as a COM port, authorize it via Web Serial. ' +
-    'Otherwise use "Browser Print" or install Zadig to replace the driver with WinUSB.'
-  )
 }
