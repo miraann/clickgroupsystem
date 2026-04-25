@@ -142,7 +142,7 @@ export default function InvoiceModal({
 
   // Auto-print once data has loaded (when autoPrint prop is true)
   useEffect(() => {
-    if (!loading && autoPrint) handleHardwarePrint()
+    if (!loading && autoPrint) handlePrint()
   }, [loading]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleHardwarePrint = async () => {
