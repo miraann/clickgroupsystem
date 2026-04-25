@@ -111,7 +111,7 @@ type ScanPhase = typeof SCAN_PHASES[number]
 function ScanPhaseBadge({ phase }: { phase: ScanPhase }) {
   if (!phase) return null
   const info = {
-    usb:       { icon: <Usb       className="w-3 h-3" />, label: 'Select USB devices — Cancel when done',  color: 'text-blue-400'   },
+    usb:       { icon: <Usb       className="w-3 h-3" />, label: 'Scanning USB…',       color: 'text-blue-400'   },
     bluetooth: { icon: <Bluetooth className="w-3 h-3" />, label: 'Scanning Bluetooth…', color: 'text-indigo-400' },
     network:   { icon: <Wifi      className="w-3 h-3" />, label: 'Scanning Network…',   color: 'text-cyan-400'   },
   }[phase]
@@ -403,47 +403,25 @@ export default function DevicePage() {
     setShowDetected(false)
     const found: DetectedDevice[] = []
 
-    // ── USB (WebUSB — authorize devices one by one until Cancel) ──
+    // ── USB (WebUSB — silently lists already-authorized devices) ──
+    // Note: HID-class devices (barcode scanners, mice) are excluded by Chrome security.
+    // Use the USB button to authorize a new non-HID device (printer, card reader, etc.)
     setScanPhase('usb')
-    setScanProgress(10)
+    setScanProgress(20)
     if (typeof navigator !== 'undefined' && 'usb' in navigator) {
-      const nav = navigator as any
-      // Already-authorized devices (no picker)
       try {
-        const usbDevs = await nav.usb.getDevices()
+        const usbDevs = await (navigator as any).usb.getDevices()
         for (const d of usbDevs) {
-          const id = `usb-${d.vendorId}-${d.productId}`
-          if (!found.some(x => x.id === id)) {
-            found.push({
-              id,
-              name:            d.productName || `USB Device (${d.vendorId}:${d.productId})`,
-              connection_type: 'usb',
-              address:         '',
-              manufacturer:    d.manufacturerName || undefined,
-              status:          'online',
-            })
-          }
+          found.push({
+            id:              `usb-${d.vendorId}-${d.productId}`,
+            name:            d.productName || `USB Device (${d.vendorId}:${d.productId})`,
+            connection_type: 'usb',
+            address:         '',
+            manufacturer:    d.manufacturerName || undefined,
+            status:          'online',
+          })
         }
       } catch {}
-
-      // Loop requestDevice so the user can authorize every connected USB device.
-      // Each call shows the Chrome picker for ONE device; loop until Cancel.
-      try {
-        while (true) {
-          const d = await nav.usb.requestDevice({ filters: [] })
-          const id = `usb-${d.vendorId}-${d.productId}`
-          if (!found.some(x => x.id === id)) {
-            found.push({
-              id,
-              name:            d.productName || `USB Device (${d.vendorId}:${d.productId})`,
-              connection_type: 'usb',
-              address:         '',
-              manufacturer:    d.manufacturerName || undefined,
-              status:          'online',
-            })
-          }
-        }
-      } catch { /* user clicked Cancel — stop asking */ }
     }
     setScanProgress(50)
 
@@ -929,7 +907,7 @@ export default function DevicePage() {
                   />
                 </div>
                 <p className="text-[10px] text-white/25 mt-1.5">
-                  USB: select each device in the picker, then click Cancel to continue. Network scan probes 254 addresses.
+                  Network scan probes 254 addresses and may take a few seconds.
                 </p>
               </div>
             )}
@@ -937,12 +915,28 @@ export default function DevicePage() {
             {/* Results */}
             {showDetected && !scanning && (
               <div className="border-t border-white/8 px-4 py-3">
+                {/* Device type legend */}
+                <div className="mb-3 space-y-1.5">
+                  <div className="flex items-start gap-2 text-[10px] text-white/35 leading-relaxed">
+                    <Usb className="w-3 h-3 shrink-0 mt-0.5 text-blue-400/60" />
+                    <span><span className="text-white/50 font-medium">USB printers / card readers</span> — click the <span className="text-white/50">USB</span> button above to authorize them in Chrome first, then scan again.</span>
+                  </div>
+                  <div className="flex items-start gap-2 text-[10px] text-white/35 leading-relaxed">
+                    <ScanLine className="w-3 h-3 shrink-0 mt-0.5 text-amber-400/60" />
+                    <span><span className="text-white/50 font-medium">Barcode scanners</span> — work automatically as a USB keyboard. No setup needed here; just focus any text field and scan.</span>
+                  </div>
+                  <div className="flex items-start gap-2 text-[10px] text-white/35 leading-relaxed">
+                    <Wifi className="w-3 h-3 shrink-0 mt-0.5 text-cyan-400/60" />
+                    <span><span className="text-white/50 font-medium">Network / IP printers</span> — click <span className="text-white/50">Add Printer</span> and enter the IP address manually (auto-scan only works on local deployments).</span>
+                  </div>
+                </div>
+
                 {detectedDevices.length === 0 ? (
                   <div className="flex items-center gap-3 py-2 text-white/30">
                     <AlertCircle className="w-4 h-4 shrink-0" />
                     <div>
-                      <p className="text-xs font-medium">No devices found</p>
-                      <p className="text-[10px]">Make sure printers are on and connected. Use USB/Pair BT buttons to authorize devices manually.</p>
+                      <p className="text-xs font-medium">No USB devices authorized yet</p>
+                      <p className="text-[10px]">Click the <span className="font-medium text-white/40">USB</span> button above, select your printer, then scan again.</p>
                     </div>
                   </div>
                 ) : (
