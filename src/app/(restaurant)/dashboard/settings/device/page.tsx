@@ -125,30 +125,64 @@ function ScanPhaseBadge({ phase }: { phase: ScanPhase }) {
 
 
 function triggerTestPrint(printerName: string, paperWidth: number) {
-  const now = new Date().toLocaleString()
+  const now  = new Date().toLocaleString()
   const cols = paperWidth >= 80 ? 42 : paperWidth >= 58 ? 32 : 24
   const line = '-'.repeat(cols)
-  const html = `<!DOCTYPE html><html><head><style>
-    *{margin:0;padding:0;box-sizing:border-box}
-    @page{size:${paperWidth}mm auto;margin:2mm}
-    body{font-family:'Courier New',monospace;font-size:12px;width:${paperWidth}mm;padding:4px;color:#000;background:#fff}
-    .c{text-align:center}.b{font-weight:bold}.lg{font-size:15px}
-  </style></head><body>
-    <p class="c b lg">TEST PRINT</p>
-    <p class="c">ClickGroup POS</p>
-    <p>${line}</p>
-    <p>Printer : ${printerName}</p>
-    <p>Paper   : ${paperWidth} mm</p>
-    <p>Time    : ${now}</p>
-    <p>${line}</p>
-    <p class="c b">** PRINTER READY **</p>
-    <script>window.onload=function(){window.print();setTimeout(function(){window.close()},2000)}</script>
-  </body></html>`
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+<title>Test Print — ClickGroup POS</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+@media screen{
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#080b14;color:#fff;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
+  .card{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:20px;padding:28px;width:100%;max-width:300px;text-align:center}
+  .brand{font-size:10px;color:rgba(255,255,255,0.25);letter-spacing:.12em;text-transform:uppercase;margin-bottom:18px}
+  .icon{width:52px;height:52px;background:rgba(245,158,11,0.12);border:1.5px solid rgba(245,158,11,0.3);border-radius:14px;margin:0 auto 14px;display:flex;align-items:center;justify-content:center;font-size:22px}
+  .name{font-size:15px;font-weight:600;color:#fff;margin-bottom:3px}
+  .sub{font-size:11px;color:rgba(255,255,255,0.35);margin-bottom:18px}
+  .row{display:flex;justify-content:space-between;align-items:center;padding:7px 11px;background:rgba(255,255,255,0.04);border-radius:9px;margin-bottom:5px}
+  .lbl{font-size:10px;color:rgba(255,255,255,0.3)}
+  .val{font-size:10px;color:rgba(255,255,255,0.65);font-weight:500}
+  .badge{margin-top:18px;padding:9px 14px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);border-radius:11px;font-size:11px;color:#6ee7b7;display:flex;align-items:center;gap:8px;justify-content:center}
+  .dot{width:5px;height:5px;border-radius:50%;background:#34d399;animation:p 1.4s ease-in-out infinite}
+  @keyframes p{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.75)}}
+  .foot{margin-top:13px;font-size:9px;color:rgba(255,255,255,0.15);line-height:1.5}
+  #receipt{display:none}
+}
+@media print{
+  body{background:#fff;color:#000}
+  .card,.brand,.icon,.name,.sub,.row,.badge,.foot{display:none!important}
+  #receipt{display:block!important;font-family:'Courier New',monospace;font-size:12px;width:${paperWidth}mm;padding:4px}
+  @page{size:${paperWidth}mm auto;margin:2mm}
+}
+</style></head><body>
+<div class="card">
+  <div class="brand">ClickGroup POS</div>
+  <div class="icon">🖨</div>
+  <div class="name">Test Print</div>
+  <div class="sub">${printerName}</div>
+  <div class="row"><span class="lbl">Paper width</span><span class="val">${paperWidth} mm</span></div>
+  <div class="row"><span class="lbl">Columns</span><span class="val">${cols} chars</span></div>
+  <div class="row"><span class="lbl">Time</span><span class="val">${now}</span></div>
+  <div class="badge"><span class="dot"></span>Print dialog opened — select your printer</div>
+  <div class="foot">This window closes automatically after printing.</div>
+</div>
+<div id="receipt">
+  <p style="text-align:center;font-weight:bold;font-size:15px">TEST PRINT</p>
+  <p style="text-align:center">ClickGroup POS</p>
+  <p>${line}</p>
+  <p>Printer : ${printerName}</p>
+  <p>Paper   : ${paperWidth} mm</p>
+  <p>Time    : ${now}</p>
+  <p>${line}</p>
+  <p style="text-align:center;font-weight:bold">** PRINTER READY **</p>
+</div>
+<script>window.onload=function(){setTimeout(function(){window.print();setTimeout(function(){window.close()},2000)},300)}</script>
+</body></html>`
   const blob = new Blob([html], { type: 'text/html' })
   const url  = URL.createObjectURL(blob)
-  const win  = window.open(url, '_blank', 'width=320,height=380,left=200,top=150')
+  const win  = window.open(url, '_blank', 'width=360,height=460,left=200,top=120')
   if (!win) { URL.revokeObjectURL(url); throw new Error('Popup blocked — allow popups for this site and try again.') }
-  setTimeout(() => URL.revokeObjectURL(url), 5000)
+  setTimeout(() => URL.revokeObjectURL(url), 6000)
 }
 
 // Common BLE thermal printer service UUIDs (tried in order)
