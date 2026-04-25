@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { X, Printer, Loader2, ImageIcon, CheckCircle2, AlertCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
-import { webUsbPrint } from '@/lib/webusb-print'
+import { browserPrint } from '@/lib/webusb-print'
 
 interface Item { name: string; price: number; qty: number }
 
@@ -171,7 +171,7 @@ export default function InvoiceModal({
       const bytes = Uint8Array.from(atob(json.bytes), c => c.charCodeAt(0))
 
       if (json.connectionType === 'usb') {
-        await webUsbPrint(bytes)
+        await browserPrint(bytes)
       } else {
         throw new Error(
           'IP/Bluetooth printers require a direct network connection. ' +

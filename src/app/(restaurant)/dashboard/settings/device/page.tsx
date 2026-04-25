@@ -105,7 +105,7 @@ function connInfo(c: ConnectionType) {
 }
 
 // ── Scan phase label ───────────────────────────────────────────
-const SCAN_PHASES = ['usb', 'bluetooth', null] as const
+const SCAN_PHASES = ['usb', 'bluetooth', 'network', null] as const
 type ScanPhase = typeof SCAN_PHASES[number]
 
 function ScanPhaseBadge({ phase }: { phase: ScanPhase }) {
@@ -113,6 +113,7 @@ function ScanPhaseBadge({ phase }: { phase: ScanPhase }) {
   const info = {
     usb:       { icon: <Usb       className="w-3 h-3" />, label: 'Scanning USB…',       color: 'text-blue-400'   },
     bluetooth: { icon: <Bluetooth className="w-3 h-3" />, label: 'Scanning Bluetooth…', color: 'text-indigo-400' },
+    network:   { icon: <Wifi      className="w-3 h-3" />, label: 'Scanning Network…',   color: 'text-cyan-400'   },
   }[phase]
   return (
     <span className={cn('flex items-center gap-1.5 text-xs font-medium', info.color)}>
@@ -136,69 +137,87 @@ const PRINTER_VENDOR_IDS = new Set([
   0x0483, // STMicroelectronics (some POS hardware)
 ])
 
+function buildTestBytes(printerName: string, paperWidth: number): Uint8Array {
+  const ESC = 0x1B, GS = 0x1D
+  const cols = paperWidth >= 80 ? 42 : paperWidth >= 58 ? 32 : 24
+  const line = '-'.repeat(cols)
+  const enc  = new TextEncoder()
+  return new Uint8Array([
+    ESC, 0x40,
+    ESC, 0x61, 0x01,
+    ESC, 0x45, 0x01, ...enc.encode('TEST PRINT\n'), ESC, 0x45, 0x00,
+    ...enc.encode('ClickGroup POS\n'),
+    ...enc.encode(line + '\n'),
+    ESC, 0x61, 0x00,
+    ...enc.encode(`Printer : ${printerName}\n`),
+    ...enc.encode(`Paper   : ${paperWidth} mm\n`),
+    ...enc.encode(`Status  : OK\n`),
+    ESC, 0x61, 0x01,
+    ...enc.encode(line + '\n'),
+    ...enc.encode('** PRINTER READY **\n'),
+    0x0A, 0x0A, 0x0A,
+    GS, 0x56, 0x42, 0x10,
+  ])
+}
+
 async function sendUsbTestPage(
   printerName: string,
   paperWidth: number,
   existingDevices: any[]
 ): Promise<string> {
-  // Prefer already-authorized printer devices; fall back to any, then picker
-  let dev =
-    existingDevices.find((d: any) => PRINTER_VENDOR_IDS.has(d.vendorId)) ??
-    existingDevices[0] ??
-    null
+  const bytes = buildTestBytes(printerName, paperWidth)
+  const nav   = navigator as any
 
-  if (!dev) {
-    // First time: let user pick the USB device to authorize it
-    dev = await (navigator as any).usb.requestDevice({ filters: [] })
-  }
+  // ── Try WebUSB ───────────────────────────────────────────
+  if (nav?.usb) {
+    let dev = existingDevices.find((d: any) => PRINTER_VENDOR_IDS.has(d.vendorId)) ?? existingDevices[0] ?? null
+    if (!dev) dev = await nav.usb.requestDevice({ filters: [] })
 
-  await dev.open()
-  try {
-    if (dev.configuration === null) await dev.selectConfiguration(1)
-
-    // Find bulk-OUT endpoint (scan all interfaces)
-    let ifaceNum = 0, epNum = 1
-    outer: for (const iface of dev.configuration.interfaces) {
-      for (const alt of iface.alternates) {
-        const ep = alt.endpoints.find((e: any) => e.direction === 'out' && e.type === 'bulk')
-        if (ep) { ifaceNum = iface.interfaceNumber; epNum = ep.endpointNumber; break outer }
-      }
-    }
-
-    await dev.claimInterface(ifaceNum)
     try {
-      const ESC = 0x1B, GS = 0x1D
-      const cols = paperWidth >= 80 ? 42 : paperWidth >= 58 ? 32 : 24
-      const line = '-'.repeat(cols)
-      const enc  = new TextEncoder()
-
-      const bytes = new Uint8Array([
-        ESC, 0x40,            // initialize
-        ESC, 0x61, 0x01,      // center
-        ESC, 0x45, 0x01,      // bold on
-        ...enc.encode('TEST PRINT\n'),
-        ESC, 0x45, 0x00,      // bold off
-        ...enc.encode('ClickGroup POS\n'),
-        ...enc.encode(line + '\n'),
-        ESC, 0x61, 0x00,      // left align
-        ...enc.encode(`Printer : ${printerName}\n`),
-        ...enc.encode(`Paper   : ${paperWidth} mm\n`),
-        ...enc.encode(`Status  : OK\n`),
-        ESC, 0x61, 0x01,      // center
-        ...enc.encode(line + '\n'),
-        ...enc.encode('** PRINTER READY **\n'),
-        0x0A, 0x0A, 0x0A,     // line feeds before cut
-        GS, 0x56, 0x42, 0x10, // partial cut
-      ])
-
-      await dev.transferOut(epNum, bytes)
-      return `Test page sent to ${dev.productName ?? 'USB printer'}`
-    } finally {
-      await dev.releaseInterface(ifaceNum)
+      await dev.open()
+      try {
+        if (dev.configuration === null) await dev.selectConfiguration(1)
+        let ifaceNum = 0, epNum = 1
+        outer: for (const iface of dev.configuration.interfaces) {
+          for (const alt of iface.alternates) {
+            const ep = alt.endpoints.find((e: any) => e.direction === 'out' && e.type === 'bulk')
+            if (ep) { ifaceNum = iface.interfaceNumber; epNum = ep.endpointNumber; break outer }
+          }
+        }
+        await dev.claimInterface(ifaceNum)
+        try {
+          await dev.transferOut(epNum, bytes)
+          return `Test page sent to ${dev.productName ?? 'USB printer'}`
+        } finally {
+          await dev.releaseInterface(ifaceNum)
+        }
+      } finally {
+        try { await dev.close() } catch { /* ignore */ }
+      }
+    } catch (e: any) {
+      if (!e?.message?.includes('Access denied') && !e?.message?.includes('Access Denied')) throw e
+      // Fall through to Web Serial
     }
-  } finally {
-    await dev.close()
   }
+
+  // ── Web Serial fallback (Windows usbprint.sys driver conflict) ──
+  if (nav?.serial) {
+    const ports = await nav.serial.getPorts()
+    const port  = ports[0] ?? await nav.serial.requestPort()
+    await port.open({ baudRate: 9600 })
+    try {
+      const writer = port.writable.getWriter()
+      try { await writer.write(bytes) } finally { writer.releaseLock() }
+    } finally {
+      await port.close()
+    }
+    return `Test page sent via Serial port`
+  }
+
+  throw new Error(
+    'Access denied by Windows driver. The printer may also appear as a COM port — ' +
+    'authorize it via Web Serial. Or use "Browser Print" instead.'
+  )
 }
 
 // Common BLE thermal printer service UUIDs (tried in order)
@@ -449,6 +468,27 @@ export default function DevicePage() {
         }
       } catch {}
     }
+    setScanProgress(70)
+
+    // ── Network (server-side LAN scan — works when server is on same network) ──
+    setScanPhase('network')
+    try {
+      const res = await fetch('/api/devices/scan', { method: 'POST', signal: AbortSignal.timeout(20000) })
+      const { devices: netDevs, cloudDeployment } = await res.json()
+      if (!cloudDeployment) {
+        for (const d of (netDevs ?? [])) {
+          found.push({
+            id:              d.id,
+            name:            d.name,
+            connection_type: 'network',
+            address:         d.ip,
+            port:            d.port,
+            status:          'online',
+          })
+        }
+      }
+    } catch { /* silent — expected on cloud deployment or slow network */ }
+
     setScanProgress(100)
     setScanPhase(null)
 
@@ -693,9 +733,12 @@ export default function DevicePage() {
         setTestResults(prev => ({ ...prev, [p.id]: { status: 'ok', message: msg } }))
       } catch (e: any) {
         const raw = e?.message ?? ''
-        const hint = raw.includes('No authorized') || raw.includes('no device')
-          ? ' — Click the USB button above to authorize your printer first.'
-          : ''
+        const hint =
+          raw.includes('Access denied') || raw.includes('Access Denied')
+            ? ' Windows driver conflict (usbprint.sys). The printer may also appear as a COM port — try the Serial port picker, or use Browser Print.'
+            : raw.includes('No authorized') || raw.includes('no device')
+            ? ' Click the USB button above to authorize your printer first.'
+            : ''
         setTestResults(prev => ({ ...prev, [p.id]: { status: 'fail', message: raw + hint } }))
       }
     }

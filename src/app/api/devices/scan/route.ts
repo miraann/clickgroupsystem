@@ -42,6 +42,12 @@ function probePort(ip: string, port: number): Promise<boolean> {
 }
 
 export async function POST() {
+  // On Vercel (cloud), the server is in a datacenter — not on the restaurant's LAN.
+  // Skip the scan and tell the client so it can show a helpful message.
+  if (process.env.VERCEL) {
+    return NextResponse.json({ devices: [], cloudDeployment: true })
+  }
+
   const subnets = getLocalSubnets()
   if (subnets.length === 0) {
     return NextResponse.json({ devices: [], error: 'No local IPv4 interface found' })
