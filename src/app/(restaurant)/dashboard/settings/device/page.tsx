@@ -122,88 +122,33 @@ function ScanPhaseBadge({ phase }: { phase: ScanPhase }) {
   )
 }
 
-// ── Known thermal-printer USB vendor IDs ───────────────────────
-const PRINTER_VENDOR_IDS = new Set([
-  0x04b8, // Epson
-  0x0519, // Star Micronics
-  0x1504, // Bixolon
-  0x1584, // Citizen
-  0x154f, // SNBC
-  0x0fe6, // ICS/Wonderful
-  0x2730, // Birch
-  0x0dd4, // Custom/Sewoo
-  0x067b, // Prolific USB-serial
-  0x1a86, // WCH CH340/CH341
-  0x0483, // STMicroelectronics (some POS hardware)
-])
 
-function buildTestBytes(printerName: string, paperWidth: number): Uint8Array {
-  const ESC = 0x1B, GS = 0x1D
+
+function triggerTestPrint(printerName: string, paperWidth: number) {
+  const now = new Date().toLocaleString()
   const cols = paperWidth >= 80 ? 42 : paperWidth >= 58 ? 32 : 24
   const line = '-'.repeat(cols)
-  const enc  = new TextEncoder()
-  return new Uint8Array([
-    ESC, 0x40,
-    ESC, 0x61, 0x01,
-    ESC, 0x45, 0x01, ...enc.encode('TEST PRINT\n'), ESC, 0x45, 0x00,
-    ...enc.encode('ClickGroup POS\n'),
-    ...enc.encode(line + '\n'),
-    ESC, 0x61, 0x00,
-    ...enc.encode(`Printer : ${printerName}\n`),
-    ...enc.encode(`Paper   : ${paperWidth} mm\n`),
-    ...enc.encode(`Status  : OK\n`),
-    ESC, 0x61, 0x01,
-    ...enc.encode(line + '\n'),
-    ...enc.encode('** PRINTER READY **\n'),
-    0x0A, 0x0A, 0x0A,
-    GS, 0x56, 0x42, 0x10,
-  ])
-}
-
-async function sendUsbTestPage(
-  printerName: string,
-  paperWidth: number,
-  existingDevices: any[]
-): Promise<string> {
-  const bytes = buildTestBytes(printerName, paperWidth)
-  const nav   = navigator as any
-
-  if (!nav?.usb) throw new Error('WebUSB not supported — use Chrome or Edge browser')
-
-  let dev = existingDevices.find((d: any) => PRINTER_VENDOR_IDS.has(d.vendorId)) ?? existingDevices[0] ?? null
-  if (!dev) dev = await nav.usb.requestDevice({ filters: [] })
-
-  try {
-    await dev.open()
-  } catch (e: any) {
-    const msg = e?.message ?? ''
-    if (msg.includes('Access denied') || msg.includes('Access Denied')) {
-      // Windows usbprint.sys owns the device — WebUSB cannot open it directly.
-      // The printer IS connected and ready; use Browser Print (window.print()) instead.
-      return `Device found via Windows print driver — use the Print button on invoices to print.`
-    }
-    throw e
-  }
-
-  try {
-    if (dev.configuration === null) await dev.selectConfiguration(1)
-    let ifaceNum = 0, epNum = 1
-    outer: for (const iface of dev.configuration.interfaces) {
-      for (const alt of iface.alternates) {
-        const ep = alt.endpoints.find((e: any) => e.direction === 'out' && e.type === 'bulk')
-        if (ep) { ifaceNum = iface.interfaceNumber; epNum = ep.endpointNumber; break outer }
-      }
-    }
-    await dev.claimInterface(ifaceNum)
-    try {
-      await dev.transferOut(epNum, bytes)
-      return `Test page sent to ${dev.productName ?? 'USB printer'}`
-    } finally {
-      await dev.releaseInterface(ifaceNum)
-    }
-  } finally {
-    try { await dev.close() } catch { /* ignore */ }
-  }
+  const html = `<!DOCTYPE html><html><head><style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    @page{size:${paperWidth}mm auto;margin:2mm}
+    body{font-family:'Courier New',monospace;font-size:12px;width:${paperWidth}mm;padding:4px;color:#000;background:#fff}
+    .c{text-align:center}.b{font-weight:bold}.lg{font-size:15px}
+  </style></head><body>
+    <p class="c b lg">TEST PRINT</p>
+    <p class="c">ClickGroup POS</p>
+    <p>${line}</p>
+    <p>Printer : ${printerName}</p>
+    <p>Paper   : ${paperWidth} mm</p>
+    <p>Time    : ${now}</p>
+    <p>${line}</p>
+    <p class="c b">** PRINTER READY **</p>
+    <script>window.onload=function(){window.print();setTimeout(function(){window.close()},2000)}</script>
+  </body></html>`
+  const blob = new Blob([html], { type: 'text/html' })
+  const url  = URL.createObjectURL(blob)
+  const win  = window.open(url, '_blank', 'width=320,height=380,left=200,top=150')
+  if (!win) { URL.revokeObjectURL(url); throw new Error('Popup blocked — allow popups for this site and try again.') }
+  setTimeout(() => URL.revokeObjectURL(url), 5000)
 }
 
 // Common BLE thermal printer service UUIDs (tried in order)
@@ -685,16 +630,15 @@ export default function DevicePage() {
   const testPrinter = async (p: PrinterDevice) => {
     setTestResults(prev => ({ ...prev, [p.id]: { status: 'testing' } }))
 
-    if (p.connection_type === 'ip') {
-      // IP printing from the cloud server cannot reach LAN printers.
-      // For online deployment, IP printers must be publicly accessible or use a USB printer instead.
-      setTestResults(prev => ({
-        ...prev,
-        [p.id]: {
-          status: 'fail',
-          message: 'IP printer test is not available in cloud mode. Use a USB printer, or ensure the printer IP is publicly accessible.',
-        },
-      }))
+    if (p.connection_type === 'ip' || p.connection_type === 'usb') {
+      // Both USB (via Windows usbprint.sys driver) and IP (via Windows network printer)
+      // are accessible through the browser's native print dialog.
+      try {
+        triggerTestPrint(p.name, p.paper_width ?? 80)
+        setTestResults(prev => ({ ...prev, [p.id]: { status: 'ok', message: 'Print dialog opened — select your printer.' } }))
+      } catch (e: any) {
+        setTestResults(prev => ({ ...prev, [p.id]: { status: 'fail', message: e?.message ?? 'Failed to open print dialog' } }))
+      }
 
     } else if (p.connection_type === 'bluetooth') {
       if (!('bluetooth' in navigator)) {
@@ -710,25 +654,6 @@ export default function DevicePage() {
         setTestResults(prev => ({ ...prev, [p.id]: { status: 'fail', message: msg } }))
       }
 
-    } else if (p.connection_type === 'usb') {
-      if (!('usb' in navigator)) {
-        setTestResults(prev => ({ ...prev, [p.id]: { status: 'fail', message: 'WebUSB not supported — use Chrome or Edge browser' } }))
-        return
-      }
-      try {
-        const authorized = await (navigator as any).usb.getDevices()
-        const msg = await sendUsbTestPage(p.name, p.paper_width ?? 80, authorized)
-        setTestResults(prev => ({ ...prev, [p.id]: { status: 'ok', message: msg } }))
-      } catch (e: any) {
-        const raw = e?.message ?? ''
-        const hint =
-          raw.includes('Access denied') || raw.includes('Access Denied')
-            ? ' Windows driver conflict (usbprint.sys). The printer may also appear as a COM port — try the Serial port picker, or use Browser Print.'
-            : raw.includes('No authorized') || raw.includes('no device')
-            ? ' Click the USB button above to authorize your printer first.'
-            : ''
-        setTestResults(prev => ({ ...prev, [p.id]: { status: 'fail', message: raw + hint } }))
-      }
     }
   }
 
