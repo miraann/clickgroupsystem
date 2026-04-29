@@ -431,7 +431,7 @@ export default function InvoiceModal({
             <>
               <div className="border-t border-dashed border-gray-300" />
               <div className="px-5 py-3">
-                <p className="text-[9px] font-bold text-black uppercase tracking-wider mb-1">Note</p>
+                <p className="text-[11px] font-extrabold text-black uppercase tracking-wide mb-1">Note</p>
                 <p className="text-[11px] font-bold text-black italic">{note}</p>
               </div>
             </>
@@ -458,12 +458,12 @@ export default function InvoiceModal({
                     { label: 'Phone / Email' },
                   ].map(({ label }) => (
                     <div key={label}>
-                      <p className="text-[9px] font-bold text-black uppercase tracking-wider mb-1">{label}</p>
+                      <p className="text-[11px] font-extrabold text-black uppercase tracking-wide mb-1">{label}</p>
                       <div className="border-b border-gray-300 h-5" />
                     </div>
                   ))}
                   <div>
-                    <p className="text-[9px] font-bold text-black uppercase tracking-wider mb-1">Feedback</p>
+                    <p className="text-[11px] font-extrabold text-black uppercase tracking-wide mb-1">Feedback</p>
                     <div className="border-b border-gray-300 h-5" />
                     <div className="border-b border-gray-300 h-5 mt-2" />
                     <div className="border-b border-gray-300 h-5 mt-2" />
