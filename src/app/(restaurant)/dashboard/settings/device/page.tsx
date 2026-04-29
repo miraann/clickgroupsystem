@@ -128,6 +128,8 @@ function triggerTestPrint(printerName: string, paperWidth: number) {
   const now  = new Date().toLocaleString()
   const cols = paperWidth >= 80 ? 42 : paperWidth >= 58 ? 32 : 24
   const line = '-'.repeat(cols)
+  // Chrome blocks window.print() called from window.onload in a popup (no user gesture).
+  // Solution: show a "Print Now" button — clicking it IS a user gesture, so print works.
   const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
 <title>Test Print — ClickGroup POS</title>
 <style>
@@ -142,15 +144,15 @@ function triggerTestPrint(printerName: string, paperWidth: number) {
   .row{display:flex;justify-content:space-between;align-items:center;padding:7px 11px;background:rgba(255,255,255,0.04);border-radius:9px;margin-bottom:5px}
   .lbl{font-size:10px;color:rgba(255,255,255,0.3)}
   .val{font-size:10px;color:rgba(255,255,255,0.65);font-weight:500}
-  .badge{margin-top:18px;padding:9px 14px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);border-radius:11px;font-size:11px;color:#6ee7b7;display:flex;align-items:center;gap:8px;justify-content:center}
-  .dot{width:5px;height:5px;border-radius:50%;background:#34d399;animation:p 1.4s ease-in-out infinite}
-  @keyframes p{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.75)}}
-  .foot{margin-top:13px;font-size:9px;color:rgba(255,255,255,0.15);line-height:1.5}
+  .printbtn{margin-top:18px;width:100%;padding:12px;background:#f59e0b;border:none;border-radius:12px;font-size:14px;font-weight:700;color:#fff;cursor:pointer;letter-spacing:.01em}
+  .printbtn:hover{background:#d97706}
+  .printbtn:active{transform:scale(.97)}
+  .foot{margin-top:10px;font-size:9px;color:rgba(255,255,255,0.15);line-height:1.5}
   #receipt{display:none}
 }
 @media print{
   body{background:#fff;color:#000}
-  .card,.brand,.icon,.name,.sub,.row,.badge,.foot{display:none!important}
+  .card,.brand,.icon,.name,.sub,.row,.printbtn,.foot{display:none!important}
   #receipt{display:block!important;font-family:'Courier New',monospace;font-size:12px;width:${paperWidth}mm;padding:4px}
   @page{size:${paperWidth}mm auto;margin:2mm}
 }
@@ -163,8 +165,8 @@ function triggerTestPrint(printerName: string, paperWidth: number) {
   <div class="row"><span class="lbl">Paper width</span><span class="val">${paperWidth} mm</span></div>
   <div class="row"><span class="lbl">Columns</span><span class="val">${cols} chars</span></div>
   <div class="row"><span class="lbl">Time</span><span class="val">${now}</span></div>
-  <div class="badge"><span class="dot"></span>Print dialog opened — select your printer</div>
-  <div class="foot">This window closes automatically after printing.</div>
+  <button class="printbtn" onclick="window.print();setTimeout(function(){window.close()},3000)">🖨&nbsp; Print Now</button>
+  <div class="foot">Select your printer in the dialog, then click Print.</div>
 </div>
 <div id="receipt">
   <p style="text-align:center;font-weight:bold;font-size:15px">TEST PRINT</p>
@@ -176,13 +178,12 @@ function triggerTestPrint(printerName: string, paperWidth: number) {
   <p>${line}</p>
   <p style="text-align:center;font-weight:bold">** PRINTER READY **</p>
 </div>
-<script>window.onload=function(){setTimeout(function(){window.print();setTimeout(function(){window.close()},2000)},300)}</script>
 </body></html>`
   const blob = new Blob([html], { type: 'text/html' })
   const url  = URL.createObjectURL(blob)
-  const win  = window.open(url, '_blank', 'width=360,height=460,left=200,top=120')
+  const win  = window.open(url, '_blank', 'width=360,height=440,left=200,top=120')
   if (!win) { URL.revokeObjectURL(url); throw new Error('Popup blocked — allow popups for this site and try again.') }
-  setTimeout(() => URL.revokeObjectURL(url), 6000)
+  setTimeout(() => URL.revokeObjectURL(url), 10000)
 }
 
 // Common BLE thermal printer service UUIDs (tried in order)
