@@ -1,32 +1,26 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { ArrowLeft, Users, Printer, Loader2, Check, Delete, Search, X, Phone, CreditCard, Star } from 'lucide-react'
+import { ArrowLeft, Users, Printer, Loader2, Check, Delete, X, CreditCard, Star } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import InvoiceModal from './invoice-modal'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import { usePermissions } from '@/lib/permissions/PermissionsContext'
-
-// ── Types ─────────────────────────────────────────────────────
-interface Item { name: string; price: number; qty: number }
-
-interface DbDiscount  { id: string; name: string; type: 'percentage' | 'fixed'; value: number; min_order: number; active: boolean }
-interface DbSurcharge { id: string; name: string; type: 'percentage' | 'fixed'; value: number; applied_to: string; active: boolean }
+import { ConfirmPayDialog } from './payment/ConfirmPayDialog'
+import { MemberPicker }     from './payment/MemberPicker'
+import { CustomerPicker }   from './payment/CustomerPicker'
+import type { Item, DbDiscount, DbSurcharge, DbPayMethod, ActionTab } from './payment/types'
 
 interface Props {
-  orderId: string
+  orderId:      string
   restaurantId: string
-  tableNum: string
-  guests: number
-  items: Item[]
-  total: number
-  onClose: () => void
-  onPaid: () => void
+  tableNum:     string
+  guests:       number
+  items:        Item[]
+  total:        number
+  onClose:      () => void
+  onPaid:       () => void
 }
-
-interface DbPayMethod { id: string; name: string; icon_type: string; is_default: boolean }
-
-type ActionTab = 'surcharge' | 'gratuity' | 'discount' | 'note' | 'split' | 'paylater'
 
 const ICON_COLORS: Record<string, { inactive: string; active: string }> = {
   cash:   { inactive: 'text-emerald-400', active: 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300' },
@@ -45,10 +39,8 @@ const ACTION_TABS: { id: ActionTab; label: string; color: string }[] = [
   { id: 'paylater',  label: 'Pay Later', color: 'text-rose-400    border-rose-500/30    bg-rose-500/10'   },
 ]
 
-// ── Numpad key layout ─────────────────────────────────────────
 const NUMPAD = ['7','8','9','4','5','6','1','2','3','0','00','.']
 
-// ── Component ─────────────────────────────────────────────────
 export default function PaymentScreen({ orderId, restaurantId, tableNum, guests, items, total, onClose, onPaid }: Props) {
   const { can, isOwner } = usePermissions()
   const p = (key: string) => isOwner || can(key)
@@ -88,12 +80,8 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
     } catch { return null }
   })
   const [showCustomerPicker, setShowCustomerPicker] = useState(false)
-  const [customerList, setCustomerList]   = useState<{ id: string; name: string; phone: string | null; email: string | null }[]>([])
-  const [customerSearch, setCustomerSearch] = useState('')
-  const [selectedMember, setSelectedMember] = useState<{ id: string; name: string; phone: string | null; points: number; tier: string } | null>(null)
-  const [showMemberPicker, setShowMemberPicker] = useState(false)
-  const [memberList, setMemberList]       = useState<{ id: string; name: string; phone: string | null; points: number; tier: string }[]>([])
-  const [memberSearch, setMemberSearch]   = useState('')
+  const [selectedMember, setSelectedMember]         = useState<{ id: string; name: string; phone: string | null; points: number; tier: string } | null>(null)
+  const [showMemberPicker, setShowMemberPicker]     = useState(false)
 
   const persistCustomer = (c: typeof selectedCustomer) => {
     setSelectedCustomer(c)
@@ -182,9 +170,7 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
     if (key === '⌫') { setEntered(v => v.slice(0, -1)); return }
     if (key === 'C')  { setEntered(''); return }
     if (key === 'Exact') { setEntered(finalTotal.toFixed(decimalPlaces)); return }
-    // Prevent multiple dots
     if (key === '.' && entered.includes('.')) return
-    // Max 2 decimal places
     const dotIdx = entered.indexOf('.')
     if (dotIdx !== -1 && entered.length - dotIdx > 2) return
     setEntered(v => v + key)
@@ -192,33 +178,12 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
 
   const [payError, setPayError] = useState<string | null>(null)
 
-  const openCustomerPicker = async () => {
-    if (customerList.length === 0) {
-      const { data } = await supabase.from('customers').select('id,name,phone,email')
-        .eq('restaurant_id', restaurantId).eq('status', 'active').eq('blacklisted', false).order('name')
-      setCustomerList((data ?? []) as typeof customerList)
-    }
-    setCustomerSearch('')
-    setShowCustomerPicker(true)
-  }
-
-  const openMemberPicker = async () => {
-    if (memberList.length === 0) {
-      const { data } = await supabase.from('members').select('id,name,phone,points,tier')
-        .eq('restaurant_id', restaurantId).eq('status', 'active').order('name')
-      setMemberList((data ?? []) as typeof memberList)
-    }
-    setMemberSearch('')
-    setShowMemberPicker(true)
-  }
-
   const handlePayLater = async () => {
     if (!plName.trim()) { setPayError('Customer name is required'); return }
     setPayingLater(true)
     setPayError(null)
     const now = new Date().toISOString()
 
-    // Mark orders as closed (pay_later is tracked separately)
     const { error: orderErr } = await supabase
       .from('orders')
       .update({ status: 'closed', total: finalTotal, updated_at: now })
@@ -229,12 +194,10 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
       return
     }
 
-    // Fetch order number for reference
     const { data: orderRecord } = await supabase.from('orders').select('order_num').eq('id', orderId).maybeSingle()
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const ordNum = (orderRecord as any)?.order_num ?? ''
 
-    // Save to pay_later table
     const { error: plErr } = await supabase.from('pay_later').insert({
       restaurant_id:   restaurantId,
       customer_name:   plName.trim(),
@@ -270,7 +233,6 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
     const now          = new Date().toISOString()
     const methodName   = payMethods.find(m => m.id === method)?.name ?? method
 
-    // Close active orders for this table (use orderId directly when tableNum is non-numeric)
     const tableNumInt = parseInt(tableNum)
     const closeQ = isNaN(tableNumInt)
       ? supabase.from('orders').update({ status: 'paid', total: finalTotal, updated_at: now }).eq('id', orderId)
@@ -283,13 +245,11 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
       return
     }
 
-    // Save payment details on the specific order
     await supabase
       .from('orders')
       .update({ payment_method: methodName, amount_paid: amountPaid, change_amount: changeAmount, note: invoiceNote || null })
       .eq('id', orderId)
 
-    // Fetch order number + invoice settings in parallel
     const [{ data: orderRecord }, { data: invData }] = await Promise.all([
       supabase.from('orders').select('order_num').eq('id', orderId).maybeSingle(),
       supabase.from('invoice_number_settings').select('*').eq('restaurant_id', restaurantId).maybeSingle(),
@@ -298,7 +258,6 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
     const ordNum = orderRecord?.order_num ?? ''
     setGeneratedOrderNum(ordNum)
 
-    // Generate invoice number + increment counter
     let invNum: string
     if (invData) {
       const num = invData.current_num ?? invData.start_num ?? 1001
@@ -308,7 +267,6 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
         .update({ current_num: num + 1, updated_at: new Date().toISOString() })
         .eq('restaurant_id', restaurantId)
     } else {
-      // No settings row yet — create one with defaults and use 1001
       invNum = 'INV-1001'
       await supabase.from('invoice_number_settings').insert({
         restaurant_id: restaurantId,
@@ -320,7 +278,6 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
     }
     setGeneratedInvoiceNum(invNum)
 
-    // Save invoice — try with all optional fields, fall back on column errors
     const fullPayload = {
       restaurant_id:  restaurantId,
       invoice_num:    invNum,
@@ -341,7 +298,6 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
     }
     const { error: e1 } = await supabase.from('invoices').insert(fullPayload)
     if (e1) {
-      // Strip any unrecognised columns and retry with minimal safe set
       const { error: e2 } = await supabase.from('invoices').insert({
         restaurant_id:  restaurantId,
         invoice_num:    invNum,
@@ -359,7 +315,6 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
       if (e2) console.error('[Invoice save failed]', e2.message)
     }
 
-    // Update customer visit count + total spent
     if (selectedCustomer) {
       const { data: cust } = await supabase.from('customers').select('visit_count,total_spent').eq('id', selectedCustomer.id).maybeSingle()
       if (cust) {
@@ -376,7 +331,6 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
       .from('restaurants').select('settings').eq('id', restaurantId).maybeSingle()
     const autoDeduct = (restSettings?.settings as Record<string, unknown> | null)?.inventory_auto_deduct === true
     if (autoDeduct) {
-      // Get all non-voided order items with menu_item_id
       const { data: orderItems } = await supabase
         .from('order_items')
         .select('menu_item_id, qty')
@@ -386,15 +340,12 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
 
       if (orderItems && orderItems.length > 0) {
         const menuItemIds = [...new Set(orderItems.map((r: { menu_item_id: string; qty: number }) => r.menu_item_id))]
-
-        // Get all ingredients for these menu items
         const { data: ingredients } = await supabase
           .from('menu_item_ingredients')
           .select('menu_item_id, inventory_item_id, quantity')
           .in('menu_item_id', menuItemIds)
 
         if (ingredients && ingredients.length > 0) {
-          // Calculate total deduction per inventory item
           const deductMap = new Map<string, number>()
           for (const oi of orderItems as { menu_item_id: string; qty: number }[]) {
             const ings = ingredients.filter((g: { menu_item_id: string; inventory_item_id: string; quantity: number }) => g.menu_item_id === oi.menu_item_id)
@@ -403,8 +354,6 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
               deductMap.set(ing.inventory_item_id, prev + ing.quantity * oi.qty)
             }
           }
-
-          // Fetch current stock and update
           const invIds = [...deductMap.keys()]
           const { data: invItems } = await supabase
             .from('inventory_items')
@@ -441,7 +390,7 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
 
   return (
     <>
-    <div className="fixed inset-0 z-50 bg-[#060810] flex flex-col overflow-hidden">
+    <div className="fixed inset-0 z-50 bg-[#022658] flex flex-col overflow-hidden">
 
       {/* ── Top action bar ── */}
       <div className="shrink-0 flex items-center border-b border-white/8 bg-[#080b14]">
@@ -561,10 +510,10 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
           {/* Summary row */}
           <div className="shrink-0 grid grid-cols-4 divide-x divide-white/8 border-b border-white/8">
             {[
-              { label: 'Total',  value: formatPrice(finalTotal),                                                                  color: 'text-white' },
-              { label: 'Pay',    value: formatPrice(payAmount),                                                                   color: 'text-amber-400' },
-              { label: 'Paid',   value: enteredNum > 0 ? formatPrice(enteredNum) : formatPrice(0),                               color: enteredNum > 0 ? 'text-white/70' : 'text-white/25' },
-              { label: 'Change', value: formatPrice(change),                                                                      color: change > 0 ? 'text-emerald-400' : 'text-white/25' },
+              { label: 'Total',  value: formatPrice(finalTotal),                                                   color: 'text-white' },
+              { label: 'Pay',    value: formatPrice(payAmount),                                                    color: 'text-amber-400' },
+              { label: 'Paid',   value: enteredNum > 0 ? formatPrice(enteredNum) : formatPrice(0),                color: enteredNum > 0 ? 'text-white/70' : 'text-white/25' },
+              { label: 'Change', value: formatPrice(change),                                                       color: change > 0 ? 'text-emerald-400' : 'text-white/25' },
             ].map(s => (
               <div key={s.label} className="flex flex-col items-center justify-center py-4 gap-1">
                 <span className="text-xs text-white/30 uppercase tracking-wider">{s.label}</span>
@@ -778,7 +727,7 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
             </div>
           </div>
 
-          {/* Numpad — 3 cols × 4 rows (12 keys, no gaps) */}
+          {/* Numpad */}
           <div className="flex-1 grid grid-cols-3 gap-px bg-white/5 overflow-hidden">
             {NUMPAD.map(key => (
               <button
@@ -870,7 +819,7 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
                 </button>
               )}
               {p('dashboard.member') && (
-                <button onClick={openMemberPicker} className="flex-1 h-12 bg-amber-600 hover:bg-amber-500 text-white text-sm font-medium flex items-center justify-center gap-2 transition-all active:scale-95 touch-manipulation px-2 overflow-hidden">
+                <button onClick={() => setShowMemberPicker(true)} className="flex-1 h-12 bg-amber-600 hover:bg-amber-500 text-white text-sm font-medium flex items-center justify-center gap-2 transition-all active:scale-95 touch-manipulation px-2 overflow-hidden">
                   <Star className="w-4 h-4 shrink-0" />
                   <span className="truncate">{selectedMember ? selectedMember.name : 'Member'}</span>
                   {selectedMember && (
@@ -881,7 +830,7 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
                 </button>
               )}
               {p('dashboard.customer') && (
-                <button onClick={openCustomerPicker} className="flex-1 h-12 bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium flex items-center justify-center gap-2 transition-all active:scale-95 touch-manipulation px-2 overflow-hidden">
+                <button onClick={() => setShowCustomerPicker(true)} className="flex-1 h-12 bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium flex items-center justify-center gap-2 transition-all active:scale-95 touch-manipulation px-2 overflow-hidden">
                   <Users className="w-4 h-4 shrink-0" />
                   <span className="truncate">{selectedCustomer ? selectedCustomer.name : 'Customer'}</span>
                   {selectedCustomer && (
@@ -898,108 +847,28 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
       </div>
     </div>
 
-    {/* Confirm Pay dialog */}
-    {showConfirm && (
-      <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-        <div className="w-full max-w-sm bg-[#0d1220] border border-white/15 rounded-2xl shadow-2xl overflow-hidden">
+    <ConfirmPayDialog
+      open={showConfirm}
+      onCancel={() => setShowConfirm(false)}
+      onConfirm={() => { setShowConfirm(false); handlePay() }}
+      tableNum={tableNum}
+      guests={guests}
+      items={items}
+      total={total}
+      finalTotal={finalTotal}
+      appliedDiscount={appliedDiscount}
+      discountAmount={discountAmount}
+      appliedSurcharge={appliedSurcharge}
+      surchargeAmount={surchargeAmount}
+      payMethods={payMethods}
+      method={method}
+      enteredNum={enteredNum}
+      change={change}
+      selectedMember={selectedMember}
+      selectedCustomer={selectedCustomer}
+      formatPrice={formatPrice}
+    />
 
-          {/* Header */}
-          <div className="px-5 py-4 bg-amber-500/10 border-b border-amber-500/20">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-white/40 uppercase tracking-wider mb-0.5">Confirm Payment</p>
-                <p className="text-base font-bold text-white">{isNaN(parseInt(tableNum)) ? tableNum : `Table ${tableNum}`}{guests > 0 ? ` · ${guests} guests` : ''}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-xs text-white/40 mb-0.5">Total</p>
-                <p className="text-xl font-bold text-amber-400 tabular-nums">{formatPrice(finalTotal)}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Items */}
-          <div className="px-5 py-3 border-b border-white/8 max-h-48 overflow-y-auto">
-            {items.map((item, i) => (
-              <div key={i} className="flex items-center justify-between py-1.5 gap-3">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="w-5 h-5 rounded-md bg-amber-500/15 text-amber-400 text-[10px] font-bold flex items-center justify-center shrink-0">{item.qty}</span>
-                  <span className="text-sm text-white/80 truncate">{item.name}</span>
-                </div>
-                <span className="text-sm text-white/60 tabular-nums shrink-0">{formatPrice(item.price * item.qty)}</span>
-              </div>
-            ))}
-          </div>
-
-          {/* Totals breakdown */}
-          <div className="px-5 py-3 border-b border-white/8 space-y-1.5">
-            <div className="flex justify-between text-xs text-white/40">
-              <span>Subtotal</span>
-              <span className="tabular-nums">{formatPrice(total)}</span>
-            </div>
-            {appliedDiscount && (
-              <div className="flex justify-between text-xs text-emerald-400">
-                <span>{appliedDiscount.name}</span>
-                <span className="tabular-nums">−{formatPrice(discountAmount)}</span>
-              </div>
-            )}
-            {appliedSurcharge && (
-              <div className="flex justify-between text-xs text-lime-400">
-                <span>{appliedSurcharge.name}</span>
-                <span className="tabular-nums">+{formatPrice(surchargeAmount)}</span>
-              </div>
-            )}
-            <div className="flex justify-between text-sm font-bold text-white pt-1 border-t border-white/8">
-              <span>Total</span>
-              <span className="text-amber-400 tabular-nums">{formatPrice(finalTotal)}</span>
-            </div>
-            {enteredNum > 0 && (
-              <div className="flex justify-between text-xs text-white/40">
-                <span>Cash paid</span>
-                <span className="tabular-nums">{formatPrice(enteredNum)}</span>
-              </div>
-            )}
-            {change > 0 && (
-              <div className="flex justify-between text-xs text-emerald-400">
-                <span>Change</span>
-                <span className="tabular-nums">{formatPrice(change)}</span>
-              </div>
-            )}
-          </div>
-
-          {/* Payment method + customer */}
-          <div className="px-5 py-3 border-b border-white/8 space-y-1">
-            <div className="flex justify-between text-xs">
-              <span className="text-white/35">Payment</span>
-              <span className="text-white/70 font-medium">{payMethods.find(m => m.id === method)?.name ?? '—'}</span>
-            </div>
-            {(selectedMember || selectedCustomer) && (
-              <div className="flex justify-between text-xs">
-                <span className="text-white/35">{selectedMember ? 'Member' : 'Customer'}</span>
-                <span className="text-white/70 font-medium">{selectedMember?.name ?? selectedCustomer?.name}</span>
-              </div>
-            )}
-          </div>
-
-          {/* Buttons */}
-          <div className="flex gap-2 p-4">
-            <button
-              onClick={() => setShowConfirm(false)}
-              className="flex-1 py-3 rounded-xl bg-white/8 hover:bg-white/12 text-white/60 text-sm font-medium transition-all active:scale-95"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={() => { setShowConfirm(false); handlePay() }}
-              className="flex-[2] py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold transition-all active:scale-95 shadow-lg shadow-amber-500/20"
-            >
-              Confirm Payment
-            </button>
-          </div>
-        </div>
-      </div>
-    )}
-
-    {/* Invoice modal — shown after payment or when Receipt is clicked */}
     {showInvoice && (
       <InvoiceModal
         mode={invoiceMode}
@@ -1027,101 +896,21 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
       />
     )}
 
-    {/* Member Picker */}
-    {showMemberPicker && (
-      <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-        <div className="w-full max-w-sm bg-[#0d1220] border border-white/15 rounded-2xl shadow-2xl flex flex-col max-h-[80vh]">
-          <div className="flex items-center justify-between px-5 pt-5 pb-3 shrink-0">
-            <h3 className="text-base font-bold text-white">Select Member</h3>
-            <button onClick={() => setShowMemberPicker(false)} className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-all">
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-          <div className="px-5 pb-3 shrink-0">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
-              <input value={memberSearch} onChange={e => setMemberSearch(e.target.value)}
-                placeholder="Search name or phone…" autoFocus
-                className="w-full pl-9 pr-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500/50 transition-colors" />
-            </div>
-          </div>
-          <div className="flex-1 overflow-y-auto px-3 pb-4 space-y-1">
-            {memberList
-              .filter(m => {
-                const q = memberSearch.toLowerCase()
-                return !q || m.name.toLowerCase().includes(q) || m.phone?.includes(q)
-              })
-              .map(m => (
-                <button key={m.id} onClick={() => { setSelectedMember(m); setShowMemberPicker(false) }}
-                  className={cn('w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all active:scale-95',
-                    selectedMember?.id === m.id ? 'bg-amber-500/20 border border-amber-500/30' : 'bg-white/4 hover:bg-white/8 border border-transparent')}>
-                  <div className="w-9 h-9 rounded-xl bg-amber-500/15 flex items-center justify-center shrink-0">
-                    <Star className="w-4 h-4 text-amber-400" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-semibold text-white truncate">{m.name}</p>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-400 shrink-0">{m.tier}</span>
-                    </div>
-                    {m.phone && <p className="text-xs text-white/40 flex items-center gap-1 mt-0.5"><Phone className="w-3 h-3" />{m.phone}</p>}
-                    <p className="text-xs text-amber-400/60 mt-0.5">{m.points} pts</p>
-                  </div>
-                  {selectedMember?.id === m.id && <Check className="w-4 h-4 text-amber-400 shrink-0" />}
-                </button>
-              ))}
-            {memberList.length === 0 && (
-              <p className="text-center text-white/30 text-sm py-8">No active members found</p>
-            )}
-          </div>
-        </div>
-      </div>
-    )}
+    <MemberPicker
+      open={showMemberPicker}
+      restaurantId={restaurantId}
+      selectedId={selectedMember?.id ?? null}
+      onSelect={setSelectedMember}
+      onClose={() => setShowMemberPicker(false)}
+    />
 
-    {/* Customer Picker */}
-    {showCustomerPicker && (
-      <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-        <div className="w-full max-w-sm bg-[#0d1220] border border-white/15 rounded-2xl shadow-2xl flex flex-col max-h-[80vh]">
-          <div className="flex items-center justify-between px-5 pt-5 pb-3 shrink-0">
-            <h3 className="text-base font-bold text-white">Select Customer</h3>
-            <button onClick={() => setShowCustomerPicker(false)} className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-all">
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-          <div className="px-5 pb-3 shrink-0">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
-              <input value={customerSearch} onChange={e => setCustomerSearch(e.target.value)}
-                placeholder="Search name or phone…" autoFocus
-                className="w-full pl-9 pr-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/25 focus:outline-none focus:border-violet-500/50 transition-colors" />
-            </div>
-          </div>
-          <div className="flex-1 overflow-y-auto px-3 pb-4 space-y-1">
-            {customerList
-              .filter(c => {
-                const q = customerSearch.toLowerCase()
-                return !q || c.name.toLowerCase().includes(q) || c.phone?.includes(q) || c.email?.toLowerCase().includes(q)
-              })
-              .map(c => (
-                <button key={c.id} onClick={() => { persistCustomer({ id: c.id, name: c.name, phone: c.phone }); setShowCustomerPicker(false) }}
-                  className={cn('w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all active:scale-95',
-                    selectedCustomer?.id === c.id ? 'bg-violet-500/20 border border-violet-500/30' : 'bg-white/4 hover:bg-white/8 border border-transparent')}>
-                  <div className="w-9 h-9 rounded-xl bg-violet-500/15 flex items-center justify-center shrink-0">
-                    <Users className="w-4 h-4 text-violet-400" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-white truncate">{c.name}</p>
-                    {c.phone && <p className="text-xs text-white/40 flex items-center gap-1 mt-0.5"><Phone className="w-3 h-3" />{c.phone}</p>}
-                  </div>
-                  {selectedCustomer?.id === c.id && <Check className="w-4 h-4 text-violet-400 ml-auto shrink-0" />}
-                </button>
-              ))}
-            {customerList.length === 0 && (
-              <p className="text-center text-white/30 text-sm py-8">No active customers found</p>
-            )}
-          </div>
-        </div>
-      </div>
-    )}
+    <CustomerPicker
+      open={showCustomerPicker}
+      restaurantId={restaurantId}
+      selectedId={selectedCustomer?.id ?? null}
+      onSelect={persistCustomer}
+      onClose={() => setShowCustomerPicker(false)}
+    />
     </>
   )
 }

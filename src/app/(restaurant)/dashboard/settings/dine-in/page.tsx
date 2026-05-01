@@ -1,31 +1,17 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
-  Coffee, Save, Loader2, AlertCircle,
-  ToggleLeft, ToggleRight, QrCode, BellRing,
-  Users, Utensils, Clock, ShieldCheck, Info,
+  Coffee, Loader2, QrCode, BellRing,
+  Users, Utensils, Clock, ShieldCheck, Info, ToggleLeft, ToggleRight,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { useDineInSettings, type CachedDineInSettings } from '@/hooks/useDineInSettings'
-
-function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <button
-      onClick={() => onChange(!on)}
-      className={cn(
-        'relative w-11 h-6 rounded-full transition-colors focus:outline-none',
-        on ? 'bg-amber-500' : 'bg-white/15',
-      )}
-    >
-      <span className={cn(
-        'absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform',
-        on ? 'translate-x-5' : 'translate-x-0',
-      )} />
-    </button>
-  )
-}
+import { SaveButton } from '@/components/ui/SaveButton'
+import { ToggleSwitch } from '@/components/ui/ToggleSwitch'
+import { SettingsSection } from '@/components/ui/SettingsSection'
+import type { SaveState } from '@/hooks/useRestaurantSettings'
 
 type DineInSettings = CachedDineInSettings
 
@@ -53,14 +39,13 @@ export default function DineInPage() {
   const { data: swrData, isLoading: swrLoading, mutate } = useDineInSettings(restaurantId)
   const loading = !mounted || swrLoading
 
-  const [cfg, setCfg]     = useState<DineInSettings>(DEFAULTS)
-  const [saving, setSaving] = useState(false)
-  const [saved, setSaved]   = useState(false)
-  const [err, setErr]       = useState<string | null>(null)
+  const [cfg, setCfg]             = useState<DineInSettings>(DEFAULTS)
+  const [saveState, setSaveState] = useState<SaveState>('idle')
 
   useEffect(() => { if (swrData) setCfg(swrData) }, [swrData])
 
-  const autoSaveToggle = async (key: keyof DineInSettings, value: boolean) => {
+  // Optimistic toggle — updates SWR cache + writes to DB in background
+  const autoSaveToggle = useCallback(async (key: keyof DineInSettings, value: boolean) => {
     const updated = { ...(swrData ?? cfg), [key]: value } as DineInSettings
     setCfg(updated)
     mutate(updated, false)
@@ -69,31 +54,26 @@ export default function DineInPage() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const existing = (rest?.settings ?? {}) as any
     await supabase.from('restaurants').update({ settings: { ...existing, [key]: value } }).eq('id', restaurantId)
-  }
+  }, [restaurantId, supabase, swrData, cfg, mutate])
 
-  const save = async () => {
+  const save = useCallback(async () => {
     if (!restaurantId) return
-    setSaving(true); setErr(null); setSaved(false)
+    setSaveState('saving')
     const { data: rest } = await supabase.from('restaurants').select('settings').eq('id', restaurantId).maybeSingle()
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const existing = (rest?.settings ?? {}) as any
     const { error } = await supabase.from('restaurants').update({
-      settings: {
-        ...existing,
-        enable_qr_ordering:     cfg.enable_qr_ordering,
-        show_call_waiter:       cfg.show_call_waiter,
-        auto_accept_qr_orders:  cfg.auto_accept_qr_orders,
-        require_guest_count:    cfg.require_guest_count,
-        table_turnover_minutes: cfg.table_turnover_minutes,
-        dine_in_note:           cfg.dine_in_note,
-      },
+      settings: { ...existing, ...cfg },
     }).eq('id', restaurantId)
-    setSaving(false)
-    if (error) { setErr(error.message); return }
-    mutate(cfg, false)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2500)
-  }
+    if (error) {
+      setSaveState('error')
+      setTimeout(() => setSaveState('idle'), 3000)
+    } else {
+      mutate(cfg, false)
+      setSaveState('saved')
+      setTimeout(() => setSaveState('idle'), 2500)
+    }
+  }, [restaurantId, supabase, cfg, mutate])
 
   if (loading) return (
     <div className="flex items-center justify-center h-64">
@@ -115,36 +95,13 @@ export default function DineInPage() {
             <p className="text-xs text-white/40">{t.di_subtitle}</p>
           </div>
         </div>
-        <button
-          onClick={save}
-          disabled={saving}
-          className={cn(
-            'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all active:scale-95 disabled:opacity-60',
-            saved
-              ? 'bg-emerald-500/20 border border-emerald-500/30 text-emerald-400'
-              : 'bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/25',
-          )}
-        >
-          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-          {saved ? t.saved_ : t.save_changes}
-        </button>
+        <SaveButton state={saveState} onClick={save} />
       </div>
 
-      {err && (
-        <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm">
-          <AlertCircle className="w-4 h-4 shrink-0" />{err}
-        </div>
-      )}
+      {/* ── QR Menu ── */}
+      <SettingsSection title={t.di_qr_section} icon={<QrCode className="w-4 h-4 text-amber-400" />}>
+        <div className="space-y-5">
 
-      {/* ── QR Menu ─────────────────────────────────────────── */}
-      <div className="rounded-2xl border border-white/8 bg-white/3 overflow-hidden">
-        <div className="px-5 py-3 border-b border-white/6 flex items-center gap-2">
-          <QrCode className="w-4 h-4 text-amber-400" />
-          <span className="text-xs font-bold text-white/60 uppercase tracking-wider">{t.di_qr_section}</span>
-        </div>
-        <div className="p-5 space-y-5">
-
-          {/* Enable QR Ordering */}
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center transition-colors', cfg.enable_qr_ordering ? 'bg-amber-500/20' : 'bg-white/5')}>
@@ -157,30 +114,26 @@ export default function DineInPage() {
                 <p className="text-xs text-white/40">{t.di_qr_ordering_desc}</p>
               </div>
             </div>
-            <Toggle on={cfg.enable_qr_ordering} onChange={v => autoSaveToggle('enable_qr_ordering', v)} />
+            <ToggleSwitch on={cfg.enable_qr_ordering} onChange={v => autoSaveToggle('enable_qr_ordering', v)} />
           </div>
 
           <div className="border-t border-white/6" />
 
-          {/* Show Call Waiter */}
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center transition-colors', cfg.show_call_waiter ? 'bg-amber-500/20' : 'bg-white/5')}>
-                {cfg.show_call_waiter
-                  ? <BellRing className="w-5 h-5 text-amber-400" />
-                  : <BellRing className="w-5 h-5 text-white/30" />}
+                <BellRing className={cn('w-5 h-5', cfg.show_call_waiter ? 'text-amber-400' : 'text-white/30')} />
               </div>
               <div>
                 <p className="text-sm font-semibold text-white">{t.di_call_waiter}</p>
                 <p className="text-xs text-white/40">{t.di_call_waiter_desc}</p>
               </div>
             </div>
-            <Toggle on={cfg.show_call_waiter} onChange={v => autoSaveToggle('show_call_waiter', v)} />
+            <ToggleSwitch on={cfg.show_call_waiter} onChange={v => autoSaveToggle('show_call_waiter', v)} />
           </div>
 
           <div className="border-t border-white/6" />
 
-          {/* Auto-accept QR orders */}
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center transition-colors', cfg.auto_accept_qr_orders ? 'bg-amber-500/20' : 'bg-white/5')}>
@@ -191,21 +144,16 @@ export default function DineInPage() {
                 <p className="text-xs text-white/40">{t.di_auto_accept_desc}</p>
               </div>
             </div>
-            <Toggle on={cfg.auto_accept_qr_orders} onChange={v => autoSaveToggle('auto_accept_qr_orders', v)} />
+            <ToggleSwitch on={cfg.auto_accept_qr_orders} onChange={v => autoSaveToggle('auto_accept_qr_orders', v)} />
           </div>
 
         </div>
-      </div>
+      </SettingsSection>
 
-      {/* ── Table Service ────────────────────────────────────── */}
-      <div className="rounded-2xl border border-white/8 bg-white/3 overflow-hidden">
-        <div className="px-5 py-3 border-b border-white/6 flex items-center gap-2">
-          <Utensils className="w-4 h-4 text-amber-400" />
-          <span className="text-xs font-bold text-white/60 uppercase tracking-wider">{t.di_table_service}</span>
-        </div>
-        <div className="p-5 space-y-5">
+      {/* ── Table Service ── */}
+      <SettingsSection title={t.di_table_service} icon={<Utensils className="w-4 h-4 text-amber-400" />}>
+        <div className="space-y-5">
 
-          {/* Require guest count */}
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center transition-colors', cfg.require_guest_count ? 'bg-amber-500/20' : 'bg-white/5')}>
@@ -216,21 +164,18 @@ export default function DineInPage() {
                 <p className="text-xs text-white/40">{t.di_require_guests_d}</p>
               </div>
             </div>
-            <Toggle on={cfg.require_guest_count} onChange={v => autoSaveToggle('require_guest_count', v)} />
+            <ToggleSwitch on={cfg.require_guest_count} onChange={v => autoSaveToggle('require_guest_count', v)} />
           </div>
 
           <div className="border-t border-white/6" />
 
-          {/* Table turnover time */}
           <div className="space-y-1.5">
             <label className="flex items-center gap-1.5 text-[11px] font-semibold text-white/40 uppercase tracking-wider">
               <Clock className="w-3.5 h-3.5" />
               {t.di_turnover}
             </label>
             <input
-              type="number"
-              min={15}
-              max={360}
+              type="number" min={15} max={360}
               value={cfg.table_turnover_minutes}
               onChange={e => setCfg(c => ({ ...c, table_turnover_minutes: Number(e.target.value) }))}
               className="w-full px-4 py-3 rounded-2xl text-sm text-white bg-white/7 border border-white/10 focus:border-amber-500/50 outline-none transition-all"
@@ -239,15 +184,11 @@ export default function DineInPage() {
           </div>
 
         </div>
-      </div>
+      </SettingsSection>
 
-      {/* ── Guest Note ──────────────────────────────────────── */}
-      <div className="rounded-2xl border border-white/8 bg-white/3 overflow-hidden">
-        <div className="px-5 py-3 border-b border-white/6 flex items-center gap-2">
-          <Info className="w-4 h-4 text-amber-400" />
-          <span className="text-xs font-bold text-white/60 uppercase tracking-wider">{t.di_guest_msg}</span>
-        </div>
-        <div className="p-5 space-y-1.5">
+      {/* ── Guest Note ── */}
+      <SettingsSection title={t.di_guest_msg} icon={<Info className="w-4 h-4 text-amber-400" />}>
+        <div className="space-y-1.5">
           <label className="text-[11px] font-semibold text-white/40 uppercase tracking-wider">
             {t.di_note_label}
           </label>
@@ -260,7 +201,7 @@ export default function DineInPage() {
           />
           <p className="text-[11px] text-white/30">{t.di_note_hint}</p>
         </div>
-      </div>
+      </SettingsSection>
 
       {/* Info */}
       <div className="rounded-2xl border border-white/6 bg-white/2 p-5 flex items-start gap-3">

@@ -1,96 +1,27 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
-import {
-  ShoppingBag, Save, Loader2, AlertCircle, ToggleLeft, ToggleRight, Clock, Package,
-} from 'lucide-react'
+import { ShoppingBag, Clock, Package, ToggleLeft, ToggleRight, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { createClient } from '@/lib/supabase/client'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
-
-interface Toggle { on: boolean; onChange: (v: boolean) => void }
-function Toggle({ on, onChange }: Toggle) {
-  return (
-    <button
-      onClick={() => onChange(!on)}
-      className={cn(
-        'relative w-11 h-6 rounded-full transition-colors focus:outline-none',
-        on ? 'bg-indigo-500' : 'bg-white/15',
-      )}
-    >
-      <span className={cn(
-        'absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform',
-        on ? 'translate-x-5' : 'translate-x-0',
-      )} />
-    </button>
-  )
-}
+import { useRestaurantSettings } from '@/hooks/useRestaurantSettings'
+import { SaveButton } from '@/components/ui/SaveButton'
+import { ToggleSwitch } from '@/components/ui/ToggleSwitch'
 
 interface TakeoutSettings {
-  takeout_enabled: boolean
+  takeout_enabled:     boolean
   show_takeout_button: boolean
   estimated_prep_time: number
 }
 
 const DEFAULTS: TakeoutSettings = {
-  takeout_enabled: true,
+  takeout_enabled:     true,
   show_takeout_button: true,
   estimated_prep_time: 15,
 }
 
 export default function TakeoutSettingsPage() {
-  const supabase = createClient()
   const { t } = useLanguage()
-  const [restaurantId, setRestaurantId] = useState<string | null>(null)
-  const [settings, setSettings] = useState<TakeoutSettings>(DEFAULTS)
-  const [loading, setLoading]   = useState(true)
-  const [saving, setSaving]     = useState(false)
-  const [err, setErr]           = useState<string | null>(null)
-  const [saved, setSaved]       = useState(false)
-
-  const load = useCallback(async () => {
-    const { data: rest } = await supabase.from('restaurants').select('id, settings').eq('id', typeof window !== 'undefined' ? (localStorage.getItem('restaurant_id') ?? '') : '').maybeSingle()
-    if (!rest) { setLoading(false); return }
-    setRestaurantId(rest.id)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const s = ((rest.settings ?? {}) as any)
-    setSettings({
-      takeout_enabled:     s.takeout_enabled     ?? true,
-      show_takeout_button: s.show_takeout_button ?? true,
-      estimated_prep_time: Number(s.estimated_prep_time ?? 15),
-    })
-    setLoading(false)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => { load() }, [load])
-
-  const autoSaveToggle = async (key: keyof TakeoutSettings, value: boolean) => {
-    setSettings(s => ({ ...s, [key]: value }))
-    if (!restaurantId) return
-    const { data: rest } = await supabase.from('restaurants').select('settings').eq('id', restaurantId).maybeSingle()
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const existing = (rest?.settings ?? {}) as any
-    await supabase.from('restaurants').update({ settings: { ...existing, [key]: value } }).eq('id', restaurantId)
-  }
-
-  const save = async () => {
-    if (!restaurantId) return
-    setSaving(true); setErr(null); setSaved(false)
-    const { data: rest } = await supabase.from('restaurants').select('settings').eq('id', restaurantId).maybeSingle()
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const existing = (rest?.settings ?? {}) as any
-    const { error } = await supabase.from('restaurants').update({
-      settings: {
-        ...existing,
-        takeout_enabled:     settings.takeout_enabled,
-        show_takeout_button: settings.show_takeout_button,
-        estimated_prep_time: settings.estimated_prep_time,
-      },
-    }).eq('id', restaurantId)
-    setSaving(false)
-    if (error) { setErr(error.message); return }
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2500)
-  }
+  const { settings, setSettings, loading, saveState, save, autoSave } =
+    useRestaurantSettings<TakeoutSettings>(DEFAULTS)
 
   if (loading) return (
     <div className="flex items-center justify-center h-64">
@@ -112,31 +43,12 @@ export default function TakeoutSettingsPage() {
             <p className="text-xs text-white/40">{t.to_subtitle}</p>
           </div>
         </div>
-        <button
-          onClick={save}
-          disabled={saving}
-          className={cn(
-            'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all active:scale-95 disabled:opacity-60',
-            saved
-              ? 'bg-emerald-500/20 border border-emerald-500/30 text-emerald-400'
-              : 'bg-indigo-500 hover:bg-indigo-600 text-white shadow-lg shadow-indigo-500/25',
-          )}
-        >
-          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-          {saved ? t.saved_ : t.save_changes}
-        </button>
+        <SaveButton state={saveState} onClick={save} />
       </div>
-
-      {err && (
-        <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm">
-          <AlertCircle className="w-4 h-4 shrink-0" />{err}
-        </div>
-      )}
 
       {/* Toggles */}
       <div className="rounded-2xl border border-white/8 bg-white/3 p-5 space-y-4">
 
-        {/* Accept takeout orders */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center transition-colors', settings.takeout_enabled ? 'bg-amber-500/20' : 'bg-white/5')}>
@@ -149,12 +61,14 @@ export default function TakeoutSettingsPage() {
               <p className="text-xs text-white/40">{t.to_enabled_desc}</p>
             </div>
           </div>
-          <Toggle on={settings.takeout_enabled} onChange={v => autoSaveToggle('takeout_enabled', v)} />
+          <ToggleSwitch
+            on={settings.takeout_enabled}
+            onChange={v => autoSave({ takeout_enabled: v })}
+          />
         </div>
 
         <div className="border-t border-white/6" />
 
-        {/* Show Takeout button on dashboard */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center transition-colors', settings.show_takeout_button ? 'bg-amber-500/20' : 'bg-white/5')}>
@@ -167,7 +81,10 @@ export default function TakeoutSettingsPage() {
               <p className="text-xs text-white/40">{t.to_button_desc}</p>
             </div>
           </div>
-          <Toggle on={settings.show_takeout_button} onChange={v => autoSaveToggle('show_takeout_button', v)} />
+          <ToggleSwitch
+            on={settings.show_takeout_button}
+            onChange={v => autoSave({ show_takeout_button: v })}
+          />
         </div>
       </div>
 
@@ -185,7 +102,7 @@ export default function TakeoutSettingsPage() {
             min={1}
             value={settings.estimated_prep_time}
             onChange={e => setSettings(s => ({ ...s, estimated_prep_time: Number(e.target.value) }))}
-            className="w-full px-4 py-3 rounded-2xl text-sm text-white bg-white/7 border border-white/10 focus:border-indigo-500/50 outline-none transition-all"
+            className="w-full px-4 py-3 rounded-2xl text-sm text-white bg-white/7 border border-white/10 focus:border-amber-500/50 outline-none transition-all"
           />
           <p className="text-[11px] text-white/30">{t.to_prep_hint}</p>
         </div>

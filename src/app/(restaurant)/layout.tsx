@@ -10,7 +10,7 @@ export default function RestaurantLayout({ children }: { children: React.ReactNo
     <LanguageProvider>
       <PermissionsProvider>
         <AuthGuard>
-          <div className="min-h-screen bg-[#060810]">
+          <div className="min-h-screen bg-[#022658]">
             <FaviconSync />
             <WakeLock />
             <PWARegister />

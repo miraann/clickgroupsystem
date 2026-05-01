@@ -1,12 +1,11 @@
 'use client'
 import { useState, useRef, useEffect, useCallback } from 'react'
-import {
-  Store, Camera, Mail, Phone, MapPin, Globe,
-  Save, CheckCircle2, Loader2, AlertCircle,
-} from 'lucide-react'
+import { Store, Camera, Mail, Phone, MapPin, Globe, AlertCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
+import { SaveButton } from '@/components/ui/SaveButton'
+import type { SaveState } from '@/hooks/useRestaurantSettings'
 
 // ── Social icons ────────────────────────────────────────────
 function WhatsAppIcon({ className }: { className?: string }) {
@@ -66,8 +65,6 @@ interface FormData {
   facebook: string; twitter: string; whatsapp: string
   tiktok: string; youtube: string; snapchat: string; maps_url: string
 }
-
-type SaveState = 'idle' | 'saving' | 'saved' | 'error'
 
 const EMPTY_FORM: FormData = {
   name: '', email: '', phone: '', phone2: '', location: '',
@@ -267,7 +264,7 @@ export default function RestaurantInfoPage() {
             </div>
             <button
               onClick={() => fileRef.current?.click()}
-              className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-amber-500 hover:bg-amber-600 border-2 border-[#060810] flex items-center justify-center transition-all active:scale-95 shadow-lg"
+              className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-amber-500 hover:bg-amber-600 border-2 border-[#022658] flex items-center justify-center transition-all active:scale-95 shadow-lg"
             >
               <Camera className="w-3.5 h-3.5 text-white" />
             </button>
@@ -338,26 +335,6 @@ export default function RestaurantInfoPage() {
 
 // ── Reusable sub-components ───────────────────────────────────
 
-function SaveButton({ state, onClick, large }: { state: SaveState; onClick: () => void; large?: boolean }) {
-  const { t } = useLanguage()
-  return (
-    <button onClick={onClick} disabled={state === 'saving'}
-      className={cn(
-        'flex items-center gap-2 font-semibold transition-all active:scale-95 rounded-xl',
-        large ? 'px-6 py-3 text-sm' : 'px-5 py-2.5 text-sm',
-        state === 'saved'  && 'bg-emerald-500/20 border border-emerald-500/30 text-emerald-400',
-        state === 'error'  && 'bg-rose-500/20 border border-rose-500/30 text-rose-400',
-        state === 'saving' && 'bg-amber-500 text-white opacity-70 cursor-wait',
-        state === 'idle'   && 'bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/25',
-      )}>
-      {state === 'saving' && <Loader2 className="w-4 h-4 animate-spin" />}
-      {state === 'saved'  && <CheckCircle2 className="w-4 h-4" />}
-      {state === 'error'  && <AlertCircle className="w-4 h-4" />}
-      {state === 'idle'   && <Save className="w-4 h-4" />}
-      {state === 'saving' ? t.saving_ : state === 'saved' ? t.saved_ : state === 'error' ? t.error_retry : t.save_changes}
-    </button>
-  )
-}
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (

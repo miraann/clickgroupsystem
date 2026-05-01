@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   Receipt, Save, Loader2, AlertCircle, Upload,
   Check, ImageIcon, QrCode, Eye,
@@ -12,6 +13,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import InvoiceViewModal from '@/components/restaurant/invoice-view-modal'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
+import { ToggleSwitch } from '@/components/ui/ToggleSwitch'
 
 interface RS {
   id?: string
@@ -182,26 +184,6 @@ function InvoicePreview({ s, restaurantName }: { s: RS; restaurantName: string }
         <p className="text-[9px] font-bold text-black">Powered by ClickGroup · 07701466787</p>
       </div>
     </div>
-  )
-}
-
-// ── Toggle ─────────────────────────────────────────────────────
-function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <button
-      type="button"
-      onClick={() => onChange(!value)}
-      className={cn(
-        'w-10 h-5.5 rounded-full transition-all relative shrink-0',
-        value ? 'bg-amber-500' : 'bg-white/15'
-      )}
-      style={{ height: '22px' }}
-    >
-      <span className={cn(
-        'absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all',
-        value ? 'left-5' : 'left-0.5'
-      )} />
-    </button>
   )
 }
 
@@ -923,10 +905,24 @@ function RecoverTableTab({ restaurantId }: { restaurantId: string }) {
 export default function ReceiptSettingsPage() {
   const supabase = createClient()
   const { t } = useLanguage()
+  const router    = useRouter()
   const fileRef   = useRef<HTMLInputElement>(null)
   const qrFileRef = useRef<HTMLInputElement>(null)
 
   const [tab, setTab]                           = useState<'invoices' | 'settings' | 'invoice-num' | 'order-num' | 'recover'>('invoices')
+
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search).get('tab') as typeof tab | null
+    if (p && ['invoices', 'settings', 'invoice-num', 'order-num', 'recover'].includes(p)) setTab(p)
+  }, [])
+
+  const switchTab = (key: typeof tab) => {
+    setTab(key)
+    const url = new URL(window.location.href)
+    if (key === 'invoices') url.searchParams.delete('tab')
+    else url.searchParams.set('tab', key)
+    router.replace(url.pathname + url.search)
+  }
   const [restaurantId, setRestaurantId]         = useState<string | null>(null)
   const [restaurantName, setRestaurantName]     = useState('')
   const [form, setForm]                         = useState<RS>(DEFAULTS)
@@ -1070,7 +1066,7 @@ export default function ReceiptSettingsPage() {
         ] as const).map(({ key, icon, label }) => (
           <button
             key={key}
-            onClick={() => setTab(key)}
+            onClick={() => switchTab(key)}
             className={cn(
               'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all',
               tab === key
@@ -1197,7 +1193,7 @@ export default function ReceiptSettingsPage() {
                   <QrCode className="w-4 h-4 text-white/40" />
                   <p className="text-xs font-bold text-white/40 uppercase tracking-widest">QR Code</p>
                 </div>
-                <Toggle value={form.show_qr} onChange={v => set('show_qr', v)} />
+                <ToggleSwitch on={form.show_qr} onChange={v => set('show_qr', v)} />
               </div>
 
               {form.show_qr && (
@@ -1247,7 +1243,7 @@ export default function ReceiptSettingsPage() {
               ] as [keyof RS, string][]).map(([key, label]) => (
                 <div key={key} className="flex items-center justify-between">
                   <span className="text-sm text-white/70">{label}</span>
-                  <Toggle value={form[key] as boolean} onChange={v => set(key, v)} />
+                  <ToggleSwitch on={form[key] as boolean} onChange={v => set(key, v)} />
                 </div>
               ))}
             </section>

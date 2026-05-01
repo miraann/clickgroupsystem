@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
@@ -260,8 +261,22 @@ async function sendBtTestPage(printerName: string, paperWidth: number): Promise<
 export default function DevicePage() {
   const supabase = createClient()
   const { t } = useLanguage()
+  const router = useRouter()
 
   const [tab, setTab] = useState<'kds' | 'printers' | 'other'>('kds')
+
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search).get('tab') as typeof tab | null
+    if (p && ['kds', 'printers', 'other'].includes(p)) setTab(p)
+  }, [])
+
+  const switchTab = (key: typeof tab) => {
+    setTab(key)
+    const url = new URL(window.location.href)
+    if (key === 'kds') url.searchParams.delete('tab')
+    else url.searchParams.set('tab', key)
+    router.replace(url.pathname + url.search)
+  }
   const [restaurantId, setRestaurantId] = useState<string | null>(null)
 
   // KDS state
@@ -703,7 +718,7 @@ export default function DevicePage() {
           { key: 'printers', icon: <Printer      className="w-4 h-4" />, label: t.dev_printers },
           { key: 'other',    icon: <Monitor      className="w-4 h-4" />, label: 'Other Devices' },
         ] as const).map(({ key, icon, label }) => (
-          <button key={key} onClick={() => setTab(key)}
+          <button key={key} onClick={() => switchTab(key)}
             className={cn('flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all',
               tab === key ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20' : 'text-white/50 hover:text-white/70')}>
             {icon}{label}

@@ -243,7 +243,7 @@ const TableCard = memo(function TableCard({ table, onSelect, onLongPress, format
 
       {/* Waiter call badge */}
       {hasWaiterCall && (
-        <div className="absolute -top-2 -right-2 z-10 flex items-center justify-center w-6 h-6 rounded-full bg-violet-500 border-2 border-[#060810] shadow-lg shadow-violet-500/50 animate-bounce">
+        <div className="absolute -top-2 -right-2 z-10 flex items-center justify-center w-6 h-6 rounded-full bg-violet-500 border-2 border-[#022658] shadow-lg shadow-violet-500/50 animate-bounce">
           <BellRing className="w-3 h-3 text-white" />
         </div>
       )}
@@ -639,10 +639,10 @@ export default function TablesPage() {
   const handleLongPress = useCallback((t: Table) => setQuickMenuTable(t), [setQuickMenuTable])
 
   return (
-    <div className="min-h-screen bg-[#060810] flex flex-col">
+    <div className="min-h-screen bg-[#022658] flex flex-col">
 
       {/* Fixed top bar */}
-      <header className="sticky top-0 z-30 border-b border-white/8 bg-[#060810]/80 backdrop-blur-2xl">
+      <header className="sticky top-0 z-30 border-b border-white/8 bg-[#022658]/80 backdrop-blur-2xl">
         <div className="flex items-center justify-between px-5 py-3">
           {/* Left: restaurant + user */}
           <div className="flex items-center gap-3">
@@ -859,7 +859,7 @@ export default function TablesPage() {
       </div>
 
       {/* Bottom action bar */}
-      <div className="sticky bottom-0 z-30 border-t border-white/8 bg-[#060810]/90 backdrop-blur-2xl px-4 py-3">
+      <div className="sticky bottom-0 z-30 border-t border-white/8 bg-[#022658]/90 backdrop-blur-2xl px-4 py-3">
         <div className={cn(
           'grid gap-2 max-w-2xl mx-auto',
           (showDeliveryButton && showTakeoutButton) ? 'grid-cols-2 sm:grid-cols-5' : (showDeliveryButton || showTakeoutButton) ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-2 sm:grid-cols-3'

@@ -189,10 +189,10 @@ export default function TakeoutOrdersPage() {
 
   return (
     <ModuleGate moduleKey="takeout">
-    <div className="min-h-screen bg-[#060810] text-white flex flex-col">
+    <div className="min-h-screen bg-[#022658] text-white flex flex-col">
 
       {/* ── Header ── */}
-      <header className="sticky top-0 z-20 bg-[#060810]/95 backdrop-blur-xl border-b border-white/8 px-4 py-3">
+      <header className="sticky top-0 z-20 bg-[#022658]/95 backdrop-blur-xl border-b border-white/8 px-4 py-3">
         <div className="flex items-center justify-between max-w-2xl mx-auto">
           <div className="flex items-center gap-3">
             <button

@@ -9,7 +9,7 @@
 }
 
 :root {
-  --background: #080b14;
+  --background: #022658;
   --foreground: #ffffff;
 }
 
@@ -47,7 +47,7 @@ body {
 }
 
 select option {
-  background: #0d1526;
+  background: #022658;
 }
 
 input[type="time"]::-webkit-calendar-picker-indicator {

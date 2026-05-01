@@ -169,9 +169,9 @@ export default function GuestsPage() {
   const displayed  = showAll ? buckets : buckets.filter(b => b.guests > 0)
 
   return (
-    <div className="min-h-screen bg-[#060810] text-white">
+    <div className="min-h-screen bg-[#022658] text-white">
       {/* Header */}
-      <div className="sticky top-0 z-20 flex items-center gap-3 px-5 py-4 border-b border-white/8 bg-[#060810]/90 backdrop-blur-xl">
+      <div className="sticky top-0 z-20 flex items-center gap-3 px-5 py-4 border-b border-white/8 bg-[#022658]/90 backdrop-blur-xl">
         <Link href="/dashboard" className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-white/70 transition-all active:scale-95">
           <ArrowLeft className="w-4 h-4" />
         </Link>

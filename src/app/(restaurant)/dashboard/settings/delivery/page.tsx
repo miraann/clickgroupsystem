@@ -11,6 +11,9 @@ import { createClient } from '@/lib/supabase/client'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { useDeliverySettings, type CachedDeliveryZone } from '@/hooks/useDeliverySettings'
+import { ToggleSwitch } from '@/components/ui/ToggleSwitch'
+import { SaveButton } from '@/components/ui/SaveButton'
+import type { SaveState } from '@/hooks/useRestaurantSettings'
 
 // ── Types ──────────────────────────────────────────────────────
 interface DeliveryZone {
@@ -78,18 +81,6 @@ const DELIVERY_STATUSES = [
 
 function statusMeta(s: string) {
   return DELIVERY_STATUSES.find(x => x.key === s) ?? { key: s, label: s, color: 'text-white/50', bg: 'bg-white/5', border: 'border-white/10' }
-}
-
-// ── Toggle ─────────────────────────────────────────────────────
-function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <button
-      onClick={() => onChange(!on)}
-      className={cn('relative w-12 h-6 rounded-full transition-all duration-200 focus:outline-none', on ? 'bg-indigo-500' : 'bg-white/10')}
-    >
-      <span className={cn('absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-md transition-all duration-200', on ? 'left-[26px]' : 'left-0.5')} />
-    </button>
-  )
 }
 
 // ── Field ──────────────────────────────────────────────────────
@@ -461,9 +452,8 @@ export default function DeliveryPage() {
 
   const [general, setGeneral] = useState<GeneralSettings>(GENERAL_DEFAULTS)
   const [zones, setZones]     = useState<DeliveryZone[]>([])
-  const [saving, setSaving]   = useState(false)
-  const [saved, setSaved]     = useState(false)
-  const [err, setErr]         = useState<string | null>(null)
+  const [saveState, setSaveState] = useState<SaveState>('idle')
+  const [err, setErr]             = useState<string | null>(null)
 
   // Zone modal
   const [zoneModal, setZoneModal]   = useState(false)
@@ -482,7 +472,7 @@ export default function DeliveryPage() {
 
   const saveGeneral = async () => {
     if (!restaurantId) return
-    setSaving(true); setErr(null)
+    setSaveState('saving'); setErr(null)
 
     const { data: rest } = await supabase.from('restaurants').select('settings').eq('id', restaurantId).maybeSingle()
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -499,11 +489,10 @@ export default function DeliveryPage() {
     }
 
     const { error } = await supabase.from('restaurants').update({ settings: merged }).eq('id', restaurantId)
-    setSaving(false)
-    if (error) { setErr(error.message); return }
+    if (error) { setSaveState('idle'); setErr(error.message); return }
     mutate(prev => prev ? { ...prev, general } : prev, false)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2500)
+    setSaveState('saved')
+    setTimeout(() => setSaveState('idle'), 2500)
   }
 
   const openAddZone = () => { setEditZone(null); setZoneForm(ZONE_EMPTY); setZoneErr(null); setZoneModal(true) }
@@ -586,17 +575,7 @@ export default function DeliveryPage() {
           </div>
         </div>
         {tab === 'settings' && (
-          <button
-            onClick={saveGeneral}
-            disabled={saving}
-            className={cn(
-              'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all',
-              saving ? 'bg-white/5 text-white/30' : saved ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 hover:bg-indigo-500/30'
-            )}
-          >
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : saved ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
-            {saved ? t.saved_ : t.save_changes}
-          </button>
+          <SaveButton state={saveState} onClick={saveGeneral} />
         )}
       </div>
 
@@ -651,8 +630,9 @@ export default function DeliveryPage() {
                   <p className="text-xs text-white/40">{t.del_enabled_desc}</p>
                 </div>
               </div>
-              <Toggle
+              <ToggleSwitch
                 on={general.delivery_enabled}
+                activeColor="bg-indigo-500"
                 onChange={async v => {
                   setGeneral(g => ({ ...g, delivery_enabled: v }))
                   if (!restaurantId) return
@@ -679,8 +659,9 @@ export default function DeliveryPage() {
                   <p className="text-xs text-white/40">{t.del_show_btn_desc}</p>
                 </div>
               </div>
-              <Toggle
+              <ToggleSwitch
                 on={general.show_delivery_button}
+                activeColor="bg-indigo-500"
                 onChange={async v => {
                   setGeneral(g => ({ ...g, show_delivery_button: v }))
                   if (!restaurantId) return
@@ -832,7 +813,7 @@ export default function DeliveryPage() {
                   <p className="text-sm font-semibold text-white">Active</p>
                   <p className="text-xs text-white/40">Zone accepts orders</p>
                 </div>
-                <Toggle on={zoneForm.active} onChange={v => setZoneForm(f => ({ ...f, active: v }))} />
+                <ToggleSwitch on={zoneForm.active} activeColor="bg-indigo-500" onChange={v => setZoneForm(f => ({ ...f, active: v }))} />
               </div>
             </div>
             <div className="flex gap-2 pt-1">

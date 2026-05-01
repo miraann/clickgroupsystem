@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useInventoryData, type CachedInvCategory, type CachedInvUnit, type CachedInvItem } from '@/hooks/useInventoryData'
 import { cn } from '@/lib/utils'
@@ -46,6 +47,7 @@ function StockBadge({ current, min, labels }: { current: number; min: number; la
 export default function InventoryPage() {
   const { t } = useLanguage()
   const supabase = createClient()
+  const router = useRouter()
 
   const [restaurantId, setRestaurantId] = useState<string | null>(null)
   const [mounted, setMounted]           = useState(false)
@@ -53,12 +55,22 @@ export default function InventoryPage() {
   useEffect(() => {
     setRestaurantId(localStorage.getItem('restaurant_id'))
     setMounted(true)
+    const p = new URLSearchParams(window.location.search).get('tab') as typeof tab | null
+    if (p && ['settings', 'items', 'categories', 'units'].includes(p)) setTab(p)
   }, [])
 
   const { data: swrData, isLoading: swrLoading, mutate } = useInventoryData(restaurantId)
   const loading = !mounted || swrLoading
 
   const [tab, setTab] = useState<'settings' | 'items' | 'categories' | 'units'>('settings')
+
+  const switchTab = (key: typeof tab) => {
+    setTab(key)
+    const url = new URL(window.location.href)
+    if (key === 'settings') url.searchParams.delete('tab')
+    else url.searchParams.set('tab', key)
+    router.replace(url.pathname + url.search)
+  }
 
   // Feature flags
   const [enabled,      setEnabled]      = useState(false)
@@ -257,7 +269,7 @@ export default function InventoryPage() {
           { key: 'categories', label: 'Categories',  icon: <Tag        className="w-4 h-4" /> },
           { key: 'units',      label: 'Units',       icon: <Ruler      className="w-4 h-4" /> },
         ] as const).map(({ key, label, icon }) => (
-          <button key={key} onClick={() => setTab(key)}
+          <button key={key} onClick={() => switchTab(key)}
             className={cn('flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all',
               tab === key ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'text-white/50 hover:text-white/70')}>
             {icon}{label}

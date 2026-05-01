@@ -203,7 +203,7 @@ export default function CFDPage() {
   // ═══════════════════════════════════════════════════════════
   // ── LOADING ────────────────────────────────────────────────
   if (phase === 'loading') return (
-    <div className="min-h-screen bg-[#060810] flex items-center justify-center">
+    <div className="min-h-screen bg-[#022658] flex items-center justify-center">
       <div className="w-12 h-12 border-4 border-amber-500 border-t-transparent rounded-full animate-spin" />
     </div>
   )
@@ -211,7 +211,7 @@ export default function CFDPage() {
   // ═══════════════════════════════════════════════════════════
   // ── IDLE ───────────────────────────────────────────────────
   if (phase === 'idle') return (
-    <div className="min-h-screen bg-[#060810] flex flex-col relative overflow-hidden">
+    <div className="min-h-screen bg-[#022658] flex flex-col relative overflow-hidden">
       <style>{`
         @keyframes cfd-float    { 0%,100%{transform:translateY(0)}  50%{transform:translateY(-14px)} }
         @keyframes cfd-ring     { 0%{transform:scale(0.92);opacity:.7} 100%{transform:scale(1.5);opacity:0} }
@@ -273,7 +273,7 @@ export default function CFDPage() {
               <span className="text-white/20">سکان بکە بۆ بینینی مینیوو</span>
             </p>
             <div className="p-4 rounded-3xl bg-white shadow-2xl shadow-black/50">
-              <QRCodeSVG value={menuUrl} size={160} bgColor="#ffffff" fgColor="#060810" level="H" />
+              <QRCodeSVG value={menuUrl} size={160} bgColor="#ffffff" fgColor="#022658" level="H" />
             </div>
             <p className="text-[11px] text-white/20 text-center">Digital Menu · مینیووی دیجیتاڵ</p>
           </div>
@@ -290,7 +290,7 @@ export default function CFDPage() {
   // ═══════════════════════════════════════════════════════════
   // ── ORDERING ───────────────────────────────────────────────
   if (phase === 'ordering') return (
-    <div className="min-h-screen bg-[#060810] flex flex-col overflow-hidden">
+    <div className="min-h-screen bg-[#022658] flex flex-col overflow-hidden">
       <style>{`
         @keyframes cfd-slidein   { from{transform:translateX(-24px) scale(0.97);opacity:0} to{transform:translateX(0) scale(1);opacity:1} }
         @keyframes cfd-highlight { 0%,100%{background-color:transparent} 40%{background-color:rgba(251,191,36,0.12)} }
@@ -390,7 +390,7 @@ export default function CFDPage() {
   // ═══════════════════════════════════════════════════════════
   // ── THANK YOU / FEEDBACK ───────────────────────────────────
   return (
-    <div className="min-h-screen bg-[#060810] flex flex-col items-center justify-center px-8 relative overflow-hidden">
+    <div className="min-h-screen bg-[#022658] flex flex-col items-center justify-center px-8 relative overflow-hidden">
       <style>{`
         @keyframes cfd-checkpop  { 0%{transform:scale(0) rotate(-10deg);opacity:0} 70%{transform:scale(1.15) rotate(3deg)} 100%{transform:scale(1) rotate(0deg);opacity:1} }
         @keyframes cfd-starburst { 0%{transform:scale(0.6);opacity:0} 100%{transform:scale(1);opacity:1} }

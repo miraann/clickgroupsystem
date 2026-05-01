@@ -41,7 +41,7 @@ export default function MenuSettingsLayout({ children }: { children: React.React
   return (
     <div className="flex flex-col h-full -m-6">
       {/* Tab bar */}
-      <div className="sticky top-0 z-20 bg-[#060810]/90 backdrop-blur-xl border-b border-white/8">
+      <div className="sticky top-0 z-20 bg-[#022658]/90 backdrop-blur-xl border-b border-white/8">
         <div className="overflow-x-auto scrollbar-none">
           <div className="flex gap-0.5 px-4 pt-3 pb-0 min-w-max">
             {TABS.map((tab) => {

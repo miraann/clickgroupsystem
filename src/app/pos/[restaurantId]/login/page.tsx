@@ -122,7 +122,7 @@ export default function POSLoginPage() {
   const formattedDate = time.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
 
   return (
-    <div className="min-h-screen bg-[#060810] flex flex-col items-center justify-center overflow-hidden relative select-none">
+    <div className="min-h-screen bg-[#022658] flex flex-col items-center justify-center overflow-hidden relative select-none">
 
       {/* Ambient background */}
       <div className="fixed inset-0 pointer-events-none">

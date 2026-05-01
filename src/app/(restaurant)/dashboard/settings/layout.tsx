@@ -49,12 +49,11 @@ const NAV_GROUPS: NavGroup[] = [
   {
     labelKey: 'sg_finance',
     items: [
-      { labelKey: 'si_sales',      href: '/dashboard/settings/sales',      icon: ActivitySquare, permKey: 'finance.sales' },
+      { labelKey: 'si_finance',    href: '/dashboard/settings/finance',    icon: BarChart3,  permKey: 'finance.report' },
       { labelKey: 'si_expense',    href: '/dashboard/settings/expense',    icon: DollarSign,     permKey: 'finance.expense' },
       { labelKey: 'si_pay_later',  href: '/dashboard/settings/pay-later',  icon: CreditCard,     permKey: 'finance.pay_later' },
       { labelKey: 'si_receipt',    href: '/dashboard/settings/receipt',    icon: Receipt,        permKey: 'finance.receipt' },
       { labelKey: 'si_void_items', href: '/dashboard/settings/void-items', icon: Ban },
-      { labelKey: 'si_report',     href: '/dashboard/settings/report',     icon: BarChart3,      permKey: 'finance.report' },
     ],
   },
   {
@@ -118,10 +117,10 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
   }, [pathname]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div className="min-h-screen bg-[#060810] flex flex-col">
+    <div className="min-h-screen bg-[#022658] flex flex-col">
 
       {/* Top bar */}
-      <header className="sticky top-0 z-30 border-b border-white/8 bg-[#060810]/80 backdrop-blur-2xl">
+      <header className="sticky top-0 z-30 border-b border-white/8 bg-[#022658]/80 backdrop-blur-2xl">
         <div className={cn('flex items-center gap-3 px-5 py-4', isRTL && 'flex-row-reverse')}>
           {/* Mobile sidebar toggle */}
           <button

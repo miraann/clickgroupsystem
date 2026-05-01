@@ -44,7 +44,7 @@ export default function CFDSetup() {
   }
 
   return (
-    <div className="min-h-screen bg-[#060810] flex items-center justify-center px-6">
+    <div className="min-h-screen bg-[#022658] flex items-center justify-center px-6">
       <div className="w-full max-w-sm">
 
         {/* Icon + title */}

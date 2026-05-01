@@ -97,7 +97,7 @@ export default function POSEntry() {
   const formattedDate = time.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
 
   return (
-    <div className="min-h-screen bg-[#060810] flex flex-col items-center justify-center overflow-hidden relative select-none">
+    <div className="min-h-screen bg-[#022658] flex flex-col items-center justify-center overflow-hidden relative select-none">
 
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute top-0 left-0 w-[600px] h-[600px] bg-indigo-600/10 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '4s' }} />

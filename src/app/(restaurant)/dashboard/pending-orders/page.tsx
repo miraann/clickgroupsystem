@@ -225,13 +225,13 @@ export default function PendingOrdersPage() {
   }
 
   if (loading) return (
-    <div className="min-h-screen bg-[#060810] flex items-center justify-center">
+    <div className="min-h-screen bg-[#022658] flex items-center justify-center">
       <Loader2 className="w-7 h-7 text-amber-400 animate-spin" />
     </div>
   )
 
   if (error) return (
-    <div className="min-h-screen bg-[#060810] flex items-center justify-center p-6">
+    <div className="min-h-screen bg-[#022658] flex items-center justify-center p-6">
       <div className="flex items-start gap-3 p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 max-w-sm">
         <AlertCircle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
         <div>
@@ -245,10 +245,10 @@ export default function PendingOrdersPage() {
 
   return (
     <ModuleGate moduleKey="dine_in">
-    <div className="min-h-screen bg-[#060810] flex flex-col">
+    <div className="min-h-screen bg-[#022658] flex flex-col">
 
       {/* Header */}
-      <header className="sticky top-0 z-30 border-b border-white/8 bg-[#060810]/80 backdrop-blur-2xl">
+      <header className="sticky top-0 z-30 border-b border-white/8 bg-[#022658]/80 backdrop-blur-2xl">
         <div className="flex items-center justify-between px-5 py-4 max-w-2xl mx-auto w-full">
           <div className="flex items-center gap-3">
             <button

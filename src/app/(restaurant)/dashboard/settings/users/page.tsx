@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
@@ -237,8 +238,23 @@ function PermRow({ node, perms, depth = 0, onChange }: { node: PermNode; perms: 
 export default function UsersPage() {
   const { t } = useLanguage()
   const supabase = createClient()
+  const router = useRouter()
 
   const [pageTab, setPageTab] = useState<'staff' | 'roles'>('staff')
+
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search).get('tab') as typeof pageTab | null
+    if (p && ['staff', 'roles'].includes(p)) setPageTab(p)
+  }, [])
+
+  const switchPageTab = (key: typeof pageTab) => {
+    setPageTab(key)
+    const url = new URL(window.location.href)
+    if (key === 'staff') url.searchParams.delete('tab')
+    else url.searchParams.set('tab', key)
+    router.replace(url.pathname + url.search)
+  }
+
   const [restaurantId, setRestaurantId] = useState<string | null>(null)
   const [mounted, setMounted] = useState(false)
   const [restaurantModules, setRestaurantModules] = useState<Record<string, boolean>>({})
@@ -432,7 +448,7 @@ export default function UsersPage() {
       {/* Page-level tabs */}
       <div className="flex gap-1 mb-6 p-1 rounded-xl bg-white/4 border border-white/8 w-fit">
         {([['staff', 'Staff', Users], ['roles', 'Role Permissions', Shield]] as const).map(([tab, label, Icon]) => (
-          <button key={tab} onClick={() => setPageTab(tab)}
+          <button key={tab} onClick={() => switchPageTab(tab)}
             className={cn('flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all',
               pageTab === tab ? 'bg-amber-500 text-white shadow-sm' : 'text-white/40 hover:text-white/70')}>
             <Icon className="w-4 h-4" />{label}
@@ -484,7 +500,7 @@ export default function UsersPage() {
                       <div className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold text-white border bg-amber-500/15 border-amber-500/25">
                         {u.name.split(' ').map(n => n[0]).join('')}
                       </div>
-                      <div className={cn('absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[#060810]', u.status === 'active' ? 'bg-emerald-400' : 'bg-white/20')} />
+                      <div className={cn('absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[#022658]', u.status === 'active' ? 'bg-emerald-400' : 'bg-white/20')} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
