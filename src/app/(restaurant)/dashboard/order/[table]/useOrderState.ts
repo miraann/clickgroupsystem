@@ -63,21 +63,23 @@ export function useOrderState(table: string, guestCount: number) {
   const init = useCallback(async () => {
     setLoading(true); setInitError(null)
 
-    const { data: rest } = await supabase
-      .from('restaurants').select('id,name')
-      .eq('id', typeof window !== 'undefined' ? (localStorage.getItem('restaurant_id') ?? '') : '')
-      .maybeSingle()
+    const rid = typeof window !== 'undefined' ? (localStorage.getItem('restaurant_id') ?? '') : ''
+    if (!rid) { setInitError('Restaurant not found.'); setLoading(false); return }
+
+    // All 6 queries fire in one parallel batch — no serial round-trips
+    const [restRes, catsRes, itemsRes, notesRes, existingRes, stationCatRes] = await Promise.all([
+      supabase.from('restaurants').select('id,name').eq('id', rid).maybeSingle(),
+      supabase.from('menu_categories').select('id,name,color').eq('restaurant_id', rid).eq('active', true).order('sort_order'),
+      supabase.from('menu_items').select('id,name,price,category_id,image_url').eq('restaurant_id', rid).eq('available', true).order('sort_order'),
+      supabase.from('kitchen_notes').select('id,text').eq('restaurant_id', rid).eq('active', true).order('sort_order'),
+      supabase.from('orders').select('id,order_num').eq('restaurant_id', rid).eq('table_number', parseInt(table)).eq('status', 'active').order('created_at', { ascending: false }).limit(1).maybeSingle(),
+      supabase.from('kds_station_categories').select('station_id,category_id'),
+    ])
+
+    const rest = restRes.data
     if (!rest) { setInitError('Restaurant not found.'); setLoading(false); return }
     setRestaurantId(rest.id)
     setRestaurantName(rest.name ?? '')
-
-    const [catsRes, itemsRes, notesRes, existingRes, stationCatRes] = await Promise.all([
-      supabase.from('menu_categories').select('id,name,color').eq('restaurant_id', rest.id).eq('active', true).order('sort_order'),
-      supabase.from('menu_items').select('id,name,price,category_id,image_url').eq('restaurant_id', rest.id).eq('available', true).order('sort_order'),
-      supabase.from('kitchen_notes').select('id,text').eq('restaurant_id', rest.id).eq('active', true).order('sort_order'),
-      supabase.from('orders').select('id,order_num').eq('restaurant_id', rest.id).eq('table_number', parseInt(table)).eq('status', 'active').order('created_at', { ascending: false }).limit(1).maybeSingle(),
-      supabase.from('kds_station_categories').select('station_id,category_id'),
-    ])
 
     const cats  = (catsRes.data  ?? []) as DbCategory[]
     const items = (itemsRes.data ?? []) as DbMenuItem[]

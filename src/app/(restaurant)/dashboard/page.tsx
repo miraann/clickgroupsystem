@@ -17,9 +17,10 @@ import { createClient } from '@/lib/supabase/client'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { Lang, LANG_META } from '@/lib/i18n/translations'
-import { useDashboardLayout } from '@/hooks/useDashboardLayout'
+import { useDashboardTables, SWR_KEY, type DashboardFullData } from '@/hooks/useDashboardTables'
 import { usePermissions } from '@/lib/permissions/PermissionsContext'
 import { getStaffHome } from '@/lib/permissions/staffHome'
+import InvoiceModal from '@/components/restaurant/invoice-modal'
 
 type TableStatus = 'available' | 'occupied' | 'reserved' | 'dirty' | 'bill_requested'
 
@@ -35,6 +36,7 @@ interface Table {
   waiter?: string
   orderTotal?: number
   openedAt?: string
+  orderId?: string
   shape: 'square' | 'round' | 'rect'
   group_id?: string | null
 }
@@ -119,18 +121,99 @@ function TableTimer({ openedAt }: { openedAt: string }) {
   return <span>{elapsed}</span>
 }
 
+// ── Print Bill Fetcher ────────────────────────────────────────
+function PrintBillFetcher({ table, restaurantId, cashier, onClose }: {
+  table: Table; restaurantId: string; cashier: string; onClose: () => void
+}) {
+  const supabase = createClient()
+  const [invoiceProps, setInvoiceProps] = useState<{
+    orderId: string; items: { name: string; price: number; qty: number }[]
+    subtotal: number; discount: number; surcharge: number; total: number
+  } | null>(null)
+  const [err, setErr] = useState(false)
+
+  useEffect(() => {
+    const load = async () => {
+      const { data: order } = await supabase
+        .from('orders')
+        .select('id, total, discount, surcharge')
+        .eq('restaurant_id', restaurantId)
+        .eq('table_number', table.number)
+        .eq('status', 'active')
+        .maybeSingle()
+      if (!order) { setErr(true); return }
+
+      const { data: rawItems } = await supabase
+        .from('order_items')
+        .select('name, price, quantity')
+        .eq('order_id', order.id)
+        .neq('voided', true)
+
+      const items = (rawItems ?? []).map((i: { name: string; price: number; quantity: number }) => ({
+        name: i.name, price: i.price, qty: i.quantity,
+      }))
+      const subtotal = items.reduce((s, i) => s + i.price * i.qty, 0)
+      setInvoiceProps({
+        orderId: order.id, items,
+        subtotal,
+        discount:  (order.discount  as number) ?? 0,
+        surcharge: (order.surcharge as number) ?? 0,
+        total:     (order.total     as number) ?? subtotal,
+      })
+    }
+    load()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (err) return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60" onClick={onClose}>
+      <div className="bg-[#0d1220] border border-white/15 rounded-2xl p-6 text-center space-y-2">
+        <p className="text-sm text-rose-400 font-semibold">No active order found for this table</p>
+        <button onClick={onClose} className="text-xs text-white/40 hover:text-white/70">Close</button>
+      </div>
+    </div>
+  )
+
+  if (!invoiceProps) return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60">
+      <Loader2 className="w-7 h-7 text-amber-400 animate-spin" />
+    </div>
+  )
+
+  return (
+    <InvoiceModal
+      mode="receipt"
+      orderId={invoiceProps.orderId}
+      restaurantId={restaurantId}
+      tableNum={table.label}
+      guests={table.guests ?? 0}
+      items={invoiceProps.items}
+      subtotal={invoiceProps.subtotal}
+      discount={invoiceProps.discount}
+      surcharge={invoiceProps.surcharge}
+      total={invoiceProps.total}
+      paymentMethod=""
+      amountPaid={0}
+      changeAmount={0}
+      cashier={cashier}
+      onClose={onClose}
+    />
+  )
+}
+
 // ── Quick Action Menu ─────────────────────────────────────────
-function QuickMenu({ table, onClose, onQuickPay, router }: {
+function QuickMenu({ table, onClose, onQuickPay, onPrintBill, router }: {
   table: Table; onClose: () => void
   onQuickPay: (t: Table) => void
+  onPrintBill: (t: Table) => void
   router: ReturnType<typeof import('next/navigation').useRouter>
 }) {
+  const isOccupied = table.status === 'occupied' || table.status === 'bill_requested'
   const actions = [
     { icon: ArrowRightLeft, label: 'Move Table',   color: 'text-blue-400',    onClick: () => { onClose() } },
     { icon: Merge,          label: 'Merge Tables',  color: 'text-violet-400',  onClick: () => { onClose() } },
-    { icon: Receipt,        label: 'Quick Pay',     color: 'text-amber-400',   onClick: () => { onClose(); onQuickPay(table) } },
-    { icon: Printer,        label: 'Print Bill',    color: 'text-emerald-400', onClick: () => { onClose() } },
-    { icon: XIcon,          label: 'Cancel',        color: 'text-white/40',    onClick: onClose },
+    { icon: Receipt,        label: 'Quick Pay',     color: 'text-amber-400',   onClick: () => { onClose(); onQuickPay(table) }, disabled: !isOccupied },
+    { icon: Printer,        label: 'Print Bill',    color: 'text-emerald-400', onClick: () => { onClose(); onPrintBill(table) }, disabled: !isOccupied },
+    { icon: XIcon,          label: 'Cancel',        color: 'text-white/40',    onClick: onClose, disabled: false },
   ]
   return (
     <AnimatePresence>
@@ -158,8 +241,11 @@ function QuickMenu({ table, onClose, onQuickPay, router }: {
           </div>
           <div className="p-2">
             {actions.map(a => (
-              <button key={a.label} onClick={a.onClick}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/6 active:scale-95 transition-all text-left">
+              <button key={a.label} onClick={a.onClick} disabled={a.disabled}
+                className={cn(
+                  'w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-left',
+                  a.disabled ? 'opacity-30 cursor-not-allowed' : 'hover:bg-white/6 active:scale-95',
+                )}>
                 <a.icon className={cn('w-4 h-4 shrink-0', a.color)} />
                 <span className={cn('text-sm font-medium', a.color)}>{a.label}</span>
               </button>
@@ -230,7 +316,7 @@ const TableCard = memo(function TableCard({ table, onSelect, onLongPress, format
       onClick={handleClick}
       style={{ width: cardW, height: cardH }}
       className={cn(
-        'relative border backdrop-blur-xl p-2 sm:p-3 text-left shrink-0 touch-manipulation shadow-lg flex flex-col',
+        'relative border-[3px] backdrop-blur-xl p-2 sm:p-3 text-left shrink-0 touch-manipulation shadow-lg flex flex-col',
         isRound ? 'rounded-full items-center justify-center text-center' : 'rounded-2xl',
         cfg.bg, cfg.border, cfg.glow, cfg.hover,
         isBillReq && 'animate-pulse',
@@ -330,8 +416,8 @@ export default function TablesPage() {
     typeof window !== 'undefined' ? localStorage.getItem('restaurant_id') : null
   )
 
-  // SWR: layout data (tables, groups, restaurant info) — instant on return navigation
-  const { data: layoutData } = useDashboardLayout(cachedRestaurantId)
+  // SWR: tables with live status (occupied/reserved/available) — instant on return navigation
+  const { data: swrData } = useDashboardTables(cachedRestaurantId)
 
   const [filter, setFilter] = useState<TableStatus | 'all'>('all')
   const [groupFilter, setGroupFilter] = useState<string | 'all'>('all')
@@ -339,17 +425,11 @@ export default function TablesPage() {
   const [guestTable, setGuestTable] = useState<Table | null>(null)
   const [reservationDetail, setReservationDetail] = useState<{ id: string; guest_name: string; guest_phone: string | null; party_size: number; date: string; time: string; note: string | null; status: string } | null>(null)
   const [quickMenuTable, setQuickMenuTable] = useState<Table | null>(null)
+  const [printBillTable, setPrintBillTable] = useState<Table | null>(null)
   const [time, setTime] = useState(new Date())
-  const [restaurant, setRestaurant] = useState<{ name: string; logo_url: string | null } | null>(null)
-  const [groups, setGroups] = useState<TableGroup[]>([])
-  const [activeOrders, setActiveOrders]   = useState<Map<number, { guests: number; total: number; openedAt: string }>>(new Map())
-  const [dbTableLayout, setDbTableLayout] = useState<{ id: string; number: number; label: string; capacity: number; shape: 'square' | 'round' | 'rect'; group_id: string | null }[]>([])
-  const [reservedTableIds, setReservedTableIds] = useState<Set<string>>(new Set())
-  const [pendingCount, setPendingCount]         = useState(0)
-  const [deliveryCount, setDeliveryCount]       = useState(0)
+  const [pendingCount, setPendingCount]           = useState(0)
+  const [deliveryCount, setDeliveryCount]         = useState(0)
   const [guestPendingCount, setGuestPendingCount] = useState(0)
-  const [showDeliveryButton, setShowDeliveryButton] = useState(true)
-  const [showTakeoutButton, setShowTakeoutButton]   = useState(true)
   const [waiterCalls, setWaiterCalls]           = useState<WaiterCall[]>([])
   const [showWaiterPanel, setShowWaiterPanel]   = useState(false)
   const [showLangPicker, setShowLangPicker]     = useState(false)
@@ -360,21 +440,24 @@ export default function TablesPage() {
 
   const audioCtxRef = useRef<AudioContext | null>(null)
 
-  // Populate layout state from SWR cache instantly on mount (no loading flash on return)
+  // ── Derived from SWR (no extra state needed) ─────────────────────
+  const restaurant       = swrData?.restaurant ?? null
+  const groups           = (swrData?.groups ?? []) as TableGroup[]
+  const showDeliveryButton = swrData?.restaurant?.settings?.show_delivery_button !== false
+  const showTakeoutButton  = swrData?.restaurant?.settings?.show_takeout_button  !== false
+
+  // Set group filter to first group on initial SWR data arrival
   useEffect(() => {
-    if (!layoutData) return
-    if (layoutData.restaurant) setRestaurant({ name: layoutData.restaurant.name, logo_url: layoutData.restaurant.logo_url })
-    if (layoutData.tables.length > 0) setDbTableLayout(layoutData.tables)
-    if (layoutData.groups.length > 0) {
-      setGroups(layoutData.groups as TableGroup[])
-      setGroupFilter(f => f === 'all' ? layoutData.groups[0].id : f)
-    }
-    if (layoutData.restaurant?.settings) {
-      const rs = layoutData.restaurant.settings
-      setShowDeliveryButton(rs.show_delivery_button !== false)
-      setShowTakeoutButton(rs.show_takeout_button !== false)
-    }
-  }, [layoutData]) // eslint-disable-line react-hooks/exhaustive-deps
+    if (groups.length > 0) setGroupFilter(f => f === 'all' ? groups[0].id : f)
+  }, [groups]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Sync sound/alert settings from restaurant config
+  useEffect(() => {
+    if (!swrData?.restaurant?.settings) return
+    const rs = swrData.restaurant.settings
+    soundsEnabledRef.current = rs.sounds_enabled !== false
+    alertRepeatMsRef.current = Number(rs.alert_repeat_seconds ?? 30) * 1000
+  }, [swrData?.restaurant?.settings]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Unlock AudioContext on first user interaction (browser autoplay policy)
   useEffect(() => {
@@ -441,51 +524,40 @@ export default function TablesPage() {
   const fetchOrders = useCallback(async () => {
     const supabase = createClient()
     const storedId = typeof window !== 'undefined' ? localStorage.getItem('restaurant_id') : null
-    const query = supabase.from('restaurants').select('id, name, logo_url, settings')
-    const { data: rest } = await (storedId
-      ? query.eq('id', storedId).maybeSingle()
-      : query.limit(1).maybeSingle())
-    if (!rest) return
-    setRestaurant({ name: rest.name, logo_url: rest.logo_url })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const rs = ((rest as any).settings ?? {}) as Record<string, unknown>
-    setShowDeliveryButton(rs.show_delivery_button !== false)
-    setShowTakeoutButton(rs.show_takeout_button !== false)
-    soundsEnabledRef.current = rs.sounds_enabled !== false
-    alertRepeatMsRef.current = Number(rs.alert_repeat_seconds ?? 30) * 1000
+    if (!storedId) return
 
     const today = new Date().toISOString().slice(0, 10)
-    const [{ data: dbTables }, { data: orders }, { data: grps }, { count: pendingCnt }, { data: todayRes }, { count: deliveryCnt }, guestPendingRes, { data: waiterCallsData }] = await Promise.all([
-      supabase.from('tables').select('id, seq, table_number, capacity, shape, group_id').eq('restaurant_id', rest.id).eq('active', true).order('table_number'),
-      supabase.from('orders').select('id, table_number, guests, total, created_at').eq('restaurant_id', rest.id).eq('status', 'active'),
-      supabase.from('table_groups').select('id, name, color').eq('restaurant_id', rest.id).order('sort_order'),
+
+    // Single parallel batch — no sequential restaurant pre-fetch needed
+    const [
+      { count: pendingCnt },
+      { data: orders },
+      { data: todayRes },
+      { count: deliveryCnt },
+      guestPendingRes,
+      { data: waiterCallsData },
+    ] = await Promise.all([
       supabase.from('order_items').select('id, orders!inner(source)', { count: 'exact', head: true }).eq('status', 'pending').not('orders.source', 'eq', 'delivery'),
-      supabase.from('reservations').select('table_id').eq('restaurant_id', rest.id).eq('date', today).in('status', ['pending', 'confirmed']),
-      supabase.from('delivery_orders').select('id', { count: 'exact', head: true }).eq('restaurant_id', rest.id).eq('status', 'pending'),
+      supabase.from('orders').select('id, table_number, guests, total, created_at').eq('restaurant_id', storedId).eq('status', 'active'),
+      supabase.from('reservations').select('table_id').eq('restaurant_id', storedId).eq('date', today).in('status', ['pending', 'confirmed']),
+      supabase.from('delivery_orders').select('id', { count: 'exact', head: true }).eq('restaurant_id', storedId).eq('status', 'pending'),
       supabase.from('order_items').select('id, orders!inner(source)', { count: 'exact', head: true }).eq('status', 'pending').eq('orders.source', 'guest'),
-      supabase.from('waiter_calls').select('id, table_number, table_name, created_at').eq('restaurant_id', rest.id).eq('status', 'pending').order('created_at'),
+      supabase.from('waiter_calls').select('id, table_number, table_name, created_at').eq('restaurant_id', storedId).eq('status', 'pending').order('created_at'),
     ])
+
     setWaiterCalls((waiterCallsData ?? []) as WaiterCall[])
-    // Build reserved table IDs set
-    const resSet = new Set<string>((todayRes ?? []).map((r: { table_id: string | null }) => r.table_id).filter(Boolean) as string[])
-    setReservedTableIds(resSet)
     setPendingCount(pendingCnt ?? 0)
     setDeliveryCount(deliveryCnt ?? 0)
     setGuestPendingCount(guestPendingRes?.count ?? 0)
-    if (grps && grps.length > 0) {
-      setGroups(grps as TableGroup[])
-      setGroupFilter(f => f === 'all' ? grps[0].id : f)
-    }
 
-    // Build order map — only include orders that have at least one non-void item
+    const resSet = new Set<string>((todayRes ?? []).map((r: { table_id: string | null }) => r.table_id).filter(Boolean) as string[])
+
+    // Build verified order map — only orders that still have non-void items
     const map = new Map<number, { guests: number; total: number; openedAt: string }>()
     const orderIds = (orders ?? []).map(o => o.id)
     if (orderIds.length > 0) {
       const { data: activeItems } = await supabase
-        .from('order_items')
-        .select('order_id')
-        .in('order_id', orderIds)
-        .neq('status', 'void')
+        .from('order_items').select('order_id').in('order_id', orderIds).neq('status', 'void')
       const activeOrderIds = new Set((activeItems ?? []).map(i => i.order_id))
 
       // Auto-close orders that have no non-void items left
@@ -504,28 +576,29 @@ export default function TablesPage() {
         })
       })
     }
-    setActiveOrders(map)
 
-    if (dbTables && dbTables.length > 0) {
-      const mappedTables = dbTables.map(t => ({
-        id:       t.id,
-        number:   t.seq,
-        label:    t.table_number ?? String(t.seq),
-        capacity: t.capacity ?? 4,
-        shape:    (t.shape === 'Rectangle' ? 'rect' : (t.shape ?? 'Square').toLowerCase()) as 'square' | 'round' | 'rect',
-        group_id: t.group_id ?? null,
-      }))
-      setDbTableLayout(mappedTables)
-
-      // Keep SWR cache fresh so next return navigation is instant
-      if (rest) {
-        swrMutate(`dashboard-layout-${rest.id}`, {
-          restaurant: { name: rest.name, logo_url: rest.logo_url, settings: (rest as unknown as Record<string, unknown>).settings ?? {} },
-          tables: mappedTables,
-          groups: (grps ?? []) as { id: string; name: string; color: string }[],
-        }, false) // false = don't revalidate, just update cache silently
-      }
-    }
+    // Push verified status into the SWR cache — avoids extra network round-trip
+    swrMutate(
+      SWR_KEY(storedId),
+      (prev: DashboardFullData | undefined) => {
+        if (!prev) return prev
+        return {
+          ...prev,
+          tables: prev.tables.map(t => {
+            const order = map.get(t.number)
+            if (order) return { ...t, status: 'occupied' as const, ...order }
+            if (resSet.has(t.id)) return { ...t, status: 'reserved' as const }
+            if (t.status === 'occupied' || t.status === 'reserved') {
+              // eslint-disable-next-line @typescript-eslint/no-unused-vars
+              const { guests: _g, orderTotal: _ot, openedAt: _oa, ...base } = t
+              return { ...base, status: 'available' as const }
+            }
+            return t
+          }),
+        }
+      },
+      false // optimistic — don't revalidate again
+    )
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -601,12 +674,8 @@ export default function TablesPage() {
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const tables: Table[] = dbTableLayout.map(t => {
-    const order = activeOrders.get(t.number)
-    if (order) return { ...t, status: 'occupied' as const, guests: order.guests, orderTotal: order.total, openedAt: order.openedAt }
-    if (reservedTableIds.has(t.id)) return { ...t, status: 'reserved' as const }
-    return { ...t, status: 'available' as const }
-  })
+  // Tables come straight from SWR — status already computed in the hook
+  const tables = (swrData?.tables ?? []) as Table[]
 
   const openOrder = (table: Table, guests?: number) => {
     router.push(`/dashboard/order/${table.number}${guests ? `?guests=${guests}` : ''}`)
@@ -850,12 +919,23 @@ export default function TablesPage() {
           </button>
         </div>
 
-        {/* Tables grid */}
-        <div className="flex flex-wrap gap-2">
-          {filtered.map(table => (
-            <TableCard key={table.id} table={table} hasWaiterCall={waiterCalls.some(c => c.table_number === table.label)} onSelect={handleSelect} onLongPress={handleLongPress} cur={cur} formatPrice={formatPrice} />
-          ))}
-        </div>
+        {/* Tables grid — skeleton shown only on very first visit (no SWR cache yet) */}
+        {!swrData ? (
+          <div className="flex flex-wrap gap-2">
+            {Array.from({ length: 12 }).map((_, i) => (
+              <div
+                key={i}
+                className="w-[90px] h-[90px] rounded-2xl bg-white/5 border border-white/8 animate-pulse"
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {filtered.map(table => (
+              <TableCard key={table.id} table={table} hasWaiterCall={waiterCalls.some(c => c.table_number === table.label)} onSelect={handleSelect} onLongPress={handleLongPress} cur={cur} formatPrice={formatPrice} />
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Bottom action bar */}
@@ -1026,7 +1106,18 @@ export default function TablesPage() {
           table={quickMenuTable}
           onClose={() => setQuickMenuTable(null)}
           onQuickPay={t => { setQuickMenuTable(null); openOrder(t) }}
+          onPrintBill={t => { setQuickMenuTable(null); setPrintBillTable(t) }}
           router={router}
+        />
+      )}
+
+      {/* Print bill modal */}
+      {printBillTable && cachedRestaurantId && (
+        <PrintBillFetcher
+          table={printBillTable}
+          restaurantId={cachedRestaurantId}
+          cashier={staffName ?? ''}
+          onClose={() => setPrintBillTable(null)}
         />
       )}
 
