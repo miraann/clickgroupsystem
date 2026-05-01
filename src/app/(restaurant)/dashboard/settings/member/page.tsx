@@ -26,7 +26,7 @@ export default function MemberPage() {
   const [sortBy, setSortBy]             = useState<'name' | 'points' | 'created_at'>('created_at')
   const [sortDir, setSortDir]           = useState<'asc' | 'desc'>('desc')
 
-  const [editMember, setEditMember]     = useState<Member | null>(null)
+  const [editMember, setEditMember]     = useState<Member | 'add' | null>(null)
   const [showModal, setShowModal]       = useState(false)
   const [pointsMember, setPointsMember] = useState<Member | null>(null)
   const [deleteId, setDeleteId]         = useState<string | null>(null)
