@@ -9,13 +9,14 @@ export default function UnauthorizedPage() {
   const handleLogout = async () => {
     const supabase = createClient()
     await supabase.auth.signOut().catch(() => {})
+    const rid = localStorage.getItem('restaurant_id')
     const keys = [
       'restaurant_id', 'restaurant_name', 'owner_session',
       'pos_staff_id', 'pos_staff_name', 'pos_staff_role',
       'pos_staff_color', 'pos_role_permissions', 'pos_role_name',
     ]
     keys.forEach(k => localStorage.removeItem(k))
-    router.replace('/pos')
+    router.replace(rid ? `/pos/${rid}/login` : '/restaurant-login')
   }
 
   return (

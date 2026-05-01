@@ -10,7 +10,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const restaurantId = localStorage.getItem('restaurant_id')
     if (!restaurantId) {
-      router.replace('/pos')
+      router.replace('/restaurant-login')
       return
     }
 
@@ -32,8 +32,9 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
       if (user) {
         setReady(true)
       } else {
+        const rid = localStorage.getItem('restaurant_id')
         localStorage.removeItem('restaurant_id')
-        router.replace('/pos')
+        router.replace(rid ? `/pos/${rid}/login` : '/restaurant-login')
       }
     })
   }, [router])
