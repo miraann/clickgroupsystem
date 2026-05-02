@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { ArrowLeft, Users, Printer, Loader2, Check, Delete, X, CreditCard, Star } from 'lucide-react'
+import { ArrowLeft, Users, Printer, Loader2, Check, Delete, X, CreditCard, Star, MessageCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import InvoiceModal from './invoice-modal'
@@ -83,6 +83,8 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
   const [showCustomerPicker, setShowCustomerPicker] = useState(false)
   const [selectedMember, setSelectedMember]         = useState<{ id: string; name: string; phone: string | null; points: number; tier: string } | null>(null)
   const [showMemberPicker, setShowMemberPicker]     = useState(false)
+  const [showWaModal, setShowWaModal]               = useState(false)
+  const [waPhone, setWaPhone]                       = useState('')
 
   const persistCustomer = (c: typeof selectedCustomer) => {
     setSelectedCustomer(c)
@@ -390,6 +392,32 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
     try { localStorage.removeItem(CUSTOMER_KEY) } catch { }
     setInvoiceMode('payment')
     setTimeout(() => setShowInvoice(true), 400)
+  }
+
+  const buildWhatsAppMessage = () => {
+    const invNum = generatedInvoiceNum || previewInvoiceNum || ''
+    const lines: string[] = [
+      `🧾 *Invoice ${invNum}*`,
+      `📍 Table ${tableNum}${guests > 0 ? ` · ${guests} guests` : ''}`,
+      '─────────────────',
+      ...items.map(item => `${item.qty}× ${item.name}  ${formatPrice(item.price * item.qty)}`),
+      '─────────────────',
+    ]
+    if (appliedDiscount)  lines.push(`Discount (${appliedDiscount.name}): -${formatPrice(discountAmount)}`)
+    if (appliedSurcharge) lines.push(`${appliedSurcharge.name}: +${formatPrice(surchargeAmount)}`)
+    lines.push(`*Total: ${formatPrice(finalTotal)}*`, '', 'Thank you for your visit! 🙏')
+    return lines.join('\n')
+  }
+
+  const sendWhatsApp = (phone: string) => {
+    const cleaned = phone.replace(/[\s\-()]/g, '')
+    window.open(`https://wa.me/${cleaned}?text=${encodeURIComponent(buildWhatsAppMessage())}`, '_blank')
+  }
+
+  const handleWaButton = () => {
+    const phone = selectedMember?.phone ?? selectedCustomer?.phone ?? null
+    if (phone) { sendWhatsApp(phone) }
+    else { setWaPhone(''); setShowWaModal(true) }
   }
 
   const now = new Date()
@@ -795,6 +823,13 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
                   <Printer className="w-4 h-4" />Receipt
                 </button>
               )}
+              <button
+                onClick={handleWaButton}
+                className="flex-1 bg-green-600/20 hover:bg-green-600/35 text-green-400 text-sm font-semibold flex items-center justify-center gap-1.5 transition-all active:scale-95 touch-manipulation"
+                title="Send invoice via WhatsApp"
+              >
+                <MessageCircle className="w-4 h-4" />WA
+              </button>
               {p('dashboard.pay') && (
                 <button
                   onClick={() => !paying && !paid && !(entered !== '' && enteredNum < finalTotal) && setShowConfirm(true)}
@@ -921,6 +956,43 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
       onSelect={persistCustomer}
       onClose={() => setShowCustomerPicker(false)}
     />
+
+    {showWaModal && (
+      <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+        <div className="w-full max-w-sm bg-[#0d1220] border border-white/15 rounded-2xl shadow-2xl p-5 space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-green-500/15 border border-green-500/25 flex items-center justify-center shrink-0">
+              <MessageCircle className="w-4.5 h-4.5 text-green-400" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-white">Send Invoice via WhatsApp</p>
+              <p className="text-[11px] text-white/35">Enter the guest&apos;s phone number</p>
+            </div>
+          </div>
+          <input
+            value={waPhone}
+            onChange={e => setWaPhone(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && waPhone.trim()) { sendWhatsApp(waPhone.trim()); setShowWaModal(false) } }}
+            placeholder="+964 750 123 4567"
+            type="tel"
+            autoFocus
+            className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/20 focus:outline-none focus:border-green-500/40 transition-colors"
+          />
+          <div className="flex gap-2">
+            <button onClick={() => setShowWaModal(false)}
+              className="flex-1 py-2.5 rounded-xl bg-white/8 hover:bg-white/12 text-white/50 text-sm font-medium transition-all active:scale-95">
+              Cancel
+            </button>
+            <button
+              onClick={() => { if (waPhone.trim()) { sendWhatsApp(waPhone.trim()); setShowWaModal(false) } }}
+              disabled={!waPhone.trim()}
+              className="flex-[2] py-2.5 rounded-xl bg-green-600 hover:bg-green-500 disabled:opacity-40 text-white text-sm font-bold transition-all active:scale-95 flex items-center justify-center gap-2">
+              <MessageCircle className="w-4 h-4" />Send via WhatsApp
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
     </>
   )
 }
