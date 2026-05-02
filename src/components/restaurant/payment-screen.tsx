@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import InvoiceModal from './invoice-modal'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import { usePermissions } from '@/lib/permissions/PermissionsContext'
+import { logAudit } from '@/lib/logAudit'
 import { ConfirmPayDialog } from './payment/ConfirmPayDialog'
 import { MemberPicker }     from './payment/MemberPicker'
 import { CustomerPicker }   from './payment/CustomerPicker'
@@ -249,6 +250,15 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
       .from('orders')
       .update({ payment_method: methodName, amount_paid: amountPaid, change_amount: changeAmount, note: invoiceNote || null })
       .eq('id', orderId)
+
+    logAudit(restaurantId, 'payment', {
+      table:          tableNum,
+      order_id:       orderId,
+      total:          finalTotal,
+      amount_paid:    amountPaid,
+      change:         changeAmount,
+      method:         methodName,
+    })
 
     const [{ data: orderRecord }, { data: invData }] = await Promise.all([
       supabase.from('orders').select('order_num').eq('id', orderId).maybeSingle(),

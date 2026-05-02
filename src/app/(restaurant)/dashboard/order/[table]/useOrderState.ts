@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { assignOrderNumber } from '@/lib/orderNumber'
 import { printKitchenTicket } from '@/lib/printKitchenTicket'
+import { logAudit } from '@/lib/logAudit'
 import type {
   DbCategory, DbMenuItem, KitchenNote, DraftEntry, DbOrderItem,
 } from './types'
@@ -227,6 +228,12 @@ export function useOrderState(table: string, guestCount: number) {
       setActiveTab('ordered')
 
       if (restaurantId) {
+        logAudit(restaurantId, 'send_to_kitchen', {
+          table,
+          order_id:   oid,
+          item_count: rows.length,
+          items:      rows.map(r => ({ name: r.item_name, qty: r.qty })),
+        })
         printKitchenTicket({
           restaurantId,
           tableNum: table,
@@ -283,6 +290,14 @@ export function useOrderState(table: string, guestCount: number) {
       await supabase.from('orders').update({ total, updated_at: new Date().toISOString() }).eq('id', oid)
       setDraft(prev => { const m = new Map(prev); m.delete(menuItem.id); return m })
       setActiveTab('ordered')
+      if (restaurantId) {
+        logAudit(restaurantId, 'send_to_kitchen', {
+          table,
+          order_id:  oid,
+          item_name: menuItem.name,
+          qty:       entry.qty,
+        })
+      }
     }
     setSending(false)
     return true

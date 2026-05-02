@@ -8,7 +8,7 @@ import {
   LogOut, Bell, Settings, DollarSign,
   Utensils, Coffee, ChevronRight, Delete,
   CalendarDays, Phone, Check, AlertCircle, Loader2,
-  ArrowRightLeft, Merge, Receipt, Printer, X as XIcon, Truck, BellRing, Globe, Monitor,
+  ArrowRightLeft, Merge, Receipt, Printer, X as XIcon, Truck, BellRing, Globe, Monitor, Shield,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
@@ -21,6 +21,7 @@ import { useDashboardTables, SWR_KEY, type DashboardFullData } from '@/hooks/use
 import { usePermissions } from '@/lib/permissions/PermissionsContext'
 import { getStaffHome } from '@/lib/permissions/staffHome'
 import InvoiceModal from '@/components/restaurant/invoice-modal'
+import { logAudit } from '@/lib/logAudit'
 
 type TableStatus = 'available' | 'occupied' | 'reserved' | 'dirty' | 'bill_requested'
 
@@ -153,6 +154,11 @@ function PrintBillFetcher({ table, restaurantId, cashier, onClose }: {
         name: i.name, price: i.price, qty: i.quantity,
       }))
       const subtotal = items.reduce((s, i) => s + i.price * i.qty, 0)
+      logAudit(restaurantId, 'print_bill', {
+        table:    table.label,
+        order_id: order.id,
+        total:    (order.total as number) ?? subtotal,
+      })
       setInvoiceProps({
         orderId: order.id, items,
         subtotal,
@@ -751,6 +757,11 @@ export default function TablesPage() {
             {can('finance.report') && (
               <Link href="/dashboard/reports" className="hidden sm:flex w-10 h-10 rounded-xl bg-white/5 border border-white/10 items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 transition-all active:scale-95">
                 <DollarSign className="w-4.5 h-4.5" size={18} />
+              </Link>
+            )}
+            {(isOwner || can('settings.users')) && (
+              <Link href="/dashboard/audit-log" title="Audit Log" className="hidden sm:flex w-10 h-10 rounded-xl bg-white/5 border border-white/10 items-center justify-center text-white/40 hover:text-indigo-400 hover:bg-indigo-500/10 hover:border-indigo-500/30 transition-all active:scale-95">
+                <Shield size={18} />
               </Link>
             )}
             {can('settings.users') && (

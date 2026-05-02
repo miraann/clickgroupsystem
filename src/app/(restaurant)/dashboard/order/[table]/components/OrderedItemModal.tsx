@@ -4,6 +4,7 @@ import { X, Trash2, Tag, ArrowRightLeft, DollarSign, Loader2 } from 'lucide-reac
 import { cn } from '@/lib/utils'
 import { usePermissions } from '@/lib/permissions/PermissionsContext'
 import { createClient } from '@/lib/supabase/client'
+import { logAudit } from '@/lib/logAudit'
 import type { DbOrderItem } from '../types'
 
 interface Props {
@@ -89,6 +90,7 @@ export function OrderedItemModal({
         await supabase.from('orders').update({ status: 'closed', updated_at: new Date().toISOString() }).eq('id', srcOrder.id)
       }
     }
+    logAudit(restaurantId, 'transfer_item', { item_name: item.item_name, qty: item.qty, from_table: currentTable, to_table: targetTable }, item.id)
     setWorking(false)
     onTransferred()
   }
@@ -157,7 +159,7 @@ export function OrderedItemModal({
               {!canVoid && <p className="text-xs text-rose-400/70">A void reason is required.</p>}
               <div className="grid grid-cols-2 gap-3">
                 <button onClick={() => setView('menu')} className="py-3 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 text-sm font-medium transition-all active:scale-95">Back</button>
-                <button onClick={() => canVoid && onVoid(voidReasonText)} disabled={!canVoid}
+                <button onClick={() => { if (!canVoid) return; logAudit(restaurantId, 'void_item', { item_name: item.item_name, qty: item.qty, price: item.item_price, reason: voidReasonText, table: currentTable }, item.id); onVoid(voidReasonText) }} disabled={!canVoid}
                   className="py-3 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/30 text-rose-400 text-sm font-semibold transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed">
                   Void Item
                 </button>
@@ -188,7 +190,7 @@ export function OrderedItemModal({
               )}
               <div className="grid grid-cols-2 gap-3">
                 <button onClick={() => setView('menu')} className="py-3 rounded-xl bg-white/5 text-white/60 text-sm font-medium transition-all active:scale-95">Back</button>
-                <button onClick={() => onDiscount(discountedPrice)} disabled={!discountVal}
+                <button onClick={() => { logAudit(restaurantId, 'apply_discount', { item_name: item.item_name, qty: item.qty, original_price: item.item_price, discounted_price: discountedPrice, discount_type: discountType, discount_val: discountVal, table: currentTable }, item.id); onDiscount(discountedPrice) }} disabled={!discountVal}
                   className="py-3 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white text-sm font-semibold transition-all active:scale-95">Apply</button>
               </div>
             </div>
@@ -226,7 +228,7 @@ export function OrderedItemModal({
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <button onClick={() => setView('menu')} className="py-3 rounded-xl bg-white/5 text-white/60 text-sm font-medium transition-all active:scale-95">Back</button>
-                <button onClick={() => onPriceChange(parseFloat(newPrice) || 0)} disabled={!newPrice}
+                <button onClick={() => { logAudit(restaurantId, 'edit_price', { item_name: item.item_name, qty: item.qty, old_price: item.item_price, new_price: parseFloat(newPrice) || 0, table: currentTable }, item.id); onPriceChange(parseFloat(newPrice) || 0) }} disabled={!newPrice}
                   className="py-3 rounded-xl bg-violet-500/20 hover:bg-violet-500/30 border border-violet-500/30 text-violet-400 text-sm font-semibold transition-all active:scale-95">Save Price</button>
               </div>
             </div>
