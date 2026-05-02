@@ -15,10 +15,11 @@ interface OItem      { id: string; menu_item_id: string | null; item_name: strin
 
 // ══════════════════════════════════════════════════════════════
 export default function CFDPage() {
-  const { restaurantId, tableNum } = useParams<{ restaurantId: string; tableNum: string }>()
+  const { slug, tableNum } = useParams<{ slug: string; tableNum: string }>()
   const router = useRouter()
   const supabase = createClient()
 
+  const [restaurantId, setRestaurantId] = useState<string>('')
   const [phase,     setPhase]     = useState<Phase>('loading')
   const [rest,      setRest]      = useState<Restaurant | null>(null)
   const [currency,  setCurrency]  = useState<Currency>({ symbol: '$', decimal_places: 2 })
@@ -44,15 +45,18 @@ export default function CFDPage() {
   const [timer,     setTimer]     = useState(40)
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  // ── Init: restaurant + currency + menu images ─────────────
+  // ── Init: resolve slug → UUID, then load restaurant + currency + menu images ─
   useEffect(() => {
+    if (!slug) return
     const init = async () => {
-      const [{ data: r }, { data: c }, { data: mi }] = await Promise.all([
-        supabase.from('restaurants').select('id, name, logo_url').eq('id', restaurantId).maybeSingle(),
-        supabase.from('currencies').select('symbol, decimal_places').eq('restaurant_id', restaurantId).eq('is_default', true).limit(1).maybeSingle(),
-        supabase.from('menu_items').select('id, name, image_url').eq('restaurant_id', restaurantId),
+      const { data: r } = await supabase.from('restaurants').select('id, name, logo_url').eq('menu_slug', slug).maybeSingle()
+      if (!r) return
+      setRest(r as Restaurant)
+      setRestaurantId(r.id)
+      const [{ data: c }, { data: mi }] = await Promise.all([
+        supabase.from('currencies').select('symbol, decimal_places').eq('restaurant_id', r.id).eq('is_default', true).limit(1).maybeSingle(),
+        supabase.from('menu_items').select('id, name, image_url').eq('restaurant_id', r.id),
       ])
-      if (r) setRest(r as Restaurant)
       if (c) setCurrency(c as Currency)
       const m = new Map<string, string | null>()
       ;(mi ?? []).forEach((x: { id: string; name: string; image_url: string | null }) => {
@@ -62,10 +66,11 @@ export default function CFDPage() {
       setImgMap(m)
     }
     init()
-  }, [restaurantId]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [slug]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Find active order for this table ─────────────────────
   const findOrder = useCallback(async () => {
+    if (!restaurantId) return
     if (tableNum === 'idle') { setPhase('idle'); setItems([]); setOrderId(null); return }
     const n = parseInt(tableNum)
     const q = isNaN(n)
@@ -88,6 +93,7 @@ export default function CFDPage() {
 
   // ── POS broadcast: switch table when staff opens payment screen ──
   useEffect(() => {
+    if (!restaurantId) return
     const channel = supabase
       .channel(`cfd-sync-${restaurantId}`)
       .on('broadcast', { event: 'table_change' }, ({ payload }) => {
@@ -97,7 +103,7 @@ export default function CFDPage() {
         } else if (String(payload.table) === String(tableNum)) {
           findOrder()
         } else {
-          router.replace(`/cfd/${restaurantId}/${payload.table}`)
+          router.replace(`/cfd/${slug}/${payload.table}`)
         }
       })
       .subscribe()
@@ -184,7 +190,7 @@ export default function CFDPage() {
   const total = items.reduce((s, i) => s + i.item_price * i.qty, 0)
   const fmt = (n: number) =>
     `${currency.symbol} ${n.toLocaleString(undefined, { minimumFractionDigits: currency.decimal_places, maximumFractionDigits: currency.decimal_places })}`
-  const menuUrl = typeof window !== 'undefined' ? `${window.location.origin}/r/${restaurantId}` : ''
+  const menuUrl = typeof window !== 'undefined' ? `${window.location.origin}/r/${slug}` : ''
 
   const submitFeedback = async () => {
     if (rating === 0 || submitting) return

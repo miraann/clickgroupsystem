@@ -294,9 +294,12 @@ export default function UsersPage() {
   const [editCustomRoleId, setEditCustomRoleId] = useState<string | null>(null)
   const [showQR, setShowQR]                     = useState(false)
 
+  const [restaurantSlug, setRestaurantSlug] = useState<string | null>(null)
+
   useEffect(() => {
     const rid = localStorage.getItem('restaurant_id') ?? ''
     setRestaurantId(rid || null)
+    setRestaurantSlug(localStorage.getItem('restaurant_slug'))
     setMounted(true)
     if (rid) {
       loadUsers(rid)
@@ -881,7 +884,7 @@ export default function UsersPage() {
             <div className="flex flex-col items-center p-8 gap-5">
               <div className="p-4 bg-white rounded-2xl shadow-xl">
                 <QRCodeSVG
-                  value={`${typeof window !== 'undefined' ? window.location.origin : ''}/pos/${restaurantId}/login`}
+                  value={`${typeof window !== 'undefined' ? window.location.origin : ''}/pos/${restaurantSlug}/login`}
                   size={200}
                   bgColor="#ffffff"
                   fgColor="#0d1220"
@@ -894,7 +897,7 @@ export default function UsersPage() {
               <div className="w-full bg-white/4 border border-white/8 rounded-xl px-4 py-3 text-center">
                 <p className="text-[11px] text-white/35 mb-1 uppercase tracking-wider font-semibold">Login URL</p>
                 <p className="text-xs text-amber-400 font-mono break-all leading-relaxed">
-                  {typeof window !== 'undefined' ? window.location.host : ''}/pos/{restaurantId}/login
+                  {typeof window !== 'undefined' ? window.location.host : ''}/pos/{restaurantSlug}/login
                 </p>
               </div>
 

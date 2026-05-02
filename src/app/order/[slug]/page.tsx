@@ -821,9 +821,16 @@ function TrackOrderSection({
 
 // ── Main Page ──────────────────────────────────────────────────
 export default function DeliveryOrderPage() {
-  const { restaurantId } = useParams<{ restaurantId: string }>()
+  const { slug } = useParams<{ slug: string }>()
   const supabase = createClient()
   const { formatPrice } = useDefaultCurrency()
+  const [restaurantId, setRestaurantId] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!slug) return
+    supabase.from('restaurants').select('id').eq('menu_slug', slug).maybeSingle()
+      .then(({ data }) => { if (data?.id) setRestaurantId(data.id) })
+  }, [slug]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Data
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null)
@@ -1125,7 +1132,7 @@ export default function DeliveryOrderPage() {
 
       {/* ── Track Order ── */}
       <TrackOrderSection
-        restaurantId={restaurantId}
+        restaurantId={restaurantId ?? ''}
         primaryColor={primaryColor}
         isDark={tpl.isDark}
         formatPrice={formatPrice}

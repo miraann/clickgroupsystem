@@ -411,8 +411,9 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
   }
 
   const resolveMessage = (msg: string) => {
+    const slug = typeof window !== 'undefined' ? localStorage.getItem('restaurant_slug') : null
     const menuLink = typeof window !== 'undefined'
-      ? `${window.location.origin}/menu/${restaurantId}`
+      ? `${window.location.origin}/r/${slug ?? restaurantId}`
       : ''
     return msg
       .replace(/\{\{total\}\}/g, formatPrice(finalTotal))

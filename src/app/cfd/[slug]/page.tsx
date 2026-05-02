@@ -5,32 +5,36 @@ import { createClient } from '@/lib/supabase/client'
 import { Monitor, ArrowRight, Maximize2, LayoutDashboard } from 'lucide-react'
 
 export default function CFDSetup() {
-  const { restaurantId } = useParams<{ restaurantId: string }>()
+  const { slug } = useParams<{ slug: string }>()
   const router = useRouter()
   const supabase = createClient()
 
+  const [restaurantId, setRestaurantId] = useState<string>('')
   const [tableNum, setTableNum] = useState('')
   const [restName, setRestName] = useState('')
   const [tables, setTables] = useState<number[]>([])
 
+  // Resolve slug → real UUID, then load restaurant + tables
   useEffect(() => {
+    if (!slug) return
     const load = async () => {
-      const [{ data: rest }, { data: tbls }] = await Promise.all([
-        supabase.from('restaurants').select('name').eq('id', restaurantId).maybeSingle(),
-        supabase.from('tables').select('table_number').eq('restaurant_id', restaurantId).order('table_number'),
-      ])
-      if (rest) setRestName(rest.name ?? '')
+      const { data: slugRow } = await supabase.from('restaurants').select('id, name').eq('menu_slug', slug).maybeSingle()
+      if (!slugRow) return
+      setRestaurantId(slugRow.id)
+      setRestName(slugRow.name ?? '')
+      const { data: tbls } = await supabase.from('tables').select('table_number').eq('restaurant_id', slugRow.id).order('table_number')
       if (tbls) setTables(tbls.map((t: { table_number: number }) => t.table_number))
     }
     load()
-  }, [restaurantId]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [slug]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Subscribe to POS broadcasts — auto-navigate when staff opens payment screen
   useEffect(() => {
+    if (!restaurantId) return
     const channel = supabase
       .channel(`cfd-sync-${restaurantId}`)
       .on('broadcast', { event: 'table_change' }, ({ payload }) => {
-        if (payload?.table) router.push(`/cfd/${restaurantId}/${payload.table}`)
+        if (payload?.table) router.push(`/cfd/${slug}/${payload.table}`)
       })
       .subscribe()
     return () => { supabase.removeChannel(channel) }
@@ -38,7 +42,7 @@ export default function CFDSetup() {
 
   const launch = () => {
     if (!tableNum.trim()) return
-    const url = `/cfd/${restaurantId}/${tableNum.trim()}`
+    const url = `/cfd/${slug}/${tableNum.trim()}`
     // Open in a new fullscreen window (customer-facing tablet)
     window.open(url, 'CFD', 'fullscreen=yes,menubar=no,toolbar=no,location=no,status=no')
   }
@@ -98,7 +102,7 @@ export default function CFDSetup() {
 
           {/* Welcome screen button */}
           <button
-            onClick={() => window.open(`/cfd/${restaurantId}/idle`, 'CFD', 'fullscreen=yes,menubar=no,toolbar=no,location=no,status=no')}
+            onClick={() => window.open(`/cfd/${slug}/idle`, 'CFD', 'fullscreen=yes,menubar=no,toolbar=no,location=no,status=no')}
             className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-white/6 border border-white/10 hover:bg-white/10 text-white/60 hover:text-white font-semibold transition-all active:scale-[0.98]"
           >
             <LayoutDashboard className="w-4 h-4" />

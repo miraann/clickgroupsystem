@@ -562,10 +562,12 @@ export default function OnlineMenuTemplatePage() {
   const supabase = createClient()
   const { t } = useLanguage()
   const [restaurantId, setRestaurantId] = useState<string | null>(null)
+  const [restaurantSlug, setRestaurantSlug] = useState<string | null>(null)
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
     setRestaurantId(localStorage.getItem('restaurant_id'))
+    setRestaurantSlug(localStorage.getItem('restaurant_slug'))
     setMounted(true)
   }, [])
 
@@ -619,8 +621,8 @@ export default function OnlineMenuTemplatePage() {
   const applyPreset = (p: typeof PRESETS[0]) =>
     setSettings(s => ({ ...s, template: p.id, ...p.settings }))
 
-  const publicUrl = restaurantId && typeof window !== 'undefined'
-    ? `${window.location.origin}/r/${restaurantId}` : ''
+  const publicUrl = restaurantSlug && typeof window !== 'undefined'
+    ? `${window.location.origin}/r/${restaurantSlug}` : ''
 
   const copyLink = () => {
     if (!publicUrl) return
@@ -695,19 +697,19 @@ export default function OnlineMenuTemplatePage() {
             <div className="flex items-center gap-2">
               <div className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded-xl px-3 py-2 flex items-center gap-2 overflow-hidden">
                 <span className="text-xs text-white/50 truncate font-mono">
-                  {restaurantId && typeof window !== 'undefined' ? `${window.location.origin}/order/${restaurantId}` : 'Loading…'}
+                  {restaurantSlug && typeof window !== 'undefined' ? `${window.location.origin}/order/${restaurantSlug}` : 'Loading…'}
                 </span>
               </div>
               <button
                 onClick={() => {
-                  const url = restaurantId && typeof window !== 'undefined' ? `${window.location.origin}/order/${restaurantId}` : ''
+                  const url = restaurantSlug && typeof window !== 'undefined' ? `${window.location.origin}/order/${restaurantSlug}` : ''
                   if (url) { navigator.clipboard.writeText(url) }
                 }}
                 className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition-all active:scale-95 border bg-white/8 border-white/12 text-white/60 hover:text-white">
                 <Copy className="w-3.5 h-3.5" /> {t.om_copy}
               </button>
-              {restaurantId && typeof window !== 'undefined' && (
-                <a href={`${window.location.origin}/order/${restaurantId}`} target="_blank" rel="noopener noreferrer"
+              {restaurantSlug && typeof window !== 'undefined' && (
+                <a href={`${window.location.origin}/order/${restaurantSlug}`} target="_blank" rel="noopener noreferrer"
                   className="shrink-0 w-8 h-8 flex items-center justify-center rounded-xl bg-white/5 border border-white/10 text-white/40 hover:text-white/70 transition-all">
                   <ExternalLink className="w-3.5 h-3.5" />
                 </a>

@@ -5,6 +5,7 @@ import NextImage from 'next/image'
 import { Loader2, UtensilsCrossed, MapPin, X, ChevronLeft, ChevronRight, Calendar } from 'lucide-react'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import { useRestaurantMenu } from '@/hooks/useRestaurantMenu'
+import { createClient } from '@/lib/supabase/client'
 
 // ── Types ─────────────────────────────────────────────────────
 type TemplateId = 'classic' | 'dark' | 'warm' | 'bold' | 'elegant' | 'neon'
@@ -121,8 +122,15 @@ function buildHref(key: string, value: string) {
 }
 
 export default function PublicMenuPage() {
-  const { restaurantId } = useParams<{ restaurantId: string }>()
+  const { slug } = useParams<{ slug: string }>()
   const { formatPrice } = useDefaultCurrency()
+  const [restaurantId, setRestaurantId] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!slug) return
+    createClient().from('restaurants').select('id').eq('menu_slug', slug).maybeSingle()
+      .then(({ data }) => { if (data?.id) setRestaurantId(data.id) })
+  }, [slug])
 
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null)
   const [categories, setCategories] = useState<Category[]>([])

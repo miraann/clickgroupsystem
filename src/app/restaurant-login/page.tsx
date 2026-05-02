@@ -24,7 +24,7 @@ export default function RestaurantLoginPage() {
     // Find restaurant by email
     const { data: restaurants } = await supabase
       .from('restaurants')
-      .select('id, name, settings')
+      .select('id, name, settings, menu_slug')
       .eq('email', email.trim().toLowerCase())
       .limit(1)
 
@@ -48,6 +48,7 @@ export default function RestaurantLoginPage() {
     // Store logged-in restaurant in localStorage so the dashboard can use it
     localStorage.setItem('restaurant_id',   restaurant.id)
     localStorage.setItem('restaurant_name', restaurant.name)
+    localStorage.setItem('restaurant_slug', restaurant.menu_slug ?? '')
     localStorage.setItem('owner_session',   'true')
 
     router.push('/dashboard')

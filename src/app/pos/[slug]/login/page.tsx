@@ -17,7 +17,8 @@ interface StaffRow   { id: string; name: string; role: string; color: string; pi
 export default function POSLoginPage() {
   const router = useRouter()
   const params = useParams()
-  const restaurantId = params.restaurantId as string
+  const slug = params.slug as string
+  const [restaurantId, setRestaurantId] = useState<string>('')
 
   const [restaurant, setRestaurant]   = useState<Restaurant | null>(null)
   const [loadingRest, setLoadingRest] = useState(true)
@@ -32,23 +33,23 @@ export default function POSLoginPage() {
     return () => clearInterval(t)
   }, [])
 
-  // Load restaurant info
+  // Resolve slug → real restaurant id + info
   useEffect(() => {
-    if (!restaurantId) return
+    if (!slug) return
     supabase
       .from('restaurants')
       .select('id, name, logo_url')
-      .eq('id', restaurantId)
+      .eq('menu_slug', slug)
       .maybeSingle()
       .then(({ data }) => {
-        if (data) setRestaurant(data as Restaurant)
+        if (data) { setRestaurant(data as Restaurant); setRestaurantId(data.id) }
         setLoadingRest(false)
       })
-  }, [restaurantId])
+  }, [slug])
 
   // Auto-submit when 4 digits entered
   const checkPin = useCallback(async (enteredPin: string) => {
-    if (enteredPin.length !== 4) return
+    if (enteredPin.length !== 4 || !restaurantId) return
     setStatus('checking')
 
     const { data: staffRow } = await supabase
@@ -83,8 +84,9 @@ export default function POSLoginPage() {
       }
     }
 
-    // Persist session to localStorage
-    localStorage.setItem('restaurant_id', restaurantId)
+    // Persist session to localStorage (UUID for DB queries, slug for URL building)
+    localStorage.setItem('restaurant_id',   restaurantId)
+    localStorage.setItem('restaurant_slug', slug)
     localStorage.setItem('pos_staff_id', staff.id)
     localStorage.setItem('pos_staff_name', staff.name)
     localStorage.setItem('pos_staff_role', staff.role)
@@ -94,8 +96,8 @@ export default function POSLoginPage() {
     else localStorage.removeItem('pos_role_name')
 
     setStatus('success')
-    setTimeout(() => router.push(getStaffHome(rolePermissions, restaurantId)), 1100)
-  }, [restaurantId, router])
+    setTimeout(() => router.push(getStaffHome(rolePermissions, slug)), 1100)
+  }, [restaurantId, slug, router])
 
   const handleKey = useCallback((key: Key) => {
     if (status === 'checking' || status === 'success') return

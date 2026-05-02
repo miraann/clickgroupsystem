@@ -843,10 +843,10 @@ export default function TablesPage() {
               onClick={async () => {
                 const supabase = createClient()
                 await supabase.auth.signOut().catch(() => {})
-                const rid = localStorage.getItem('restaurant_id')
-                const keys = ['restaurant_id','restaurant_name','owner_session','pos_staff_id','pos_staff_name','pos_staff_role','pos_staff_color','pos_role_permissions','pos_role_name']
+                const slug = localStorage.getItem('restaurant_slug')
+                const keys = ['restaurant_id','restaurant_slug','restaurant_name','owner_session','pos_staff_id','pos_staff_name','pos_staff_role','pos_staff_color','pos_role_permissions','pos_role_name']
                 keys.forEach(k => localStorage.removeItem(k))
-                router.replace(rid ? `/pos/${rid}/login` : '/restaurant-login')
+                router.replace(slug ? `/pos/${slug}/login` : '/restaurant-login')
               }}
               className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-rose-400/50 hover:text-rose-400 hover:bg-rose-500/10 transition-all active:scale-95"
             >
