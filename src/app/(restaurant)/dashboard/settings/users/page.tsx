@@ -122,6 +122,7 @@ const PERMISSION_TREE: PermNode[] = [
       { key: 'settings.customer',        label: 'Customers' },
       { key: 'settings.kds_monitor',     label: 'KDS Monitor Settings' },
       { key: 'settings.inventory',       label: 'Inventory' },
+      { key: 'settings.audit_log',       label: 'Audit Log' },
     ],
   },
 ]
@@ -174,6 +175,7 @@ const PERM_MODULE_MAP: Record<string, string | null> = {
   'settings.customer': 'customer',
   'settings.kds_monitor': 'kds',
   'settings.inventory': 'inventory',
+  'settings.audit_log': null,
 }
 
 function filterPermTree(tree: PermNode[], modules: Record<string, boolean>): PermNode[] {

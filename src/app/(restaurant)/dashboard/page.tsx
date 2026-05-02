@@ -759,7 +759,7 @@ export default function TablesPage() {
                 <DollarSign className="w-4.5 h-4.5" size={18} />
               </Link>
             )}
-            {(isOwner || can('settings.users')) && (
+            {(isOwner || can('settings.audit_log')) && (
               <Link href="/dashboard/audit-log" title="Audit Log" className="hidden sm:flex w-10 h-10 rounded-xl bg-white/5 border border-white/10 items-center justify-center text-white/40 hover:text-indigo-400 hover:bg-indigo-500/10 hover:border-indigo-500/30 transition-all active:scale-95">
                 <Shield size={18} />
               </Link>

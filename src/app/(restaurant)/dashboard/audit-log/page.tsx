@@ -5,6 +5,8 @@ import { ArrowLeft, Search, Filter, RefreshCw, ChevronDown, ChevronUp, Clock, Sh
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
+import { usePermissions } from '@/lib/permissions/PermissionsContext'
+import { getStaffHome } from '@/lib/permissions/staffHome'
 import type { AuditAction } from '@/lib/logAudit'
 
 interface AuditLog {
@@ -161,7 +163,13 @@ const ALL_ACTIONS: AuditAction[] = [
 export default function AuditLogPage() {
   const router = useRouter()
   const { formatPrice } = useDefaultCurrency()
+  const { can, isOwner, permissions, loading: permsLoading } = usePermissions()
   const supabase = createClient()
+
+  useEffect(() => {
+    if (permsLoading || isOwner) return
+    if (!can('settings.audit_log')) router.replace(getStaffHome(permissions))
+  }, [permsLoading, isOwner, permissions, can, router])
 
   const [logs,       setLogs]       = useState<AuditLog[]>([])
   const [loading,    setLoading]    = useState(true)
