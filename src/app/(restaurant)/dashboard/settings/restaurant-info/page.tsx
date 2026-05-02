@@ -3,6 +3,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { Store, Camera, Mail, Phone, MapPin, Globe, AlertCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
+import { logAudit } from '@/lib/logAudit'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { SaveButton } from '@/components/ui/SaveButton'
 import type { SaveState } from '@/hooks/useRestaurantSettings'
@@ -189,6 +190,7 @@ export default function RestaurantInfoPage() {
       setSaveState('error')
       setTimeout(() => setSaveState('idle'), 3000)
     } else {
+      logAudit(restaurantId, 'update_settings', { entity: 'restaurant_info', name: form.name })
       setLogoFile(null)
       setSaveState('saved')
       setTimeout(() => setSaveState('idle'), 2500)

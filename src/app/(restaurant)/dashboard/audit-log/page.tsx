@@ -20,6 +20,14 @@ interface AuditLog {
 
 // ── Action config ────────────────────────────────────────────────
 const ACTION_CONFIG: Record<AuditAction, { label: string; color: string; bg: string; dot: string }> = {
+  // Generic CRUD
+  add:              { label: 'Add',             color: 'text-emerald-400', bg: 'bg-emerald-500/12 border-emerald-500/25', dot: 'bg-emerald-400' },
+  edit:             { label: 'Edit',            color: 'text-blue-400',    bg: 'bg-blue-500/12 border-blue-500/25',    dot: 'bg-blue-400'    },
+  delete:           { label: 'Delete',          color: 'text-rose-400',    bg: 'bg-rose-500/12 border-rose-500/25',    dot: 'bg-rose-400'    },
+  toggle:           { label: 'Toggle',          color: 'text-amber-400',   bg: 'bg-amber-500/12 border-amber-500/25',  dot: 'bg-amber-400'   },
+  update_settings:  { label: 'Settings',        color: 'text-indigo-400',  bg: 'bg-indigo-500/12 border-indigo-500/25', dot: 'bg-indigo-400' },
+  print:            { label: 'Print',           color: 'text-cyan-400',    bg: 'bg-cyan-500/12 border-cyan-500/25',    dot: 'bg-cyan-400'    },
+  // Order-specific
   void_item:        { label: 'Void Item',       color: 'text-rose-400',    bg: 'bg-rose-500/12 border-rose-500/25',    dot: 'bg-rose-400'    },
   edit_price:       { label: 'Edit Price',      color: 'text-violet-400',  bg: 'bg-violet-500/12 border-violet-500/25', dot: 'bg-violet-400'  },
   apply_discount:   { label: 'Discount',        color: 'text-amber-400',   bg: 'bg-amber-500/12 border-amber-500/25',  dot: 'bg-amber-400'   },
@@ -145,6 +153,7 @@ function LogRow({ log, formatPrice }: { log: AuditLog; formatPrice: (n: number) 
 // ── Main page ─────────────────────────────────────────────────────
 const PAGE_SIZE = 40
 const ALL_ACTIONS: AuditAction[] = [
+  'add', 'edit', 'delete', 'toggle', 'update_settings', 'print',
   'payment', 'void_item', 'send_to_kitchen', 'print_bill',
   'apply_discount', 'edit_price', 'transfer_item',
 ]

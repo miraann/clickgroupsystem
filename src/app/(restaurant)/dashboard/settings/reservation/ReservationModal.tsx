@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { X, Loader2, AlertCircle, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
+import { logAudit } from '@/lib/logAudit'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import type { Reservation, Table, TableGroup } from './types'
 import { STATUS_CONFIG } from './types'
@@ -69,6 +70,7 @@ export function ReservationModal({ reservation, restaurantId, tables, tableGroup
 
     setSaving(false)
     if (error) { setSaveErr(error.message); return }
+    logAudit(restaurantId, reservation ? 'edit' : 'add', { entity: 'reservation', guest_name: form.guest_name, date: form.date, time: form.time, party_size: form.party_size }, reservation?.id)
     onSaved()
   }
 

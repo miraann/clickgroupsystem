@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { Plus, Pencil, Trash2, Sliders, X, ToggleLeft, ToggleRight, Loader2, AlertCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { logAudit } from '@/lib/logAudit'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { useMenuModifiers, type CachedModifier, type CachedModOption } from '@/hooks/useMenuModifiers'
@@ -93,6 +94,7 @@ export default function ModifierPage() {
       }
     }
 
+    logAudit(restaurantId, editId ? 'edit' : 'add', { entity: 'modifier', name: form.name, options: draftOptions.length }, editId ?? undefined)
     setSaving(false)
     setModal(false)
     mutate() // refetch to get fresh modifier_options from DB
@@ -105,9 +107,11 @@ export default function ModifierPage() {
       setTimeout(() => setDeleteId(d => d === id ? null : d), 3000)
       return
     }
+    const name = mods.find(m => m.id === id)?.name
     // modifier_options cascade on delete
     const { error } = await supabase.from('menu_modifiers').delete().eq('id', id)
     if (!error) {
+      logAudit(restaurantId!, 'delete', { entity: 'modifier', name }, id)
       const updated = mods.filter(m => m.id !== id)
       setMods(updated)
       mutate(updated, false)

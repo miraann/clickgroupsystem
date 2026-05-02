@@ -3,6 +3,7 @@ import { useState, useRef } from 'react'
 import { Plus, X, Upload, Loader2, AlertCircle, Paperclip, LayoutGrid } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
+import { logAudit } from '@/lib/logAudit'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import type { Category, Expense } from './types'
 import { CAT_ICONS, STATUS_CFG, PAY_METHODS } from './types'
@@ -83,6 +84,7 @@ export function AddExpenseModal({ restaurantId, categories, cashier, onClose, on
 
     setSaving(false)
     if (error) { setErr(error.message); return }
+    logAudit(restaurantId, 'add', { entity: 'expense', title: title.trim(), amount: amt, method }, data?.id)
     onSaved(data as Expense)
   }
 

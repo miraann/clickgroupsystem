@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { logAudit } from '@/lib/logAudit'
 import { useInventoryData, type CachedInvCategory, type CachedInvUnit, type CachedInvItem } from '@/hooks/useInventoryData'
 import { cn } from '@/lib/utils'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
@@ -151,11 +152,14 @@ export default function InventoryPage() {
       const nextOrder = categories.length > 0 ? Math.max(...categories.map(c => c.sort_order)) + 1 : 0
       await supabase.from('inventory_categories').insert({ restaurant_id: restaurantId, ...payload, sort_order: nextOrder })
     }
+    logAudit(restaurantId, catEditId ? 'edit' : 'add', { entity: 'inventory_category', name: catForm.name }, catEditId ?? undefined)
     setCatSaving(false); setCatModal(false); mutate()
   }
   const deleteCat = async (id: string) => {
     if (catDelId !== id) { setCatDelId(id); setTimeout(() => setCatDelId(d => d === id ? null : d), 3000); return }
+    const name = categories.find(c => c.id === id)?.name
     await supabase.from('inventory_categories').delete().eq('id', id)
+    logAudit(restaurantId!, 'delete', { entity: 'inventory_category', name }, id)
     setCatDelId(null); mutate()
   }
 
@@ -172,11 +176,14 @@ export default function InventoryPage() {
       const nextOrder = units.length > 0 ? Math.max(...units.map(u => u.sort_order)) + 1 : 0
       await supabase.from('inventory_units').insert({ restaurant_id: restaurantId, ...payload, sort_order: nextOrder })
     }
+    logAudit(restaurantId, unitEditId ? 'edit' : 'add', { entity: 'inventory_unit', name: unitForm.name }, unitEditId ?? undefined)
     setUnitSaving(false); setUnitModal(false); mutate()
   }
   const deleteUnit = async (id: string) => {
     if (unitDelId !== id) { setUnitDelId(id); setTimeout(() => setUnitDelId(d => d === id ? null : d), 3000); return }
+    const name = units.find(u => u.id === id)?.name
     await supabase.from('inventory_units').delete().eq('id', id)
+    logAudit(restaurantId!, 'delete', { entity: 'inventory_unit', name }, id)
     setUnitDelId(null); mutate()
   }
   const seedUnits = async () => {
@@ -212,17 +219,21 @@ export default function InventoryPage() {
       const nextOrder = items.length > 0 ? Math.max(...items.map(i => i.sort_order)) + 1 : 0
       await supabase.from('inventory_items').insert({ restaurant_id: restaurantId, ...payload, sort_order: nextOrder })
     }
+    logAudit(restaurantId, itemEditId ? 'edit' : 'add', { entity: 'inventory_item', name: itemForm.name, unit_id: itemForm.unit_id }, itemEditId ?? undefined)
     setItemSaving(false); setItemModal(false); mutate()
   }
   const deleteItem = async (id: string) => {
     if (itemDelId !== id) { setItemDelId(id); setTimeout(() => setItemDelId(d => d === id ? null : d), 3000); return }
+    const name = items.find(i => i.id === id)?.name
     await supabase.from('inventory_items').delete().eq('id', id)
+    logAudit(restaurantId!, 'delete', { entity: 'inventory_item', name }, id)
     setItemDelId(null); mutate()
   }
   const toggleItem = async (it: InvItem) => {
     const v = !it.active
     setItems(is => is.map(i => i.id === it.id ? { ...i, active: v } : i)) // optimistic
     await supabase.from('inventory_items').update({ active: v }).eq('id', it.id)
+    logAudit(restaurantId!, 'toggle', { entity: 'inventory_item', name: it.name, active: v }, it.id)
   }
 
 

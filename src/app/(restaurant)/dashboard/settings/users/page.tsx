@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
+import { logAudit } from '@/lib/logAudit'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { isModuleEnabled } from '@/lib/modules'
 import { QRCodeSVG } from 'qrcode.react'
@@ -363,6 +364,7 @@ export default function UsersPage() {
         setRoleStaff(prev => [...prev, { id: data.id, name: data.name, email: data.email ?? '', role: data.role, role_id: resolvedRoleId }])
       }
     }
+    logAudit(restaurantId, editId ? 'edit' : 'add', { entity: 'staff', name: form.name, role: form.role }, editId ?? undefined)
     setSaving(false); setModal(null)
   }
   async function savePin() {
@@ -370,11 +372,14 @@ export default function UsersPage() {
     setSaving(true)
     await supabase.from('staff').update({ pin: newPin, updated_at: new Date().toISOString() }).eq('id', selectedUser.id)
     setUsers(us => us.map(u => u.id === selectedUser.id ? { ...u, pin: newPin } : u))
+    if (restaurantId) logAudit(restaurantId, 'edit', { entity: 'staff_pin', name: selectedUser.name }, selectedUser.id)
     setSaving(false); setModal(null)
   }
   async function del(id: string) {
     if (deleteConfirm === id) {
+      const name = users.find(u => u.id === id)?.name
       await supabase.from('staff').delete().eq('id', id)
+      if (restaurantId) logAudit(restaurantId, 'delete', { entity: 'staff', name }, id)
       setUsers(us => us.filter(u => u.id !== id)); setDeleteConfirm(null)
     } else {
       setDeleteConfirm(id)
@@ -384,6 +389,7 @@ export default function UsersPage() {
   async function toggleStatus(u: StaffUser) {
     const next: Status = u.status === 'active' ? 'inactive' : 'active'
     await supabase.from('staff').update({ status: next, updated_at: new Date().toISOString() }).eq('id', u.id)
+    if (restaurantId) logAudit(restaurantId, 'toggle', { entity: 'staff_status', name: u.name, status: next }, u.id)
     setUsers(us => us.map(s => s.id === u.id ? { ...s, status: next } : s))
   }
 
@@ -395,18 +401,22 @@ export default function UsersPage() {
     setCreatingRole(true)
     const { data, error } = await supabase.from('restaurant_roles').insert({ restaurant_id: restaurantId, name: newRoleName.trim(), permissions: {} }).select().single()
     setCreatingRole(false)
-    if (!error && data) { setNewRoleName(''); setAddingRole(false); await loadRoles(restaurantId); selectRole(data as RoleRecord) }
+    if (!error && data) { logAudit(restaurantId, 'add', { entity: 'role', name: newRoleName.trim() }, data.id); setNewRoleName(''); setAddingRole(false); await loadRoles(restaurantId); selectRole(data as RoleRecord) }
   }
   const savePermissions = async () => {
     if (!selectedRoleId || !restaurantId) return
     setSavingPerms(true)
     await supabase.from('restaurant_roles').update({ permissions: perms }).eq('id', selectedRoleId)
+    const roleName = roles.find(r => r.id === selectedRoleId)?.name
+    logAudit(restaurantId, 'edit', { entity: 'role_permissions', name: roleName }, selectedRoleId)
     setSavingPerms(false); setSavedPerms(true); loadRoles(restaurantId)
   }
   const deleteRole = async (id: string) => {
     if (!restaurantId) return
+    const roleName = roles.find(r => r.id === id)?.name
     setDeletingRoleId(id)
     await supabase.from('restaurant_roles').delete().eq('id', id)
+    logAudit(restaurantId, 'delete', { entity: 'role', name: roleName }, id)
     setDeletingRoleId(null)
     if (selectedRoleId === id) { setSelectedRoleId(null); setPerms({}) }
     loadRoles(restaurantId)

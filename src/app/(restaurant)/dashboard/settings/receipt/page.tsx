@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
+import { logAudit } from '@/lib/logAudit'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import InvoiceViewModal from '@/components/restaurant/invoice-view-modal'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
@@ -1040,6 +1041,7 @@ export default function ReceiptSettingsPage() {
 
     if (err) { setError(err.message); setSaving(false); return }
 
+    logAudit(restaurantId, 'update_settings', { entity: 'receipt_settings', shop_name: form.shop_name })
     setSaved(true)
     setTimeout(() => setSaved(false), 2500)
     setSaving(false)

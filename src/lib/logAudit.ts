@@ -1,6 +1,14 @@
 import { createClient } from '@/lib/supabase/client'
 
 export type AuditAction =
+  // Generic CRUD (entity specified in metadata.entity)
+  | 'add'
+  | 'edit'
+  | 'delete'
+  | 'toggle'
+  | 'update_settings'
+  | 'print'
+  // Order-specific
   | 'void_item'
   | 'edit_price'
   | 'apply_discount'

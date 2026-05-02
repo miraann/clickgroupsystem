@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { Plus, Pencil, Trash2, LayoutGrid, X, Users, Loader2, AlertCircle, QrCode, Download, Copy, Check } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { logAudit } from '@/lib/logAudit'
 import { useTableGroups, type CachedTableGroup } from '@/hooks/useTableGroups'
 import { useTables, type CachedTable } from '@/hooks/useTables'
 
@@ -90,6 +91,7 @@ export default function TablePage() {
         mutateTables(updated, false)
       }
     }
+    logAudit(restaurantId!, editId ? 'edit' : 'add', { entity: 'table', table_number: form.table_number, capacity: form.capacity }, editId ?? undefined)
     setSaving(false)
     setModalOpen(false)
   }
@@ -97,8 +99,10 @@ export default function TablePage() {
   // ── Delete ─────────────────────────────────────────────────
   const handleDelete = async (id: string) => {
     if (deleteId !== id) { setDeleteId(id); setTimeout(() => setDeleteId(d => d === id ? null : d), 3000); return }
+    const label = tables.find(t => t.id === id)?.table_number
     const { error } = await supabase.from('tables').delete().eq('id', id)
     if (!error) {
+      logAudit(restaurantId!, 'delete', { entity: 'table', table_number: label }, id)
       const updated = tables.filter(t => t.id !== id)
       setTables(updated)
       mutateTables(updated, false)

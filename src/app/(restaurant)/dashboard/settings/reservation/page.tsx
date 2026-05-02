@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
+import { logAudit } from '@/lib/logAudit'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import type { Reservation, Table, TableGroup, StatusFilter } from './types'
 import { STATUS_CONFIG, fmtDate, todayStr } from './types'
@@ -60,13 +61,17 @@ export default function ReservationPage() {
   const updateStatus = async (id: string, status: Reservation['status']) => {
     setStatusLoading(id)
     await supabase.from('reservations').update({ status }).eq('id', id)
+    const r = reservations.find(r => r.id === id)
+    if (restaurantId) logAudit(restaurantId, 'toggle', { entity: 'reservation', guest_name: r?.guest_name, status }, id)
     setReservations(prev => prev.map(r => r.id === id ? { ...r, status } : r))
     setStatusLoading(null)
   }
 
   const handleDelete = async () => {
     if (!deleteId || !restaurantId) return
+    const r = reservations.find(r => r.id === deleteId)
     await supabase.from('reservations').delete().eq('id', deleteId)
+    logAudit(restaurantId, 'delete', { entity: 'reservation', guest_name: r?.guest_name, date: r?.date }, deleteId)
     setDeleteId(null)
     load(restaurantId)
   }

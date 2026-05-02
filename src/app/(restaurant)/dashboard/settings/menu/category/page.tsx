@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { Plus, Pencil, Trash2, Tag, X, Loader2, AlertCircle, GripVertical } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { logAudit } from '@/lib/logAudit'
 import { useMenuCategories, type CachedCategory } from '@/hooks/useMenuCategories'
 import {
   DndContext,
@@ -207,6 +208,7 @@ export default function CategoryPage() {
       if (!error && data) setCategories(cs => [...cs, data as Category])
     }
 
+    logAudit(restaurantId, editId ? 'edit' : 'add', { entity: 'menu_category', name: form.name }, editId ?? undefined)
     setSaving(false)
     setModalOpen(false)
   }
@@ -216,6 +218,7 @@ export default function CategoryPage() {
     const newVal = !c.active
     setCategories(cs => cs.map(x => x.id === c.id ? { ...x, active: newVal } : x))
     await supabase.from('menu_categories').update({ active: newVal, updated_at: new Date().toISOString() }).eq('id', c.id)
+    logAudit(restaurantId!, 'toggle', { entity: 'menu_category', name: c.name, active: newVal }, c.id)
   }
 
   // ── Delete ─────────────────────────────────────────────────
@@ -225,8 +228,9 @@ export default function CategoryPage() {
       setTimeout(() => setDeleteId(d => d === id ? null : d), 3000)
       return
     }
+    const name = categories.find(c => c.id === id)?.name
     const { error } = await supabase.from('menu_categories').delete().eq('id', id)
-    if (!error) setCategories(cs => cs.filter(c => c.id !== id))
+    if (!error) { logAudit(restaurantId!, 'delete', { entity: 'menu_category', name }, id); setCategories(cs => cs.filter(c => c.id !== id)) }
     setDeleteId(null)
   }
 

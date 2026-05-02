@@ -16,6 +16,7 @@ import type { Category, Expense } from './types'
 import { BUILTIN_CATS, CAT_ICONS, STATUS_CFG } from './types'
 import { AddExpenseModal } from './AddExpenseModal'
 import { ExpenseDetailModal } from './ExpenseDetailModal'
+import { logAudit } from '@/lib/logAudit'
 
 function fmtDay(iso: string) {
   return new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
@@ -131,7 +132,9 @@ export default function ExpensePage() {
 
   const handleDelete = async (id: string) => {
     setMenuId(null)
+    const exp = expenses.find(e => e.id === id)
     await supabase.from('expenses').delete().eq('id', id)
+    if (restaurantId) logAudit(restaurantId, 'delete', { entity: 'expense', title: exp?.title, amount: exp?.amount }, id)
     setExpenses(prev => prev.filter(e => e.id !== id))
   }
 

@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { logAudit } from '@/lib/logAudit'
 import { cn } from '@/lib/utils'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import {
@@ -598,6 +599,7 @@ export default function DevicePage() {
         )
       }
     }
+    logAudit(restaurantId, kdsEditId ? 'edit' : 'add', { entity: 'kds_station', name: kdsForm.name }, kdsEditId ?? undefined)
     setKdsSaving(false); setKdsModal(false)
     if (restaurantId) loadKds(restaurantId)
   }
@@ -605,6 +607,7 @@ export default function DevicePage() {
     const newVal = !s.active
     setStations(ss => ss.map(x => x.id === s.id ? { ...x, active: newVal } : x))
     await supabase.from('kds_stations').update({ active: newVal, updated_at: new Date().toISOString() }).eq('id', s.id)
+    if (restaurantId) logAudit(restaurantId, 'toggle', { entity: 'kds_station', name: s.name, active: newVal }, s.id)
   }
   const handleKdsDelete = async (id: string) => {
     if (kdsDeleteId !== id) {
@@ -612,7 +615,9 @@ export default function DevicePage() {
       setTimeout(() => setKdsDeleteId(d => d === id ? null : d), 3000)
       return
     }
+    const name = stations.find(s => s.id === id)?.name
     await supabase.from('kds_stations').delete().eq('id', id)
+    if (restaurantId) logAudit(restaurantId, 'delete', { entity: 'kds_station', name }, id)
     setStations(ss => ss.filter(s => s.id !== id))
     setKdsDeleteId(null)
   }
@@ -657,6 +662,7 @@ export default function DevicePage() {
       const nextOrder = printers.length > 0 ? Math.max(...printers.map(p => p.sort_order)) + 1 : 0
       await supabase.from('printers').insert({ restaurant_id: restaurantId, ...payload, sort_order: nextOrder })
     }
+    logAudit(restaurantId, prtEditId ? 'edit' : 'add', { entity: 'printer', name: prtForm.name, purpose: prtForm.purpose, connection: prtForm.connection_type }, prtEditId ?? undefined)
     setPrtSaving(false); setPrtModal(false)
     if (restaurantId) loadPrinters(restaurantId)
   }
@@ -664,6 +670,7 @@ export default function DevicePage() {
     const newVal = !p.active
     setPrinters(ps => ps.map(x => x.id === p.id ? { ...x, active: newVal } : x))
     await supabase.from('printers').update({ active: newVal, updated_at: new Date().toISOString() }).eq('id', p.id)
+    if (restaurantId) logAudit(restaurantId, 'toggle', { entity: 'printer', name: p.name, active: newVal }, p.id)
   }
   const handlePrtDelete = async (id: string) => {
     if (prtDeleteId !== id) {
@@ -671,7 +678,9 @@ export default function DevicePage() {
       setTimeout(() => setPrtDeleteId(d => d === id ? null : d), 3000)
       return
     }
+    const name = printers.find(p => p.id === id)?.name
     await supabase.from('printers').delete().eq('id', id)
+    if (restaurantId) logAudit(restaurantId, 'delete', { entity: 'printer', name }, id)
     setPrinters(ps => ps.filter(p => p.id !== id))
     setPrtDeleteId(null)
   }

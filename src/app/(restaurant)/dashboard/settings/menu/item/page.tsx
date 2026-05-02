@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils'
 import { Plus, Pencil, Trash2, UtensilsCrossed, X, ToggleLeft, ToggleRight, Loader2, AlertCircle, Sliders, ImageIcon, GripVertical, Package } from 'lucide-react'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { createClient } from '@/lib/supabase/client'
+import { logAudit } from '@/lib/logAudit'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors,
@@ -212,6 +213,7 @@ export default function ItemPage() {
       }
     }
 
+    logAudit(restaurantId, editId ? 'edit' : 'add', { entity: 'menu_item', name: form.name, price: form.price }, editId ?? undefined)
     setSaving(false)
     setModal(false)
   }
@@ -221,6 +223,7 @@ export default function ItemPage() {
     const newVal = !item.available
     setItems(is => is.map(i => i.id === item.id ? { ...i, available: newVal } : i))
     await supabase.from('menu_items').update({ available: newVal, updated_at: new Date().toISOString() }).eq('id', item.id)
+    logAudit(restaurantId!, 'toggle', { entity: 'menu_item', name: item.name, available: newVal }, item.id)
   }
 
   // ── Delete ─────────────────────────────────────────────────
@@ -228,8 +231,9 @@ export default function ItemPage() {
     if (deleteId !== id) {
       setDeleteId(id); setTimeout(() => setDeleteId(d => d === id ? null : d), 3000); return
     }
+    const name = items.find(i => i.id === id)?.name
     const { error } = await supabase.from('menu_items').delete().eq('id', id)
-    if (!error) setItems(is => is.filter(i => i.id !== id))
+    if (!error) { logAudit(restaurantId!, 'delete', { entity: 'menu_item', name }, id); setItems(is => is.filter(i => i.id !== id)) }
     setDeleteId(null)
   }
 
