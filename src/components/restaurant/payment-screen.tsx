@@ -84,7 +84,7 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
   const [selectedMember, setSelectedMember]         = useState<{ id: string; name: string; phone: string | null; points: number; tier: string } | null>(null)
   const [showMemberPicker, setShowMemberPicker]     = useState(false)
   const [showWaModal, setShowWaModal]               = useState(false)
-  const [waPhone, setWaPhone]                       = useState('')
+  const [waPhone, setWaPhone]                       = useState('+964')
   const [waTemplates, setWaTemplates]               = useState<{id:string;name:string;message:string}[]>([])
   const [waTemplatesLoaded, setWaTemplatesLoaded]   = useState(false)
   const [selectedWaTemplateId, setSelectedWaTemplateId] = useState<string|null>(null)
@@ -430,7 +430,7 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
   }
 
   const handleWaButton = () => {
-    setWaPhone(selectedMember?.phone ?? selectedCustomer?.phone ?? '')
+    setWaPhone(selectedMember?.phone ?? selectedCustomer?.phone ?? '+964')
     setShowWaModal(true)
     loadWaTemplates()
   }
