@@ -170,8 +170,49 @@ export default function AuditLogPage() {
   const [search,     setSearch]     = useState('')
   const [actionFilter, setActionFilter] = useState<AuditAction | 'all'>('all')
   const [dateFilter, setDateFilter] = useState<'today' | '7d' | '30d' | 'all'>('today')
-  const offsetRef = useRef(0)
+  const [live,       setLive]       = useState(false)
+  const offsetRef      = useRef(0)
+  const actionFilterRef = useRef<AuditAction | 'all'>('all')
+  const dateFilterRef   = useRef<'today' | '7d' | '30d' | 'all'>('today')
+  const searchRef       = useRef('')
   const restaurantId = typeof window !== 'undefined' ? localStorage.getItem('restaurant_id') ?? '' : ''
+
+  // Keep refs in sync so the realtime callback always sees current filter values
+  useEffect(() => { actionFilterRef.current = actionFilter }, [actionFilter])
+  useEffect(() => { dateFilterRef.current   = dateFilter   }, [dateFilter])
+  useEffect(() => { searchRef.current       = search       }, [search])
+
+  // Supabase Realtime — single channel, filter matching done via refs
+  useEffect(() => {
+    if (!restaurantId) return
+    const channel = supabase
+      .channel(`audit_logs:${restaurantId}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'audit_logs', filter: `restaurant_id=eq.${restaurantId}` },
+        payload => {
+          const newLog = payload.new as AuditLog
+          const matchesAction = actionFilterRef.current === 'all' || newLog.action === actionFilterRef.current
+          const matchesSearch = !searchRef.current.trim() ||
+            (newLog.staff_name ?? '').toLowerCase().includes(searchRef.current.trim().toLowerCase())
+          let matchesDate = true
+          const logTime = new Date(newLog.created_at).getTime()
+          if (dateFilterRef.current === 'today') {
+            const now = new Date()
+            matchesDate = logTime >= new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+          } else if (dateFilterRef.current === '7d') {
+            matchesDate = logTime >= Date.now() - 7 * 86400_000
+          } else if (dateFilterRef.current === '30d') {
+            matchesDate = logTime >= Date.now() - 30 * 86400_000
+          }
+          if (matchesAction && matchesSearch && matchesDate) {
+            setLogs(prev => [newLog, ...prev])
+          }
+        },
+      )
+      .subscribe(status => setLive(status === 'SUBSCRIBED'))
+    return () => { supabase.removeChannel(channel) }
+  }, [restaurantId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const buildQuery = useCallback((from: number) => {
     let q = supabase
@@ -243,7 +284,15 @@ export default function AuditLogPage() {
               <Shield className="w-4 h-4 text-indigo-400" />
             </div>
             <div>
-              <h1 className="text-sm font-bold text-white leading-none">Audit Log</h1>
+              <div className="flex items-center gap-2 leading-none">
+                <h1 className="text-sm font-bold text-white">Audit Log</h1>
+                {live && (
+                  <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-[9px] font-bold text-emerald-400 uppercase tracking-wide">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    Live
+                  </span>
+                )}
+              </div>
               <p className="text-[10px] text-white/35 mt-0.5">Staff activity tracker</p>
             </div>
           </div>
