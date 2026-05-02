@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   MessageCircle, Phone, Users, Search, Plus, X,
   Send, CheckCircle2,
@@ -91,6 +91,16 @@ export default function WhatsAppPage() {
   const [savingTemplate, setSavingTemplate] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [templateError, setTemplateError] = useState<string | null>(null)
+  const templateTextareaRef = useRef<HTMLTextAreaElement>(null)
+
+  const insertVariable = (v: string) => {
+    const el = templateTextareaRef.current
+    if (!el) { setTemplateMessage(m => m + v); return }
+    const start = el.selectionStart
+    const end   = el.selectionEnd
+    setTemplateMessage(m => m.slice(0, start) + v + m.slice(end))
+    setTimeout(() => { el.focus(); el.setSelectionRange(start + v.length, start + v.length) }, 0)
+  }
 
   useEffect(() => {
     const rid = localStorage.getItem('restaurant_id')
@@ -801,12 +811,32 @@ export default function WhatsAppPage() {
                 <div className="space-y-1.5">
                   <label className="text-[11px] font-semibold text-white/40 uppercase tracking-wider">{t.wa_message}</label>
                   <textarea
+                    ref={templateTextareaRef}
                     rows={8}
                     value={templateMessage}
                     onChange={e => setTemplateMessage(e.target.value)}
                     placeholder={t.wa_message_placeholder}
                     className="w-full px-4 py-3 rounded-2xl text-sm text-white bg-white/5 border border-white/10 focus:border-[#25D366]/50 outline-none transition-all resize-none placeholder:text-white/20"
                   />
+                  <div className="flex gap-1.5 flex-wrap">
+                    {[
+                      { label: '{{total}}',     title: 'Order total amount' },
+                      { label: '{{table}}',     title: 'Table number' },
+                      { label: '{{menu_link}}', title: 'Online menu URL' },
+                    ].map(({ label, title }) => (
+                      <button
+                        key={label}
+                        type="button"
+                        title={title}
+                        onClick={() => insertVariable(label)}
+                        className="px-2.5 py-1 rounded-lg text-[11px] font-mono font-semibold transition-all active:scale-95"
+                        style={{ background: `${WA_GREEN}18`, border: `1px solid ${WA_GREEN}35`, color: WA_GREEN }}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                    <span className="text-[10px] text-white/20 self-center ml-1">click to insert at cursor</span>
+                  </div>
                   <p className="text-[11px] text-white/25">{templateMessage.length} chars</p>
                 </div>
 

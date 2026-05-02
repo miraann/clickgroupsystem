@@ -85,6 +85,9 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
   const [showMemberPicker, setShowMemberPicker]     = useState(false)
   const [showWaModal, setShowWaModal]               = useState(false)
   const [waPhone, setWaPhone]                       = useState('')
+  const [waTemplates, setWaTemplates]               = useState<{id:string;name:string;message:string}[]>([])
+  const [waTemplatesLoaded, setWaTemplatesLoaded]   = useState(false)
+  const [selectedWaTemplateId, setSelectedWaTemplateId] = useState<string|null>(null)
 
   const persistCustomer = (c: typeof selectedCustomer) => {
     setSelectedCustomer(c)
@@ -394,30 +397,41 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
     setTimeout(() => setShowInvoice(true), 400)
   }
 
-  const buildWhatsAppMessage = () => {
-    const invNum = generatedInvoiceNum || previewInvoiceNum || ''
-    const lines: string[] = [
-      `🧾 *Invoice ${invNum}*`,
-      `📍 Table ${tableNum}${guests > 0 ? ` · ${guests} guests` : ''}`,
-      '─────────────────',
-      ...items.map(item => `${item.qty}× ${item.name}  ${formatPrice(item.price * item.qty)}`),
-      '─────────────────',
-    ]
-    if (appliedDiscount)  lines.push(`Discount (${appliedDiscount.name}): -${formatPrice(discountAmount)}`)
-    if (appliedSurcharge) lines.push(`${appliedSurcharge.name}: +${formatPrice(surchargeAmount)}`)
-    lines.push(`*Total: ${formatPrice(finalTotal)}*`, '', 'Thank you for your visit! 🙏')
-    return lines.join('\n')
+  const loadWaTemplates = async () => {
+    if (waTemplatesLoaded) return
+    const { data } = await supabase
+      .from('whatsapp_templates')
+      .select('id, name, message')
+      .eq('restaurant_id', restaurantId)
+      .order('created_at', { ascending: false })
+    const rows = (data ?? []) as {id:string;name:string;message:string}[]
+    setWaTemplates(rows)
+    setWaTemplatesLoaded(true)
+    if (rows.length > 0) setSelectedWaTemplateId(rows[0].id)
   }
+
+  const resolveMessage = (msg: string) => {
+    const menuLink = typeof window !== 'undefined'
+      ? `${window.location.origin}/menu/${restaurantId}`
+      : ''
+    return msg
+      .replace(/\{\{total\}\}/g, formatPrice(finalTotal))
+      .replace(/\{\{table\}\}/g, tableNum)
+      .replace(/\{\{menu_link\}\}/g, menuLink)
+  }
+
+  const selectedWaTemplate = waTemplates.find(t => t.id === selectedWaTemplateId) ?? null
+  const waMessage = selectedWaTemplate ? resolveMessage(selectedWaTemplate.message) : ''
 
   const sendWhatsApp = (phone: string) => {
     const cleaned = phone.replace(/[\s\-()]/g, '')
-    window.open(`https://wa.me/${cleaned}?text=${encodeURIComponent(buildWhatsAppMessage())}`, '_blank')
+    window.open(`https://wa.me/${cleaned}?text=${encodeURIComponent(waMessage)}`, '_blank')
   }
 
   const handleWaButton = () => {
-    const phone = selectedMember?.phone ?? selectedCustomer?.phone ?? null
-    if (phone) { sendWhatsApp(phone) }
-    else { setWaPhone(''); setShowWaModal(true) }
+    setWaPhone(selectedMember?.phone ?? selectedCustomer?.phone ?? '')
+    setShowWaModal(true)
+    loadWaTemplates()
   }
 
   const now = new Date()
@@ -959,36 +973,92 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
 
     {showWaModal && (
       <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-        <div className="w-full max-w-sm bg-[#0d1220] border border-white/15 rounded-2xl shadow-2xl p-5 space-y-4">
-          <div className="flex items-center gap-3">
+        <div className="w-full max-w-md bg-[#0d1220] border border-white/15 rounded-2xl shadow-2xl overflow-hidden">
+
+          {/* Header */}
+          <div className="flex items-center gap-3 px-5 py-4 border-b border-white/8">
             <div className="w-9 h-9 rounded-xl bg-green-500/15 border border-green-500/25 flex items-center justify-center shrink-0">
-              <MessageCircle className="w-4.5 h-4.5 text-green-400" />
+              <MessageCircle className="w-4 h-4 text-green-400" />
             </div>
-            <div>
-              <p className="text-sm font-bold text-white">Send Invoice via WhatsApp</p>
-              <p className="text-[11px] text-white/35">Enter the guest&apos;s phone number</p>
+            <div className="flex-1">
+              <p className="text-sm font-bold text-white">Send via WhatsApp</p>
+              <p className="text-[11px] text-white/35">Select a template and enter phone number</p>
             </div>
+            <button onClick={() => setShowWaModal(false)} className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/40 hover:text-white transition-all">
+              <X className="w-3.5 h-3.5" />
+            </button>
           </div>
-          <input
-            value={waPhone}
-            onChange={e => setWaPhone(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter' && waPhone.trim()) { sendWhatsApp(waPhone.trim()); setShowWaModal(false) } }}
-            placeholder="+964 750 123 4567"
-            type="tel"
-            autoFocus
-            className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/20 focus:outline-none focus:border-green-500/40 transition-colors"
-          />
-          <div className="flex gap-2">
-            <button onClick={() => setShowWaModal(false)}
-              className="flex-1 py-2.5 rounded-xl bg-white/8 hover:bg-white/12 text-white/50 text-sm font-medium transition-all active:scale-95">
-              Cancel
-            </button>
-            <button
-              onClick={() => { if (waPhone.trim()) { sendWhatsApp(waPhone.trim()); setShowWaModal(false) } }}
-              disabled={!waPhone.trim()}
-              className="flex-[2] py-2.5 rounded-xl bg-green-600 hover:bg-green-500 disabled:opacity-40 text-white text-sm font-bold transition-all active:scale-95 flex items-center justify-center gap-2">
-              <MessageCircle className="w-4 h-4" />Send via WhatsApp
-            </button>
+
+          <div className="p-5 space-y-4">
+
+            {/* Template selector */}
+            <div>
+              <p className="text-[11px] font-semibold text-white/40 uppercase tracking-wider mb-2">Template</p>
+              {!waTemplatesLoaded ? (
+                <div className="flex items-center gap-2 text-xs text-white/30 py-2">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading templates…
+                </div>
+              ) : waTemplates.length === 0 ? (
+                <p className="text-xs text-white/30 py-2">No templates yet — create one in <span className="text-green-400">Settings → WhatsApp</span></p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {waTemplates.map(t => (
+                    <button
+                      key={t.id}
+                      onClick={() => setSelectedWaTemplateId(t.id)}
+                      className={cn(
+                        'px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all active:scale-95',
+                        selectedWaTemplateId === t.id
+                          ? 'bg-green-500/20 border-green-500/40 text-green-300'
+                          : 'bg-white/5 border-white/10 text-white/50 hover:text-white/80 hover:border-white/20'
+                      )}
+                    >
+                      {t.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Message preview */}
+            {waMessage && (
+              <div className="rounded-xl bg-[#0b141a] border border-white/8 p-3">
+                <p className="text-[10px] text-white/25 mb-2 uppercase tracking-wider">Preview</p>
+                <div className="flex justify-end">
+                  <div className="max-w-[90%] rounded-xl rounded-tr-sm px-3 py-2 text-xs leading-relaxed whitespace-pre-wrap break-words" style={{ background: '#d9fdd3', color: '#111b21' }}>
+                    {waMessage}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Phone input */}
+            <div>
+              <p className="text-[11px] font-semibold text-white/40 uppercase tracking-wider mb-2">Phone Number</p>
+              <input
+                value={waPhone}
+                onChange={e => setWaPhone(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && waPhone.trim() && waMessage) { sendWhatsApp(waPhone.trim()); setShowWaModal(false) } }}
+                placeholder="+964 750 123 4567"
+                type="tel"
+                autoFocus
+                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/20 focus:outline-none focus:border-green-500/40 transition-colors"
+              />
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-2 pt-1">
+              <button onClick={() => setShowWaModal(false)}
+                className="flex-1 py-2.5 rounded-xl bg-white/8 hover:bg-white/12 text-white/50 text-sm font-medium transition-all active:scale-95">
+                Cancel
+              </button>
+              <button
+                onClick={() => { if (waPhone.trim() && waMessage) { sendWhatsApp(waPhone.trim()); setShowWaModal(false) } }}
+                disabled={!waPhone.trim() || !waMessage}
+                className="flex-[2] py-2.5 rounded-xl bg-green-600 hover:bg-green-500 disabled:opacity-40 text-white text-sm font-bold transition-all active:scale-95 flex items-center justify-center gap-2">
+                <MessageCircle className="w-4 h-4" />Send via WhatsApp
+              </button>
+            </div>
           </div>
         </div>
       </div>
