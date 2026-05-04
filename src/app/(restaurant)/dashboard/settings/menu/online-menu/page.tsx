@@ -2,9 +2,23 @@
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { Globe, Copy, Check, Loader2, Save, ExternalLink, UtensilsCrossed, Plus } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { createClient } from '@/lib/supabase/client'
 import { useOnlineMenuSettings } from '@/hooks/useOnlineMenuSettings'
+
+function Skel({ className }: { className?: string }) {
+  return <div className={cn('animate-pulse rounded-xl bg-white/8', className)} />
+}
+function FadeSwitch({ id, children }: { id: string; children: React.ReactNode }) {
+  return (
+    <AnimatePresence mode="popLayout" initial={false}>
+      <motion.div key={id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }}>
+        {children}
+      </motion.div>
+    </AnimatePresence>
+  )
+}
 
 // ── Types ──────────────────────────────────────────────────────
 type TemplateId    = 'classic' | 'dark' | 'warm' | 'bold' | 'elegant' | 'neon'
@@ -630,13 +644,20 @@ export default function OnlineMenuTemplatePage() {
     setCopied(true); setTimeout(() => setCopied(false), 2000)
   }
 
-  if (loading) return (
-    <div className="flex items-center justify-center py-20">
-      <Loader2 className="w-6 h-6 text-amber-400 animate-spin" />
-    </div>
-  )
-
   return (
+    <FadeSwitch id={loading ? 'skel' : 'data'}>
+    {loading ? (
+      <div className="flex gap-6 items-start">
+        <div className="flex-1 min-w-0 space-y-5 pb-10">
+          <div className="flex items-start justify-between gap-4">
+            <div className="space-y-2"><Skel className="h-5 w-40" /><Skel className="h-3 w-56" /></div>
+            <Skel className="h-10 w-28 rounded-xl shrink-0" />
+          </div>
+          {[0,1,2,3,4].map(i => <Skel key={i} className="h-24 w-full rounded-2xl" />)}
+        </div>
+        <Skel className="hidden lg:block w-[280px] h-[560px] rounded-[2.8rem] shrink-0" />
+      </div>
+    ) : (
     <div className="flex gap-6 items-start">
 
       {/* ── Left: settings ───────────────────────────────── */}
@@ -880,5 +901,7 @@ export default function OnlineMenuTemplatePage() {
       </div>
 
     </div>
+    )}
+    </FadeSwitch>
   )
 }

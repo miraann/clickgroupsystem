@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { cn } from '@/lib/utils'
+import { SkeletonList } from '@/components/ui/SkeletonList'
 import { Plus, Pencil, Trash2, UtensilsCrossed, X, ToggleLeft, ToggleRight, Loader2, AlertCircle, Sliders, ImageIcon, GripVertical, Package } from 'lucide-react'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { createClient } from '@/lib/supabase/client'
@@ -15,6 +16,23 @@ import {
   useSortable, arrayMove,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { motion, AnimatePresence } from 'framer-motion'
+
+function FadeSwitch({ id, children }: { id: string; children: React.ReactNode }) {
+  return (
+    <AnimatePresence mode="popLayout" initial={false}>
+      <motion.div
+        key={id}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.18 }}
+      >
+        {children}
+      </motion.div>
+    </AnimatePresence>
+  )
+}
 
 interface Category  { id: string; name: string; color: string }
 interface Modifier   { id: string; name: string; required: boolean }
@@ -262,8 +280,6 @@ export default function ItemPage() {
   const filtered = filterCatId === 'all' ? items : items.filter(i => i.category_id === filterCatId)
 
   // ── Render ─────────────────────────────────────────────────
-  if (loading) return <div className="flex items-center justify-center h-48"><Loader2 className="w-6 h-6 text-amber-400 animate-spin" /></div>
-
   if (error) return (
     <div className="flex items-start gap-3 p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 max-w-md">
       <AlertCircle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
@@ -316,7 +332,11 @@ export default function ItemPage() {
         ))}
       </div>
 
-      {/* List */}
+      {/* FadeSwitch: skeleton ↔ real list */}
+      <FadeSwitch id={loading ? 'skel' : 'data'}>
+        {loading ? (
+          <SkeletonList rows={5} />
+        ) : (
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={filtered.map(i => i.id)} strategy={verticalListSortingStrategy}>
           <div className="space-y-2">
@@ -341,6 +361,8 @@ export default function ItemPage() {
           </div>
         </SortableContext>
       </DndContext>
+        )}
+      </FadeSwitch>
 
       {/* Modal */}
       {modal && (

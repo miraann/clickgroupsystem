@@ -1,11 +1,30 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { cn } from '@/lib/utils'
+import { SkeletonList } from '@/components/ui/SkeletonList'
+import { AnimatedList, AnimatedItem } from '@/components/ui/AnimatedList'
 import { Plus, Trash2, ChefHat, ToggleLeft, ToggleRight, Loader2, AlertCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
+import { motion, AnimatePresence } from 'framer-motion'
 
 interface KNote { id: string; text: string; active: boolean; sort_order: number }
+
+function FadeSwitch({ id, children }: { id: string; children: React.ReactNode }) {
+  return (
+    <AnimatePresence mode="popLayout" initial={false}>
+      <motion.div
+        key={id}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.18 }}
+      >
+        {children}
+      </motion.div>
+    </AnimatePresence>
+  )
+}
 
 export default function KitchenNotePage() {
   const supabase = createClient()
@@ -71,12 +90,6 @@ export default function KitchenNotePage() {
   }
 
   // ── Render ─────────────────────────────────────────────────
-  if (loading) return (
-    <div className="flex items-center justify-center h-48">
-      <Loader2 className="w-6 h-6 text-amber-400 animate-spin" />
-    </div>
-  )
-
   if (error) return (
     <div className="flex items-start gap-3 p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 max-w-md">
       <AlertCircle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
@@ -122,10 +135,14 @@ export default function KitchenNotePage() {
         </button>
       </div>
 
-      {/* List */}
-      <div className="space-y-2">
+      {/* FadeSwitch: skeleton ↔ real list */}
+      <FadeSwitch id={loading ? 'skel' : 'data'}>
+        {loading ? (
+          <SkeletonList rows={4} />
+        ) : (
+      <AnimatedList className="space-y-2">
         {notes.map(n => (
-          <div
+          <AnimatedItem
             key={n.id}
             className={cn('flex items-center gap-3 px-4 py-3 bg-white/5 border rounded-2xl transition-all',
               n.active ? 'border-white/10' : 'border-white/5 opacity-50')}
@@ -141,10 +158,12 @@ export default function KitchenNotePage() {
             >
               {deleteId === n.id ? t.delete : <Trash2 className="w-3.5 h-3.5" />}
             </button>
-          </div>
+          </AnimatedItem>
         ))}
         {notes.length === 0 && <div className="text-center py-12 text-white/25 text-sm">{t.kn_no_data}</div>}
-      </div>
+      </AnimatedList>
+        )}
+      </FadeSwitch>
     </div>
   )
 }

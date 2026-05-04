@@ -1,6 +1,7 @@
 import FaviconSync from '@/components/restaurant/favicon-sync'
 import WakeLock from '@/components/restaurant/wake-lock'
 import PWARegister from '@/components/restaurant/pwa-register'
+import { PageTransition } from '@/components/restaurant/PageTransition'
 import { LanguageProvider } from '@/lib/i18n/LanguageContext'
 import { PermissionsProvider } from '@/lib/permissions/PermissionsContext'
 import AuthGuard from '@/components/restaurant/AuthGuard'
@@ -14,7 +15,7 @@ export default function RestaurantLayout({ children }: { children: React.ReactNo
             <FaviconSync />
             <WakeLock />
             <PWARegister />
-            {children}
+            <PageTransition>{children}</PageTransition>
           </div>
         </AuthGuard>
       </PermissionsProvider>

@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import {
   Layers,
@@ -69,9 +70,21 @@ export default function MenuSettingsLayout({ children }: { children: React.React
         </div>
       </div>
 
-      {/* Content */}
+      {/* Content — opacity-only crossfade, no y-transform so layout never shifts */}
       <div className="flex-1 overflow-y-auto p-6">
-        {children}
+        <div className="min-h-[600px]">
+          <AnimatePresence mode="popLayout" initial={false}>
+            <motion.div
+              key={pathname}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+            >
+              {children}
+            </motion.div>
+          </AnimatePresence>
+        </div>
       </div>
     </div>
   )

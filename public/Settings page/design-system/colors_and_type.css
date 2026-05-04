@@ -1,0 +1,216 @@
+/* ============================================================
+   ClickGroup POS — Colors & Type
+   Deep-space dark theme with indigo + amber dual-brand system.
+   ============================================================ */
+
+@font-face {
+  font-family: 'KurdishFont';
+  src: url('./fonts/kurdish.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  /* ---------- SURFACES (deep space) ---------- */
+  --surface-void:    #060810;   /* POS / login — deepest */
+  --surface-base:    #080b14;   /* default app background */
+  --surface-raised:  #0d1120;   /* dropdowns, menus */
+  --surface-card:    #0d1526;   /* select options, modal panels */
+
+  /* ---------- FOREGROUND (white with opacity scale) ---------- */
+  --fg-1: #ffffff;               /* primary text, active icons */
+  --fg-2: rgba(255,255,255,0.70);/* secondary text */
+  --fg-3: rgba(255,255,255,0.50);/* tertiary / labels */
+  --fg-4: rgba(255,255,255,0.40);/* muted / subtitles */
+  --fg-5: rgba(255,255,255,0.30);/* very muted / time, dates */
+  --fg-6: rgba(255,255,255,0.20);/* disabled / footer meta */
+  --fg-7: rgba(255,255,255,0.10);/* borders default */
+  --fg-8: rgba(255,255,255,0.05);/* glass bg */
+
+  /* ---------- GLASS TOKENS (white-tint scale) ---------- */
+  --glass-bg:         rgba(255,255,255,0.05);
+  --glass-bg-hover:   rgba(255,255,255,0.10);
+  --glass-bg-active:  rgba(255,255,255,0.20);
+  --glass-border:     rgba(255,255,255,0.10);
+  --glass-border-hi:  rgba(255,255,255,0.20);
+
+  /* ---------- BRAND (dual) ---------- */
+  /* Indigo/Violet — Seller / System / Primary admin */
+  --brand-indigo-400: #818cf8;
+  --brand-indigo-500: #6366f1;
+  --brand-indigo-600: #4f46e5;
+  --brand-violet-400: #a78bfa;
+  --brand-violet-500: #8b5cf6;
+  --brand-violet-600: #7c3aed;
+  --brand-indigo-gradient: linear-gradient(135deg, #6366f1 0%, #7c3aed 100%);
+
+  /* Amber/Orange — Restaurant / Operational */
+  --brand-amber-400:  #fbbf24;
+  --brand-amber-500:  #f59e0b;
+  --brand-orange-500: #f97316;
+  --brand-orange-600: #ea580c;
+  --brand-amber-gradient: linear-gradient(135deg, #fbbf24 0%, #f97316 100%);
+
+  /* ---------- SEMANTIC (Tailwind 500/400 pairs) ---------- */
+  --success-400: #34d399;  --success-500: #10b981;  /* emerald */
+  --warning-400: #fbbf24;  --warning-500: #f59e0b;  /* amber (reused) */
+  --danger-400:  #fb7185;  --danger-500:  #f43f5e;  /* rose */
+  --info-400:    #22d3ee;  --info-500:    #06b6d4;  /* cyan */
+  --neutral-400: #94a3b8;  --neutral-500: #64748b;  /* slate */
+
+  /* ---------- TINT BACKDROPS (used constantly) ---------- */
+  --tint-indigo:   rgba(99,102,241,0.20);
+  --tint-violet:   rgba(139,92,246,0.20);
+  --tint-amber:    rgba(245,158,11,0.20);
+  --tint-emerald:  rgba(16,185,129,0.20);
+  --tint-rose:     rgba(244,63,94,0.20);
+  --tint-cyan:     rgba(6,182,212,0.20);
+
+  /* ---------- BORDER-ON-TINT (30% variants) ---------- */
+  --border-indigo:  rgba(99,102,241,0.30);
+  --border-amber:   rgba(245,158,11,0.30);
+  --border-emerald: rgba(16,185,129,0.30);
+  --border-rose:    rgba(244,63,94,0.30);
+
+  /* ---------- AMBIENT GLOW ORBS (page backgrounds) ---------- */
+  --orb-indigo:  rgba(79,70,229,0.20);
+  --orb-amber:   rgba(217,119,6,0.15);
+  --orb-violet:  rgba(124,58,237,0.08);
+
+  /* ---------- SHADOWS ---------- */
+  --shadow-sm:   0 4px 12px rgba(0,0,0,0.30);
+  --shadow-md:   0 8px 24px rgba(0,0,0,0.40);
+  --shadow-lg:   0 20px 50px rgba(0,0,0,0.50);
+  --shadow-indigo-glow:  0 20px 40px rgba(99,102,241,0.30);
+  --shadow-amber-glow:   0 20px 40px rgba(245,158,11,0.30);
+  --shadow-emerald-glow: 0 0 30px rgba(16,185,129,0.15);
+  --shadow-card-glow:    0 0 30px rgba(99,102,241,0.15);
+
+  /* ---------- RADII ---------- */
+  --radius-sm:  6px;     /* scrollbars, small chips */
+  --radius-md:  10px;    /* inputs */
+  --radius-lg:  12px;    /* buttons, small cards → rounded-xl */
+  --radius-xl:  16px;    /* cards, sidebar items → rounded-2xl */
+  --radius-2xl: 24px;    /* hero portal cards → rounded-3xl */
+  --radius-full: 9999px; /* pills, avatars, dots */
+
+  /* ---------- SPACING (Tailwind scale, 4px base) ---------- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* ---------- BLUR (the backdrop-blur system) ---------- */
+  --blur-xl:  16px;   /* cards */
+  --blur-2xl: 24px;   /* sidebars */
+  --blur-3xl: 48px;   /* orbs */
+
+  /* ---------- TYPOGRAPHY ---------- */
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+               'Helvetica Neue', Arial, sans-serif;
+  --font-kurdish: 'KurdishFont', var(--font-sans);
+  --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+  /* Type scale — matches Tailwind utilities used across the app */
+  --text-xs:   12px;   --lh-xs:   16px;
+  --text-sm:   14px;   --lh-sm:   20px;
+  --text-base: 16px;   --lh-base: 24px;
+  --text-lg:   18px;   --lh-lg:   28px;
+  --text-xl:   20px;   --lh-xl:   28px;
+  --text-2xl:  24px;   --lh-2xl:  32px;
+  --text-3xl:  30px;   --lh-3xl:  36px;
+  --text-5xl:  48px;   --lh-5xl:  52px;
+
+  --weight-medium:   500;
+  --weight-semibold: 600;
+  --weight-bold:     700;
+
+  --tracking-wide:    0.025em;
+  --tracking-widest:  0.1em;
+}
+
+/* ============================================================
+   SEMANTIC ELEMENT STYLES
+   ============================================================ */
+
+body {
+  background: var(--surface-base);
+  color: var(--fg-1);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1 {
+  font-size: var(--text-5xl);
+  line-height: 1.1;
+  font-weight: var(--weight-bold);
+  color: var(--fg-1);
+  letter-spacing: -0.02em;
+}
+
+h2 {
+  font-size: var(--text-3xl);
+  line-height: var(--lh-3xl);
+  font-weight: var(--weight-bold);
+  color: var(--fg-1);
+}
+
+h3 {
+  font-size: var(--text-xl);
+  line-height: var(--lh-xl);
+  font-weight: var(--weight-bold);
+  color: var(--fg-1);
+}
+
+h4 {
+  font-size: var(--text-lg);
+  line-height: var(--lh-lg);
+  font-weight: var(--weight-semibold);
+  color: var(--fg-1);
+}
+
+p {
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+  color: var(--fg-3);
+}
+
+small {
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--fg-4);
+}
+
+code, pre {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+}
+
+/* Semantic labels (used as eyebrows in StatCards) */
+.eyebrow {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--fg-3);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+}
+
+/* Custom scrollbar (global) */
+::-webkit-scrollbar        { width: 6px; height: 6px; }
+::-webkit-scrollbar-track  { background: transparent; }
+::-webkit-scrollbar-thumb  {
+  background: rgba(255,255,255,0.10);
+  border-radius: var(--radius-sm);
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.20); }
+
+/* RTL helper — Kurdish/Arabic */
+[dir="rtl"] { font-family: var(--font-kurdish); }

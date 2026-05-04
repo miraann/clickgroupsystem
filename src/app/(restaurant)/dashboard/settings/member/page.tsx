@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import {
-  Star, Plus, Pencil, Trash2, Loader2, AlertCircle,
+  Star, Plus, Pencil, Trash2, AlertCircle,
   Search, ToggleLeft, ToggleRight, Phone, Mail,
   ChevronUp, ChevronDown,
 } from 'lucide-react'
@@ -10,6 +10,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import type { Member } from './types'
 import { TIERS, TIER_COLORS } from './types'
+import { SkeletonList } from '@/components/ui/SkeletonList'
 import { MemberModal }  from './MemberModal'
 import { PointsModal }  from './PointsModal'
 
@@ -82,7 +83,7 @@ export default function MemberPage() {
       ? sortDir === 'asc' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />
       : null
 
-  if (loading) return <div className="flex items-center justify-center h-48"><Loader2 className="w-6 h-6 text-amber-400 animate-spin" /></div>
+  if (loading) return <SkeletonList rows={5} />
 
   if (error) return (
     <div className="flex items-start gap-3 p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 max-w-md">

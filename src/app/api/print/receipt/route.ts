@@ -3,6 +3,8 @@ import { createClient } from '@supabase/supabase-js'
 import { buildReceiptBytes, ReceiptPayload } from '@/lib/escpos'
 import sharp from 'sharp'
 import QRCode from 'qrcode'
+import { requireRestaurantAccess } from '@/lib/supabase/api-guard'
+import { rateLimit } from '@/lib/rate-limit'
 
 export const runtime = 'nodejs'
 
@@ -84,6 +86,9 @@ async function makeQrBitmap(url: string, paperWidthMm: number): Promise<Uint8Arr
 }
 
 export async function POST(req: NextRequest) {
+  if (!rateLimit(req, 'print/receipt', 20)) {
+    return NextResponse.json({ ok: false, error: 'Too many requests' }, { status: 429 })
+  }
   try {
     const body = await req.json() as {
       restaurantId:  string
@@ -108,6 +113,9 @@ export async function POST(req: NextRequest) {
     }
 
     const { restaurantId } = body
+
+    const { error: authError } = await requireRestaurantAccess(restaurantId)
+    if (authError) return authError
 
     const { data: printer } = await supabase
       .from('printers')

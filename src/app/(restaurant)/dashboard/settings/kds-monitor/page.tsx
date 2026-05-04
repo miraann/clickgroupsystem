@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { ActivitySquare, Search, Clock, Flame, CheckCheck, Loader2, ChevronDown, ChevronUp, X, Eye, User, QrCode, Calendar, Hash, UtensilsCrossed } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { SkeletonList } from '@/components/ui/SkeletonList'
 
 interface KdsItemRecord {
   id: string
@@ -454,9 +455,7 @@ export default function KdsMonitorPage() {
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-24">
-          <Loader2 className="w-8 h-8 text-amber-400 animate-spin" />
-        </div>
+        <SkeletonList rows={5} rowHeight="h-[80px]" />
       ) : (
         <>
           {/* Stats */}

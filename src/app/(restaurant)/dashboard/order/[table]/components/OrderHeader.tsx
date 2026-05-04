@@ -9,14 +9,15 @@ interface Props {
   takeoutPhone: string | null
   orderId:      string | null
   guestCount:   number
-  grandTotal:   number
-  formatPrice:  (n: number) => string
-  onGuestEdit:  () => void
+  grandTotal:    number
+  formatPrice:   (n: number) => string
+  canGuestEdit:  boolean
+  onGuestEdit:   () => void
 }
 
 export function OrderHeader({
   table, isTakeout, takeoutName, takeoutPhone,
-  orderId, guestCount, grandTotal, formatPrice, onGuestEdit,
+  orderId, guestCount, grandTotal, formatPrice, canGuestEdit, onGuestEdit,
 }: Props) {
   const router = useRouter()
 
@@ -40,14 +41,16 @@ export function OrderHeader({
             ) : (
               <>
                 <span className="text-sm font-bold text-white">Table {table}</span>
-                <button
-                  onClick={onGuestEdit}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/8 border border-white/12 hover:bg-white/12 hover:border-white/20 active:scale-95 transition-all touch-manipulation"
-                >
-                  <Users className="w-4 h-4 text-amber-400" />
-                  <span className="text-sm font-bold text-white">{guestCount > 0 ? guestCount : '—'}</span>
-                  <span className="text-xs text-white/40">guests</span>
-                </button>
+                {canGuestEdit && (
+                  <button
+                    onClick={onGuestEdit}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/8 border border-white/12 hover:bg-white/12 hover:border-white/20 active:scale-95 transition-all touch-manipulation"
+                  >
+                    <Users className="w-4 h-4 text-amber-400" />
+                    <span className="text-sm font-bold text-white">{guestCount > 0 ? guestCount : '—'}</span>
+                    <span className="text-xs text-white/40">guests</span>
+                  </button>
+                )}
               </>
             )}
           </div>

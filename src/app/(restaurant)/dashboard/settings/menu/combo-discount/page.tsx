@@ -1,12 +1,31 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
+import { SkeletonList } from '@/components/ui/SkeletonList'
+import { AnimatedList, AnimatedItem } from '@/components/ui/AnimatedList'
 import { Plus, Pencil, Trash2, Gift, X, ToggleLeft, ToggleRight, Loader2, AlertCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { useComboDiscounts, type CachedCombo } from '@/hooks/useComboDiscounts'
+import { motion, AnimatePresence } from 'framer-motion'
 
 type Combo = CachedCombo
+
+function FadeSwitch({ id, children }: { id: string; children: React.ReactNode }) {
+  return (
+    <AnimatePresence mode="popLayout" initial={false}>
+      <motion.div
+        key={id}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.18 }}
+      >
+        {children}
+      </motion.div>
+    </AnimatePresence>
+  )
+}
 
 const EMPTY_FORM = { name: '', description: '', buy_qty: 2, get_qty: 1, discount_pct: 100, active: true }
 
@@ -14,16 +33,11 @@ export default function ComboDiscountPage() {
   const supabase = createClient()
   const { t } = useLanguage()
 
-  const [restaurantId, setRestaurantId] = useState<string | null>(null)
-  const [mounted, setMounted]           = useState(false)
+  const [restaurantId] = useState<string | null>(() =>
+    typeof window !== 'undefined' ? localStorage.getItem('restaurant_id') : null
+  )
 
-  useEffect(() => {
-    setRestaurantId(localStorage.getItem('restaurant_id'))
-    setMounted(true)
-  }, [])
-
-  const { data: swrCombos, isLoading: swrLoading, error: swrError, mutate } = useComboDiscounts(restaurantId)
-  const loading = !mounted || swrLoading
+  const { data: swrCombos, isLoading: loading, error: swrError, mutate } = useComboDiscounts(restaurantId)
   const error   = swrError ? (swrError as Error).message : null
 
   const [combos, setCombos] = useState<Combo[]>([])
@@ -96,8 +110,6 @@ export default function ComboDiscountPage() {
   }
 
   // ── Render ─────────────────────────────────────────────────
-  if (loading) return <div className="flex items-center justify-center h-48"><Loader2 className="w-6 h-6 text-amber-400 animate-spin" /></div>
-
   if (error) return (
     <div className="flex items-start gap-3 p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 max-w-md">
       <AlertCircle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
@@ -129,10 +141,14 @@ export default function ComboDiscountPage() {
         </button>
       </div>
 
-      {/* List */}
-      <div className="space-y-3">
+      {/* FadeSwitch: skeleton ↔ real list */}
+      <FadeSwitch id={loading ? 'skel' : 'data'}>
+        {loading ? (
+          <SkeletonList rows={4} />
+        ) : (
+      <AnimatedList className="space-y-3">
         {combos.map(c => (
-          <div key={c.id} className={cn('p-4 bg-white/5 border rounded-2xl transition-all', c.active ? 'border-white/10' : 'border-white/5 opacity-60')}>
+          <AnimatedItem key={c.id} className={cn('p-4 bg-white/5 border rounded-2xl transition-all', c.active ? 'border-white/10' : 'border-white/5 opacity-60')}>
             <div className="flex items-start gap-3">
               <div className="w-10 h-10 rounded-xl bg-violet-500/15 border border-violet-500/25 flex items-center justify-center shrink-0">
                 <Gift className="w-5 h-5 text-violet-400" />
@@ -157,10 +173,12 @@ export default function ComboDiscountPage() {
                 {deleteId === c.id ? t.delete : <Trash2 className="w-3.5 h-3.5" />}
               </button>
             </div>
-          </div>
+          </AnimatedItem>
         ))}
         {combos.length === 0 && <div className="text-center py-16 text-white/25 text-sm">{t.combo_no_data}</div>}
-      </div>
+      </AnimatedList>
+        )}
+      </FadeSwitch>
 
       {/* Modal */}
       {modal && (

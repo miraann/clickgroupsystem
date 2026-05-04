@@ -35,7 +35,10 @@
       "Bash(xargs -I{} grep -n \"useState.*typeof window\" \"{}\")",
       "Bash(node -e ' *)",
       "Bash(grep -v \"//.*typeof\")",
-      "Bash(find g:/clickgroupsystem/src/app/\\\\\\(restaurant\\\\\\)/dashboard -maxdepth 1 -name \"layout.tsx\" -exec cat {} \\\\;)"
+      "Bash(find g:/clickgroupsystem/src/app/\\\\\\(restaurant\\\\\\)/dashboard -maxdepth 1 -name \"layout.tsx\" -exec cat {} \\\\;)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git checkout *)"
     ]
   }
 }

@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { logAudit } from '@/lib/logAudit'
 import { cn } from '@/lib/utils'
+import { SkeletonList } from '@/components/ui/SkeletonList'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import {
   Monitor, MonitorCheck, Plus, Pencil, Trash2,
@@ -756,7 +757,7 @@ export default function DevicePage() {
           </div>
 
           {kdsLoading ? (
-            <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 text-amber-400 animate-spin" /></div>
+            <SkeletonList rows={3} rowHeight="h-[58px]" />
           ) : kdsError ? (
             <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-sm text-rose-400">{kdsError}</div>
           ) : stations.length === 0 ? (
@@ -1017,7 +1018,7 @@ export default function DevicePage() {
 
           {/* ── Configured Printers List ── */}
           {prtLoading ? (
-            <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 text-amber-400 animate-spin" /></div>
+            <SkeletonList rows={3} rowHeight="h-[58px]" />
           ) : prtError ? (
             <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-sm text-rose-400">{prtError}</div>
           ) : printers.length === 0 ? (

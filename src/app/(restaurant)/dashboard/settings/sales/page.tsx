@@ -2,11 +2,12 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   TrendingUp, TrendingDown, Search, X, ChevronDown,
-  Loader2, FileText, Download, Receipt, User,
+  FileText, Download, Receipt, User,
   Calendar, Eye, RefreshCw, ShoppingBag, ArrowUpRight,
 } from 'lucide-react'
 import InvoiceModal from '@/components/restaurant/invoice-modal'
 import { cn } from '@/lib/utils'
+import { SkeletonList } from '@/components/ui/SkeletonList'
 import { createClient } from '@/lib/supabase/client'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
@@ -170,11 +171,7 @@ export default function SalesPage() {
     URL.revokeObjectURL(url)
   }
 
-  if (loading) return (
-    <div className="flex items-center justify-center h-64">
-      <Loader2 className="w-7 h-7 text-amber-400 animate-spin" />
-    </div>
-  )
+  if (loading) return <SkeletonList rows={6} />
 
   return (
     <div className="space-y-6 max-w-6xl">

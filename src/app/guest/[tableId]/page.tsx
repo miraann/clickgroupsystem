@@ -319,17 +319,24 @@ export default function GuestPage() {
       })
   }, [tableId]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Step 2: fetch kds_station_categories (not in shared hook, KDS-specific)
+  // Step 2: fetch kds_station_categories scoped to this restaurant via kds_stations
   useEffect(() => {
     if (!restaurantId) return
-    supabase
-      .from('kds_station_categories')
-      .select('station_id, category_id')
-      .then(({ data }) => {
-        const csMap = new Map<string, string>()
-        for (const a of (data ?? [])) csMap.set(a.category_id, a.station_id)
-        setCatStationMap(csMap)
-      })
+    const load = async () => {
+      const { data: stations } = await supabase
+        .from('kds_stations')
+        .select('id')
+        .eq('restaurant_id', restaurantId)
+      if (!stations?.length) return
+      const { data } = await supabase
+        .from('kds_station_categories')
+        .select('station_id, category_id')
+        .in('station_id', stations.map(s => s.id))
+      const csMap = new Map<string, string>()
+      for (const a of (data ?? [])) csMap.set(a.category_id, a.station_id)
+      setCatStationMap(csMap)
+    }
+    load()
   }, [restaurantId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Step 3: populate state from SWR cached menu data

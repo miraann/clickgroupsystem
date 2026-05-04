@@ -1,8 +1,9 @@
 'use client'
-import { ShoppingBag, Clock, Package, ToggleLeft, ToggleRight, Loader2 } from 'lucide-react'
+import { ShoppingBag, Clock, Package, ToggleLeft, ToggleRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { useRestaurantSettings } from '@/hooks/useRestaurantSettings'
+import { SkeletonList } from '@/components/ui/SkeletonList'
 import { SaveButton } from '@/components/ui/SaveButton'
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch'
 
@@ -23,11 +24,7 @@ export default function TakeoutSettingsPage() {
   const { settings, setSettings, loading, saveState, save, autoSave } =
     useRestaurantSettings<TakeoutSettings>(DEFAULTS)
 
-  if (loading) return (
-    <div className="flex items-center justify-center h-64">
-      <Loader2 className="w-6 h-6 text-amber-400 animate-spin" />
-    </div>
-  )
+  if (loading) return <SkeletonList rows={4} />
 
   return (
     <div className="space-y-6 max-w-2xl">

@@ -1,15 +1,34 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
+import { SkeletonList } from '@/components/ui/SkeletonList'
+import { AnimatedList, AnimatedItem } from '@/components/ui/AnimatedList'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { Plus, Pencil, Trash2, LayoutGrid, X, Users, Loader2, AlertCircle, QrCode, Download, Copy, Check } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { logAudit } from '@/lib/logAudit'
 import { useTableGroups, type CachedTableGroup } from '@/hooks/useTableGroups'
 import { useTables, type CachedTable } from '@/hooks/useTables'
+import { motion, AnimatePresence } from 'framer-motion'
 
 type TableGroup = CachedTableGroup
 type Table = CachedTable
+
+function FadeSwitch({ id, children }: { id: string; children: React.ReactNode }) {
+  return (
+    <AnimatePresence mode="popLayout" initial={false}>
+      <motion.div
+        key={id}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.18 }}
+      >
+        {children}
+      </motion.div>
+    </AnimatePresence>
+  )
+}
 
 const SHAPE_ICONS: Record<string, string> = { Square: '⬜', Round: '⭕', Rectangle: '▬' }
 
@@ -19,8 +38,9 @@ export default function TablePage() {
   const { t } = useLanguage()
   const supabase = createClient()
 
-  const [restaurantId, setRestaurantId] = useState<string | null>(null)
-  useEffect(() => { setRestaurantId(localStorage.getItem('restaurant_id')) }, [])
+  const [restaurantId] = useState<string | null>(() =>
+    typeof window !== 'undefined' ? localStorage.getItem('restaurant_id') : null
+  )
 
   const { data: swrGroups, isLoading: loadingGroups, error: groupsError } = useTableGroups(restaurantId)
   const { data: swrTables, isLoading: loadingTables, error: tablesError, mutate: mutateTables } = useTables(restaurantId)
@@ -118,12 +138,6 @@ export default function TablePage() {
   ].filter(g => g.tables.length > 0)
 
   // ── Render ─────────────────────────────────────────────────
-  if (loading) return (
-    <div className="flex items-center justify-center h-48">
-      <Loader2 className="w-6 h-6 text-amber-400 animate-spin" />
-    </div>
-  )
-
   if (error) return (
     <div className="flex items-start gap-3 p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 max-w-md">
       <AlertCircle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
@@ -158,7 +172,11 @@ export default function TablePage() {
         </button>
       </div>
 
-      {/* List */}
+      {/* FadeSwitch: skeleton ↔ real list */}
+      <FadeSwitch id={loading ? 'skel' : 'data'}>
+        {loading ? (
+          <SkeletonList rows={5} />
+        ) : (
       <div className="space-y-6">
         {grouped.map(group => (
           <div key={group.id}>
@@ -167,9 +185,9 @@ export default function TablePage() {
               <span className="text-xs font-semibold text-white/50 uppercase tracking-wider">{group.name}</span>
               <span className="text-xs text-white/30">({group.tables.length})</span>
             </div>
-            <div className="space-y-2">
+            <AnimatedList className="space-y-2">
               {group.tables.map(t => (
-                <div key={t.id} className="flex items-center gap-4 p-4 bg-white/5 border border-white/10 backdrop-blur-xl rounded-2xl">
+                <AnimatedItem key={t.id} className="flex items-center gap-4 p-4 bg-white/5 border border-white/10 backdrop-blur-xl rounded-2xl">
                   <div className="w-10 h-10 rounded-xl bg-white/8 flex items-center justify-center text-base shrink-0">
                     {SHAPE_ICONS[t.shape]}
                   </div>
@@ -207,15 +225,17 @@ export default function TablePage() {
                   >
                     {deleteId === t.id ? 'Confirm?' : <Trash2 className="w-3.5 h-3.5" />}
                   </button>
-                </div>
+                </AnimatedItem>
               ))}
-            </div>
+            </AnimatedList>
           </div>
         ))}
         {tables.length === 0 && (
           <div className="text-center py-16 text-white/25 text-sm">{t.tbl_no_data}</div>
         )}
       </div>
+        )}
+      </FadeSwitch>
 
       {/* Modal */}
       {modalOpen && (

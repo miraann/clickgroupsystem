@@ -2,10 +2,11 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   BarChart3, TrendingUp, TrendingDown, Download, RefreshCw,
-  Loader2, DollarSign, Receipt, ShoppingBag, Users,
+  DollarSign, Receipt, ShoppingBag, Users,
   CreditCard, Calendar, ArrowUpRight, ArrowDownRight,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { SkeletonList } from '@/components/ui/SkeletonList'
 import { createClient } from '@/lib/supabase/client'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
@@ -279,9 +280,7 @@ export default function ReportPage() {
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="w-7 h-7 text-amber-400 animate-spin" />
-        </div>
+        <SkeletonList rows={5} rowHeight="h-[72px]" />
       ) : (
         <>
           {/* KPI Grid */}

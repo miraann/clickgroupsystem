@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import {
-  UserCircle, Plus, Pencil, Trash2, Loader2, AlertCircle,
+  UserCircle, Plus, Pencil, Trash2, AlertCircle,
   Search, ToggleLeft, ToggleRight, Phone, Mail, Ban,
   ChevronUp, ChevronDown,
 } from 'lucide-react'
@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import type { Customer } from './types'
+import { SkeletonList } from '@/components/ui/SkeletonList'
 import { CustomerModal } from './CustomerModal'
 
 export default function CustomerPage() {
@@ -90,7 +91,7 @@ export default function CustomerPage() {
 
   const blacklistedCount = customers.filter(c => c.blacklisted).length
 
-  if (loading) return <div className="flex items-center justify-center h-48"><Loader2 className="w-6 h-6 text-violet-400 animate-spin" /></div>
+  if (loading) return <SkeletonList rows={5} />
 
   if (error) return (
     <div className="flex items-start gap-3 p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 max-w-md">

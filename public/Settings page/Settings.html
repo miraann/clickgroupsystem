@@ -1,0 +1,648 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Settings — ClickGroup POS</title>
+<link rel="stylesheet" href="design-system/colors_and_type.css">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+  html,body{background:#03205c;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;margin:0;min-height:100vh;}
+  body[dir="rtl"]{font-family:'KurdishFont',-apple-system,BlinkMacSystemFont,sans-serif;}
+  .ico{stroke:currentColor;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;}
+  .ico-fill{fill:currentColor;stroke:none;}
+  ::-webkit-scrollbar{width:6px;height:6px}
+  ::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:3px}
+
+  /* Signature icon badge — radial glow + dark inner disk + vibrant glyph */
+  .badge {
+    position:relative;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    flex-shrink:0;
+  }
+  .badge::before{
+    content:'';
+    position:absolute;
+    inset:-30%;
+    border-radius:9999px;
+    background:radial-gradient(closest-side, var(--glow,rgba(251,191,36,0.55)), transparent 70%);
+    filter:blur(6px);
+    z-index:0;
+  }
+  .badge-disk{
+    position:relative;
+    z-index:1;
+    width:100%;
+    height:100%;
+    border-radius:9999px;
+    background: radial-gradient(circle at 30% 25%, rgba(255,255,255,0.06), rgba(255,255,255,0) 60%),
+                linear-gradient(160deg, #14305e 0%, #061a40 100%);
+    border:1px solid rgba(255,255,255,0.08);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 6px 14px rgba(0,0,0,0.4);
+    display:flex; align-items:center; justify-content:center;
+    overflow:hidden;
+  }
+  .badge .glyph{
+    position:relative;
+    z-index:2;
+    display:flex;align-items:center;justify-content:center;
+    line-height:0;
+  }
+  .badge .glyph svg{ display:block; width:100%; height:100%; }
+  .badge.is-active::before{
+    background: radial-gradient(closest-side, rgba(139,92,246,0.85), rgba(99,102,241,0.4) 50%, transparent 75%);
+    filter:blur(8px);
+  }
+  .badge.is-active .badge-disk{
+    background: radial-gradient(circle at 30% 25%, rgba(167,139,250,0.35), rgba(99,102,241,0.10) 60%),
+                linear-gradient(160deg, #6d28d9 0%, #3730a3 100%);
+    border-color: rgba(167,139,250,0.5);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.15), 0 8px 24px rgba(124,58,237,0.5);
+  }
+  .tile{
+    position:relative;
+    overflow:hidden;
+    transition: transform 220ms ease, background 220ms ease, border-color 220ms ease;
+  }
+  .tile::after{
+    content:'';
+    position:absolute; inset:0; pointer-events:none;
+    background: radial-gradient(140% 90% at 50% -10%, rgba(255,255,255,0.05), transparent 60%);
+  }
+  .tile:hover{
+    background: rgba(255,255,255,0.06);
+    border-color: rgba(255,255,255,0.18);
+    transform: translateY(-2px);
+  }
+  .tile.active{
+    background: linear-gradient(160deg, rgba(139,92,246,0.18), rgba(99,102,241,0.10) 60%, rgba(255,255,255,0.04));
+    border-color: rgba(167,139,250,0.45);
+    box-shadow: 0 0 0 1px rgba(167,139,250,0.10), 0 18px 40px rgba(124,58,237,0.30);
+  }
+  .tile.active .tile-label{ color:#c4b5fd; }
+  .tile:active{ transform: translateY(0) scale(0.99); }
+
+  .section-eyebrow{
+    font-size:11px;
+    letter-spacing:0.18em;
+    color: rgba(255,255,255,0.45);
+    font-weight:600;
+  }
+
+  @keyframes pulseSlow{0%,100%{opacity:0.5}50%{opacity:0.85}}
+  .orb{position:absolute;border-radius:9999px;filter:blur(80px);pointer-events:none;animation:pulseSlow 7s ease-in-out infinite;}
+
+  .panel-enter{ animation: panelIn 280ms cubic-bezier(.2,.7,.2,1) both; }
+  @keyframes panelIn{ from{ opacity:0; transform: translateY(8px);} to{ opacity:1; transform:none;} }
+
+  .toggle-track{
+    width:36px; height:20px; border-radius:9999px;
+    background: rgba(255,255,255,0.10);
+    position:relative; transition: background .2s;
+  }
+  .toggle-knob{
+    position:absolute; top:2px; left:2px;
+    width:16px; height:16px; border-radius:9999px;
+    background:#fff; transition: left .2s, background .2s;
+  }
+  .toggle-on .toggle-track{ background: linear-gradient(135deg,#fbbf24,#f97316); }
+  .toggle-on .toggle-knob{ left:18px; }
+
+  /* RTL fixes */
+  [dir="rtl"] .rtl-flip{ transform: scaleX(-1); }
+
+  .input{
+    width:100%; background:rgba(255,255,255,0.04);
+    border:1px solid rgba(255,255,255,0.10);
+    border-radius:12px; padding:10px 14px; color:#fff;
+    font-size:14px; outline:none; transition:border-color .15s, background .15s;
+  }
+  .input:focus{ border-color: rgba(251,191,36,0.45); background:rgba(255,255,255,0.06); }
+  .input::placeholder{ color: rgba(255,255,255,0.30);}
+
+  .btn-primary{
+    background: linear-gradient(135deg,#fbbf24 0%, #f97316 100%);
+    color:#1a0c00; font-weight:700;
+    border-radius:12px; padding:10px 18px;
+    box-shadow: 0 10px 24px rgba(245,158,11,0.30);
+    transition: transform .15s, box-shadow .2s;
+  }
+  .btn-primary:hover{ box-shadow: 0 14px 30px rgba(245,158,11,0.40); }
+  .btn-primary:active{ transform: scale(.98); }
+
+  .btn-ghost{
+    background: rgba(255,255,255,0.04);
+    border:1px solid rgba(255,255,255,0.10);
+    color: rgba(255,255,255,0.85); font-weight:600;
+    border-radius:12px; padding:10px 16px;
+    transition: background .15s, border-color .15s;
+  }
+  .btn-ghost:hover{ background: rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.20);}
+
+  .row{
+    display:flex; align-items:center; gap:14px;
+    padding:14px 16px;
+    border-radius:14px;
+    transition: background .15s;
+  }
+  .row + .row{ border-top:1px solid rgba(255,255,255,0.05); }
+  .row:hover{ background: rgba(255,255,255,0.03);}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" data-presets="env,react">
+const { useState, useMemo, useEffect, useCallback, useRef } = React;
+
+/* ---------- ICON LIBRARY (lucide-style outline + a few filled) ---------- */
+const I = {
+  /* ===== Rich illustrative icons. Each is a self-contained colored SVG sized to fit the glyph slot. ===== */
+
+  /* GENERAL */
+  home: (
+    <svg viewBox="0 0 64 64" width="100%" height="100%">
+      <path d="M10 30 L32 12 L54 30 V52 a4 4 0 0 1-4 4 H14 a4 4 0 0 1-4-4 Z" fill="#fb923c"/>
+      <path d="M10 30 L32 12 L54 30 L48 30 L32 18 L16 30 Z" fill="#f97316"/>
+      <rect x="26" y="38" width="12" height="18" rx="1.5" fill="#7c2d12"/>
+      <rect x="28" y="40" width="3.5" height="5" fill="#fde68a"/>
+      <rect x="32.5" y="40" width="3.5" height="5" fill="#fde68a"/>
+      <circle cx="36" cy="48" r="0.9" fill="#fde68a"/>
+    </svg>
+  ),
+  sliders: (
+    <svg viewBox="0 0 64 64" width="100%" height="100%">
+      <rect x="10" y="14" width="44" height="4" rx="2" fill="#a78bfa"/>
+      <rect x="10" y="30" width="44" height="4" rx="2" fill="#a78bfa"/>
+      <rect x="10" y="46" width="44" height="4" rx="2" fill="#a78bfa"/>
+      <circle cx="22" cy="16" r="6" fill="#c4b5fd" stroke="#5b21b6" strokeWidth="1.5"/>
+      <circle cx="42" cy="32" r="6" fill="#c4b5fd" stroke="#5b21b6" strokeWidth="1.5"/>
+      <circle cx="28" cy="48" r="6" fill="#c4b5fd" stroke="#5b21b6" strokeWidth="1.5"/>
+    </svg>
+  ),
+  monitor: (
+    <svg viewBox="0 0 64 64" width="100%" height="100%">
+      <rect x="6" y="10" width="52" height="36" rx="3" fill="#0ea5e9"/>
+      <rect x="10" y="14" width="44" height="26" rx="1.5" fill="#7dd3fc"/>
+      <path d="M14 32 L22 24 L28 28 L36 18 L46 28" stroke="#0c4a6e" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+      <rect x="24" y="46" width="16" height="6" fill="#38bdf8"/>
+      <rect x="18" y="52" width="28" height="3" rx="1.5" fill="#0284c7"/>
+    </svg>
+  ),
+
+  /* OPERATIONS */
+  utensils: (
+    <svg viewBox="0 0 64 64" width="100%" height="100%">
+      <path d="M22 8 L22 26 a4 4 0 0 0 4 4 V56" stroke="#fb923c" strokeWidth="5" fill="none" strokeLinecap="round"/>
+      <path d="M16 8 V22" stroke="#fb923c" strokeWidth="3" fill="none" strokeLinecap="round"/>
+      <path d="M28 8 V22" stroke="#fb923c" strokeWidth="3" fill="none" strokeLinecap="round"/>
+      <path d="M44 8 c-6 4-8 12-4 18 c2 3 6 4 6 4 V56" stroke="#f97316" strokeWidth="5" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  ),
+  coffee: (
+    <svg viewBox="0 0 64 64" width="100%" height="100%">
+      <path d="M12 22 H44 V42 a10 10 0 0 1-10 10 H22 a10 10 0 0 1-10-10 Z" fill="#fbbf24"/>
+      <path d="M44 26 H50 a6 6 0 0 1 0 12 H44" fill="none" stroke="#fbbf24" strokeWidth="4"/>
+      <path d="M18 8 c-2 4 2 6 0 10" stroke="#fde68a" strokeWidth="2.5" fill="none" strokeLinecap="round"/>
+      <path d="M28 8 c-2 4 2 6 0 10" stroke="#fde68a" strokeWidth="2.5" fill="none" strokeLinecap="round"/>
+      <path d="M38 8 c-2 4 2 6 0 10" stroke="#fde68a" strokeWidth="2.5" fill="none" strokeLinecap="round"/>
+      <ellipse cx="28" cy="28" rx="14" ry="3" fill="#92400e" opacity="0.5"/>
+    </svg>
+  ),
+  truck: (
+    <svg viewBox="0 0 64 64" width="100%" height="100%">
+      <rect x="4" y="20" width="32" height="22" rx="2" fill="#22d3ee"/>
+      <path d="M36 26 H50 L58 34 V42 H36 Z" fill="#06b6d4"/>
+      <rect x="40" y="28" width="10" height="6" rx="1" fill="#67e8f9"/>
+      <circle cx="16" cy="46" r="6" fill="#1e293b"/>
+      <circle cx="16" cy="46" r="2.5" fill="#94a3b8"/>
+      <circle cx="46" cy="46" r="6" fill="#1e293b"/>
+      <circle cx="46" cy="46" r="2.5" fill="#94a3b8"/>
+    </svg>
+  ),
+  bag: (
+    <svg viewBox="0 0 64 64" width="100%" height="100%">
+      <path d="M16 22 H48 L52 56 H12 Z" fill="#fb7185"/>
+      <path d="M16 22 H48 L46 28 H18 Z" fill="#f43f5e"/>
+      <path d="M22 22 V18 a10 10 0 0 1 20 0 V22" stroke="#fda4af" strokeWidth="3" fill="none" strokeLinecap="round"/>
+      <circle cx="26" cy="34" r="2" fill="#fff"/>
+      <circle cx="38" cy="34" r="2" fill="#fff"/>
+    </svg>
+  ),
+  wine: (
+    <svg viewBox="0 0 64 64" width="100%" height="100%">
+      <path d="M20 8 H44 a0 0 0 0 1 0 0 c0 14-6 22-12 22 s-12-8-12-22 Z" fill="#e879f9"/>
+      <path d="M22 8 H42 c0 8-3 14-6 16 c-2-1-3-4-3-7 c0-3 1-6-3-8 c-3-2-6-1-8-1 Z" fill="#f0abfc" opacity="0.6"/>
+      <line x1="32" y1="30" x2="32" y2="50" stroke="#a21caf" strokeWidth="3"/>
+      <ellipse cx="32" cy="52" rx="10" ry="3" fill="#a21caf"/>
+    </svg>
+  ),
+  cal: (
+    <svg viewBox="0 0 64 64" width="100%" height="100%">
+      <rect x="8" y="12" width="48" height="44" rx="3" fill="#34d399"/>
+      <rect x="8" y="12" width="48" height="12" fill="#10b981"/>
+      <rect x="16" y="6" width="4" height="12" rx="1.5" fill="#065f46"/>
+      <rect x="44" y="6" width="4" height="12" rx="1.5" fill="#065f46"/>
+      <rect x="14" y="30" width="6" height="6" rx="1" fill="#fff"/>
+      <rect x="24" y="30" width="6" height="6" rx="1" fill="#fff"/>
+      <rect x="34" y="30" width="6" height="6" rx="1" fill="#fff"/>
+      <rect x="44" y="30" width="6" height="6" rx="1" fill="#fff"/>
+      <rect x="14" y="40" width="6" height="6" rx="1" fill="#fff"/>
+      <rect x="24" y="40" width="6" height="6" rx="1" fill="#065f46"/>
+      <rect x="34" y="40" width="6" height="6" rx="1" fill="#fff"/>
+    </svg>
+  ),
+  pulse: (
+    <svg viewBox="0 0 64 64" width="100%" height="100%">
+      <rect x="6" y="12" width="52" height="34" rx="3" fill="#0ea5e9"/>
+      <rect x="10" y="16" width="44" height="26" rx="1.5" fill="#082f49"/>
+      <path d="M12 30 L20 30 L24 22 L30 38 L34 30 L42 30 L46 26 L52 26" stroke="#7dd3fc" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+      <rect x="22" y="48" width="20" height="4" fill="#0284c7"/>
+      <rect x="16" y="52" width="32" height="3" rx="1" fill="#0c4a6e"/>
+    </svg>
+  ),
+  box: (
+    <svg viewBox="0 0 64 64" width="100%" height="100%">
+      <path d="M32 10 L54 22 V44 L32 56 L10 44 V22 Z" fill="#a78bfa"/>
+      <path d="M32 10 L54 22 L32 34 L10 22 Z" fill="#c4b5fd"/>
+      <path d="M32 34 L54 22 V44 L32 56 Z" fill="#8b5cf6" opacity="0.85"/>
+      <path d="M21 16 L43 28" stroke="#5b21b6" strokeWidth="2" opacity="0.4"/>
+    </svg>
+  ),
+
+  /* FINANCE */
+  bars: (
+    <svg viewBox="0 0 64 64" width="100%" height="100%">
+      <rect x="10" y="36" width="10" height="20" rx="1.5" fill="#34d399"/>
+      <rect x="22" y="26" width="10" height="30" rx="1.5" fill="#10b981"/>
+      <rect x="34" y="18" width="10" height="38" rx="1.5" fill="#34d399"/>
+      <rect x="46" y="10" width="10" height="46" rx="1.5" fill="#10b981"/>
+      <path d="M8 22 L20 18 L34 12 L52 4" stroke="#34d399" strokeWidth="2.5" fill="none" strokeLinecap="round"/>
+      <path d="M48 4 L54 4 L54 10" stroke="#34d399" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  ),
+  dollar: (
+    <svg viewBox="0 0 64 64" width="100%" height="100%">
+      <path d="M22 14 c0-4 4-6 10-6 s10 2 10 6 v0 H22 Z" fill="#3b0764"/>
+      <ellipse cx="32" cy="14" rx="10" ry="3" fill="#1e1b4b"/>
+      <path d="M14 22 C20 16 28 16 32 16 s12 0 18 6 c4 8 4 22 0 28 c-6 6-14 6-18 6 s-12 0-18-6 c-4-6-4-20 0-28 Z" fill="#fbbf24"/>
+      <text x="32" y="46" textAnchor="middle" fontSize="22" fontWeight="900" fill="#78350f" fontFamily="ui-sans-serif,system-ui">$</text>
+    </svg>
+  ),
+  card: (
+    <svg viewBox="0 0 64 64" width="100%" height="100%">
+      <rect x="6" y="14" width="52" height="36" rx="4" fill="#818cf8"/>
+      <rect x="6" y="20" width="52" height="8" fill="#3730a3"/>
+      <rect x="12" y="36" width="14" height="6" rx="1" fill="#fde68a"/>
+      <rect x="12" y="44" width="20" height="2.5" rx="1" fill="#c7d2fe"/>
+      <circle cx="46" cy="42" r="5" fill="#f97316" opacity="0.9"/>
+      <circle cx="52" cy="42" r="5" fill="#fbbf24" opacity="0.9"/>
+    </svg>
+  ),
+  receipt: (
+    <svg viewBox="0 0 64 64" width="100%" height="100%">
+      <path d="M14 6 H50 V58 L44 54 L38 58 L32 54 L26 58 L20 54 L14 58 Z" fill="#f8fafc"/>
+      <rect x="20" y="14" width="24" height="3" rx="1" fill="#475569"/>
+      <rect x="20" y="22" width="24" height="2" rx="1" fill="#94a3b8"/>
+      <rect x="20" y="28" width="24" height="2" rx="1" fill="#94a3b8"/>
+      <rect x="20" y="34" width="24" height="2" rx="1" fill="#94a3b8"/>
+      <rect x="20" y="42" width="24" height="3" rx="1" fill="#fb923c"/>
+    </svg>
+  ),
+  ban: (
+    <svg viewBox="0 0 64 64" width="100%" height="100%">
+      <circle cx="32" cy="32" r="22" fill="none" stroke="#ef4444" strokeWidth="6"/>
+      <line x1="17" y1="17" x2="47" y2="47" stroke="#ef4444" strokeWidth="6" strokeLinecap="round"/>
+    </svg>
+  ),
+
+  /* PEOPLE */
+  users: (
+    <svg viewBox="0 0 64 64" width="100%" height="100%">
+      <circle cx="20" cy="22" r="8" fill="#22d3ee"/>
+      <circle cx="44" cy="22" r="8" fill="#06b6d4"/>
+      <path d="M6 50 c0-8 6-14 14-14 s14 6 14 14 v6 H6 Z" fill="#22d3ee"/>
+      <path d="M30 50 c0-8 6-14 14-14 s14 6 14 14 v6 H30 Z" fill="#06b6d4"/>
+    </svg>
+  ),
+  star: (
+    <svg viewBox="0 0 64 64" width="100%" height="100%">
+      <polygon points="32,6 40,24 60,26 45,40 50,60 32,50 14,60 19,40 4,26 24,24" fill="#facc15"/>
+      <polygon points="32,6 40,24 60,26 45,40 50,60 32,50 32,6" fill="#eab308"/>
+    </svg>
+  ),
+  user: (
+    <svg viewBox="0 0 64 64" width="100%" height="100%">
+      <circle cx="32" cy="22" r="11" fill="#2dd4bf"/>
+      <path d="M10 56 c0-12 10-20 22-20 s22 8 22 20 v2 H10 Z" fill="#14b8a6"/>
+    </svg>
+  ),
+
+  /* SYSTEM */
+  cog: (
+    <svg viewBox="0 0 64 64" width="100%" height="100%">
+      <path d="M32 6 l4 4 h6 l2 5 5 2 v6 l4 4-4 4 v6 l-5 2-2 5 h-6 l-4 4-4-4 h-6 l-2-5-5-2 v-6 l-4-4 4-4 v-6 l5-2 2-5 h6 Z" fill="#a78bfa"/>
+      <circle cx="32" cy="32" r="9" fill="#1e1b4b"/>
+      <circle cx="32" cy="32" r="4" fill="#c4b5fd"/>
+    </svg>
+  ),
+  db: (
+    <svg viewBox="0 0 64 64" width="100%" height="100%">
+      <ellipse cx="32" cy="14" rx="20" ry="6" fill="#34d399"/>
+      <path d="M12 14 V28 c0 3.3 9 6 20 6 s20-2.7 20-6 V14" fill="#10b981"/>
+      <ellipse cx="32" cy="28" rx="20" ry="6" fill="#34d399"/>
+      <path d="M12 28 V42 c0 3.3 9 6 20 6 s20-2.7 20-6 V28" fill="#10b981"/>
+      <ellipse cx="32" cy="42" rx="20" ry="6" fill="#34d399"/>
+      <path d="M12 42 V52 c0 3.3 9 6 20 6 s20-2.7 20-6 V42" fill="#059669"/>
+      <ellipse cx="32" cy="52" rx="20" ry="6" fill="#34d399"/>
+    </svg>
+  ),
+
+  /* MARKETING */
+  whatsapp: (
+    <svg viewBox="0 0 64 64" width="100%" height="100%">
+      <path d="M8 56 L12 44 a22 22 0 1 1 8 8 Z" fill="#25d366"/>
+      <path d="M22 22 c-2 1-2 4-1 6 c2 4 6 8 10 10 c2 1 5 1 6-1 l1-2 c0-1-1-1-2-2 l-3-1 c-1 0-2 1-3 0 c-1 0-3-2-4-3 c-1-1-2-3-2-4 c0-1 1-1 1-2 c1-1 0-2 0-3 l-1-2 c-1-1-2-1-2 0 Z" fill="#fff"/>
+    </svg>
+  ),
+
+  /* UI utility (still used in chrome) */
+  bell:    <svg className="ico" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>,
+  back:    <svg className="ico" viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>,
+  chevR:   <svg className="ico" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>,
+  search:  <svg className="ico" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
+  globe:   <svg className="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15 15 0 0 1 4 10 15 15 0 0 1-4 10 15 15 0 0 1-4-10 15 15 0 0 1 4-10z"/></svg>,
+  upload:  <svg className="ico" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>,
+  pencil:  <svg className="ico" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>,
+  plus:    <svg className="ico" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
+  trash:   <svg className="ico" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>,
+  shield:  <svg className="ico" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>,
+  printer: <svg className="ico" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>,
+  mapPin:  <svg className="ico" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>,
+  phone:   <svg className="ico" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>,
+  clock:   <svg className="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
+  sun:     <svg className="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>,
+  moon:    <svg className="ico" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>,
+};
+
+/* ---------- COPY / TRANSLATIONS ---------- */
+const copy = {
+  en: {
+    title: "Settings",
+    subtitle: "Configure your restaurant. Tap a tile to begin.",
+    search: "Search settings…",
+    sections: { GENERAL:"General", OPERATIONS:"Operations", FINANCE:"Finance", PEOPLE:"People", SYSTEM:"System", MARKETING:"Marketing" },
+    items: {
+      restaurant_info:["Restaurant Info","Name, logo, contact"],
+      preference:["Preference","Theme, language, regional"],
+      device:["Device","Terminal & display setup"],
+      menu:["Menu","Categories, items, modifiers"],
+      dine_in:["Dine In","Tables & service flow"],
+      delivery:["Delivery","Zones, drivers, fees"],
+      takeout:["Takeout","Pickup workflow"],
+      coffee_bar:["Coffee Bar","Drinks station rules"],
+      reservation:["Reservation","Booking calendar"],
+      kds:["KDS Monitor","Kitchen display screens"],
+      inventory:["Inventory","Stock & ingredients"],
+      finance:["Finance","Tax, currency, ledgers"],
+      expense:["Expense","Operational costs"],
+      paylater:["Pay Later","Customer credit & tabs"],
+      receipt:["Receipt","Layout, footer, printers"],
+      void_items:["Void Items","Authorization & reasons"],
+      users:["Users","Staff accounts & PINs"],
+      member:["Member","Loyalty program"],
+      customer:["Customer","Customer database"],
+      advanced:["Advanced","Power-user tools"],
+      database:["Database","Backups & sync"],
+      whatsapp:["WhatsApp","Order notifications"],
+    },
+    save:"Save changes", cancel:"Cancel", lang:"English"
+  },
+  ckb: {
+    title: "ڕێکخستنەکان",
+    subtitle: "ڕێستۆرانتەکەت ڕێکبخە. کرتە لەسەر هەر کاشێک بکە بۆ دەستپێکردن.",
+    search: "گەڕان لە ڕێکخستنەکان…",
+    sections: { GENERAL:"گشتی", OPERATIONS:"کارکردنەکان", FINANCE:"دارایی", PEOPLE:"کەسانی", SYSTEM:"سیستەم", MARKETING:"بازاڕکردن" },
+    items: {
+      restaurant_info:["زانیاری چێشتخانە","ناو، لۆگۆ، پەیوەندی"],
+      preference:["هەڵبژاردنەکان","ڕووکار، زمان"],
+      device:["ئامێر","ئامادەکاری تێرمیناڵ"],
+      menu:["مێنیو","پۆلەکان و خواردنەکان"],
+      dine_in:["خواردن لە شوێن","مێزەکان و خزمەت"],
+      delivery:["گەیاندن","ناوچەکان و کرێ"],
+      takeout:["دەرکردن","ڕێبازی هەڵگرتن"],
+      coffee_bar:["شوێنی قاوە","ڕێسای شوێنی قاوە"],
+      reservation:["جێگیرکردن","ڕۆژژمێری جێگیرکردن"],
+      kds:["نمایشی چێشتخانە","شاشەکانی چێشتخانە"],
+      inventory:["کۆگا","کاڵا و پێکهاتەکان"],
+      finance:["دارایی","باج، دراو، دەفتەر"],
+      expense:["خەرجی","تێچوونی کارکردن"],
+      paylater:["پاش پارەدان","قەرز و حسابی کڕیار"],
+      receipt:["پسوولە","ڕێکخستن و چاپکردن"],
+      void_items:["بەتاڵکردنەوە","ڕێگەپێدان و هۆکار"],
+      users:["بەکارهێنەران","حساب و وشەنهێنی"],
+      member:["ئەندام","پڕۆگرامی دڵسۆزی"],
+      customer:["کڕیار","داتابەیسی کڕیار"],
+      advanced:["پێشکەوتوو","ئامرازی پسپۆڕان"],
+      database:["داتابەیس","پاشەکەوت و هاودەنگی"],
+      whatsapp:["واتسئاپ","ئاگادارکردنەوەی داوا"],
+    },
+    save:"پاشەکەوتکردن", cancel:"پاشگەزبوونەوە", lang:"کوردی"
+  },
+};
+
+/* ---------- ICON GRID DEFINITION ---------- */
+/* Each tile has a unique color. Colors are tasteful and distinct. */
+const PALETTE = {
+  amber:   { glyph:"#fbbf24", glow:"rgba(251,191,36,0.55)" },
+  orange:  { glyph:"#fb923c", glow:"rgba(251,146,60,0.55)" },
+  rose:    { glyph:"#fb7185", glow:"rgba(244,63,94,0.55)" },
+  pink:    { glyph:"#f472b6", glow:"rgba(236,72,153,0.55)" },
+  red:     { glyph:"#ef4444", glow:"rgba(239,68,68,0.55)" },
+  emerald: { glyph:"#34d399", glow:"rgba(16,185,129,0.50)" },
+  teal:    { glyph:"#2dd4bf", glow:"rgba(20,184,166,0.50)" },
+  cyan:    { glyph:"#22d3ee", glow:"rgba(6,182,212,0.55)" },
+  sky:     { glyph:"#7dd3fc", glow:"rgba(56,189,248,0.50)" },
+  indigo:  { glyph:"#a5b4fc", glow:"rgba(99,102,241,0.55)" },
+  violet:  { glyph:"#c4b5fd", glow:"rgba(139,92,246,0.55)" },
+  fuchsia: { glyph:"#e879f9", glow:"rgba(217,70,239,0.55)" },
+  lime:    { glyph:"#a3e635", glow:"rgba(132,204,22,0.55)" },
+  yellow:  { glyph:"#facc15", glow:"rgba(234,179,8,0.55)" },
+};
+
+const SECTIONS = [
+  { key:"GENERAL", items:[
+    { id:"restaurant_info", icon:"home",     color:"amber",   span:1 },
+    { id:"preference",      icon:"sliders",  color:"violet",  span:1 },
+    { id:"device",          icon:"monitor",  color:"sky",     span:1 },
+  ]},
+  { key:"OPERATIONS", items:[
+    { id:"menu",        icon:"utensils", color:"orange",  span:1 },
+    { id:"dine_in",     icon:"coffee",   color:"amber",   span:1 },
+    { id:"delivery",    icon:"truck",    color:"cyan",    span:1 },
+    { id:"takeout",     icon:"bag",      color:"rose",    span:1 },
+    { id:"coffee_bar",  icon:"wine",     color:"fuchsia", span:1 },
+    { id:"reservation", icon:"cal",      color:"emerald", span:1 },
+    { id:"kds",         icon:"pulse",    color:"sky",     span:1 },
+    { id:"inventory",   icon:"box",      color:"violet",  span:2 },
+  ]},
+  { key:"FINANCE", items:[
+    { id:"finance",   icon:"bars",    color:"emerald", span:1 },
+    { id:"expense",   icon:"dollar",  color:"yellow",  span:1 },
+    { id:"paylater",  icon:"card",    color:"indigo",  span:1 },
+    { id:"receipt",   icon:"receipt", color:"orange",  span:1 },
+    { id:"void_items",icon:"ban",     color:"red",     span:1 },
+  ]},
+  { key:"PEOPLE", items:[
+    { id:"users",   icon:"users", color:"cyan",    span:1 },
+    { id:"member",  icon:"star",  color:"yellow",  span:1 },
+    { id:"customer",icon:"user",  color:"teal",    span:1 },
+  ]},
+  { key:"SYSTEM", items:[
+    { id:"advanced", icon:"cog", color:"violet",  span:2 },
+    { id:"database", icon:"db",  color:"emerald", span:2 },
+  ]},
+  { key:"MARKETING", items:[
+    { id:"whatsapp", icon:"whatsapp", color:"emerald", span:1 },
+  ]},
+];
+
+/* ---------- CONTEXT BANNERS / BACKGROUND ---------- */
+const Backdrop = () => (
+  <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+    <div className="orb" style={{top:'-10%', left:'-5%', width:'520px', height:'520px', background:'rgba(56,89,180,0.40)', animationDuration:'7s'}}></div>
+    <div className="orb" style={{bottom:'-15%', right:'-10%', width:'620px', height:'620px', background:'rgba(99,102,241,0.30)', animationDuration:'9s', animationDelay:'1s'}}></div>
+    <div className="orb" style={{top:'40%', left:'40%', width:'480px', height:'480px', background:'rgba(217,119,6,0.18)', animationDuration:'11s'}}></div>
+    <div className="absolute inset-0" style={{
+      backgroundImage:'linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px)',
+      backgroundSize:'48px 48px', opacity:0.5, maskImage:'radial-gradient(ellipse at center, black 30%, transparent 80%)'
+    }}></div>
+  </div>
+);
+
+/* ---------- BADGE ---------- */
+function Badge({ icon, color="amber", size=44, active=false }) {
+  return (
+    <span className={`badge ${active?'is-active':''}`} style={{ width:size, height:size }}>
+      <span className="badge-disk">
+        <span className="glyph" style={{ width: size*0.62, height: size*0.62 }}>
+          {I[icon]}
+        </span>
+      </span>
+    </span>
+  );
+}
+
+/* ---------- TOP BAR ---------- */
+function TopBar({ lang, setLang, query, setQuery, onMenu }) {
+  const t = copy[lang];
+  return (
+    <div className="sticky top-0 z-30">
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-2xl border-b border-white/5"></div>
+      <div className="relative flex items-center gap-3 px-5 py-3 max-w-[1400px] mx-auto">
+        <button onClick={onMenu} className="md:hidden w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/70">
+          <span style={{width:18,height:18}}>{I.sliders}</span>
+        </button>
+        <div className="flex items-center gap-3 flex-1">
+          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/30">
+            <span style={{width:18,height:18,color:"#1a0c00"}}>{I.utensils}</span>
+          </div>
+          <div className="hidden sm:block">
+            <p className="text-[11px] text-amber-400 font-semibold tracking-wider uppercase">Mira's Cafe</p>
+            <p className="text-sm font-bold text-white">{t.title}</p>
+          </div>
+        </div>
+
+        <div className="hidden md:flex items-center gap-2 flex-1 max-w-md">
+          <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/5 border border-white/10 w-full">
+            <span className="text-white/40" style={{width:16,height:16}}>{I.search}</span>
+            <input value={query} onChange={e=>setQuery(e.target.value)} placeholder={t.search}
+                   className="bg-transparent flex-1 outline-none text-sm text-white placeholder-white/30" />
+          </div>
+        </div>
+
+        <button onClick={()=>setLang(lang==='en'?'ckb':'en')}
+                className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10">
+          <span className="text-white/70" style={{width:14,height:14}}>{I.globe}</span>
+          <span className="text-xs font-semibold text-white/85">{t.lang}</span>
+        </button>
+
+        <button className="relative w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/70 hover:bg-white/10">
+          <span style={{width:18,height:18}}>{I.bell}</span>
+          <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-rose-400 ring-2 ring-[#060810]"></span>
+        </button>
+
+        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-xs font-bold text-[#1a0c00]">M</div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- TILE ---------- */
+function Tile({ item, label, sub, onClick, active }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`tile group text-left rounded-2xl p-4 border ${active?'active':'border-white/10 bg-white/[0.035]'} backdrop-blur-xl flex flex-col items-center justify-center gap-3 min-h-[130px]`}
+      style={{ width: item.span===2 ? 372 : 180, maxWidth: '100%' }}
+    >
+      <Badge icon={item.icon} color={item.color} size={item.span===2 ? 56 : 48} active={active} />
+      <div className="text-center px-1">
+        <div className="tile-label text-[13px] font-semibold text-white leading-tight">{label}</div>
+        <div className="text-[11px] text-white/40 mt-0.5 leading-tight line-clamp-2">{sub}</div>
+      </div>
+    </button>
+  );
+}
+
+/* ---------- HOME GRID ---------- */
+function Home({ lang, query, onOpen, activeId }) {
+  const t = copy[lang];
+  const q = query.trim().toLowerCase();
+  return (
+    <div className="px-5 md:px-10 py-8 max-w-[1400px] mx-auto relative">
+      <div className="flex items-end justify-center mb-8 flex-wrap gap-4 text-center">
+        <div>
+          <h1 className="text-3xl md:text-4xl font-bold tracking-tight">{t.title}</h1>
+          <p className="text-sm text-white/45 mt-1.5 max-w-lg mx-auto">{t.subtitle}</p>
+        </div>
+      </div>
+
+      <div className="space-y-10">
+        {SECTIONS.map(sec => {
+          const items = sec.items.filter(it => {
+            if (!q) return true;
+            const [n,s] = t.items[it.id] || [];
+            return (n||"").toLowerCase().includes(q) || (s||"").toLowerCase().includes(q);
+          });
+          if (!items.length) return null;
+          return (
+            <section key={sec.key} className="mx-auto" style={{ maxWidth: '1200px' }}>
+              <div className="section-eyebrow uppercase mb-4 text-center">{t.sections[sec.key]}</div>
+              <div className="flex flex-wrap gap-3 justify-center">
+                {items.map(it => {
+                  const [n,s] = t.items[it.id] || [it.id, ""];
+                  return <Tile key={it.id} item={it} label={n} sub={s} active={activeId===it.id} onClick={()=>onOpen(it.id)} />;
+                })}
+              </div>
+            </section>
+          );
+        })}
+      </div>
+
+      <div className="mt-16 mb-4 text-center text-[11px] tracking-wider text-white/25">
+        ClickGroup POS · Multi-tenant Restaurant Management Platform
+      </div>
+    </div>
+  );
+}
+</script>
+<script type="text/babel" src="settings-pages.jsx"></script>
+<script type="text/babel" src="settings-app.jsx"></script>
+</body>
+</html>

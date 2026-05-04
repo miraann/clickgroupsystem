@@ -31,13 +31,13 @@ const ICON_COLORS: Record<string, { inactive: string; active: string }> = {
   other:  { inactive: 'text-pink-400',    active: 'bg-pink-500/20 border-pink-500/40 text-pink-300'         },
 }
 
-const ACTION_TABS: { id: ActionTab; label: string; color: string }[] = [
-  { id: 'surcharge', label: 'Surcharge', color: 'text-lime-400    border-lime-500/30    bg-lime-500/10'    },
-  { id: 'gratuity',  label: 'Gratuity',  color: 'text-green-400   border-green-500/30   bg-green-500/10'  },
-  { id: 'discount',  label: 'Discount',  color: 'text-yellow-400  border-yellow-500/30  bg-yellow-500/10' },
-  { id: 'note',      label: 'Note',      color: 'text-cyan-400    border-cyan-500/30    bg-cyan-500/10'   },
-  { id: 'split',     label: 'Split Bill',color: 'text-teal-400    border-teal-500/30    bg-teal-500/10'   },
-  { id: 'paylater',  label: 'Pay Later', color: 'text-rose-400    border-rose-500/30    bg-rose-500/10'   },
+const ACTION_TABS: { id: ActionTab; label: string; inactive: string; active: string }[] = [
+  { id: 'surcharge', label: 'Surcharge', inactive: 'text-orange-400/80  bg-orange-500/15  hover:bg-orange-500/25', active: 'text-white bg-orange-500' },
+  { id: 'gratuity',  label: 'Gratuity',  inactive: 'text-violet-400/80  bg-violet-500/15  hover:bg-violet-500/25', active: 'text-white bg-violet-600' },
+  { id: 'discount',  label: 'Discount',  inactive: 'text-yellow-400/80  bg-yellow-500/15  hover:bg-yellow-500/25', active: 'text-white bg-amber-500'  },
+  { id: 'note',      label: 'Note',      inactive: 'text-sky-400/80     bg-sky-500/15     hover:bg-sky-500/25',    active: 'text-white bg-sky-500'    },
+  { id: 'split',     label: 'Split Bill',inactive: 'text-emerald-400/80 bg-emerald-500/15 hover:bg-emerald-500/25',active: 'text-white bg-emerald-500'},
+  { id: 'paylater',  label: 'Pay Later', inactive: 'text-rose-400/80    bg-rose-500/15    hover:bg-rose-500/25',   active: 'text-white bg-rose-500'   },
 ]
 
 const NUMPAD = ['7','8','9','4','5','6','1','2','3','0','00','.']
@@ -190,9 +190,19 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
     setPayError(null)
     const now = new Date().toISOString()
 
+    // Re-calculate total server-side before saving to pay_later
+    const { data: liveItems } = await supabase
+      .from('order_items')
+      .select('item_price, qty')
+      .eq('order_id', orderId)
+      .neq('status', 'void')
+    const verifiedTotal = liveItems
+      ? Math.max(0, liveItems.reduce((s, i) => s + (i.item_price ?? 0) * (i.qty ?? 1), 0) - discountAmount + surchargeAmount)
+      : finalTotal
+
     const { error: orderErr } = await supabase
       .from('orders')
-      .update({ status: 'closed', total: finalTotal, updated_at: now })
+      .update({ status: 'closed', total: verifiedTotal, updated_at: now })
       .eq('id', orderId)
     if (orderErr) {
       setPayError(`Order error: ${orderErr.message}`)
@@ -210,7 +220,7 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
       customer_phone:  plPhone.trim() || null,
       order_ref:       ordNum || null,
       table_num:       tableNum,
-      original_amount: finalTotal,
+      original_amount: verifiedTotal,
       paid_amount:     0,
       due_date:        plDueDate || null,
       note:            plNote.trim() || null,
@@ -234,127 +244,83 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
     setPaying(true)
     setPayError(null)
 
-    const amountPaid   = enteredNum > 0 ? enteredNum : finalTotal
-    const changeAmount = Math.max(0, amountPaid - finalTotal)
-    const now          = new Date().toISOString()
-    const methodName   = payMethods.find(m => m.id === method)?.name ?? method
+    const res = await fetch('/api/payment/finalize', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        orderId,
+        restaurantId,
+        discountId:      appliedDiscount?.id   ?? null,
+        surchargeId:     appliedSurcharge?.id  ?? null,
+        paymentMethodId: method,
+        amountPaid:      enteredNum > 0 ? enteredNum : 0,
+        note:            invoiceNote || null,
+        customerId:      selectedCustomer?.id  ?? null,
+        customerName:    selectedMember?.name  ?? selectedCustomer?.name  ?? null,
+        customerPhone:   selectedMember?.phone ?? selectedCustomer?.phone ?? null,
+        tableNum,
+        guests,
+      }),
+    })
 
-    const tableNumInt = parseInt(tableNum)
-    const closeQ = isNaN(tableNumInt)
-      ? supabase.from('orders').update({ status: 'paid', total: finalTotal, updated_at: now }).eq('id', orderId)
-      : supabase.from('orders').update({ status: 'paid', total: finalTotal, updated_at: now }).eq('table_number', tableNumInt).eq('status', 'active')
-    const { error } = await closeQ.select('id')
+    const data = await res.json()
 
-    if (error) {
-      setPayError(`DB error: ${error.message}`)
+    if (!res.ok || !data.ok) {
+      setPayError(data.error ?? 'Payment failed')
       setPaying(false)
       return
     }
 
-    await supabase
-      .from('orders')
-      .update({ payment_method: methodName, amount_paid: amountPaid, change_amount: changeAmount, note: invoiceNote || null })
-      .eq('id', orderId)
+    const {
+      finalTotal:    verifiedTotal,
+      invoiceNum:    invNum,
+      orderNum:      ordNum,
+      amountPaid:    paidAmt,
+      changeAmount:  serverChange,
+    } = data as {
+      finalTotal: number; invoiceNum: string; orderNum: string
+      amountPaid: number; changeAmount: number
+    }
 
-    logAudit(restaurantId, 'payment', {
-      table:          tableNum,
-      order_id:       orderId,
-      total:          finalTotal,
-      amount_paid:    amountPaid,
-      change:         changeAmount,
-      method:         methodName,
-    })
-
-    const [{ data: orderRecord }, { data: invData }] = await Promise.all([
-      supabase.from('orders').select('order_num').eq('id', orderId).maybeSingle(),
-      supabase.from('invoice_number_settings').select('*').eq('restaurant_id', restaurantId).maybeSingle(),
-    ])
-
-    const ordNum = orderRecord?.order_num ?? ''
+    setGeneratedInvoiceNum(invNum)
     setGeneratedOrderNum(ordNum)
 
-    let invNum: string
-    if (invData) {
-      const num = invData.current_num ?? invData.start_num ?? 1001
-      invNum = `${invData.prefix ?? 'INV-'}${num}`
-      await supabase
-        .from('invoice_number_settings')
-        .update({ current_num: num + 1, updated_at: new Date().toISOString() })
-        .eq('restaurant_id', restaurantId)
-    } else {
-      invNum = 'INV-1001'
-      await supabase.from('invoice_number_settings').insert({
-        restaurant_id: restaurantId,
-        prefix:        'INV-',
-        start_num:     1001,
-        current_num:   1002,
-        reset_period:  'never',
-      })
-    }
-    setGeneratedInvoiceNum(invNum)
+    logAudit(restaurantId, 'payment', {
+      table:       tableNum,
+      order_id:    orderId,
+      total:       verifiedTotal,
+      amount_paid: paidAmt,
+      change:      serverChange,
+      method:      data.paymentMethodName,
+    })
 
-    const fullPayload = {
-      restaurant_id:  restaurantId,
-      invoice_num:    invNum,
-      order_num:      ordNum,
-      table_num:      tableNum,
-      guests,
-      cashier,
-      payment_method: methodName,
-      items,
-      subtotal:       total,
-      discount:       discountAmount,
-      total:          finalTotal,
-      amount_paid:    amountPaid,
-      change_amount:  changeAmount,
-      customer_id:    selectedCustomer?.id ?? null,
-      customer_name:  selectedMember?.name ?? selectedCustomer?.name ?? null,
-      customer_phone: selectedMember?.phone ?? selectedCustomer?.phone ?? null,
-    }
-    const { error: e1 } = await supabase.from('invoices').insert(fullPayload)
-    if (e1) {
-      const { error: e2 } = await supabase.from('invoices').insert({
-        restaurant_id:  restaurantId,
-        invoice_num:    invNum,
-        order_num:      ordNum,
-        table_num:      tableNum,
-        guests,
-        cashier,
-        payment_method: methodName,
-        items,
-        subtotal:       total,
-        total:          finalTotal,
-        amount_paid:    amountPaid,
-        change_amount:  changeAmount,
-      })
-      if (e2) console.error('[Invoice save failed]', e2.message)
-    }
-
+    // Update customer stats using the server-verified total
     if (selectedCustomer) {
+      const now = new Date().toISOString()
       const { data: cust } = await supabase.from('customers').select('visit_count,total_spent').eq('id', selectedCustomer.id).maybeSingle()
       if (cust) {
         await supabase.from('customers').update({
           visit_count: (cust.visit_count ?? 0) + 1,
-          total_spent: (cust.total_spent ?? 0) + finalTotal,
-          updated_at: now,
+          total_spent: (cust.total_spent ?? 0) + verifiedTotal,
+          updated_at:  now,
         }).eq('id', selectedCustomer.id)
       }
     }
 
-    // ── Inventory auto-deduct ─────────────────────────────────
+    // Inventory auto-deduct (qty-based, no prices involved)
     const { data: restSettings } = await supabase
       .from('restaurants').select('settings').eq('id', restaurantId).maybeSingle()
     const autoDeduct = (restSettings?.settings as Record<string, unknown> | null)?.inventory_auto_deduct === true
     if (autoDeduct) {
-      const { data: orderItems } = await supabase
+      const { data: orderItemsForInv } = await supabase
         .from('order_items')
         .select('menu_item_id, qty')
         .eq('order_id', orderId)
         .neq('status', 'void')
         .not('menu_item_id', 'is', null)
 
-      if (orderItems && orderItems.length > 0) {
-        const menuItemIds = [...new Set(orderItems.map((r: { menu_item_id: string; qty: number }) => r.menu_item_id))]
+      if (orderItemsForInv && orderItemsForInv.length > 0) {
+        const menuItemIds = [...new Set(orderItemsForInv.map((r: { menu_item_id: string; qty: number }) => r.menu_item_id))]
         const { data: ingredients } = await supabase
           .from('menu_item_ingredients')
           .select('menu_item_id, inventory_item_id, quantity')
@@ -362,7 +328,7 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
 
         if (ingredients && ingredients.length > 0) {
           const deductMap = new Map<string, number>()
-          for (const oi of orderItems as { menu_item_id: string; qty: number }[]) {
+          for (const oi of orderItemsForInv as { menu_item_id: string; qty: number }[]) {
             const ings = ingredients.filter((g: { menu_item_id: string; inventory_item_id: string; quantity: number }) => g.menu_item_id === oi.menu_item_id)
             for (const ing of ings) {
               const prev = deductMap.get(ing.inventory_item_id) ?? 0
@@ -388,8 +354,8 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
       }
     }
 
-    setPaidAmount(amountPaid)
-    setChangeAmt(changeAmount)
+    setPaidAmount(paidAmt)
+    setChangeAmt(serverChange)
     setPaid(true)
     setPaying(false)
     try { localStorage.removeItem(CUSTOMER_KEY) } catch { }
@@ -467,7 +433,7 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
               onClick={() => setActiveTab(activeTab === tab.id ? null : tab.id)}
               className={cn(
                 'shrink-0 flex-1 min-w-[100px] h-12 text-sm font-semibold border-r border-white/8 transition-all active:scale-95 touch-manipulation',
-                activeTab === tab.id ? tab.color : 'text-white/40 hover:text-white/60 hover:bg-white/4'
+                activeTab === tab.id ? tab.active : tab.inactive
               )}
             >
               {tab.label}
@@ -838,13 +804,15 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
                   <Printer className="w-4 h-4" />Receipt
                 </button>
               )}
-              <button
-                onClick={handleWaButton}
-                className="flex-1 bg-green-600/20 hover:bg-green-600/35 text-green-400 text-sm font-semibold flex items-center justify-center gap-1.5 transition-all active:scale-95 touch-manipulation"
-                title="Send invoice via WhatsApp"
-              >
-                <MessageCircle className="w-4 h-4" />WA
-              </button>
+              {p('payment_screen.wa') && (
+                <button
+                  onClick={handleWaButton}
+                  className="flex-1 bg-green-600/20 hover:bg-green-600/35 text-green-400 text-sm font-semibold flex items-center justify-center gap-1.5 transition-all active:scale-95 touch-manipulation"
+                  title="Send invoice via WhatsApp"
+                >
+                  <MessageCircle className="w-4 h-4" />WA
+                </button>
+              )}
               {p('dashboard.pay') && (
                 <button
                   onClick={() => !paying && !paid && !(entered !== '' && enteredNum < finalTotal) && setShowConfirm(true)}

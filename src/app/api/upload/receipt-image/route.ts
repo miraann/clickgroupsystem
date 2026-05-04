@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { requireRestaurantAccess } from '@/lib/supabase/api-guard'
+import { rateLimit } from '@/lib/rate-limit'
 
 export const runtime = 'nodejs'
 
 export async function POST(req: NextRequest) {
+  if (!rateLimit(req, 'upload/receipt-image', 5)) {
+    return NextResponse.json({ ok: false, error: 'Too many requests' }, { status: 429 })
+  }
   try {
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
     if (!serviceKey) {
@@ -27,6 +32,10 @@ export async function POST(req: NextRequest) {
     if (!file || !restaurantId || !type) {
       return NextResponse.json({ ok: false, error: 'Missing required fields' }, { status: 400 })
     }
+
+    const { error: authError } = await requireRestaurantAccess(restaurantId)
+    if (authError) return authError
+
     if (type !== 'logo' && type !== 'qr') {
       return NextResponse.json({ ok: false, error: 'type must be logo or qr' }, { status: 400 })
     }

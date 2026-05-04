@@ -754,39 +754,41 @@ export default function TablesPage() {
                 {roleName && <span className="text-[10px] text-white/30 truncate max-w-[60px]">· {roleName}</span>}
               </div>
             )}
-            {can('finance.report') && (
+            {can('dashboard.btn_reports') && (
               <Link href="/dashboard/reports" className="hidden sm:flex w-10 h-10 rounded-xl bg-white/5 border border-white/10 items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 transition-all active:scale-95">
                 <DollarSign className="w-4.5 h-4.5" size={18} />
               </Link>
             )}
-            {(isOwner || can('settings.audit_log')) && (
+            {(isOwner || can('dashboard.btn_audit_log')) && (
               <Link href="/dashboard/audit-log" title="Audit Log" className="hidden sm:flex w-10 h-10 rounded-xl bg-white/5 border border-white/10 items-center justify-center text-white/40 hover:text-indigo-400 hover:bg-indigo-500/10 hover:border-indigo-500/30 transition-all active:scale-95">
                 <Shield size={18} />
               </Link>
             )}
-            {can('settings.users') && (
+            {can('dashboard.btn_staff') && (
               <Link href="/dashboard/staff" className="hidden sm:flex w-10 h-10 rounded-xl bg-white/5 border border-white/10 items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 transition-all active:scale-95">
                 <Users className="w-4.5 h-4.5" size={18} />
               </Link>
             )}
-            <button
-              onClick={() => setShowWaiterPanel(p => !p)}
-              className={cn(
-                'w-10 h-10 rounded-xl border flex items-center justify-center transition-all active:scale-95 relative',
-                waiterCalls.length > 0
-                  ? 'bg-violet-500/15 border-violet-500/40 text-violet-400 hover:bg-violet-500/25 animate-pulse'
-                  : 'bg-white/5 border-white/10 text-white/40 hover:text-white/70 hover:bg-white/10'
-              )}
-              title="Waiter Calls"
-            >
-              <BellRing size={18} />
-              {waiterCalls.length > 0 && (
-                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full bg-violet-500 text-white text-[10px] font-bold flex items-center justify-center px-1 shadow-lg shadow-violet-500/40">
-                  {waiterCalls.length > 99 ? '99+' : waiterCalls.length}
-                </span>
-              )}
-            </button>
-            {can('kds') && (
+            {can('dashboard.btn_waiter') && (
+              <button
+                onClick={() => setShowWaiterPanel(p => !p)}
+                className={cn(
+                  'w-10 h-10 rounded-xl border flex items-center justify-center transition-all active:scale-95 relative',
+                  waiterCalls.length > 0
+                    ? 'bg-violet-500/15 border-violet-500/40 text-violet-400 hover:bg-violet-500/25 animate-pulse'
+                    : 'bg-white/5 border-white/10 text-white/40 hover:text-white/70 hover:bg-white/10'
+                )}
+                title="Waiter Calls"
+              >
+                <BellRing size={18} />
+                {waiterCalls.length > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full bg-violet-500 text-white text-[10px] font-bold flex items-center justify-center px-1 shadow-lg shadow-violet-500/40">
+                    {waiterCalls.length > 99 ? '99+' : waiterCalls.length}
+                  </span>
+                )}
+              </button>
+            )}
+            {can('dashboard.btn_kds') && (
               <Link href="/dashboard/kds" className="hidden sm:flex w-10 h-10 rounded-xl bg-white/5 border border-white/10 items-center justify-center text-white/40 hover:text-amber-400 hover:bg-amber-500/10 hover:border-amber-500/30 transition-all active:scale-95" title="Kitchen Display">
                 <ChefHat size={18} />
               </Link>
@@ -800,44 +802,46 @@ export default function TablesPage() {
                 <Monitor size={18} />
               </button>
             )}
-            {can('guests') && (
+            {can('dashboard.btn_guests') && (
               <Link href="/dashboard/guests" className="hidden sm:flex w-10 h-10 rounded-xl bg-white/5 border border-white/10 items-center justify-center text-white/40 hover:text-amber-400 hover:bg-amber-500/10 hover:border-amber-500/30 transition-all active:scale-95" title="Guest Tracking">
                 <Users size={18} />
               </Link>
             )}
             {/* Language picker */}
-            <div className="relative">
-              <button
-                onClick={() => setShowLangPicker(v => !v)}
-                className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 transition-all active:scale-95"
-                title="Language"
-              >
-                <Globe size={18} />
-              </button>
-              {showLangPicker && (
-                <div className="absolute top-full mt-2 right-0 w-44 rounded-2xl border border-white/12 bg-[#0d1120] shadow-2xl overflow-hidden z-50">
-                  <p className="px-4 py-2.5 text-[10px] font-bold text-white/30 uppercase tracking-widest border-b border-white/8">
-                    Language
-                  </p>
-                  {(Object.entries(LANG_META) as [Lang, typeof LANG_META[Lang]][]).map(([code, meta]) => (
-                    <button
-                      key={code}
-                      onClick={() => { setLang(code); setShowLangPicker(false) }}
-                      className={cn(
-                        'w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors',
-                        lang === code
-                          ? 'bg-amber-500/15 text-amber-300'
-                          : 'text-white/60 hover:bg-white/5 hover:text-white',
-                      )}
-                    >
-                      <span className="text-base">{meta.flag}</span>
-                      <span className="flex-1 text-left">{meta.nativeLabel}</span>
-                      {lang === code && <Check className="w-4 h-4 text-amber-400 shrink-0" />}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            {can('dashboard.btn_language') && (
+              <div className="relative">
+                <button
+                  onClick={() => setShowLangPicker(v => !v)}
+                  className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 transition-all active:scale-95"
+                  title="Language"
+                >
+                  <Globe size={18} />
+                </button>
+                {showLangPicker && (
+                  <div className="absolute top-full mt-2 right-0 w-44 rounded-2xl border border-white/12 bg-[#0d1120] shadow-2xl overflow-hidden z-50">
+                    <p className="px-4 py-2.5 text-[10px] font-bold text-white/30 uppercase tracking-widest border-b border-white/8">
+                      Language
+                    </p>
+                    {(Object.entries(LANG_META) as [Lang, typeof LANG_META[Lang]][]).map(([code, meta]) => (
+                      <button
+                        key={code}
+                        onClick={() => { setLang(code); setShowLangPicker(false) }}
+                        className={cn(
+                          'w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors',
+                          lang === code
+                            ? 'bg-amber-500/15 text-amber-300'
+                            : 'text-white/60 hover:bg-white/5 hover:text-white',
+                        )}
+                      >
+                        <span className="text-base">{meta.flag}</span>
+                        <span className="flex-1 text-left">{meta.nativeLabel}</span>
+                        {lang === code && <Check className="w-4 h-4 text-amber-400 shrink-0" />}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             <button
               onClick={async () => {
@@ -931,22 +935,33 @@ export default function TablesPage() {
           </button>
         </div>
 
-        {/* Tables grid — skeleton shown only on very first visit (no SWR cache yet) */}
+        {/* Tables grid — shimmer skeleton on first load, staggered cards once data arrives */}
         {!swrData ? (
           <div className="flex flex-wrap gap-2">
             {Array.from({ length: 12 }).map((_, i) => (
               <div
                 key={i}
-                className="w-[90px] h-[90px] rounded-2xl bg-white/5 border border-white/8 animate-pulse"
+                className="w-[90px] h-[90px] rounded-2xl skeleton-shimmer"
               />
             ))}
           </div>
         ) : (
-          <div className="flex flex-wrap gap-2">
+          <motion.div
+            key={`${filter}-${groupFilter}`}
+            className="flex flex-wrap gap-2"
+            variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.04 } } }}
+            initial="hidden"
+            animate="visible"
+          >
             {filtered.map(table => (
-              <TableCard key={table.id} table={table} hasWaiterCall={waiterCalls.some(c => c.table_number === table.label)} onSelect={handleSelect} onLongPress={handleLongPress} cur={cur} formatPrice={formatPrice} />
+              <motion.div
+                key={table.id}
+                variants={{ hidden: { opacity: 0, y: 8 }, visible: { opacity: 1, y: 0, transition: { duration: 0.18, ease: 'easeOut' } } }}
+              >
+                <TableCard table={table} hasWaiterCall={waiterCalls.some(c => c.table_number === table.label)} onSelect={handleSelect} onLongPress={handleLongPress} cur={cur} formatPrice={formatPrice} />
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
         )}
       </div>
 
@@ -956,29 +971,32 @@ export default function TablesPage() {
           'grid gap-2 max-w-2xl mx-auto',
           (showDeliveryButton && showTakeoutButton) ? 'grid-cols-2 sm:grid-cols-5' : (showDeliveryButton || showTakeoutButton) ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-2 sm:grid-cols-3'
         )}>
-          <button className="flex items-center justify-center gap-1.5 h-12 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-sm font-semibold transition-all shadow-lg shadow-amber-500/25 touch-manipulation">
-            <Plus className="w-4 h-4" />
-            {tr.new_order}
-          </button>
-          {/* Pending Orders */}
-          <Link
-            href="/dashboard/pending-orders"
-            className={cn(
-              'relative flex items-center justify-center gap-1.5 h-12 rounded-xl border text-sm font-semibold transition-all active:scale-95 touch-manipulation',
-              pendingCount > 0
-                ? 'bg-amber-500/20 border-amber-500/40 text-amber-300 hover:bg-amber-500/30'
-                : 'bg-white/8 border-white/12 text-white/70 hover:bg-white/12'
-            )}
-          >
-            <Bell className="w-4 h-4" />
-            QR Orders
-            {pendingCount > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 rounded-full bg-amber-500 text-white text-[10px] font-bold flex items-center justify-center px-1 shadow-lg shadow-amber-500/40">
-                {pendingCount > 99 ? '99+' : pendingCount}
-              </span>
-            )}
-          </Link>
-          {showDeliveryButton && can('delivery') && (
+          {can('dashboard.btn_new_order') && (
+            <button className="flex items-center justify-center gap-1.5 h-12 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-sm font-semibold transition-all shadow-lg shadow-amber-500/25 touch-manipulation">
+              <Plus className="w-4 h-4" />
+              {tr.new_order}
+            </button>
+          )}
+          {can('dashboard.btn_qr_orders') && (
+            <Link
+              href="/dashboard/pending-orders"
+              className={cn(
+                'relative flex items-center justify-center gap-1.5 h-12 rounded-xl border text-sm font-semibold transition-all active:scale-95 touch-manipulation',
+                pendingCount > 0
+                  ? 'bg-amber-500/20 border-amber-500/40 text-amber-300 hover:bg-amber-500/30'
+                  : 'bg-white/8 border-white/12 text-white/70 hover:bg-white/12'
+              )}
+            >
+              <Bell className="w-4 h-4" />
+              QR Orders
+              {pendingCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 rounded-full bg-amber-500 text-white text-[10px] font-bold flex items-center justify-center px-1 shadow-lg shadow-amber-500/40">
+                  {pendingCount > 99 ? '99+' : pendingCount}
+                </span>
+              )}
+            </Link>
+          )}
+          {showDeliveryButton && can('dashboard.btn_delivery') && (
             <Link
               href="/dashboard/delivery-orders"
               className={cn(
@@ -997,7 +1015,7 @@ export default function TablesPage() {
               )}
             </Link>
           )}
-          {showTakeoutButton && can('takeout') && (
+          {showTakeoutButton && can('dashboard.btn_takeout') && (
             <Link
               href="/dashboard/takeout-orders"
               className="relative flex items-center justify-center gap-1.5 h-12 rounded-xl border bg-white/8 border-white/12 text-white/70 hover:bg-white/12 text-sm font-semibold transition-all active:scale-95 touch-manipulation"
@@ -1006,7 +1024,7 @@ export default function TablesPage() {
               {tr.takeout}
             </Link>
           )}
-          {can('settings') && (
+          {can('dashboard.btn_settings') && (
             <Link href="/dashboard/settings" className="flex items-center justify-center gap-1.5 h-12 rounded-xl bg-white/8 border border-white/12 hover:bg-white/12 active:scale-95 text-white/70 text-sm font-medium transition-all touch-manipulation">
               <Settings className="w-4 h-4" />
               {tr.nav_settings}

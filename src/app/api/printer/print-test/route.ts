@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createWriteStream } from 'fs'
+import { requireAuth } from '@/lib/supabase/api-guard'
+import { rateLimit } from '@/lib/rate-limit'
 import { writeFileSync, unlinkSync } from 'fs'
 import { spawnSync } from 'child_process'
 import { join } from 'path'
@@ -186,6 +188,12 @@ function printNetwork(ip: string, port: number, data: Buffer): Promise<void> {
 
 // ── Route ─────────────────────────────────────────────────────
 export async function POST(req: Request) {
+  if (!rateLimit(req, 'printer/print-test', 5)) {
+    return NextResponse.json({ ok: false, error: 'Too many requests' }, { status: 429 })
+  }
+  const { error: authError } = await requireAuth()
+  if (authError) return authError
+
   const { path, ip, port: netPort, name, paper_width } = await req.json()
 
   const bytes = buildInvoiceBytes(name ?? 'Printer', paper_width ?? 80)

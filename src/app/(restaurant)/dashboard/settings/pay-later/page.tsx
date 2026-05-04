@@ -1,12 +1,13 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import {
-  CreditCard, Plus, Search, Loader2,
+  CreditCard, Plus, Search,
   AlertCircle, ChevronDown,
   User, Phone, Hash, Eye,
   DollarSign, TrendingUp, Users,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { SkeletonList } from '@/components/ui/SkeletonList'
 import { createClient } from '@/lib/supabase/client'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
@@ -78,11 +79,7 @@ export default function PayLaterPage() {
     setViewRec(null)
   }
 
-  if (loading) return (
-    <div className="flex items-center justify-center h-64">
-      <Loader2 className="w-7 h-7 text-amber-400 animate-spin" />
-    </div>
-  )
+  if (loading) return <SkeletonList rows={5} />
 
   return (
     <div className="space-y-6 max-w-5xl">

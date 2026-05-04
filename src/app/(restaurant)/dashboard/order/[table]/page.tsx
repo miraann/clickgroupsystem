@@ -56,55 +56,7 @@ function OrderPage() {
   const [mounted, setMounted] = useState(false)
   useEffect(() => { const t = requestAnimationFrame(() => setMounted(true)); return () => cancelAnimationFrame(t) }, [])
 
-  // ── Loading skeleton ──────────────────────────────────────────
-  if (order.loading) return (
-    <div className="flex flex-col h-screen bg-[#022658] overflow-hidden">
-      {/* Header skeleton */}
-      <div className="shrink-0 flex items-center justify-between px-4 h-14 border-b border-white/8">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl bg-white/8 animate-pulse" />
-          <div className="w-24 h-4 rounded-lg bg-white/8 animate-pulse" />
-        </div>
-        <div className="w-28 h-8 rounded-xl bg-white/8 animate-pulse" />
-      </div>
-      {/* Body */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Order panel skeleton */}
-        <div className="w-80 shrink-0 flex flex-col border-r border-white/8 p-4 gap-3">
-          <div className="flex gap-2 mb-1">
-            <div className="flex-1 h-9 rounded-xl bg-white/8 animate-pulse" />
-            <div className="flex-1 h-9 rounded-xl bg-white/5 animate-pulse" />
-          </div>
-          {[...Array(5)].map((_, i) => (
-            <div key={i} className="flex items-center gap-3">
-              <div className="flex-1 h-10 rounded-xl bg-white/8 animate-pulse" style={{ opacity: 1 - i * 0.15 }} />
-            </div>
-          ))}
-        </div>
-        {/* Menu panel skeleton */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Category pills */}
-          <div className="shrink-0 flex items-center gap-2 px-4 py-3 border-b border-white/8">
-            {[80, 70, 90, 65, 75].map((w, i) => (
-              <div key={i} className="h-9 rounded-xl bg-white/8 animate-pulse shrink-0" style={{ width: w }} />
-            ))}
-          </div>
-          {/* Item cards */}
-          <div className="flex-1 p-4 grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3 content-start">
-            {[...Array(8)].map((_, i) => (
-              <div key={i} className="rounded-2xl bg-white/6 animate-pulse" style={{ aspectRatio: '3/2', opacity: 1 - i * 0.07 }} />
-            ))}
-          </div>
-        </div>
-      </div>
-      {/* Bottom bar skeleton */}
-      <div className="shrink-0 h-16 border-t border-white/8 flex items-center gap-3 px-4">
-        <div className="flex-1 h-10 rounded-xl bg-white/8 animate-pulse" />
-        <div className="w-28 h-10 rounded-xl bg-amber-500/20 animate-pulse" />
-        <div className="w-28 h-10 rounded-xl bg-white/8 animate-pulse" />
-      </div>
-    </div>
-  )
+  if (order.loading) return null
 
   if (order.initError) return (
     <div className="flex items-center justify-center h-screen bg-[#022658] p-6">
@@ -132,6 +84,7 @@ function OrderPage() {
         guestCount={guestCount}
         grandTotal={order.grandTotal}
         formatPrice={formatPrice}
+        canGuestEdit={p('dashboard.order.guest_edit')}
         onGuestEdit={() => { setGuestDraft(guestCount); setShowGuestEdit(true) }}
       />
 
@@ -179,7 +132,9 @@ function OrderPage() {
         restaurantId={order.restaurantId}
         supabase={order.supabase}
         formatPrice={formatPrice}
-        canCfd={!!order.restaurantId && p('dashboard.cfd')}
+        canCfd={!!order.restaurantId && p('dashboard.cfd_order')}
+        canPay={p('dashboard.pay')}
+        canSend={p('dashboard.order.send_kitchen')}
         onSend={order.handleSend}
         onPay={() => {
           const url = new URL(window.location.href)

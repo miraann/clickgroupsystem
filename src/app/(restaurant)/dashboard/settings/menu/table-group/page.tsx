@@ -1,12 +1,31 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
+import { SkeletonList } from '@/components/ui/SkeletonList'
+import { AnimatedList, AnimatedItem } from '@/components/ui/AnimatedList'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { Plus, Pencil, Trash2, Layers, X, Loader2, AlertCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useTableGroups, type CachedTableGroup } from '@/hooks/useTableGroups'
+import { motion, AnimatePresence } from 'framer-motion'
 
 type TableGroup = CachedTableGroup
+
+function FadeSwitch({ id, children }: { id: string; children: React.ReactNode }) {
+  return (
+    <AnimatePresence mode="popLayout" initial={false}>
+      <motion.div
+        key={id}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.18 }}
+      >
+        {children}
+      </motion.div>
+    </AnimatePresence>
+  )
+}
 
 const COLOR_PRESETS = [
   { value: '#f59e0b', label: 'Amber' },
@@ -25,8 +44,9 @@ export default function TableGroupPage() {
   const { t } = useLanguage()
   const supabase = createClient()
 
-  const [restaurantId, setRestaurantId] = useState<string | null>(null)
-  useEffect(() => { setRestaurantId(localStorage.getItem('restaurant_id')) }, [])
+  const [restaurantId] = useState<string | null>(() =>
+    typeof window !== 'undefined' ? localStorage.getItem('restaurant_id') : null
+  )
 
   const { data: swrGroups, isLoading: loading, error: swrError, mutate } = useTableGroups(restaurantId)
 
@@ -104,12 +124,6 @@ export default function TableGroupPage() {
   }
 
   // ── Render ─────────────────────────────────────────────────
-  if (loading) return (
-    <div className="flex items-center justify-center h-48">
-      <Loader2 className="w-6 h-6 text-amber-400 animate-spin" />
-    </div>
-  )
-
   if (error) return (
     <div className="flex items-start gap-3 p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 max-w-md">
       <AlertCircle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
@@ -143,10 +157,14 @@ export default function TableGroupPage() {
         </button>
       </div>
 
-      {/* List */}
-      <div className="space-y-3">
+      {/* FadeSwitch: skeleton ↔ real list */}
+      <FadeSwitch id={loading ? 'skel' : 'data'}>
+        {loading ? (
+          <SkeletonList rows={4} />
+        ) : (
+      <AnimatedList className="space-y-3">
         {groups.map(g => (
-          <div key={g.id} className="flex items-center gap-4 p-4 bg-white/5 border border-white/10 backdrop-blur-xl rounded-2xl">
+          <AnimatedItem key={g.id} className="flex items-center gap-4 p-4 bg-white/5 border border-white/10 backdrop-blur-xl rounded-2xl">
             <div
               className="w-10 h-10 rounded-xl shrink-0 flex items-center justify-center"
               style={{ backgroundColor: g.color + '22', border: `1.5px solid ${g.color}44` }}
@@ -174,12 +192,14 @@ export default function TableGroupPage() {
             >
               {deleteId === g.id ? 'Confirm?' : <Trash2 className="w-3.5 h-3.5" />}
             </button>
-          </div>
+          </AnimatedItem>
         ))}
         {groups.length === 0 && (
           <div className="text-center py-16 text-white/25 text-sm">{t.tg_no_data}</div>
         )}
-      </div>
+      </AnimatedList>
+        )}
+      </FadeSwitch>
 
       {/* Modal */}
       {modalOpen && (

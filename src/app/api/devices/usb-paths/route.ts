@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { execSync } from 'child_process'
 import { accessSync } from 'fs'
 import * as os from 'os'
+import { requireAuth } from '@/lib/supabase/api-guard'
+import { rateLimit } from '@/lib/rate-limit'
 
 export interface UsbPathEntry {
   path: string   // the value to store in usb_path (e.g. USB001, COM3, /dev/usb/lp0)
@@ -9,7 +11,13 @@ export interface UsbPathEntry {
   matchName: string // lowercase name used for fuzzy matching against detected device names
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+  if (!rateLimit(req, 'devices/usb-paths', 20)) {
+    return NextResponse.json({ entries: [], error: 'Too many requests' }, { status: 429 })
+  }
+  const { error: authError } = await requireAuth()
+  if (authError) return authError
+
   const platform = os.platform()
   // Use a Map keyed on path to guarantee uniqueness at source
   const byPath = new Map<string, UsbPathEntry>()

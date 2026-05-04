@@ -11,6 +11,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { useDeliverySettings, type CachedDeliveryZone } from '@/hooks/useDeliverySettings'
+import { SkeletonList } from '@/components/ui/SkeletonList'
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch'
 import { SaveButton } from '@/components/ui/SaveButton'
 import type { SaveState } from '@/hooks/useRestaurantSettings'
@@ -247,11 +248,7 @@ function DeliveryHistoryTab({ restaurantId, formatPrice }: { restaurantId: strin
     return acc
   }, {})
 
-  if (loading) return (
-    <div className="flex items-center justify-center h-64">
-      <Loader2 className="w-6 h-6 text-indigo-400 animate-spin" />
-    </div>
-  )
+  if (loading) return <SkeletonList rows={5} />
 
   return (
     <div className="space-y-4">
@@ -552,11 +549,7 @@ export default function DeliveryPage() {
     await supabase.from('delivery_zones').update({ active: !z.active }).eq('id', z.id)
   }
 
-  if (loading) return (
-    <div className="flex items-center justify-center h-64">
-      <Loader2 className="w-6 h-6 text-indigo-400 animate-spin" />
-    </div>
-  )
+  if (loading) return <SkeletonList rows={4} />
 
   const activeZones = zones.filter(z => z.active).length
 

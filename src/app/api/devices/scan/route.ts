@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import * as net from 'net'
 import * as os from 'os'
+import { requireAuth } from '@/lib/supabase/api-guard'
+import { rateLimit } from '@/lib/rate-limit'
 
 export const maxDuration = 30
 
@@ -41,7 +43,13 @@ function probePort(ip: string, port: number): Promise<boolean> {
   })
 }
 
-export async function POST() {
+export async function POST(req: Request) {
+  if (!rateLimit(req, 'devices/scan', 3)) {
+    return NextResponse.json({ devices: [], error: 'Too many requests' }, { status: 429 })
+  }
+  const { error: authError } = await requireAuth()
+  if (authError) return authError
+
   // On Vercel (cloud), the server is in a datacenter — not on the restaurant's LAN.
   // Skip the scan and tell the client so it can show a helpful message.
   if (process.env.VERCEL) {

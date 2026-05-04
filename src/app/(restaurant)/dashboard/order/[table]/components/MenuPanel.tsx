@@ -1,6 +1,16 @@
 'use client'
+import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import type { DbCategory, DbMenuItem } from '../types'
+
+const itemGridVariants = {
+  hidden:  {},
+  visible: { transition: { staggerChildren: 0.04 } },
+}
+const itemVariants = {
+  hidden:  { opacity: 0, scale: 0.95 },
+  visible: { opacity: 1, scale: 1, transition: { duration: 0.15, ease: 'easeOut' } },
+}
 
 interface Props {
   mobilePanel:     'menu' | 'order'
@@ -49,13 +59,20 @@ export function MenuPanel({
             <p className="text-xs text-white/15">Add items in Settings → Menu → Item</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
+          <motion.div
+            key={activeCategory}
+            className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3"
+            variants={itemGridVariants}
+            initial="hidden"
+            animate="visible"
+          >
             {visible.map(item => {
               const qty = draftQty(item.id)
               return (
-                <button key={item.id} onClick={() => onItemTap(item)}
+                <motion.div key={item.id} variants={itemVariants}>
+                <button onClick={() => onItemTap(item)}
                   className={cn(
-                    'relative rounded-2xl border overflow-hidden text-left',
+                    'relative w-full rounded-2xl border overflow-hidden text-left',
                     'transition-all duration-150 active:scale-95 touch-manipulation',
                     qty > 0
                       ? 'border-amber-500/50 shadow-xl shadow-amber-500/15 ring-1 ring-amber-500/25'
@@ -87,9 +104,10 @@ export function MenuPanel({
                     </p>
                   </div>
                 </button>
+                </motion.div>
               )
             })}
-          </div>
+          </motion.div>
         )}
       </div>
     </div>

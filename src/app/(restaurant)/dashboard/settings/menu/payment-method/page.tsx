@@ -1,6 +1,8 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
+import { SkeletonList } from '@/components/ui/SkeletonList'
+import { AnimatedList, AnimatedItem } from '@/components/ui/AnimatedList'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import {
   Plus, Pencil, Trash2, CreditCard, X,
@@ -9,6 +11,7 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { usePaymentMethods, type CachedPayMethod, type CachedCurrency } from '@/hooks/usePaymentMethods'
+import { motion, AnimatePresence } from 'framer-motion'
 
 // ── Types ──────────────────────────────────────────────────────
 type IconType = 'cash' | 'card' | 'online' | 'wallet' | 'other'
@@ -44,22 +47,33 @@ const EMPTY_CUR  = { name: '', symbol: '', decimal_places: 2, is_default: false 
 
 function getEmoji(type: IconType) { return ICONS.find(i => i.value === type)?.emoji ?? '💳' }
 
+function FadeSwitch({ id, children }: { id: string; children: React.ReactNode }) {
+  return (
+    <AnimatePresence mode="popLayout" initial={false}>
+      <motion.div
+        key={id}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.18 }}
+      >
+        {children}
+      </motion.div>
+    </AnimatePresence>
+  )
+}
+
 // ── Main Page ──────────────────────────────────────────────────
 export default function PaymentMethodPage() {
   const { t } = useLanguage()
   const supabase = createClient()
 
   const [tab, setTab]                   = useState<'currency' | 'payment'>('currency')
-  const [restaurantId, setRestaurantId] = useState<string | null>(null)
-  const [mounted, setMounted]           = useState(false)
+  const [restaurantId] = useState<string | null>(() =>
+    typeof window !== 'undefined' ? localStorage.getItem('restaurant_id') : null
+  )
 
-  useEffect(() => {
-    setRestaurantId(localStorage.getItem('restaurant_id'))
-    setMounted(true)
-  }, [])
-
-  const { data: swrData, isLoading: swrLoading, error: swrError, mutate } = usePaymentMethods(restaurantId)
-  const loading = !mounted || swrLoading
+  const { data: swrData, isLoading: loading, error: swrError, mutate } = usePaymentMethods(restaurantId)
   const error   = swrError ? (swrError as Error).message : null
 
   // Payment methods state
@@ -246,8 +260,6 @@ export default function PaymentMethodPage() {
   }
 
   // ── Render ─────────────────────────────────────────────────
-  if (loading) return <div className="flex items-center justify-center h-48"><Loader2 className="w-6 h-6 text-amber-400 animate-spin" /></div>
-
   if (error) return (
     <div className="flex items-start gap-3 p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 max-w-md">
       <AlertCircle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
@@ -261,6 +273,12 @@ export default function PaymentMethodPage() {
 
   return (
     <div className="max-w-3xl mx-auto">
+
+      {/* FadeSwitch: skeleton ↔ real content */}
+      <FadeSwitch id={loading ? 'skel' : 'data'}>
+        {loading ? (
+          <SkeletonList rows={4} />
+        ) : (<>
 
       {/* ── Tab bar ── */}
       <div className="flex gap-1 mb-6 p-1 rounded-2xl bg-white/4 border border-white/8 w-fit">
@@ -296,9 +314,9 @@ export default function PaymentMethodPage() {
             </button>
           </div>
 
-          <div className="space-y-2">
+          <AnimatedList className="space-y-2">
             {currencies.map(c => (
-              <div key={c.id} className="flex items-center gap-3 p-4 bg-white/5 border border-white/10 rounded-2xl">
+              <AnimatedItem key={c.id} className="flex items-center gap-3 p-4 bg-white/5 border border-white/10 rounded-2xl">
                 {/* Symbol badge */}
                 <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">
                   <span className="text-base font-extrabold text-amber-400">{c.symbol}</span>
@@ -335,12 +353,12 @@ export default function PaymentMethodPage() {
                       : 'w-8 bg-white/5 hover:bg-rose-500/10 text-white/40 hover:text-rose-400')}>
                   {deleteCurId === c.id ? 'Confirm?' : <Trash2 className="w-3.5 h-3.5" />}
                 </button>
-              </div>
+              </AnimatedItem>
             ))}
             {currencies.length === 0 && (
               <div className="text-center py-16 text-white/25 text-sm">No currencies yet. Add one above.</div>
             )}
-          </div>
+          </AnimatedList>
         </div>
       )}
 
@@ -364,9 +382,9 @@ export default function PaymentMethodPage() {
             </button>
           </div>
 
-          <div className="space-y-2">
+          <AnimatedList className="space-y-2">
             {methods.map(m => (
-              <div key={m.id} className={cn('flex items-center gap-3 p-4 bg-white/5 border rounded-2xl transition-all', m.active ? 'border-white/10' : 'border-white/5 opacity-60')}>
+              <AnimatedItem key={m.id} className={cn('flex items-center gap-3 p-4 bg-white/5 border rounded-2xl transition-all', m.active ? 'border-white/10' : 'border-white/5 opacity-60')}>
                 <div className="w-10 h-10 rounded-xl bg-white/8 border border-white/10 flex items-center justify-center text-xl shrink-0">
                   {getEmoji(m.icon_type)}
                 </div>
@@ -401,10 +419,10 @@ export default function PaymentMethodPage() {
                       : 'w-8 bg-white/5 hover:bg-rose-500/10 text-white/40 hover:text-rose-400')}>
                   {deletePayId === m.id ? 'Confirm?' : <Trash2 className="w-3.5 h-3.5" />}
                 </button>
-              </div>
+              </AnimatedItem>
             ))}
             {methods.length === 0 && <div className="text-center py-16 text-white/25 text-sm">{t.pm_no_data}</div>}
-          </div>
+          </AnimatedList>
         </div>
       )}
 
@@ -553,6 +571,8 @@ export default function PaymentMethodPage() {
           </div>
         </div>
       )}
+        </>)}
+      </FadeSwitch>
     </div>
   )
 }

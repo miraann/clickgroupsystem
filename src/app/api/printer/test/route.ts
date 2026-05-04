@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import net from 'net'
+import { requireAuth } from '@/lib/supabase/api-guard'
+import { rateLimit } from '@/lib/rate-limit'
 
 export async function POST(req: NextRequest) {
+  if (!rateLimit(req, 'printer/test', 15)) {
+    return NextResponse.json({ ok: false, error: 'Too many requests' }, { status: 429 })
+  }
+  const { error: authError } = await requireAuth()
+  if (authError) return authError
+
   const { ip, port } = await req.json()
 
   if (!ip || !port) {

@@ -1,4 +1,5 @@
 'use client'
+import { motion } from 'framer-motion'
 import { Send, CreditCard, Loader2, Monitor } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
@@ -19,6 +20,8 @@ interface Props {
   supabase:       ReturnType<typeof createClient>
   formatPrice:    (n: number) => string
   canCfd:         boolean
+  canPay:         boolean
+  canSend:        boolean
   onSend:         () => void
   onPay:          () => void
 }
@@ -27,7 +30,7 @@ export function BottomBar({
   table, isTakeout, guestCount,
   grandTotal, sentTotal, draftSize, sentCount,
   sending, sendError, mobilePanel, setMobilePanel,
-  restaurantId, supabase, formatPrice, canCfd,
+  restaurantId, supabase, formatPrice, canCfd, canPay, canSend,
   onSend, onPay,
 }: Props) {
   const openCfd = () => {
@@ -93,20 +96,29 @@ export function BottomBar({
               <span className="hidden sm:inline">CFD</span>
             </button>
           )}
-          {sentTotal > 0 && (
-            <button onClick={openPayment}
-              className="flex items-center gap-2 px-5 h-12 rounded-xl bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 text-sm font-semibold active:scale-95 transition-all touch-manipulation">
+          {canPay && sentTotal > 0 && (
+            <motion.button
+              onClick={openPayment}
+              whileTap={{ scale: 0.95 }}
+              transition={{ duration: 0.1 }}
+              className="flex items-center gap-2 px-5 h-12 rounded-xl bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 text-sm font-semibold transition-colors touch-manipulation">
               <CreditCard className="w-4 h-4" />Pay
-            </button>
+            </motion.button>
           )}
-          <button onClick={onSend} disabled={draftSize === 0 || sending}
-            className={cn('flex items-center gap-2 px-6 h-12 rounded-xl text-sm font-bold transition-all active:scale-95 touch-manipulation',
-              draftSize > 0 && !sending
-                ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/30'
-                : 'bg-white/5 border border-white/8 text-white/20 cursor-not-allowed')}>
-            {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-            {sending ? 'Sending…' : 'Send to Kitchen'}
-          </button>
+          {canSend && (
+            <motion.button
+              onClick={onSend}
+              disabled={draftSize === 0 || sending}
+              whileTap={draftSize > 0 && !sending ? { scale: 0.95 } : {}}
+              transition={{ duration: 0.1 }}
+              className={cn('flex items-center gap-2 px-6 h-12 rounded-xl text-sm font-bold transition-colors touch-manipulation',
+                draftSize > 0 && !sending
+                  ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/30'
+                  : 'bg-white/5 border border-white/8 text-white/20 cursor-not-allowed')}>
+              {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              {sending ? 'Sending…' : 'Send to Kitchen'}
+            </motion.button>
+          )}
         </div>
       </div>
     </div>

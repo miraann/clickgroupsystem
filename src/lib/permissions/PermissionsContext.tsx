@@ -42,7 +42,12 @@ export function PermissionsProvider({ children }: { children: React.ReactNode })
       const restaurantId = localStorage.getItem('restaurant_id')
       if (!restaurantId) { setLoading(false); return }
 
-      // ── Owner custom session (email + password, no Supabase Auth) ──
+      // ── Owner session (custom restaurant login — no Supabase Auth) ──
+      // The restaurant-login page authenticates against restaurants.settings.password,
+      // not Supabase Auth, so there is no Supabase session. Trust the localStorage
+      // flag for UI access — actual data writes are protected at the API layer by
+      // requireRestaurantAccess. A DB existence check here fails when RLS blocks
+      // anonymous reads, incorrectly clearing the session.
       if (localStorage.getItem('owner_session') === 'true') {
         setIsOwner(true)
         setIsPinStaff(false)
@@ -54,20 +59,40 @@ export function PermissionsProvider({ children }: { children: React.ReactNode })
       }
 
       // ── PIN staff login (no Supabase Auth session) ──────────
+      // Re-fetch from DB to verify the staff member is real and get live permissions
+      // instead of trusting localStorage values that could be tampered.
       const staffId = localStorage.getItem('pos_staff_id')
       if (staffId) {
-        const raw = localStorage.getItem('pos_role_permissions')
-        const perms: Permissions = raw ? (JSON.parse(raw) as Permissions) : {}
-        setPermissions(perms)
+        const { data: staffRecord } = await supabase
+          .from('staff')
+          .select('id, name, role_id, restaurant_roles(name, permissions)')
+          .eq('id', staffId)
+          .eq('restaurant_id', restaurantId)
+          .maybeSingle()
+
+        if (!staffRecord) {
+          // Staff ID not found in this restaurant — clear the stale/tampered session
+          localStorage.removeItem('pos_staff_id')
+          localStorage.removeItem('pos_role_permissions')
+          setLoading(false)
+          return
+        }
+
+        const roleRaw = staffRecord.restaurant_roles
+        const role = roleRaw
+          ? ((Array.isArray(roleRaw) ? roleRaw[0] : roleRaw) as { name: string; permissions: Permissions })
+          : null
+
+        setPermissions(role?.permissions ?? {})
         setIsOwner(false)
         setIsPinStaff(true)
         setStaffName(localStorage.getItem('pos_staff_name') ?? null)
-        setRoleName(localStorage.getItem('pos_role_name') ?? localStorage.getItem('pos_staff_role') ?? null)
+        setRoleName(role?.name ?? localStorage.getItem('pos_role_name') ?? localStorage.getItem('pos_staff_role') ?? null)
         setLoading(false)
         return
       }
 
-      // ── Supabase Auth user (restaurant owner / manager login) ──
+      // ── Supabase Auth user (owner or manager with a real auth session) ──
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { setLoading(false); return }
 

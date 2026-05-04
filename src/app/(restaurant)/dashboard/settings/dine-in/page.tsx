@@ -1,13 +1,14 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import {
-  Coffee, Loader2, QrCode, BellRing,
+  Coffee, QrCode, BellRing,
   Users, Utensils, Clock, ShieldCheck, Info, ToggleLeft, ToggleRight,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { useDineInSettings, type CachedDineInSettings } from '@/hooks/useDineInSettings'
+import { SkeletonList } from '@/components/ui/SkeletonList'
 import { SaveButton } from '@/components/ui/SaveButton'
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch'
 import { SettingsSection } from '@/components/ui/SettingsSection'
@@ -75,11 +76,7 @@ export default function DineInPage() {
     }
   }, [restaurantId, supabase, cfg, mutate])
 
-  if (loading) return (
-    <div className="flex items-center justify-center h-64">
-      <Loader2 className="w-6 h-6 text-amber-400 animate-spin" />
-    </div>
-  )
+  if (loading) return <SkeletonList rows={6} />
 
   return (
     <div className="space-y-6 max-w-2xl">

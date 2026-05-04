@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { ModuleGate } from '@/components/ModuleGate'
 import { Bell, Check, X, Loader2, RefreshCw, AlertCircle, ChefHat, Clock } from 'lucide-react'
+import { SkeletonList } from '@/components/ui/SkeletonList'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
@@ -225,8 +226,10 @@ export default function PendingOrdersPage() {
   }
 
   if (loading) return (
-    <div className="min-h-screen bg-[#022658] flex items-center justify-center">
-      <Loader2 className="w-7 h-7 text-amber-400 animate-spin" />
+    <div className="min-h-screen bg-[#022658] flex flex-col">
+      <div className="flex-1 max-w-2xl mx-auto w-full px-4 py-5">
+        <SkeletonList rows={4} rowHeight="h-[130px]" />
+      </div>
     </div>
   )
 

@@ -6,6 +6,8 @@ import {
   Search, Plus, Store, MoreVertical, Eye, Ban,
   Trash2, Edit, CheckCircle, Filter, Download, Loader2,
 } from 'lucide-react'
+import { SkeletonList } from '@/components/ui/SkeletonList'
+import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import type { Restaurant } from './types'
@@ -107,8 +109,8 @@ export default function RestaurantsPage() {
       <GlassCard>
         <div className="overflow-visible">
           {loading ? (
-            <div className="flex items-center justify-center py-20">
-              <Loader2 className="w-6 h-6 text-indigo-400 animate-spin" />
+            <div className="p-6">
+              <SkeletonList rows={5} rowHeight="h-[58px]" />
             </div>
           ) : filtered.length === 0 ? (
             <div className="text-center py-20">
@@ -128,7 +130,13 @@ export default function RestaurantsPage() {
                 {filtered.map((r, i) => {
                   const ownerName = (r.settings as Record<string, unknown>)?.owner_name as string | undefined
                   return (
-                    <tr key={r.id} className={cn('hover:bg-white/3 transition-colors', i !== filtered.length - 1 && 'border-b border-white/5')}>
+                    <motion.tr
+                      key={r.id}
+                      initial={{ opacity: 0, y: 4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.18, ease: 'easeOut', delay: i * 0.03 }}
+                      className={cn('hover:bg-white/3 transition-colors', i !== filtered.length - 1 && 'border-b border-white/5')}
+                    >
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500/30 to-violet-600/20 border border-white/10 flex items-center justify-center text-sm font-bold text-white shrink-0">
@@ -184,7 +192,7 @@ export default function RestaurantsPage() {
                           )}
                         </div>
                       </td>
-                    </tr>
+                    </motion.tr>
                   )
                 })}
               </tbody>

@@ -1,11 +1,12 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import {
-  TrendingUp, TrendingDown, Download, Loader2,
+  TrendingUp, TrendingDown, Download,
   DollarSign, ShoppingBag, Wallet,
   ArrowUpRight, ArrowDownRight, Calendar,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { SkeletonList } from '@/components/ui/SkeletonList'
 import { createClient } from '@/lib/supabase/client'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import {
@@ -231,11 +232,7 @@ export default function FinancePage() {
   }
 
   // ── Render ────────────────────────────────────────────────────
-  if (loading) return (
-    <div className="flex items-center justify-center h-64">
-      <Loader2 className="w-7 h-7 text-emerald-400 animate-spin" />
-    </div>
-  )
+  if (loading) return <SkeletonList rows={5} />
 
   return (
     <div className="space-y-6 max-w-5xl">

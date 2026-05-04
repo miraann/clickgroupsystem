@@ -1,5 +1,6 @@
 'use client'
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { motion, AnimatePresence, type Variants } from 'framer-motion'
 import { Store, Camera, Mail, Phone, MapPin, Globe, AlertCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
@@ -56,6 +57,48 @@ function TikTokIcon({ className }: { className?: string }) {
     <svg className={className} viewBox="0 0 24 24" fill="currentColor">
       <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.84a8.23 8.23 0 004.83 1.55V6.93a4.85 4.85 0 01-1.06-.24z" />
     </svg>
+  )
+}
+
+// ── Animation variants ───────────────────────────────────────
+const PAGE: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  show:   { opacity: 1, y: 0, transition: { duration: 0.22, ease: 'circOut' as const } },
+}
+const FIELDS: Variants = {
+  hidden: {},
+  show:   { transition: { staggerChildren: 0.28 } },
+}
+const FIELD_ITEM: Variants = {
+  hidden: { opacity: 0, y: -10 },
+  show:   { opacity: 1, y: 0, transition: { duration: 0.55, ease: 'circOut' as const } },
+}
+
+// ── Skeleton helpers ─────────────────────────────────────────
+function Skel({ className }: { className?: string }) {
+  return <div className={cn('animate-pulse rounded-xl bg-white/8', className)} />
+}
+function SkeletonField() {
+  return (
+    <div className="space-y-1.5">
+      <Skel className="h-3.5 w-28 rounded-md" />
+      <Skel className="h-11 w-full" />
+    </div>
+  )
+}
+function FadeSwitch({ id, children }: { id: string; children: React.ReactNode }) {
+  return (
+    <AnimatePresence mode="popLayout" initial={false}>
+      <motion.div
+        key={id}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.18 }}
+      >
+        {children}
+      </motion.div>
+    </AnimatePresence>
   )
 }
 
@@ -205,17 +248,6 @@ export default function RestaurantInfoPage() {
     ? form.name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase()
     : '??'
 
-  // ── Loading skeleton ─────────────────────────────────────
-  if (loading) {
-    return (
-      <div className="max-w-2xl space-y-4">
-        {[80, 160, 120, 200].map((w, i) => (
-          <div key={i} className="h-12 rounded-2xl bg-white/5 animate-pulse" style={{ width: `${w}%` > '100%' ? '100%' : '100%' }} />
-        ))}
-      </div>
-    )
-  }
-
   // ── Load error ───────────────────────────────────────────
   if (loadError) {
     return (
@@ -239,9 +271,14 @@ export default function RestaurantInfoPage() {
 
   // ── Form ─────────────────────────────────────────────────
   return (
-    <div className="max-w-2xl space-y-6 pb-10">
+    <motion.div
+      className="space-y-6 pb-10"
+      variants={PAGE}
+      initial="hidden"
+      animate="show"
+    >
 
-      {/* Header */}
+      {/* Header — shell is instant, only save button crossfades */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/25 flex items-center justify-center">
@@ -252,86 +289,145 @@ export default function RestaurantInfoPage() {
             <p className="text-xs text-white/35 mt-0.5">{t.changes_saved_to_db}</p>
           </div>
         </div>
-        <SaveButton state={saveState} onClick={handleSave} />
+        <FadeSwitch id={loading ? 'skel-btn' : 'real-btn'}>
+          {loading
+            ? <Skel className="h-10 w-32 rounded-xl" />
+            : <SaveButton state={saveState} onClick={handleSave} />}
+        </FadeSwitch>
       </div>
 
-      {/* Logo */}
+      {/* Logo — card background is instant, content crossfades */}
       <Section title={t.ri_logo}>
-        <div className="flex items-center gap-5">
-          <div className="relative shrink-0">
-            <div className="w-24 h-24 rounded-2xl border-2 border-white/15 bg-gradient-to-br from-amber-400/20 to-orange-500/10 flex items-center justify-center text-3xl font-bold text-white overflow-hidden">
-              {logoPreview
-                ? <img src={logoPreview} alt="logo" className="w-full h-full object-cover" />
-                : <span>{logoInitials}</span>}
+        <FadeSwitch id={loading ? 'skel-logo' : 'real-logo'}>
+          {loading ? (
+            <div className="flex items-center gap-5">
+              <Skel className="w-24 h-24 rounded-2xl shrink-0" />
+              <div className="space-y-2 flex-1">
+                <Skel className="h-4 w-32" />
+                <Skel className="h-3 w-48" />
+                <Skel className="h-8 w-24 mt-1" />
+              </div>
             </div>
-            <button
-              onClick={() => fileRef.current?.click()}
-              className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-amber-500 hover:bg-amber-600 border-2 border-[#022658] flex items-center justify-center transition-all active:scale-95 shadow-lg"
-            >
-              <Camera className="w-3.5 h-3.5 text-white" />
-            </button>
-            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleLogoChange} />
-          </div>
-          <div className="space-y-1">
-            <p className="text-sm font-medium text-white/70">{t.ri_logo_label}</p>
-            <p className="text-xs text-white/30">{t.ri_logo_hint}</p>
-            {logoFile && <p className="text-xs text-amber-400">{t.ri_logo_new}</p>}
-            <button
-              onClick={() => fileRef.current?.click()}
-              className="mt-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-white/50 hover:bg-white/10 hover:text-white/70 transition-all active:scale-95"
-            >
-              {t.upload_photo}
-            </button>
-          </div>
-        </div>
+          ) : (
+            <div className="flex items-center gap-5">
+              <div className="relative shrink-0">
+                <div className="w-24 h-24 rounded-2xl border-2 border-white/15 bg-gradient-to-br from-amber-400/20 to-orange-500/10 flex items-center justify-center text-3xl font-bold text-white overflow-hidden">
+                  {logoPreview
+                    ? <img src={logoPreview} alt="logo" className="w-full h-full object-cover" />
+                    : <span>{logoInitials}</span>}
+                </div>
+                <button
+                  onClick={() => fileRef.current?.click()}
+                  className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-amber-500 hover:bg-amber-600 border-2 border-[#022658] flex items-center justify-center transition-all active:scale-95 shadow-lg"
+                >
+                  <Camera className="w-3.5 h-3.5 text-white" />
+                </button>
+                <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleLogoChange} />
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-white/70">{t.ri_logo_label}</p>
+                <p className="text-xs text-white/30">{t.ri_logo_hint}</p>
+                {logoFile && <p className="text-xs text-amber-400">{t.ri_logo_new}</p>}
+                <button
+                  onClick={() => fileRef.current?.click()}
+                  className="mt-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-white/50 hover:bg-white/10 hover:text-white/70 transition-all active:scale-95"
+                >
+                  {t.upload_photo}
+                </button>
+              </div>
+            </div>
+          )}
+        </FadeSwitch>
       </Section>
 
       {/* Basic Info */}
       <Section title={t.ri_basic_info}>
-        <div className="space-y-4">
-          <Field label={t.ri_name} required>
-            <Input icon={<Store className="w-4 h-4" />} value={form.name} onChange={set('name')} placeholder="e.g. Spice Garden" />
-          </Field>
-          <Field label={t.ri_email}>
-            <Input icon={<Mail className="w-4 h-4" />} value={form.email} onChange={set('email')} placeholder="info@restaurant.com" type="email" />
-          </Field>
-          <Field label={t.ri_location}>
-            <Input icon={<MapPin className="w-4 h-4" />} value={form.location} onChange={set('location')} placeholder="Street, City, Country" />
-          </Field>
-        </div>
+        <FadeSwitch id={loading ? 'skel-basic' : 'real-basic'}>
+          {loading ? (
+            <div className="space-y-4">
+              {[0, 1, 2].map(i => <SkeletonField key={i} />)}
+            </div>
+          ) : (
+            <motion.div className="space-y-4" variants={FIELDS} initial="hidden" animate="show">
+              <motion.div variants={FIELD_ITEM}>
+                <Field label={t.ri_name} required>
+                  <Input icon={<Store className="w-4 h-4" />} value={form.name} onChange={set('name')} placeholder="e.g. Spice Garden" />
+                </Field>
+              </motion.div>
+              <motion.div variants={FIELD_ITEM}>
+                <Field label={t.ri_email}>
+                  <Input icon={<Mail className="w-4 h-4" />} value={form.email} onChange={set('email')} placeholder="info@restaurant.com" type="email" />
+                </Field>
+              </motion.div>
+              <motion.div variants={FIELD_ITEM}>
+                <Field label={t.ri_location}>
+                  <Input icon={<MapPin className="w-4 h-4" />} value={form.location} onChange={set('location')} placeholder="Street, City, Country" />
+                </Field>
+              </motion.div>
+            </motion.div>
+          )}
+        </FadeSwitch>
       </Section>
 
       {/* Contact */}
       <Section title={t.ri_contact}>
-        <div className="space-y-4">
-          <Field label={t.ri_phone_primary}>
-            <Input icon={<Phone className="w-4 h-4" />} value={form.phone} onChange={set('phone')} placeholder="+964 XXX XXX XXXX" type="tel" />
-          </Field>
-          <Field label={t.ri_phone_secondary} hint={t.optional}>
-            <Input icon={<Phone className="w-4 h-4" />} value={form.phone2} onChange={set('phone2')} placeholder="+964 XXX XXX XXXX" type="tel" />
-          </Field>
-        </div>
+        <FadeSwitch id={loading ? 'skel-contact' : 'real-contact'}>
+          {loading ? (
+            <div className="space-y-4">
+              {[0, 1].map(i => <SkeletonField key={i} />)}
+            </div>
+          ) : (
+            <motion.div className="space-y-4" variants={FIELDS} initial="hidden" animate="show">
+              <motion.div variants={FIELD_ITEM}>
+                <Field label={t.ri_phone_primary}>
+                  <Input icon={<Phone className="w-4 h-4" />} value={form.phone} onChange={set('phone')} placeholder="+964 XXX XXX XXXX" type="tel" />
+                </Field>
+              </motion.div>
+              <motion.div variants={FIELD_ITEM}>
+                <Field label={t.ri_phone_secondary} hint={t.optional}>
+                  <Input icon={<Phone className="w-4 h-4" />} value={form.phone2} onChange={set('phone2')} placeholder="+964 XXX XXX XXXX" type="tel" />
+                </Field>
+              </motion.div>
+            </motion.div>
+          )}
+        </FadeSwitch>
       </Section>
 
       {/* Social */}
       <Section title={t.ri_social}>
-        <div className="space-y-3">
-          <SocialField icon={<Globe className="w-4 h-4 text-white/40" />}          label={t.ri_website}      value={form.website}   onChange={set('website')}   placeholder="https://www.yourrestaurant.com" />
-          <SocialField icon={<InstagramIcon className="w-4 h-4 text-pink-400" />}  label="Instagram"         value={form.instagram} onChange={set('instagram')} placeholder="https://instagram.com/yourhandle" />
-          <SocialField icon={<FacebookIcon className="w-4 h-4 text-blue-400" />}   label="Facebook"          value={form.facebook}  onChange={set('facebook')}  placeholder="https://facebook.com/YourPage" />
-          <SocialField icon={<TwitterXIcon className="w-4 h-4 text-sky-400" />}    label="X (Twitter)"       value={form.twitter}   onChange={set('twitter')}   placeholder="https://x.com/yourhandle" />
-          <SocialField icon={<WhatsAppIcon className="w-4 h-4 text-emerald-400" />} label="WhatsApp"         value={form.whatsapp}  onChange={set('whatsapp')}  placeholder="+964 XXX XXX XXXX" />
-          <SocialField icon={<TikTokIcon className="w-4 h-4 text-white/60" />}     label="TikTok"            value={form.tiktok}    onChange={set('tiktok')}    placeholder="https://tiktok.com/@yourhandle" />
-          <SocialField icon={<YoutubeIcon className="w-4 h-4 text-rose-400" />}    label="YouTube"           value={form.youtube}   onChange={set('youtube')}   placeholder="https://youtube.com/@yourchannel" />
-          <SocialField icon={<SnapchatIcon className="w-4 h-4 text-yellow-400" />} label="Snapchat"          value={form.snapchat}  onChange={set('snapchat')}  placeholder="https://snapchat.com/add/yourusername" />
-          <SocialField icon={<MapPin className="w-4 h-4 text-emerald-400" />}      label={t.ri_location_link} value={form.maps_url} onChange={set('maps_url')}  placeholder="https://maps.google.com/..." />
-        </div>
+        <FadeSwitch id={loading ? 'skel-social' : 'real-social'}>
+          {loading ? (
+            <div className="space-y-3">
+              {[0, 1, 2, 3, 4].map(i => <Skel key={i} className="h-12 w-full rounded-xl" />)}
+            </div>
+          ) : (
+            <motion.div className="space-y-3" variants={FIELDS} initial="hidden" animate="show">
+              <motion.div variants={FIELD_ITEM}><SocialField icon={<Globe className="w-4 h-4 text-white/40" />}           label={t.ri_website}       value={form.website}   onChange={set('website')}   placeholder="https://www.yourrestaurant.com" /></motion.div>
+              <motion.div variants={FIELD_ITEM}><SocialField icon={<InstagramIcon className="w-4 h-4 text-pink-400" />}   label="Instagram"          value={form.instagram} onChange={set('instagram')} placeholder="https://instagram.com/yourhandle" /></motion.div>
+              <motion.div variants={FIELD_ITEM}><SocialField icon={<FacebookIcon className="w-4 h-4 text-blue-400" />}    label="Facebook"           value={form.facebook}  onChange={set('facebook')}  placeholder="https://facebook.com/YourPage" /></motion.div>
+              <motion.div variants={FIELD_ITEM}><SocialField icon={<TwitterXIcon className="w-4 h-4 text-sky-400" />}     label="X (Twitter)"        value={form.twitter}   onChange={set('twitter')}   placeholder="https://x.com/yourhandle" /></motion.div>
+              <motion.div variants={FIELD_ITEM}><SocialField icon={<WhatsAppIcon className="w-4 h-4 text-emerald-400" />} label="WhatsApp"           value={form.whatsapp}  onChange={set('whatsapp')}  placeholder="+964 XXX XXX XXXX" /></motion.div>
+              <motion.div variants={FIELD_ITEM}><SocialField icon={<TikTokIcon className="w-4 h-4 text-white/60" />}      label="TikTok"             value={form.tiktok}    onChange={set('tiktok')}    placeholder="https://tiktok.com/@yourhandle" /></motion.div>
+              <motion.div variants={FIELD_ITEM}><SocialField icon={<YoutubeIcon className="w-4 h-4 text-rose-400" />}     label="YouTube"            value={form.youtube}   onChange={set('youtube')}   placeholder="https://youtube.com/@yourchannel" /></motion.div>
+              <motion.div variants={FIELD_ITEM}><SocialField icon={<SnapchatIcon className="w-4 h-4 text-yellow-400" />}  label="Snapchat"           value={form.snapchat}  onChange={set('snapchat')}  placeholder="https://snapchat.com/add/yourusername" /></motion.div>
+              <motion.div variants={FIELD_ITEM}><SocialField icon={<MapPin className="w-4 h-4 text-emerald-400" />}       label={t.ri_location_link} value={form.maps_url}  onChange={set('maps_url')}  placeholder="https://maps.google.com/..." /></motion.div>
+            </motion.div>
+          )}
+        </FadeSwitch>
       </Section>
 
-      <div className="flex justify-end pt-2">
-        <SaveButton state={saveState} onClick={handleSave} large />
-      </div>
-    </div>
+      {!loading && (
+        <motion.div
+          className="flex justify-end pt-2"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.18 }}
+        >
+          <SaveButton state={saveState} onClick={handleSave} large />
+        </motion.div>
+      )}
+
+    </motion.div>
   )
 }
 

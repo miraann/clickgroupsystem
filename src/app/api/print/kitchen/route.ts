@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { buildKitchenBytes } from '@/lib/escpos'
+import { requireRestaurantAccess } from '@/lib/supabase/api-guard'
+import { rateLimit } from '@/lib/rate-limit'
 
 export const runtime = 'nodejs'
 
@@ -10,6 +12,9 @@ const supabase = createClient(
 )
 
 export async function POST(req: NextRequest) {
+  if (!rateLimit(req, 'print/kitchen', 30)) {
+    return NextResponse.json({ ok: false, error: 'Too many requests' }, { status: 429 })
+  }
   try {
     const body = await req.json() as {
       restaurantId: string
@@ -20,6 +25,9 @@ export async function POST(req: NextRequest) {
       items:        { name: string; qty: number; note?: string | null }[]
       note?:        string | null
     }
+
+    const { error: authError } = await requireRestaurantAccess(body.restaurantId)
+    if (authError) return authError
 
     const { data: printer } = await supabase
       .from('printers')

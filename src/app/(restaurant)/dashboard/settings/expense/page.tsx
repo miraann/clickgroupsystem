@@ -1,11 +1,12 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import {
-  DollarSign, Plus, Search, X, Loader2,
+  DollarSign, Plus, Search, X,
   TrendingUp, TrendingDown, LayoutGrid, Receipt,
   Trash2, Eye, ChevronDown, Calendar,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { SkeletonList } from '@/components/ui/SkeletonList'
 import { createClient } from '@/lib/supabase/client'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
@@ -138,11 +139,7 @@ export default function ExpensePage() {
     setExpenses(prev => prev.filter(e => e.id !== id))
   }
 
-  if (loading) return (
-    <div className="flex items-center justify-center h-64">
-      <Loader2 className="w-7 h-7 text-amber-400 animate-spin" />
-    </div>
-  )
+  if (loading) return <SkeletonList rows={6} />
 
   return (
     <div className="space-y-6 max-w-5xl">

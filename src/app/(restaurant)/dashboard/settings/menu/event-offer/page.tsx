@@ -35,6 +35,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { cn } from '@/lib/utils'
+import { SkeletonList } from '@/components/ui/SkeletonList'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import {
   Plus, Pencil, Trash2, CalendarDays, X,
@@ -50,6 +51,23 @@ import {
   useSortable, arrayMove,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { motion, AnimatePresence } from 'framer-motion'
+
+function FadeSwitch({ id, children }: { id: string; children: React.ReactNode }) {
+  return (
+    <AnimatePresence mode="popLayout" initial={false}>
+      <motion.div
+        key={id}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.18 }}
+      >
+        {children}
+      </motion.div>
+    </AnimatePresence>
+  )
+}
 
 interface EventOffer {
   id: string
@@ -301,12 +319,6 @@ export default function EventOfferPage() {
   }
 
   // ── Render ────────────────────────────────────────────────────
-  if (loading) return (
-    <div className="flex items-center justify-center h-48">
-      <Loader2 className="w-6 h-6 text-amber-400 animate-spin" />
-    </div>
-  )
-
   if (error) return (
     <div className="flex items-start gap-3 p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 max-w-md">
       <AlertCircle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
@@ -341,7 +353,11 @@ export default function EventOfferPage() {
         </button>
       </div>
 
-      {/* Sortable list */}
+      {/* FadeSwitch: skeleton ↔ real list */}
+      <FadeSwitch id={loading ? 'skel' : 'data'}>
+        {loading ? (
+          <SkeletonList rows={4} />
+        ) : (
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={events.map(e => e.id)} strategy={verticalListSortingStrategy}>
           <div className="space-y-2">
@@ -363,6 +379,8 @@ export default function EventOfferPage() {
           </div>
         </SortableContext>
       </DndContext>
+        )}
+      </FadeSwitch>
 
       {/* Modal */}
       {modal && (

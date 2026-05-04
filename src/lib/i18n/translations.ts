@@ -630,6 +630,10 @@ const translations = {
     wa_use_template:      'Use',
     wa_templates_hint:    'Templates are reusable message drafts. Click "Use" to load one into the composer.',
 
+    // ── Settings home ─────────────────────────────────
+    sh_subtitle:          'Configure your restaurant. Tap a tile to begin.',
+    sh_search:            'Search settings…',
+
     // ── Language picker ───────────────────────────────
     language:             'Language',
     choose_language:      'Choose Language',
@@ -1256,6 +1260,10 @@ const translations = {
     wa_use_template:      'بەکارهێنان',
     wa_templates_hint:    'قاڵبەکان پێشنووسی پەیامی دووبارە بەکارهاتنن. کلیک لەسەر "بەکارهێنان" بکە بۆ بارکردنیان.',
 
+    // ── Settings home ─────────────────────────────────
+    sh_subtitle:          'ڕێستۆرانتەکەت ڕێکبخە. کرتە لەسەر هەر کاشێک بکە.',
+    sh_search:            'گەڕان لە ڕێکخستنەکان…',
+
     // ── Language picker ───────────────────────────────
     language:             'زمان',
     choose_language:      'زمانەکەت هەڵبژێرە',
@@ -1881,6 +1889,10 @@ const translations = {
     wa_no_templates:      'لا توجد قوالب بعد. أنشئ واحداً للبدء.',
     wa_use_template:      'استخدام',
     wa_templates_hint:    'القوالب هي مسودات رسائل قابلة لإعادة الاستخدام. انقر على "استخدام" لتحميلها في المحرر.',
+
+    // ── Settings home ─────────────────────────────────
+    sh_subtitle:          'قم بتهيئة مطعمك. اضغط على أي لوح للبدء.',
+    sh_search:            'بحث في الإعدادات…',
 
     // ── Language picker ───────────────────────────────
     language:             'اللغة',

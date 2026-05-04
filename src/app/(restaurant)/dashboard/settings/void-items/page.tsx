@@ -1,8 +1,9 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
-import { Ban, Loader2, AlertCircle, Search, Calendar, ChevronDown } from 'lucide-react'
+import { Ban, AlertCircle, Search, Calendar, ChevronDown } from 'lucide-react'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { cn } from '@/lib/utils'
+import { SkeletonList } from '@/components/ui/SkeletonList'
 import { createClient } from '@/lib/supabase/client'
 
 interface VoidItem {
@@ -83,11 +84,7 @@ export default function VoidItemsPage() {
     { label: 'All time', value: 'all' },
   ]
 
-  if (loading) return (
-    <div className="flex items-center justify-center h-48">
-      <Loader2 className="w-6 h-6 text-rose-400 animate-spin" />
-    </div>
-  )
+  if (loading) return <SkeletonList rows={4} />
 
   if (error) return (
     <div className="flex items-start gap-3 p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 max-w-md">

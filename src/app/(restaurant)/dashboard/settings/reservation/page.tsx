@@ -5,6 +5,7 @@ import {
   Users, Phone, Mail, StickyNote, Search, RefreshCw,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { SkeletonList } from '@/components/ui/SkeletonList'
 import { createClient } from '@/lib/supabase/client'
 import { logAudit } from '@/lib/logAudit'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
@@ -161,9 +162,7 @@ export default function ReservationPage() {
 
       {/* Reservation list */}
       {loading ? (
-        <div className="flex items-center justify-center py-16">
-          <Loader2 className="w-6 h-6 text-amber-400 animate-spin" />
-        </div>
+        <SkeletonList rows={4} rowHeight="h-[100px]" />
       ) : filtered.length === 0 ? (
         <div className="text-center py-16">
           <CalendarDays className="w-10 h-10 text-white/15 mx-auto mb-3" />

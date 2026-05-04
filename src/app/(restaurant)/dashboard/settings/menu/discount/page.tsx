@@ -1,12 +1,31 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
+import { SkeletonList } from '@/components/ui/SkeletonList'
+import { AnimatedList, AnimatedItem } from '@/components/ui/AnimatedList'
 import { Plus, Pencil, Trash2, Percent, X, ToggleLeft, ToggleRight, Loader2, AlertCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { useDiscounts, type CachedDiscount } from '@/hooks/useDiscounts'
+import { motion, AnimatePresence } from 'framer-motion'
 
 type Discount = CachedDiscount
+
+function FadeSwitch({ id, children }: { id: string; children: React.ReactNode }) {
+  return (
+    <AnimatePresence mode="popLayout" initial={false}>
+      <motion.div
+        key={id}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.18 }}
+      >
+        {children}
+      </motion.div>
+    </AnimatePresence>
+  )
+}
 
 const EMPTY_FORM = { name: '', type: 'percentage' as 'percentage' | 'fixed', value: 10, min_order: 0, active: true }
 
@@ -14,8 +33,9 @@ export default function DiscountPage() {
   const supabase = createClient()
   const { t } = useLanguage()
 
-  const [restaurantId, setRestaurantId] = useState<string | null>(null)
-  useEffect(() => { setRestaurantId(localStorage.getItem('restaurant_id')) }, [])
+  const [restaurantId] = useState<string | null>(() =>
+    typeof window !== 'undefined' ? localStorage.getItem('restaurant_id') : null
+  )
 
   const { data: swrDiscounts, isLoading: loading, error: swrError, mutate } = useDiscounts(restaurantId)
 
@@ -91,8 +111,6 @@ export default function DiscountPage() {
   }
 
   // ── Render ─────────────────────────────────────────────────
-  if (loading) return <div className="flex items-center justify-center h-48"><Loader2 className="w-6 h-6 text-amber-400 animate-spin" /></div>
-
   if (error) return (
     <div className="flex items-start gap-3 p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 max-w-md">
       <AlertCircle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
@@ -124,10 +142,14 @@ export default function DiscountPage() {
         </button>
       </div>
 
-      {/* List */}
-      <div className="space-y-2">
+      {/* FadeSwitch: skeleton ↔ real list */}
+      <FadeSwitch id={loading ? 'skel' : 'data'}>
+        {loading ? (
+          <SkeletonList rows={4} />
+        ) : (
+      <AnimatedList className="space-y-2">
         {discounts.map(d => (
-          <div key={d.id} className={cn('flex items-center gap-3 p-4 bg-white/5 border rounded-2xl transition-all', d.active ? 'border-white/10' : 'border-white/5 opacity-60')}>
+          <AnimatedItem key={d.id} className={cn('flex items-center gap-3 p-4 bg-white/5 border rounded-2xl transition-all', d.active ? 'border-white/10' : 'border-white/5 opacity-60')}>
             <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center shrink-0">
               <span className="text-sm font-bold text-emerald-400">
                 {d.type === 'percentage' ? `${d.value}%` : `$${Number(d.value).toFixed(0)}`}
@@ -150,10 +172,12 @@ export default function DiscountPage() {
               deleteId === d.id ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30 px-2' : 'w-8 bg-white/5 hover:bg-rose-500/10 text-white/40 hover:text-rose-400')}>
               {deleteId === d.id ? t.delete : <Trash2 className="w-3.5 h-3.5" />}
             </button>
-          </div>
+          </AnimatedItem>
         ))}
         {discounts.length === 0 && <div className="text-center py-16 text-white/25 text-sm">{t.disc_no_data}</div>}
-      </div>
+      </AnimatedList>
+        )}
+      </FadeSwitch>
 
       {/* Modal */}
       {modal && (

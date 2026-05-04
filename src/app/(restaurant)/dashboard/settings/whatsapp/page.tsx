@@ -7,6 +7,7 @@ import {
   Pencil, Trash2, Save,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { SkeletonList } from '@/components/ui/SkeletonList'
 import { createClient } from '@/lib/supabase/client'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 
@@ -291,11 +292,7 @@ export default function WhatsAppPage() {
     return !q || c.name.toLowerCase().includes(q) || (c.phone ?? '').includes(q)
   })
 
-  if (!mounted) return (
-    <div className="flex items-center justify-center h-64">
-      <Loader2 className="w-6 h-6 animate-spin" style={{ color: WA_GREEN }} />
-    </div>
-  )
+  if (!mounted) return <SkeletonList rows={6} />
 
   return (
     <div className="max-w-5xl">

@@ -12,6 +12,8 @@ import {
   Key, Shield, Search, ChevronDown, Loader2,
   Save, Check, ChevronRight, UserCircle, QrCode, Smartphone,
 } from 'lucide-react'
+import { SkeletonList } from '@/components/ui/SkeletonList'
+import { AnimatedList, AnimatedItem } from '@/components/ui/AnimatedList'
 
 // ─── Staff types ────────────────────────────────────────────
 type Role = 'owner' | 'manager' | 'cashier' | 'waiter' | 'chef'
@@ -45,33 +47,71 @@ const PERMISSION_TREE: PermNode[] = [
     key: 'dashboard', label: 'Dashboard',
     children: [
       { key: 'dashboard.access',        label: 'Access Dashboard Page' },
-      { key: 'dashboard.pay',           label: 'Pay' },
-      { key: 'dashboard.receipt',       label: 'Print Receipt' },
-      { key: 'dashboard.drawer',        label: 'Drawer' },
-      { key: 'dashboard.member',        label: 'Member' },
-      { key: 'dashboard.customer',      label: 'Customer' },
-      { key: 'dashboard.surcharge',     label: 'Surcharge' },
-      { key: 'dashboard.gratuity',      label: 'Gratuity' },
-      { key: 'dashboard.discount',      label: 'Discount' },
-      { key: 'dashboard.note',          label: 'Note' },
-      { key: 'dashboard.split_bill',    label: 'Split Bill' },
-      { key: 'dashboard.pay_later',     label: 'Pay Later' },
-      { key: 'dashboard.void',          label: 'Void Item' },
-      { key: 'dashboard.item_discount', label: 'Item Discount' },
-      { key: 'dashboard.transfer',      label: 'Transfer Item' },
-      { key: 'dashboard.price',         label: 'Change Price' },
-      { key: 'dashboard.cfd',           label: 'CFD Display' },
+      {
+        key: 'dashboard.header_buttons', label: 'Header Buttons',
+        children: [
+          { key: 'dashboard.btn_reports',   label: 'Reports ($)'    },
+          { key: 'dashboard.btn_audit_log', label: 'Audit Log'      },
+          { key: 'dashboard.btn_staff',     label: 'Staff'          },
+          { key: 'dashboard.btn_waiter',    label: 'Waiter Calls'   },
+          { key: 'dashboard.btn_kds',       label: 'KDS'            },
+          { key: 'dashboard.cfd',           label: 'CFD Display'    },
+          { key: 'dashboard.btn_guests',    label: 'Guests'         },
+          { key: 'dashboard.btn_language',  label: 'Language'       },
+        ],
+      },
+      {
+        key: 'dashboard.nav_buttons', label: 'Bottom Navigation',
+        children: [
+          { key: 'dashboard.btn_new_order',  label: 'New Order'  },
+          { key: 'dashboard.btn_qr_orders',  label: 'QR Orders'  },
+          { key: 'dashboard.btn_delivery',   label: 'Delivery'   },
+          { key: 'dashboard.btn_takeout',    label: 'Takeout'    },
+          { key: 'dashboard.btn_settings',   label: 'Settings'   },
+        ],
+      },
+      {
+        key: 'dashboard.page_access', label: 'Page Access',
+        children: [
+          { key: 'dine_in',  label: 'Dashboard (Dine In)' },
+          { key: 'delivery', label: 'Delivery Orders'      },
+          { key: 'takeout',  label: 'QR / Takeout Orders'  },
+          { key: 'kds',      label: 'KDS Monitor'          },
+          { key: 'guests',   label: 'Guests'               },
+          { key: 'cfd',      label: 'CFD Display'          },
+        ],
+      },
     ],
   },
-  { key: 'cfd',         label: 'CFD Screen Access' },
-  { key: 'dine_in',     label: 'Dine In' },
-  { key: 'delivery',    label: 'Delivery' },
-  { key: 'takeout',     label: 'Takeout' },
-  { key: 'bar',         label: 'Bar (Coffee Bar)' },
-  { key: 'kds',         label: 'KDS Monitor' },
-  { key: 'guests',      label: 'Guests' },
-  { key: 'drawer',      label: 'Drawer' },
-  { key: 'reservation', label: 'Reservation' },
+  {
+    key: 'dashboard.order_screen', label: 'Order Screen Buttons',
+    children: [
+      { key: 'dashboard.order.guest_edit',    label: 'Edit Guest Count'  },
+      { key: 'dashboard.order.send_kitchen',  label: 'Send to Kitchen'   },
+      { key: 'dashboard.pay',                 label: 'Pay'               },
+      { key: 'dashboard.cfd_order',           label: 'CFD (Order Screen)'},
+      { key: 'dashboard.void',                label: 'Void Item'         },
+      { key: 'dashboard.item_discount',       label: 'Item Discount'     },
+      { key: 'dashboard.transfer',            label: 'Transfer Item'     },
+      { key: 'dashboard.price',               label: 'Change Price'      },
+    ],
+  },
+  {
+    key: 'payment_screen', label: 'Payment Screen Buttons',
+    children: [
+      { key: 'dashboard.surcharge',  label: 'Surcharge'     },
+      { key: 'dashboard.gratuity',   label: 'Gratuity'      },
+      { key: 'dashboard.discount',   label: 'Discount'      },
+      { key: 'dashboard.note',       label: 'Note'          },
+      { key: 'dashboard.split_bill', label: 'Split Bill'    },
+      { key: 'dashboard.pay_later',  label: 'Pay Later'     },
+      { key: 'dashboard.receipt',    label: 'Print Receipt' },
+      { key: 'payment_screen.wa',    label: 'WhatsApp (WA)' },
+      { key: 'dashboard.drawer',     label: 'Drawer'        },
+      { key: 'dashboard.member',     label: 'Member'        },
+      { key: 'dashboard.customer',   label: 'Customer'      },
+    ],
+  },
   {
     key: 'manage_delivery', label: 'Manage Delivery',
     children: [
@@ -113,16 +153,47 @@ const PERMISSION_TREE: PermNode[] = [
   {
     key: 'settings', label: 'Settings Access',
     children: [
-      { key: 'settings.restaurant_info', label: 'Restaurant Info' },
-      { key: 'settings.device',          label: 'Device' },
-      { key: 'settings.dine_in',         label: 'Dine In Settings' },
-      { key: 'settings.delivery',        label: 'Delivery Settings' },
-      { key: 'settings.users',           label: 'Users' },
-      { key: 'settings.member',          label: 'Members' },
-      { key: 'settings.customer',        label: 'Customers' },
-      { key: 'settings.kds_monitor',     label: 'KDS Monitor Settings' },
-      { key: 'settings.inventory',       label: 'Inventory' },
-      { key: 'settings.audit_log',       label: 'Audit Log' },
+      {
+        key: 'settings.general', label: 'General',
+        children: [
+          { key: 'settings.restaurant_info', label: 'Restaurant Info' },
+          { key: 'settings.preference',      label: 'Preference'      },
+          { key: 'settings.device',          label: 'Device'          },
+        ],
+      },
+      {
+        key: 'settings.operations', label: 'Operations',
+        children: [
+          { key: 'settings.dine_in',     label: 'Dine In'     },
+          { key: 'settings.delivery',    label: 'Delivery'    },
+          { key: 'settings.takeout',     label: 'Takeout'     },
+          { key: 'settings.bar',         label: 'Coffee Bar'  },
+          { key: 'settings.reservation', label: 'Reservation' },
+          { key: 'settings.kds_monitor', label: 'KDS Monitor' },
+          { key: 'settings.inventory',   label: 'Inventory'   },
+        ],
+      },
+      {
+        key: 'settings.sg_finance', label: 'Finance',
+        children: [
+          { key: 'settings.void_items', label: 'Void Items' },
+        ],
+      },
+      {
+        key: 'settings.people', label: 'People',
+        children: [
+          { key: 'settings.audit_log', label: 'Audit Log' },
+          { key: 'settings.users',     label: 'Users'     },
+          { key: 'settings.member',    label: 'Members'   },
+          { key: 'settings.customer',  label: 'Customers' },
+        ],
+      },
+      {
+        key: 'settings.marketing', label: 'Marketing',
+        children: [
+          { key: 'settings.whatsapp', label: 'WhatsApp' },
+        ],
+      },
     ],
   },
 ]
@@ -133,6 +204,8 @@ const PERM_MODULE_MAP: Record<string, string | null> = {
   dashboard: null,
   'dashboard.access':        null,
   'dashboard.pay':           null,
+  payment_screen:            null,
+  'payment_screen.wa':       null,
   'dashboard.receipt':       null,
   'dashboard.drawer':        null,
   'dashboard.member':        'member',
@@ -147,16 +220,32 @@ const PERM_MODULE_MAP: Record<string, string | null> = {
   'dashboard.item_discount': null,
   'dashboard.transfer':      null,
   'dashboard.price':         null,
-  'dashboard.cfd':           null,
+  'dashboard.order_screen':          null,
+  'dashboard.order.guest_edit':      null,
+  'dashboard.order.send_kitchen':    null,
+  'dashboard.cfd_order':             null,
+  'dashboard.header_buttons':        null,
+  'dashboard.btn_reports':     null,
+  'dashboard.btn_audit_log':   null,
+  'dashboard.btn_staff':       null,
+  'dashboard.btn_waiter':      null,
+  'dashboard.btn_kds':         'kds',
+  'dashboard.cfd':             null,
+  'dashboard.btn_guests':      'dine_in',
+  'dashboard.btn_language':    null,
+  'dashboard.nav_buttons':     null,
+  'dashboard.btn_new_order':   null,
+  'dashboard.btn_qr_orders':   null,
+  'dashboard.btn_delivery':    'delivery',
+  'dashboard.btn_takeout':     'takeout',
+  'dashboard.btn_settings':    null,
+  'dashboard.page_access':     null,
   cfd: null,
   dine_in: 'dine_in',
   delivery: 'delivery',
   takeout: 'takeout',
-  bar: 'bar',
   kds: 'kds',
   guests: 'dine_in',
-  drawer: null,
-  reservation: 'reservation',
   manage_delivery: 'delivery',
   finance: null,
   menu: 'menu',
@@ -166,16 +255,27 @@ const PERM_MODULE_MAP: Record<string, string | null> = {
   'finance.receipt': null,
   'finance.sales': 'sales',
   'finance.report': 'report',
-  'settings.restaurant_info': null,
-  'settings.device': null,
-  'settings.dine_in': 'dine_in',
-  'settings.delivery': 'delivery',
-  'settings.users': null,
-  'settings.member': 'member',
-  'settings.customer': 'customer',
-  'settings.kds_monitor': 'kds',
-  'settings.inventory': 'inventory',
-  'settings.audit_log': null,
+  'settings.general':        null,
+  'settings.restaurant_info':null,
+  'settings.preference':     null,
+  'settings.device':         null,
+  'settings.operations':     null,
+  'settings.dine_in':        'dine_in',
+  'settings.delivery':       'delivery',
+  'settings.takeout':        'takeout',
+  'settings.bar':            'bar',
+  'settings.reservation':    'reservation',
+  'settings.kds_monitor':    'kds',
+  'settings.inventory':      'inventory',
+  'settings.sg_finance':     null,
+  'settings.void_items':     null,
+  'settings.people':         null,
+  'settings.audit_log':      null,
+  'settings.users':          null,
+  'settings.member':         'member',
+  'settings.customer':       'customer',
+  'settings.marketing':      null,
+  'settings.whatsapp':       null,
 }
 
 function filterPermTree(tree: PermNode[], modules: Record<string, boolean>): PermNode[] {
@@ -226,7 +326,7 @@ function PermRow({ node, perms, depth = 0, onChange }: { node: PermNode; perms: 
           {mixed && <div className="w-2 h-0.5 bg-white rounded-full" />}
         </button>
         <span onClick={isParent ? () => setOpen(o => !o) : toggle}
-          className={cn('text-sm flex-1 cursor-pointer select-none', checked || mixed ? 'text-white' : 'text-white/50')}>
+          className="text-sm flex-1 cursor-pointer select-none text-white">
           {node.label}
         </span>
       </div>
@@ -445,7 +545,7 @@ export default function UsersPage() {
   )
   const selectedRole = roles.find(r => r.id === selectedRoleId)
 
-  if (!mounted) return <div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 text-amber-400 animate-spin" /></div>
+  if (!mounted) return <SkeletonList rows={6} />
 
   return (
     <div className="max-w-5xl">
@@ -504,13 +604,14 @@ export default function UsersPage() {
           </div>
 
           {loadingUsers ? (
-            <div className="flex items-center justify-center py-16"><Loader2 className="w-6 h-6 text-amber-400 animate-spin" /></div>
+            <SkeletonList rows={4} />
           ) : (
-            <div className="space-y-2">
+            <AnimatedList className="space-y-2">
               {filtered.map(u => {
                 const customRole = (() => { const cr = roleStaff.find(s => s.id === u.id); return cr?.role_id ? roles.find(r => r.id === cr.role_id) : null })()
                 return (
-                  <div key={u.id} className={cn('flex items-center gap-3 p-4 bg-white/5 border rounded-2xl transition-all hover:border-white/15', u.status === 'active' ? 'border-white/10' : 'border-white/5 opacity-60')}>
+                  <AnimatedItem key={u.id}>
+                  <div className={cn('flex items-center gap-3 p-4 bg-white/5 border rounded-2xl transition-all hover:border-white/15', u.status === 'active' ? 'border-white/10' : 'border-white/5 opacity-60')}>
                     <div className="relative shrink-0">
                       <div className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold text-white border bg-amber-500/15 border-amber-500/25">
                         {u.name.split(' ').map(n => n[0]).join('')}
@@ -522,11 +623,11 @@ export default function UsersPage() {
                         <p className="text-sm font-semibold text-white truncate">{u.name}</p>
                         {customRole
                           ? <span className="text-[10px] px-1.5 py-0.5 rounded-md font-medium border border-amber-500/30 bg-amber-500/10 text-amber-400">{customRole.name}</span>
-                          : <span className="text-[10px] px-1.5 py-0.5 rounded-md font-medium border border-white/10 bg-white/5 text-white/30">No role</span>}
+                          : <span className="text-[10px] px-1.5 py-0.5 rounded-md font-medium border border-white/10 bg-white/5 text-white/50">No role</span>}
                       </div>
                       <div className="flex items-center gap-3 mt-0.5">
-                        {u.email && <span className="text-xs text-white/35 truncate">{u.email}</span>}
-                        {showPins && <span className="text-xs font-mono px-1.5 py-0.5 rounded bg-white/8 text-white/50">PIN: {u.pin}</span>}
+                        {u.email && <span className="text-xs text-white/55 truncate">{u.email}</span>}
+                        {showPins && <span className="text-xs font-mono px-1.5 py-0.5 rounded bg-white/8 text-white/70">PIN: {u.pin}</span>}
                       </div>
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
@@ -541,10 +642,11 @@ export default function UsersPage() {
                       </button>
                     </div>
                   </div>
+                  </AnimatedItem>
                 )
               })}
               {filtered.length === 0 && <div className="text-center py-16 text-white/25 text-sm">{t.usr_no_data}</div>}
-            </div>
+            </AnimatedList>
           )}
         </>
       )}
@@ -561,7 +663,7 @@ export default function UsersPage() {
                 {roles.length > 0 && <span className="ml-auto px-1.5 py-0.5 rounded-full text-[10px] font-bold text-white/40 bg-white/8">{roles.length}</span>}
               </div>
               {loadingRoles ? (
-                <div className="flex items-center justify-center py-8"><Loader2 className="w-4 h-4 animate-spin text-white/30" /></div>
+                <div className="p-2"><SkeletonList rows={3} rowHeight="h-9" /></div>
               ) : roles.length === 0 ? (
                 <p className="text-center py-6 text-xs text-white/25">No roles yet</p>
               ) : (
@@ -571,10 +673,10 @@ export default function UsersPage() {
                     return (
                       <div key={role.id} onClick={() => selectRole(role)}
                         className={cn('flex items-center gap-2 px-3 py-2.5 rounded-xl cursor-pointer transition-all group',
-                          selectedRoleId === role.id ? 'bg-amber-500/15 border border-amber-500/25 text-white' : 'text-white/50 hover:text-white/80 hover:bg-white/5')}>
+                          selectedRoleId === role.id ? 'bg-amber-500/15 border border-amber-500/25 text-white' : 'text-white/80 hover:text-white hover:bg-white/5')}>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium truncate">{role.name}</p>
-                          {staffCount > 0 && <p className="text-[10px] text-white/30">{staffCount} staff</p>}
+                          {staffCount > 0 && <p className="text-[10px] text-white/50">{staffCount} staff</p>}
                         </div>
                         <button onClick={e => { e.stopPropagation(); deleteRole(role.id) }} disabled={deletingRoleId === role.id}
                           className="w-5 h-5 rounded flex items-center justify-center text-white/20 hover:text-rose-400 opacity-0 group-hover:opacity-100 disabled:opacity-50 transition-all shrink-0">
@@ -649,7 +751,7 @@ export default function UsersPage() {
                     <div className="px-5 py-2 border-b border-white/4 flex items-center gap-3">
                       <button onClick={selectAll} className="text-[11px] text-amber-400/70 hover:text-amber-400 transition-colors">Select All</button>
                       <span className="text-white/15">·</span>
-                      <button onClick={clearAll} className="text-[11px] text-white/30 hover:text-white/60 transition-colors">Clear All</button>
+                      <button onClick={clearAll} className="text-[11px] text-white/60 hover:text-white/90 transition-colors">Clear All</button>
                     </div>
                     <div>{visiblePermTree.map(node => <PermRow key={node.key} node={node} perms={perms} onChange={changePermission} />)}</div>
                   </>
@@ -659,7 +761,7 @@ export default function UsersPage() {
                   <div className="p-4">
                     <p className="text-xs text-white/30 mb-3">Staff assigned to <span className="text-amber-400 font-semibold">{selectedRole.name}</span> will inherit its permissions.</p>
                     {loadingRoleStaff ? (
-                      <div className="flex items-center justify-center py-10"><Loader2 className="w-5 h-5 animate-spin text-white/30" /></div>
+                      <SkeletonList rows={3} rowHeight="h-[58px]" />
                     ) : roleStaff.length === 0 ? (
                       <p className="text-center py-8 text-sm text-white/25">No staff members found</p>
                     ) : (
@@ -673,7 +775,7 @@ export default function UsersPage() {
                               </div>
                               <div className="flex-1 min-w-0">
                                 <p className="text-sm font-medium text-white truncate">{member.name || '—'}</p>
-                                <p className="text-[11px] text-white/35 truncate">{member.email} · {member.role}</p>
+                                <p className="text-[11px] text-white/55 truncate">{member.email} · {member.role}</p>
                               </div>
                               {assigningId === member.id ? (
                                 <Loader2 className="w-4 h-4 animate-spin text-amber-400 shrink-0" />

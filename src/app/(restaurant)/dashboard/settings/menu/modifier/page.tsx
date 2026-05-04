@@ -1,15 +1,34 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
+import { SkeletonList } from '@/components/ui/SkeletonList'
+import { AnimatedList, AnimatedItem } from '@/components/ui/AnimatedList'
 import { Plus, Pencil, Trash2, Sliders, X, ToggleLeft, ToggleRight, Loader2, AlertCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { logAudit } from '@/lib/logAudit'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { useMenuModifiers, type CachedModifier, type CachedModOption } from '@/hooks/useMenuModifiers'
+import { motion, AnimatePresence } from 'framer-motion'
 
 type ModOption = CachedModOption
 type Modifier = CachedModifier
+
+function FadeSwitch({ id, children }: { id: string; children: React.ReactNode }) {
+  return (
+    <AnimatePresence mode="popLayout" initial={false}>
+      <motion.div
+        key={id}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.18 }}
+      >
+        {children}
+      </motion.div>
+    </AnimatePresence>
+  )
+}
 
 const EMPTY_FORM = { name: '', required: false, min_select: 0, max_select: 1 }
 
@@ -18,8 +37,9 @@ export default function ModifierPage() {
   const { formatPrice } = useDefaultCurrency()
   const { t } = useLanguage()
 
-  const [restaurantId, setRestaurantId] = useState<string | null>(null)
-  useEffect(() => { setRestaurantId(localStorage.getItem('restaurant_id')) }, [])
+  const [restaurantId] = useState<string | null>(() =>
+    typeof window !== 'undefined' ? localStorage.getItem('restaurant_id') : null
+  )
 
   const { data: swrMods, isLoading: loading, error: swrError, mutate } = useMenuModifiers(restaurantId)
 
@@ -120,12 +140,6 @@ export default function ModifierPage() {
   }
 
   // ── Render ─────────────────────────────────────────────────
-  if (loading) return (
-    <div className="flex items-center justify-center h-48">
-      <Loader2 className="w-6 h-6 text-amber-400 animate-spin" />
-    </div>
-  )
-
   if (error) return (
     <div className="flex items-start gap-3 p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 max-w-md">
       <AlertCircle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
@@ -160,10 +174,14 @@ export default function ModifierPage() {
         </button>
       </div>
 
-      {/* List */}
-      <div className="space-y-3">
+      {/* FadeSwitch: skeleton ↔ real list */}
+      <FadeSwitch id={loading ? 'skel' : 'data'}>
+        {loading ? (
+          <SkeletonList rows={5} />
+        ) : (
+      <AnimatedList className="space-y-3">
         {mods.map(m => (
-          <div key={m.id} className="p-4 bg-white/5 border border-white/10 rounded-2xl">
+          <AnimatedItem key={m.id} className="p-4 bg-white/5 border border-white/10 rounded-2xl">
             <div className="flex items-center gap-3 mb-3">
               <div className="flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
@@ -198,10 +216,12 @@ export default function ModifierPage() {
               ))}
               {m.modifier_options.length === 0 && <span className="text-xs text-white/25">{t.mod_no_data}</span>}
             </div>
-          </div>
+          </AnimatedItem>
         ))}
         {mods.length === 0 && <div className="text-center py-16 text-white/25 text-sm">{t.mod_no_data}</div>}
-      </div>
+      </AnimatedList>
+        )}
+      </FadeSwitch>
 
       {/* Modal */}
       {modal && (

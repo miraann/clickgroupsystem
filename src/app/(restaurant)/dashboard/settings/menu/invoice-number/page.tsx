@@ -3,6 +3,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { FileText, Save, CheckCircle2, Loader2, AlertCircle } from 'lucide-react'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { cn } from '@/lib/utils'
+import { SkeletonList } from '@/components/ui/SkeletonList'
+import { motion, AnimatePresence } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
 
 type ResetPeriod = 'never' | 'daily' | 'monthly' | 'yearly'
@@ -15,6 +17,22 @@ interface Settings {
 }
 
 const DEFAULTS: Settings = { prefix: 'INV-', start_num: 1001, current_num: 1001, reset_period: 'never' }
+
+function FadeSwitch({ id, children }: { id: string; children: React.ReactNode }) {
+  return (
+    <AnimatePresence mode="popLayout" initial={false}>
+      <motion.div
+        key={id}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.18 }}
+      >
+        {children}
+      </motion.div>
+    </AnimatePresence>
+  )
+}
 
 export default function InvoiceNumberPage() {
   const supabase = createClient()
@@ -70,8 +88,6 @@ export default function InvoiceNumberPage() {
   const preview = `${settings.prefix}${settings.start_num}`
 
   // ── Render ─────────────────────────────────────────────────
-  if (loading) return <div className="flex items-center justify-center h-48"><Loader2 className="w-6 h-6 text-amber-400 animate-spin" /></div>
-
   if (error) return (
     <div className="flex items-start gap-3 p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 max-w-md">
       <AlertCircle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
@@ -105,6 +121,12 @@ export default function InvoiceNumberPage() {
         </button>
       </div>
 
+      {/* FadeSwitch: skeleton ↔ real content */}
+      <FadeSwitch id={loading ? 'skel' : 'data'}>
+        {loading ? (
+          <SkeletonList rows={4} />
+        ) : (
+      <div>
       {/* Live preview */}
       <div className="p-5 bg-gradient-to-br from-amber-500/10 to-orange-500/5 border border-amber-500/20 rounded-2xl mb-6 text-center">
         <p className="text-xs text-white/40 mb-2 uppercase tracking-wider">{t.in_preview}</p>
@@ -143,6 +165,9 @@ export default function InvoiceNumberPage() {
           </div>
         </div>
       </div>
+      </div>
+        )}
+      </FadeSwitch>
     </div>
   )
 }

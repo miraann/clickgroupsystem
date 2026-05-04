@@ -9,6 +9,7 @@ import {
   RotateCcw, X, User, Clock,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { SkeletonList } from '@/components/ui/SkeletonList'
 import { createClient } from '@/lib/supabase/client'
 import { logAudit } from '@/lib/logAudit'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
@@ -322,9 +323,7 @@ function AllInvoices({ restaurantId }: { restaurantId: string }) {
 
       {/* List */}
       {loading ? (
-        <div className="flex justify-center py-16">
-          <Loader2 className="w-6 h-6 text-amber-400 animate-spin" />
-        </div>
+        <SkeletonList rows={4} rowHeight="h-[72px]" />
       ) : invoices.length === 0 ? (
         <div className="text-center py-20 text-white/30">
           <FileText className="w-10 h-10 mx-auto mb-3 opacity-30" />
@@ -514,7 +513,7 @@ function InvoiceNumberTab({ restaurantId }: { restaurantId: string }) {
     setSaving(false)
   }
 
-  if (loading) return <div className="flex items-center justify-center h-48"><Loader2 className="w-6 h-6 text-amber-400 animate-spin" /></div>
+  if (loading) return <SkeletonList rows={4} />
 
   const preview = `${settings.prefix}${settings.start_num}`
 
@@ -614,7 +613,7 @@ function OrderNumberTab({ restaurantId }: { restaurantId: string }) {
     setSaving(false)
   }
 
-  if (loading) return <div className="flex items-center justify-center h-48"><Loader2 className="w-6 h-6 text-amber-400 animate-spin" /></div>
+  if (loading) return <SkeletonList rows={4} />
 
   const preview = `${settings.prefix}${String(settings.start_num).padStart(3, '0')}`
 
@@ -816,7 +815,7 @@ function RecoverTableTab({ restaurantId }: { restaurantId: string }) {
 
       {/* Recovery log list */}
       {loading ? (
-        <div className="flex justify-center py-10"><Loader2 className="w-5 h-5 text-amber-400 animate-spin" /></div>
+        <SkeletonList rows={3} rowHeight="h-[64px]" />
       ) : logs.length === 0 ? (
         <div className="text-center py-14 text-white/25 text-sm">No recoveries yet</div>
       ) : (
@@ -1048,11 +1047,7 @@ export default function ReceiptSettingsPage() {
     load()
   }
 
-  if (loading) return (
-    <div className="flex items-center justify-center h-48">
-      <Loader2 className="w-6 h-6 text-amber-400 animate-spin" />
-    </div>
-  )
+  if (loading) return <SkeletonList rows={5} />
 
   return (
     <div>

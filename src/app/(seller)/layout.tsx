@@ -1,4 +1,5 @@
 import { SellerSidebar } from '@/components/seller/seller-sidebar'
+import { PageTransition } from '@/components/restaurant/PageTransition'
 
 export default function SellerLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -14,7 +15,7 @@ export default function SellerLayout({ children }: { children: React.ReactNode }
 
       <main className="ml-64 min-h-screen relative">
         <div className="p-8">
-          {children}
+          <PageTransition>{children}</PageTransition>
         </div>
       </main>
     </div>

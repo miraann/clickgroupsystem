@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { logAudit } from '@/lib/logAudit'
 import { useInventoryData, type CachedInvCategory, type CachedInvUnit, type CachedInvItem } from '@/hooks/useInventoryData'
 import { cn } from '@/lib/utils'
+import { SkeletonList } from '@/components/ui/SkeletonList'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import {
   Package, Plus, Pencil, Trash2, X, Loader2, Check,
@@ -246,11 +247,7 @@ export default function InventoryPage() {
   const lowCount  = items.filter(i => i.current_stock > 0 && i.current_stock <= i.min_stock).length
   const okCount   = items.filter(i => i.current_stock > i.min_stock).length
 
-  if (loading) return (
-    <div className="flex items-center justify-center h-64">
-      <Loader2 className="w-6 h-6 text-emerald-400 animate-spin" />
-    </div>
-  )
+  if (loading) return <SkeletonList rows={6} />
 
   return (
     <div className="max-w-4xl mx-auto">
