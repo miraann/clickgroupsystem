@@ -163,13 +163,11 @@ const [moduleEnabled,  setModuleEnabled]  = useState<boolean | null>(null)
         {isHome ? (
           children
         ) : pathname.startsWith('/dashboard/settings/menu/') ? (
-          /* Menu sub-pages: no settings-level animation; menu layout owns transitions */
-          <div className="p-4 sm:p-6 min-h-[calc(100vh-120px)]">
-            <div className="max-w-2xl mx-auto">
-              {moduleEnabled === false && activeModuleKey
-                ? <UpgradeWall moduleName={moduleLabel(activeModuleKey)} />
-                : children}
-            </div>
+          /* Menu sub-pages — menu layout owns all spacing via its own -m-6 + fluid px */
+          <div className="min-h-[calc(100vh-120px)]">
+            {moduleEnabled === false && activeModuleKey
+              ? <div className="p-6 max-w-2xl mx-auto"><UpgradeWall moduleName={moduleLabel(activeModuleKey)} /></div>
+              : children}
           </div>
         ) : (
           <div className="p-4 sm:p-6 min-h-[calc(100vh-120px)]">

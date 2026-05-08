@@ -9,7 +9,7 @@ const itemGridVariants = {
 }
 const itemVariants = {
   hidden:  { opacity: 0, scale: 0.95 },
-  visible: { opacity: 1, scale: 1, transition: { duration: 0.15, ease: 'easeOut' } },
+  visible: { opacity: 1, scale: 1, transition: { duration: 0.15, ease: 'easeOut' as const } },
 }
 
 interface Props {

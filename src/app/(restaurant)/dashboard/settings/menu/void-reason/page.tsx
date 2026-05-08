@@ -1,18 +1,18 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { SkeletonList } from '@/components/ui/SkeletonList'
-import { AnimatedList, AnimatedItem } from '@/components/ui/AnimatedList'
 import { Plus, Trash2, XCircle, ToggleLeft, ToggleRight, Loader2, AlertCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useVoidReasons, type CachedVoidReason } from '@/hooks/useVoidReasons'
+import { motion, AnimatePresence, type Variants } from 'framer-motion'
 
-interface VoidReason { id: string; text: string; active: boolean; sort_order: number }
+type VoidReason = CachedVoidReason
 
 function FadeSwitch({ id, children }: { id: string; children: React.ReactNode }) {
   return (
-    <AnimatePresence mode="popLayout" initial={false}>
+    <AnimatePresence mode="popLayout">
       <motion.div
         key={id}
         initial={{ opacity: 0 }}
@@ -26,37 +26,36 @@ function FadeSwitch({ id, children }: { id: string; children: React.ReactNode })
   )
 }
 
+const PAGE: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  show:   { opacity: 1, y: 0,  transition: { duration: 0.55, ease: 'circOut' as const } },
+  exit:   { opacity: 0, y: -10, transition: { duration: 0.3 } },
+}
+const LIST: Variants = {
+  hidden:  {},
+  visible: { transition: { staggerChildren: 0.08, delayChildren: 0.15 } },
+}
+const ITEM_VAR: Variants = {
+  hidden:  { opacity: 0, y: 30 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.45, ease: 'circOut' as const } },
+}
+
 export default function VoidReasonPage() {
   const supabase = createClient()
   const { t } = useLanguage()
 
-  const [restaurantId, setRestaurantId] = useState<string | null>(null)
-  const [reasons, setReasons]           = useState<VoidReason[]>([])
-  const [loading, setLoading]           = useState(true)
-  const [error, setError]               = useState<string | null>(null)
-  const [newText, setNewText]           = useState('')
-  const [adding, setAdding]             = useState(false)
-  const [deleteId, setDeleteId]         = useState<string | null>(null)
+  const [restaurantId] = useState<string | null>(() =>
+    typeof window !== 'undefined' ? localStorage.getItem('restaurant_id') : null
+  )
 
-  // ── Load ───────────────────────────────────────────────────
-  const load = useCallback(async () => {
-    setLoading(true); setError(null)
-    const { data: rest } = await supabase.from('restaurants').select('id').eq('id', typeof window !== 'undefined' ? (localStorage.getItem('restaurant_id') ?? '') : '').maybeSingle()
-    if (!rest) { setError('Restaurant not found'); setLoading(false); return }
-    setRestaurantId(rest.id)
+  const { data: swrReasons, isLoading: loading, error: swrError, mutate } = useVoidReasons(restaurantId)
 
-    const { data, error: err } = await supabase
-      .from('void_reasons')
-      .select('*')
-      .eq('restaurant_id', rest.id)
-      .order('sort_order')
+  const reasons = swrReasons ?? []
+  const error   = swrError ? (swrError as Error).message : null
 
-    if (err) { setError(err.message); setLoading(false); return }
-    setReasons((data ?? []) as VoidReason[])
-    setLoading(false)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => { load() }, [load])
+  const [newText, setNewText]   = useState('')
+  const [adding, setAdding]     = useState(false)
+  const [deleteId, setDeleteId] = useState<string | null>(null)
 
   // ── Add ────────────────────────────────────────────────────
   const add = async () => {
@@ -67,7 +66,7 @@ export default function VoidReasonPage() {
       .from('void_reasons')
       .insert({ restaurant_id: restaurantId, text: newText.trim(), active: true, sort_order: nextOrder })
       .select().single()
-    if (!error && data) setReasons(rs => [...rs, data as VoidReason])
+    if (!error && data) mutate([...reasons, data as VoidReason], false)
     setNewText('')
     setAdding(false)
   }
@@ -75,7 +74,7 @@ export default function VoidReasonPage() {
   // ── Toggle ─────────────────────────────────────────────────
   const toggle = async (r: VoidReason) => {
     const newVal = !r.active
-    setReasons(rs => rs.map(x => x.id === r.id ? { ...x, active: newVal } : x))
+    mutate(reasons.map(x => x.id === r.id ? { ...x, active: newVal } : x), false)
     await supabase.from('void_reasons').update({ active: newVal }).eq('id', r.id)
   }
 
@@ -85,7 +84,7 @@ export default function VoidReasonPage() {
       setDeleteId(id); setTimeout(() => setDeleteId(d => d === id ? null : d), 3000); return
     }
     const { error } = await supabase.from('void_reasons').delete().eq('id', id)
-    if (!error) setReasons(rs => rs.filter(r => r.id !== id))
+    if (!error) mutate(reasons.filter(r => r.id !== id), false)
     setDeleteId(null)
   }
 
@@ -97,13 +96,13 @@ export default function VoidReasonPage() {
         <p className="text-sm text-rose-400 font-semibold">Failed to load</p>
         <p className="text-xs text-white/40 mt-1 font-mono">{error}</p>
         <p className="text-xs text-white/30 mt-1">Run <code className="text-amber-400">supabase-menu-schema.sql</code> first.</p>
-        <button onClick={load} className="mt-2 px-3 py-1.5 rounded-lg bg-white/8 text-xs text-white/50 hover:bg-white/12 active:scale-95 transition-all">Retry</button>
+        <button onClick={() => mutate()} className="mt-2 px-3 py-1.5 rounded-lg bg-white/8 text-xs text-white/50 hover:bg-white/12 active:scale-95 transition-all">Retry</button>
       </div>
     </div>
   )
 
   return (
-    <div className="max-w-2xl mx-auto">
+    <motion.div key="menu-void-reason-page" variants={PAGE} initial="hidden" animate="show" exit="exit" className="max-w-2xl mx-auto">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <div className="w-9 h-9 rounded-xl bg-rose-500/15 flex items-center justify-center">
@@ -140,30 +139,31 @@ export default function VoidReasonPage() {
         {loading ? (
           <SkeletonList rows={4} />
         ) : (
-      <AnimatedList className="space-y-2">
-        {reasons.map(r => (
-          <AnimatedItem
-            key={r.id}
-            className={cn('flex items-center gap-3 px-4 py-3 bg-white/5 border rounded-2xl transition-all',
-              r.active ? 'border-white/10' : 'border-white/5 opacity-50')}
-          >
-            <p className={cn('flex-1 text-sm', r.active ? 'text-white' : 'text-white/40')}>{r.text}</p>
-            <button onClick={() => toggle(r)} className="active:scale-95 shrink-0">
-              {r.active ? <ToggleRight className="w-6 h-6 text-amber-400" /> : <ToggleLeft className="w-6 h-6 text-white/25" />}
-            </button>
-            <button
-              onClick={() => handleDelete(r.id)}
-              className={cn('h-8 rounded-lg flex items-center justify-center transition-all active:scale-95 text-xs font-medium shrink-0',
-                deleteId === r.id ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30 px-2' : 'w-8 bg-white/5 hover:bg-rose-500/10 text-white/40 hover:text-rose-400')}
-            >
-              {deleteId === r.id ? t.confirm : <Trash2 className="w-3.5 h-3.5" />}
-            </button>
-          </AnimatedItem>
-        ))}
-        {reasons.length === 0 && <div className="text-center py-12 text-white/25 text-sm">{t.vr_no_data}</div>}
-      </AnimatedList>
+          <motion.div variants={LIST} initial="hidden" animate="visible" className="space-y-2">
+            {reasons.map(r => (
+              <motion.div
+                key={r.id}
+                variants={ITEM_VAR}
+                className={cn('flex items-center gap-3 px-4 py-3 bg-white/5 border rounded-2xl transition-all',
+                  r.active ? 'border-white/10' : 'border-white/5 opacity-50')}
+              >
+                <p className={cn('flex-1 text-sm', r.active ? 'text-white' : 'text-white/40')}>{r.text}</p>
+                <button onClick={() => toggle(r)} className="active:scale-95 shrink-0">
+                  {r.active ? <ToggleRight className="w-6 h-6 text-amber-400" /> : <ToggleLeft className="w-6 h-6 text-white/25" />}
+                </button>
+                <button
+                  onClick={() => handleDelete(r.id)}
+                  className={cn('h-8 rounded-lg flex items-center justify-center transition-all active:scale-95 text-xs font-medium shrink-0',
+                    deleteId === r.id ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30 px-2' : 'w-8 bg-white/5 hover:bg-rose-500/10 text-white/40 hover:text-rose-400')}
+                >
+                  {deleteId === r.id ? t.confirm : <Trash2 className="w-3.5 h-3.5" />}
+                </button>
+              </motion.div>
+            ))}
+            {reasons.length === 0 && <div className="text-center py-12 text-white/25 text-sm">{t.vr_no_data}</div>}
+          </motion.div>
         )}
       </FadeSwitch>
-    </div>
+    </motion.div>
   )
 }

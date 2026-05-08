@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { SkeletonList } from '@/components/ui/SkeletonList'
@@ -7,13 +7,13 @@ import { Plus, Pencil, Trash2, Percent, X, ToggleLeft, ToggleRight, Loader2, Ale
 import { createClient } from '@/lib/supabase/client'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { useDiscounts, type CachedDiscount } from '@/hooks/useDiscounts'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, type Variants } from 'framer-motion'
 
 type Discount = CachedDiscount
 
 function FadeSwitch({ id, children }: { id: string; children: React.ReactNode }) {
   return (
-    <AnimatePresence mode="popLayout" initial={false}>
+    <AnimatePresence mode="popLayout">
       <motion.div
         key={id}
         initial={{ opacity: 0 }}
@@ -28,6 +28,12 @@ function FadeSwitch({ id, children }: { id: string; children: React.ReactNode })
 }
 
 const EMPTY_FORM = { name: '', type: 'percentage' as 'percentage' | 'fixed', value: 10, min_order: 0, active: true }
+
+const PAGE: Variants = {
+  hidden: { opacity: 0, y: 15 },
+  show:   { opacity: 1, y: 0,  transition: { duration: 0.2,  ease: 'circOut' as const } },
+  exit:   { opacity: 0, y: -10, transition: { duration: 0.15 } },
+}
 
 export default function DiscountPage() {
   const supabase = createClient()
@@ -124,7 +130,7 @@ export default function DiscountPage() {
   )
 
   return (
-    <div className="max-w-3xl mx-auto">
+    <motion.div key="menu-discount-page" variants={PAGE} initial="hidden" animate="show" exit="exit" className="max-w-3xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
@@ -242,6 +248,6 @@ export default function DiscountPage() {
           </div>
         </div>
       )}
-    </div>
+    </motion.div>
   )
 }

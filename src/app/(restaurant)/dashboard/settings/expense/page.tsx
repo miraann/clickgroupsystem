@@ -6,7 +6,52 @@ import {
   Trash2, Eye, ChevronDown, Calendar,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { SkeletonList } from '@/components/ui/SkeletonList'
+import { motion, AnimatePresence, type Variants } from 'framer-motion'
+
+const PAGE: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  show:   { opacity: 1, y: 0, transition: { duration: 0.22, ease: 'circOut' as const } },
+}
+const FIELDS: Variants = {
+  hidden: {},
+  show:   { transition: { staggerChildren: 0.28 } },
+}
+const FIELD_ITEM: Variants = {
+  hidden: { opacity: 0, y: -10 },
+  show:   { opacity: 1, y: 0, transition: { duration: 0.55, ease: 'circOut' as const } },
+}
+function Skel({ className }: { className?: string }) {
+  return <div className={cn('animate-pulse rounded-xl bg-white/8', className)} />
+}
+function SkelSection({ lines = 2 }: { lines?: number }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/3 overflow-hidden">
+      <div className="px-5 py-3.5 border-b border-white/8 bg-white/3">
+        <Skel className="h-3.5 w-36 rounded-md" />
+      </div>
+      <div className="p-5 space-y-3">
+        {Array.from({ length: lines }).map((_, i) => (
+          <Skel key={i} className={cn('h-11 rounded-xl', i === 1 ? 'w-3/4' : 'w-full')} />
+        ))}
+      </div>
+    </div>
+  )
+}
+function FadeSwitch({ id, children }: { id: string; children: React.ReactNode }) {
+  return (
+    <AnimatePresence mode="popLayout" initial={false}>
+      <motion.div
+        key={id}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.18 }}
+      >
+        {children}
+      </motion.div>
+    </AnimatePresence>
+  )
+}
 import { createClient } from '@/lib/supabase/client'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
@@ -139,231 +184,251 @@ export default function ExpensePage() {
     setExpenses(prev => prev.filter(e => e.id !== id))
   }
 
-  if (loading) return <SkeletonList rows={6} />
-
   return (
-    <div className="space-y-6 max-w-5xl">
+    <motion.div variants={PAGE} initial="hidden" animate="show" className="space-y-6 max-w-5xl">
 
       {/* ── Summary cards ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-500/20 via-amber-500/10 to-transparent border border-amber-500/25 p-5">
-          <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full bg-amber-500/10 blur-2xl" />
-          <p className="text-xs font-semibold text-amber-400/70 uppercase tracking-wider mb-1">{t.exp_total}</p>
-          <p className="text-2xl font-extrabold text-white tabular-nums">{formatPrice(totalAll)}</p>
-          <p className="text-xs text-white/30 mt-1">{expenses.length} records</p>
-          <DollarSign className="absolute bottom-4 right-4 w-8 h-8 text-amber-500/20" />
-        </div>
-
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-500/20 via-blue-500/10 to-transparent border border-blue-500/25 p-5">
-          <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full bg-blue-500/10 blur-2xl" />
-          <p className="text-xs font-semibold text-blue-400/70 uppercase tracking-wider mb-1">{t.exp_this_month}</p>
-          <p className="text-2xl font-extrabold text-white tabular-nums">{formatPrice(thisMonth)}</p>
-          <div className="flex items-center gap-1 mt-1">
-            {monthTrend > 0
-              ? <TrendingUp className="w-3.5 h-3.5 text-rose-400" />
-              : <TrendingDown className="w-3.5 h-3.5 text-emerald-400" />
-            }
-            <span className={cn('text-xs font-semibold', monthTrend > 0 ? 'text-rose-400' : 'text-emerald-400')}>
-              {Math.abs(monthTrend).toFixed(1)}% vs last month
-            </span>
-          </div>
-          <TrendingUp className="absolute bottom-4 right-4 w-8 h-8 text-blue-500/20" />
-        </div>
-
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-violet-500/20 via-violet-500/10 to-transparent border border-violet-500/25 p-5">
-          <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full bg-violet-500/10 blur-2xl" />
-          <p className="text-xs font-semibold text-violet-400/70 uppercase tracking-wider mb-1">Top Category</p>
-          {topCat ? (
-            <>
-              <p className="text-2xl font-extrabold text-white">{topCat.name}</p>
-              <p className="text-xs text-white/30 mt-1 tabular-nums">{formatPrice(topCat.total)}</p>
-            </>
+      <motion.div variants={FIELD_ITEM}>
+        <FadeSwitch id={loading ? 'skel-cards' : 'cards'}>
+          {loading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {Array.from({ length: 3 }).map((_, i) => <Skel key={i} className="h-28 rounded-2xl" />)}
+            </div>
           ) : (
-            <p className="text-lg font-bold text-white/30">—</p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-500/20 via-amber-500/10 to-transparent border border-amber-500/25 p-5">
+                <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full bg-amber-500/10 blur-2xl" />
+                <p className="text-xs font-semibold text-amber-400/70 uppercase tracking-wider mb-1">{t.exp_total}</p>
+                <p className="text-2xl font-extrabold text-white tabular-nums">{formatPrice(totalAll)}</p>
+                <p className="text-xs text-white/30 mt-1">{expenses.length} records</p>
+                <DollarSign className="absolute bottom-4 right-4 w-8 h-8 text-amber-500/20" />
+              </div>
+              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-500/20 via-blue-500/10 to-transparent border border-blue-500/25 p-5">
+                <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full bg-blue-500/10 blur-2xl" />
+                <p className="text-xs font-semibold text-blue-400/70 uppercase tracking-wider mb-1">{t.exp_this_month}</p>
+                <p className="text-2xl font-extrabold text-white tabular-nums">{formatPrice(thisMonth)}</p>
+                <div className="flex items-center gap-1 mt-1">
+                  {monthTrend > 0
+                    ? <TrendingUp className="w-3.5 h-3.5 text-rose-400" />
+                    : <TrendingDown className="w-3.5 h-3.5 text-emerald-400" />
+                  }
+                  <span className={cn('text-xs font-semibold', monthTrend > 0 ? 'text-rose-400' : 'text-emerald-400')}>
+                    {Math.abs(monthTrend).toFixed(1)}% vs last month
+                  </span>
+                </div>
+                <TrendingUp className="absolute bottom-4 right-4 w-8 h-8 text-blue-500/20" />
+              </div>
+              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-violet-500/20 via-violet-500/10 to-transparent border border-violet-500/25 p-5">
+                <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full bg-violet-500/10 blur-2xl" />
+                <p className="text-xs font-semibold text-violet-400/70 uppercase tracking-wider mb-1">Top Category</p>
+                {topCat ? (
+                  <>
+                    <p className="text-2xl font-extrabold text-white">{topCat.name}</p>
+                    <p className="text-xs text-white/30 mt-1 tabular-nums">{formatPrice(topCat.total)}</p>
+                  </>
+                ) : (
+                  <p className="text-lg font-bold text-white/30">—</p>
+                )}
+                <LayoutGrid className="absolute bottom-4 right-4 w-8 h-8 text-violet-500/20" />
+              </div>
+            </div>
           )}
-          <LayoutGrid className="absolute bottom-4 right-4 w-8 h-8 text-violet-500/20" />
-        </div>
-      </div>
+        </FadeSwitch>
+      </motion.div>
 
       {/* ── 7-day chart ── */}
-      <div className="rounded-2xl bg-white/4 border border-white/8 p-5">
-        <p className="text-sm font-semibold text-white/60 mb-4">7-Day Expense Trend</p>
-        <ResponsiveContainer width="100%" height={140}>
-          <AreaChart data={chartData} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
-            <defs>
-              <linearGradient id="expGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%"  stopColor="#f59e0b" stopOpacity={0.3} />
-                <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}   />
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-            <XAxis dataKey="day" tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 11 }} axisLine={false} tickLine={false} />
-            <YAxis hide />
-            <Tooltip content={<ChartTooltip formatPrice={formatPrice} />} />
-            <Area type="monotone" dataKey="amount" stroke="#f59e0b" strokeWidth={2} fill="url(#expGrad)" dot={false} activeDot={{ r: 4, fill: '#f59e0b' }} />
-          </AreaChart>
-        </ResponsiveContainer>
-      </div>
+      <motion.div variants={FIELD_ITEM}>
+        <FadeSwitch id={loading ? 'skel-chart' : 'chart'}>
+          {loading ? <Skel className="h-44 rounded-2xl" /> : (
+            <div className="rounded-2xl bg-white/4 border border-white/8 p-5">
+              <p className="text-sm font-semibold text-white/60 mb-4">7-Day Expense Trend</p>
+              <ResponsiveContainer width="100%" height={140}>
+                <AreaChart data={chartData} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+                  <defs>
+                    <linearGradient id="expGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%"  stopColor="#f59e0b" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}   />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                  <XAxis dataKey="day" tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <YAxis hide />
+                  <Tooltip content={<ChartTooltip formatPrice={formatPrice} />} />
+                  <Area type="monotone" dataKey="amount" stroke="#f59e0b" strokeWidth={2} fill="url(#expGrad)" dot={false} activeDot={{ r: 4, fill: '#f59e0b' }} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </FadeSwitch>
+      </motion.div>
 
       {/* ── Controls ── */}
-      <div className="space-y-3">
-        <div className="flex gap-3 items-center">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/30" />
-            <input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder={`${t.search}…`}
-              className="w-full pl-9 pr-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500/40 transition-colors"
-            />
-          </div>
-          <button
-            onClick={() => setShowAdd(true)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold active:scale-95 transition-all shadow-lg shadow-amber-500/25 shrink-0"
-          >
-            <Plus className="w-4 h-4" />{t.exp_add}
-          </button>
-        </div>
-
-        <div className="flex flex-wrap gap-3 items-center">
-          <div className="flex items-center gap-2 px-3 py-2 bg-white/5 border border-white/10 rounded-xl">
-            <Calendar className="w-3.5 h-3.5 text-white/30 shrink-0" />
-            <input
-              type="date"
-              value={dateFrom}
-              onChange={e => { const v = e.target.value; setDateFrom(v); if (restaurantId) load(restaurantId, v, dateTo) }}
-              className="bg-transparent text-sm text-white/70 focus:outline-none w-32 cursor-pointer [color-scheme:dark]"
-            />
-          </div>
-
-          <span className="text-white/25 text-xs">to</span>
-
-          <div className="flex items-center gap-2 px-3 py-2 bg-white/5 border border-white/10 rounded-xl">
-            <Calendar className="w-3.5 h-3.5 text-white/30 shrink-0" />
-            <input
-              type="date"
-              value={dateTo}
-              onChange={e => { const v = e.target.value; setDateTo(v); if (restaurantId) load(restaurantId, dateFrom, v) }}
-              className="bg-transparent text-sm text-white/70 focus:outline-none w-32 cursor-pointer [color-scheme:dark]"
-            />
-          </div>
-
-          {(dateFrom || dateTo) && (
+      <motion.div variants={FIELD_ITEM}>
+        <div className="space-y-3">
+          <div className="flex gap-3 items-center">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/30" />
+              <input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder={`${t.search}…`}
+                className="w-full pl-9 pr-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500/40 transition-colors"
+              />
+            </div>
             <button
-              onClick={() => { setDateFrom(''); setDateTo(''); if (restaurantId) load(restaurantId, '', '') }}
-              className="text-xs text-white/30 hover:text-rose-400 transition-colors"
+              onClick={() => setShowAdd(true)}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold active:scale-95 transition-all shadow-lg shadow-amber-500/25 shrink-0"
             >
-              <X className="w-3.5 h-3.5" />
+              <Plus className="w-4 h-4" />{t.exp_add}
             </button>
-          )}
-
-          <div className="h-5 w-px bg-white/10" />
-
-          <div className="relative">
-            <select
-              value={filterCat}
-              onChange={e => setFilterCat(e.target.value)}
-              className="appearance-none pl-3 pr-8 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white/70 focus:outline-none focus:border-amber-500/40 transition-colors cursor-pointer"
-            >
-              <option value="all">All Categories</option>
-              {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/30 pointer-events-none" />
           </div>
 
-          <div className="relative">
-            <select
-              value={filterStatus}
-              onChange={e => setFilterStatus(e.target.value)}
-              className="appearance-none pl-3 pr-8 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white/70 focus:outline-none focus:border-amber-500/40 transition-colors cursor-pointer"
-            >
-              <option value="all">All Statuses</option>
-              <option value="paid">Paid</option>
-              <option value="pending">Pending</option>
-              <option value="scheduled">Scheduled</option>
-            </select>
-            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/30 pointer-events-none" />
+          <div className="flex flex-wrap gap-3 items-center">
+            <div className="flex items-center gap-2 px-3 py-2 bg-white/5 border border-white/10 rounded-xl">
+              <Calendar className="w-3.5 h-3.5 text-white/30 shrink-0" />
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={e => { const v = e.target.value; setDateFrom(v); if (restaurantId) load(restaurantId, v, dateTo) }}
+                className="bg-transparent text-sm text-white/70 focus:outline-none w-32 cursor-pointer [color-scheme:dark]"
+              />
+            </div>
+
+            <span className="text-white/25 text-xs">to</span>
+
+            <div className="flex items-center gap-2 px-3 py-2 bg-white/5 border border-white/10 rounded-xl">
+              <Calendar className="w-3.5 h-3.5 text-white/30 shrink-0" />
+              <input
+                type="date"
+                value={dateTo}
+                onChange={e => { const v = e.target.value; setDateTo(v); if (restaurantId) load(restaurantId, dateFrom, v) }}
+                className="bg-transparent text-sm text-white/70 focus:outline-none w-32 cursor-pointer [color-scheme:dark]"
+              />
+            </div>
+
+            {(dateFrom || dateTo) && (
+              <button
+                onClick={() => { setDateFrom(''); setDateTo(''); if (restaurantId) load(restaurantId, '', '') }}
+                className="text-xs text-white/30 hover:text-rose-400 transition-colors"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+
+            <div className="h-5 w-px bg-white/10" />
+
+            <div className="relative">
+              <select
+                value={filterCat}
+                onChange={e => setFilterCat(e.target.value)}
+                className="appearance-none pl-3 pr-8 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white/70 focus:outline-none focus:border-amber-500/40 transition-colors cursor-pointer"
+              >
+                <option value="all">All Categories</option>
+                {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/30 pointer-events-none" />
+            </div>
+
+            <div className="relative">
+              <select
+                value={filterStatus}
+                onChange={e => setFilterStatus(e.target.value)}
+                className="appearance-none pl-3 pr-8 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white/70 focus:outline-none focus:border-amber-500/40 transition-colors cursor-pointer"
+              >
+                <option value="all">All Statuses</option>
+                <option value="paid">Paid</option>
+                <option value="pending">Pending</option>
+                <option value="scheduled">Scheduled</option>
+              </select>
+              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/30 pointer-events-none" />
+            </div>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* ── Expense list ── */}
-      <div className="rounded-2xl border border-white/8">
-        <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 px-5 py-3 bg-white/3 border-b border-white/8 text-xs font-semibold text-white/30 uppercase tracking-wider rounded-t-2xl">
-          <span>{t.exp_title}</span>
-          <span className="text-right w-28">{t.exp_amount}</span>
-          <span className="w-32">{t.exp_date}</span>
-          <span className="w-24">Status</span>
-          <span className="w-8" />
-        </div>
+      <motion.div variants={FIELD_ITEM}>
+        <FadeSwitch id={loading ? 'skel-list' : 'list'}>
+          {loading ? <SkelSection lines={5} /> : (
+            <div className="rounded-2xl border border-white/8">
+              <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 px-5 py-3 bg-white/3 border-b border-white/8 text-xs font-semibold text-white/30 uppercase tracking-wider rounded-t-2xl">
+                <span>{t.exp_title}</span>
+                <span className="text-right w-28">{t.exp_amount}</span>
+                <span className="w-32">{t.exp_date}</span>
+                <span className="w-24">Status</span>
+                <span className="w-8" />
+              </div>
 
-        {visible.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 gap-3">
-            <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
-              <Receipt className="w-6 h-6 text-white/20" />
-            </div>
-            <p className="text-white/30 text-sm">{t.exp_no_data}</p>
-            <button onClick={() => setShowAdd(true)} className="text-xs text-amber-400 hover:text-amber-300 transition-colors">
-              + Add your first expense
-            </button>
-          </div>
-        ) : (
-          <div className="divide-y divide-white/5">
-            {visible.map(exp => {
-              const cat      = getCat(exp.category_id)
-              const CatIcon  = cat ? (CAT_ICONS[cat.icon] ?? LayoutGrid) : LayoutGrid
-              const status   = STATUS_CFG[exp.status ?? 'paid'] ?? STATUS_CFG.paid
-              const StatusIcon = status.icon
-              return (
-                <div key={exp.id} className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 px-5 py-3.5 items-center hover:bg-white/3 transition-colors group">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div
-                      className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-                      style={{ backgroundColor: cat ? `${cat.color}20` : '#ffffff10', border: `1px solid ${cat?.color ?? '#ffffff'}30` }}
-                    >
-                      <CatIcon className="w-4 h-4" style={{ color: cat?.color ?? '#ffffff50' }} />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-white truncate">{exp.title}</p>
-                      <p className="text-xs text-white/35">{cat?.name ?? 'Uncategorized'}</p>
-                    </div>
+              {visible.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 gap-3">
+                  <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
+                    <Receipt className="w-6 h-6 text-white/20" />
                   </div>
-
-                  <span className="text-sm font-bold text-white tabular-nums w-28 text-right">{formatPrice(exp.amount ?? 0)}</span>
-
-                  <div className="w-32">
-                    <p className="text-xs text-white/60">{fmtDay(exp.created_at)}</p>
-                    <p className="text-[10px] text-white/30">{new Date(exp.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}</p>
-                  </div>
-
-                  <div className="w-24">
-                    <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-lg border text-[10px] font-bold', status.color)}>
-                      <StatusIcon className="w-2.5 h-2.5" />
-                      {status.label}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => setViewExpense(exp)}
-                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-amber-500/15 border border-white/8 hover:border-amber-500/30 text-white/40 hover:text-amber-400 text-xs font-medium transition-all active:scale-95"
-                    >
-                      <Eye className="w-3.5 h-3.5" />
-                      <span className="hidden sm:inline">View</span>
-                    </button>
-                    <button
-                      onClick={() => handleDelete(exp.id)}
-                      className="flex items-center justify-center w-7 h-7 rounded-lg bg-white/5 hover:bg-rose-500/15 border border-white/8 hover:border-rose-500/30 text-white/30 hover:text-rose-400 transition-all active:scale-95"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
+                  <p className="text-white/30 text-sm">{t.exp_no_data}</p>
+                  <button onClick={() => setShowAdd(true)} className="text-xs text-amber-400 hover:text-amber-300 transition-colors">
+                    + Add your first expense
+                  </button>
                 </div>
-              )
-            })}
-          </div>
-        )}
-      </div>
+              ) : (
+                <div className="divide-y divide-white/5">
+                  {visible.map(exp => {
+                    const cat        = getCat(exp.category_id)
+                    const CatIcon    = cat ? (CAT_ICONS[cat.icon] ?? LayoutGrid) : LayoutGrid
+                    const status     = STATUS_CFG[exp.status ?? 'paid'] ?? STATUS_CFG.paid
+                    const StatusIcon = status.icon
+                    return (
+                      <div key={exp.id} className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 px-5 py-3.5 items-center hover:bg-white/3 transition-colors group">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div
+                            className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                            style={{ backgroundColor: cat ? `${cat.color}20` : '#ffffff10', border: `1px solid ${cat?.color ?? '#ffffff'}30` }}
+                          >
+                            <CatIcon className="w-4 h-4" style={{ color: cat?.color ?? '#ffffff50' }} />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-white truncate">{exp.title}</p>
+                            <p className="text-xs text-white/35">{cat?.name ?? 'Uncategorized'}</p>
+                          </div>
+                        </div>
+
+                        <span className="text-sm font-bold text-white tabular-nums w-28 text-right">{formatPrice(exp.amount ?? 0)}</span>
+
+                        <div className="w-32">
+                          <p className="text-xs text-white/60">{fmtDay(exp.created_at)}</p>
+                          <p className="text-[10px] text-white/30">{new Date(exp.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}</p>
+                        </div>
+
+                        <div className="w-24">
+                          <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-lg border text-[10px] font-bold', status.color)}>
+                            <StatusIcon className="w-2.5 h-2.5" />
+                            {status.label}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => setViewExpense(exp)}
+                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-amber-500/15 border border-white/8 hover:border-amber-500/30 text-white/40 hover:text-amber-400 text-xs font-medium transition-all active:scale-95"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">View</span>
+                          </button>
+                          <button
+                            onClick={() => handleDelete(exp.id)}
+                            className="flex items-center justify-center w-7 h-7 rounded-lg bg-white/5 hover:bg-rose-500/15 border border-white/8 hover:border-rose-500/30 text-white/30 hover:text-rose-400 transition-all active:scale-95"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+        </FadeSwitch>
+      </motion.div>
 
       {visible.length > 0 && (
         <p className="text-xs text-white/25 text-right">{visible.length} expense{visible.length !== 1 ? 's' : ''} · {formatPrice(visible.reduce((s, e) => s + (e.amount ?? 0), 0))} total</p>
@@ -389,6 +454,6 @@ export default function ExpensePage() {
           onDelete={(id: string) => { handleDelete(id); setViewExpense(null) }}
         />
       )}
-    </div>
+    </motion.div>
   )
 }

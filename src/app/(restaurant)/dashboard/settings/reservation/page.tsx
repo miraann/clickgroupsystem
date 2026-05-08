@@ -5,8 +5,13 @@ import {
   Users, Phone, Mail, StickyNote, Search, RefreshCw,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { SkeletonList } from '@/components/ui/SkeletonList'
 import { createClient } from '@/lib/supabase/client'
+import { motion, type Variants } from 'framer-motion'
+
+const PAGE: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  show:   { opacity: 1, y: 0, transition: { duration: 0.22, ease: 'circOut' as const } },
+}
 import { logAudit } from '@/lib/logAudit'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import type { Reservation, Table, TableGroup, StatusFilter } from './types'
@@ -94,7 +99,7 @@ export default function ReservationPage() {
   const totalGuests = reservations.filter(r => r.status !== 'cancelled' && r.status !== 'no_show').reduce((s, r) => s + r.party_size, 0)
 
   return (
-    <div className="space-y-6">
+    <motion.div variants={PAGE} initial="hidden" animate="show" className="space-y-6">
 
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -162,7 +167,11 @@ export default function ReservationPage() {
 
       {/* Reservation list */}
       {loading ? (
-        <SkeletonList rows={4} rowHeight="h-[100px]" />
+        <div className="space-y-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="h-[100px] rounded-2xl bg-white/5 border border-white/8 animate-pulse" />
+          ))}
+        </div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-16">
           <CalendarDays className="w-10 h-10 text-white/15 mx-auto mb-3" />
@@ -281,6 +290,6 @@ export default function ReservationPage() {
           </div>
         </div>
       )}
-    </div>
+    </motion.div>
   )
 }

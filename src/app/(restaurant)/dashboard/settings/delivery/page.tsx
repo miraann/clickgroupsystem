@@ -11,8 +11,13 @@ import { createClient } from '@/lib/supabase/client'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { useDeliverySettings, type CachedDeliveryZone } from '@/hooks/useDeliverySettings'
-import { SkeletonList } from '@/components/ui/SkeletonList'
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch'
+import { motion, type Variants } from 'framer-motion'
+
+const PAGE: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  show:   { opacity: 1, y: 0, transition: { duration: 0.22, ease: 'circOut' as const } },
+}
 import { SaveButton } from '@/components/ui/SaveButton'
 import type { SaveState } from '@/hooks/useRestaurantSettings'
 
@@ -248,10 +253,8 @@ function DeliveryHistoryTab({ restaurantId, formatPrice }: { restaurantId: strin
     return acc
   }, {})
 
-  if (loading) return <SkeletonList rows={5} />
-
   return (
-    <div className="space-y-4">
+    <motion.div variants={PAGE} initial="hidden" animate="show" className="space-y-4">
       {/* Stats strip */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         {DELIVERY_STATUSES.map(s => (
@@ -425,7 +428,7 @@ function DeliveryHistoryTab({ restaurantId, formatPrice }: { restaurantId: strin
           })}
         </div>
       )}
-    </div>
+    </motion.div>
   )
 }
 
@@ -549,12 +552,10 @@ export default function DeliveryPage() {
     await supabase.from('delivery_zones').update({ active: !z.active }).eq('id', z.id)
   }
 
-  if (loading) return <SkeletonList rows={4} />
-
   const activeZones = zones.filter(z => z.active).length
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6 pb-10">
+    <motion.div variants={PAGE} initial="hidden" animate="show" className="max-w-3xl mx-auto space-y-6 pb-10">
 
       {/* ── Header ── */}
       <div className="flex items-center justify-between">
@@ -848,6 +849,6 @@ export default function DeliveryPage() {
           </div>
         </div>
       )}
-    </div>
+    </motion.div>
   )
 }

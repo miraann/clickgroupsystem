@@ -6,8 +6,53 @@ import {
   ArrowUpRight, ArrowDownRight, Calendar,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { SkeletonList } from '@/components/ui/SkeletonList'
 import { createClient } from '@/lib/supabase/client'
+import { motion, AnimatePresence, type Variants } from 'framer-motion'
+
+const PAGE: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  show:   { opacity: 1, y: 0, transition: { duration: 0.22, ease: 'circOut' as const } },
+}
+const FIELDS: Variants = {
+  hidden: {},
+  show:   { transition: { staggerChildren: 0.28 } },
+}
+const FIELD_ITEM: Variants = {
+  hidden: { opacity: 0, y: -10 },
+  show:   { opacity: 1, y: 0, transition: { duration: 0.55, ease: 'circOut' as const } },
+}
+function Skel({ className }: { className?: string }) {
+  return <div className={cn('animate-pulse rounded-xl bg-white/8', className)} />
+}
+function SkelSection({ lines = 2 }: { lines?: number }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/3 overflow-hidden">
+      <div className="px-5 py-3.5 border-b border-white/8 bg-white/3">
+        <Skel className="h-3.5 w-36 rounded-md" />
+      </div>
+      <div className="p-5 space-y-3">
+        {Array.from({ length: lines }).map((_, i) => (
+          <Skel key={i} className={cn('h-11 rounded-xl', i === 1 ? 'w-3/4' : 'w-full')} />
+        ))}
+      </div>
+    </div>
+  )
+}
+function FadeSwitch({ id, children }: { id: string; children: React.ReactNode }) {
+  return (
+    <AnimatePresence mode="popLayout" initial={false}>
+      <motion.div
+        key={id}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.18 }}
+      >
+        {children}
+      </motion.div>
+    </AnimatePresence>
+  )
+}
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
@@ -232,10 +277,8 @@ export default function FinancePage() {
   }
 
   // ── Render ────────────────────────────────────────────────────
-  if (loading) return <SkeletonList rows={5} />
-
   return (
-    <div className="space-y-6 max-w-5xl">
+    <motion.div variants={PAGE} initial="hidden" animate="show" className="space-y-6 max-w-5xl">
 
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -287,209 +330,218 @@ export default function FinancePage() {
       </div>
 
       {/* KPI cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-
-        {/* Revenue */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500/20 via-emerald-500/10 to-transparent border border-emerald-500/25 p-5">
-          <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full bg-emerald-500/10 blur-2xl" />
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-xs font-semibold text-emerald-400/70 uppercase tracking-wider">Total Revenue</p>
-            <div className="w-8 h-8 rounded-xl bg-emerald-500/15 flex items-center justify-center">
-              <ShoppingBag className="w-4 h-4 text-emerald-400" />
+      <motion.div variants={FIELD_ITEM}>
+        <FadeSwitch id={loading ? 'skel-kpi' : 'kpi'}>
+          {loading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {Array.from({ length: 3 }).map((_, i) => <Skel key={i} className="h-28 rounded-2xl" />)}
             </div>
-          </div>
-          <p className="text-2xl font-extrabold text-white tabular-nums">{formatPrice(totalRevenue)}</p>
-          <div className="mt-2 flex items-center justify-between">
-            <Trend pct={revGrowth} />
-            <span className="text-[10px] text-white/25">{invoices.length} invoices</span>
-          </div>
-          {invoices.length > 0 && (
-            <p className="text-[10px] text-white/30 mt-1">
-              Avg {formatPrice(totalRevenue / invoices.length)} / order
-            </p>
-          )}
-        </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500/20 via-emerald-500/10 to-transparent border border-emerald-500/25 p-5">
+                <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full bg-emerald-500/10 blur-2xl" />
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-xs font-semibold text-emerald-400/70 uppercase tracking-wider">Total Revenue</p>
+                  <div className="w-8 h-8 rounded-xl bg-emerald-500/15 flex items-center justify-center">
+                    <ShoppingBag className="w-4 h-4 text-emerald-400" />
+                  </div>
+                </div>
+                <p className="text-2xl font-extrabold text-white tabular-nums">{formatPrice(totalRevenue)}</p>
+                <div className="mt-2 flex items-center justify-between">
+                  <Trend pct={revGrowth} />
+                  <span className="text-[10px] text-white/25">{invoices.length} invoices</span>
+                </div>
+                {invoices.length > 0 && (
+                  <p className="text-[10px] text-white/30 mt-1">
+                    Avg {formatPrice(totalRevenue / invoices.length)} / order
+                  </p>
+                )}
+              </div>
 
-        {/* Expenses */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-rose-500/20 via-rose-500/10 to-transparent border border-rose-500/25 p-5">
-          <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full bg-rose-500/10 blur-2xl" />
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-xs font-semibold text-rose-400/70 uppercase tracking-wider">Total Expenses</p>
-            <div className="w-8 h-8 rounded-xl bg-rose-500/15 flex items-center justify-center">
-              <DollarSign className="w-4 h-4 text-rose-400" />
-            </div>
-          </div>
-          <p className="text-2xl font-extrabold text-white tabular-nums">{formatPrice(totalExpenses)}</p>
-          <div className="mt-2 flex items-center justify-between">
-            <Trend pct={expGrowth} inverse />
-            <span className="text-[10px] text-white/25">{expenses.length} entries</span>
-          </div>
-          {totalRevenue > 0 && (
-            <p className="text-[10px] text-white/30 mt-1">
-              {((totalExpenses / totalRevenue) * 100).toFixed(1)}% of revenue
-            </p>
-          )}
-        </div>
+              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-rose-500/20 via-rose-500/10 to-transparent border border-rose-500/25 p-5">
+                <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full bg-rose-500/10 blur-2xl" />
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-xs font-semibold text-rose-400/70 uppercase tracking-wider">Total Expenses</p>
+                  <div className="w-8 h-8 rounded-xl bg-rose-500/15 flex items-center justify-center">
+                    <DollarSign className="w-4 h-4 text-rose-400" />
+                  </div>
+                </div>
+                <p className="text-2xl font-extrabold text-white tabular-nums">{formatPrice(totalExpenses)}</p>
+                <div className="mt-2 flex items-center justify-between">
+                  <Trend pct={expGrowth} inverse />
+                  <span className="text-[10px] text-white/25">{expenses.length} entries</span>
+                </div>
+                {totalRevenue > 0 && (
+                  <p className="text-[10px] text-white/30 mt-1">
+                    {((totalExpenses / totalRevenue) * 100).toFixed(1)}% of revenue
+                  </p>
+                )}
+              </div>
 
-        {/* Net Profit */}
-        <div className={cn('relative overflow-hidden rounded-2xl p-5 border',
-          netProfit >= 0
-            ? 'bg-gradient-to-br from-violet-500/20 via-violet-500/10 to-transparent border-violet-500/25'
-            : 'bg-gradient-to-br from-rose-900/30 via-rose-900/10 to-transparent border-rose-900/40')}>
-          <div className={cn('absolute -top-4 -right-4 w-20 h-20 rounded-full blur-2xl',
-            netProfit >= 0 ? 'bg-violet-500/10' : 'bg-rose-900/20')} />
-          <div className="flex items-center justify-between mb-3">
-            <p className={cn('text-xs font-semibold uppercase tracking-wider',
-              netProfit >= 0 ? 'text-violet-400/70' : 'text-rose-400/70')}>Net Profit</p>
-            <div className={cn('w-8 h-8 rounded-xl flex items-center justify-center',
-              netProfit >= 0 ? 'bg-violet-500/15' : 'bg-rose-500/15')}>
-              <Wallet className={cn('w-4 h-4', netProfit >= 0 ? 'text-violet-400' : 'text-rose-400')} />
+              <div className={cn('relative overflow-hidden rounded-2xl p-5 border',
+                netProfit >= 0
+                  ? 'bg-gradient-to-br from-violet-500/20 via-violet-500/10 to-transparent border-violet-500/25'
+                  : 'bg-gradient-to-br from-rose-900/30 via-rose-900/10 to-transparent border-rose-900/40')}>
+                <div className={cn('absolute -top-4 -right-4 w-20 h-20 rounded-full blur-2xl',
+                  netProfit >= 0 ? 'bg-violet-500/10' : 'bg-rose-900/20')} />
+                <div className="flex items-center justify-between mb-3">
+                  <p className={cn('text-xs font-semibold uppercase tracking-wider',
+                    netProfit >= 0 ? 'text-violet-400/70' : 'text-rose-400/70')}>Net Profit</p>
+                  <div className={cn('w-8 h-8 rounded-xl flex items-center justify-center',
+                    netProfit >= 0 ? 'bg-violet-500/15' : 'bg-rose-500/15')}>
+                    <Wallet className={cn('w-4 h-4', netProfit >= 0 ? 'text-violet-400' : 'text-rose-400')} />
+                  </div>
+                </div>
+                <p className={cn('text-2xl font-extrabold tabular-nums', netProfit >= 0 ? 'text-white' : 'text-rose-400')}>
+                  {netProfit < 0 ? '−' : ''}{formatPrice(Math.abs(netProfit))}
+                </p>
+                <div className="mt-2">
+                  <Trend pct={profGrowth} />
+                </div>
+                {totalRevenue > 0 && (
+                  <p className="text-[10px] text-white/30 mt-1">
+                    {((netProfit / totalRevenue) * 100).toFixed(1)}% profit margin
+                  </p>
+                )}
+              </div>
             </div>
-          </div>
-          <p className={cn('text-2xl font-extrabold tabular-nums', netProfit >= 0 ? 'text-white' : 'text-rose-400')}>
-            {netProfit < 0 ? '−' : ''}{formatPrice(Math.abs(netProfit))}
-          </p>
-          <div className="mt-2">
-            <Trend pct={profGrowth} />
-          </div>
-          {totalRevenue > 0 && (
-            <p className="text-[10px] text-white/30 mt-1">
-              {((netProfit / totalRevenue) * 100).toFixed(1)}% profit margin
-            </p>
           )}
-        </div>
-      </div>
+        </FadeSwitch>
+      </motion.div>
 
       {/* Revenue vs Expenses chart */}
       {chartData.length > 0 && (
-        <div className="rounded-2xl bg-white/4 border border-white/8 p-5">
-          <p className="text-sm font-semibold text-white/60 mb-4">Revenue vs Expenses</p>
-          <ResponsiveContainer width="100%" height={180}>
-            <AreaChart data={chartData} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
-              <defs>
-                <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor="#10b981" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="#10b981" stopOpacity={0}   />
-                </linearGradient>
-                <linearGradient id="expGrad2" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor="#f43f5e" stopOpacity={0.25} />
-                  <stop offset="95%" stopColor="#f43f5e" stopOpacity={0}    />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-              <XAxis dataKey="date" tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 10 }}
-                axisLine={false} tickLine={false} interval="preserveStartEnd" />
-              <YAxis hide />
-              <Tooltip content={<ChartTooltip formatPrice={formatPrice} />} />
-              <Area type="monotone" dataKey="Revenue"  stroke="#10b981" strokeWidth={2}
-                fill="url(#revGrad)"  dot={false} activeDot={{ r: 4, fill: '#10b981' }} />
-              <Area type="monotone" dataKey="Expenses" stroke="#f43f5e" strokeWidth={2}
-                fill="url(#expGrad2)" dot={false} activeDot={{ r: 4, fill: '#f43f5e' }} />
-            </AreaChart>
-          </ResponsiveContainer>
-          <div className="flex items-center gap-5 mt-3">
-            <span className="flex items-center gap-1.5 text-[11px] text-white/40">
-              <span className="w-6 h-0.5 rounded-full bg-emerald-400 inline-block" />Revenue
-            </span>
-            <span className="flex items-center gap-1.5 text-[11px] text-white/40">
-              <span className="w-6 h-0.5 rounded-full bg-rose-400 inline-block" />Expenses
-            </span>
+        <motion.div variants={FIELD_ITEM}>
+          <div className="rounded-2xl bg-white/4 border border-white/8 p-5">
+            <p className="text-sm font-semibold text-white/60 mb-4">Revenue vs Expenses</p>
+            <ResponsiveContainer width="100%" height={180}>
+              <AreaChart data={chartData} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+                <defs>
+                  <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%"  stopColor="#10b981" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0}   />
+                  </linearGradient>
+                  <linearGradient id="expGrad2" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%"  stopColor="#f43f5e" stopOpacity={0.25} />
+                    <stop offset="95%" stopColor="#f43f5e" stopOpacity={0}    />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                <XAxis dataKey="date" tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 10 }}
+                  axisLine={false} tickLine={false} interval="preserveStartEnd" />
+                <YAxis hide />
+                <Tooltip content={<ChartTooltip formatPrice={formatPrice} />} />
+                <Area type="monotone" dataKey="Revenue"  stroke="#10b981" strokeWidth={2}
+                  fill="url(#revGrad)"  dot={false} activeDot={{ r: 4, fill: '#10b981' }} />
+                <Area type="monotone" dataKey="Expenses" stroke="#f43f5e" strokeWidth={2}
+                  fill="url(#expGrad2)" dot={false} activeDot={{ r: 4, fill: '#f43f5e' }} />
+              </AreaChart>
+            </ResponsiveContainer>
+            <div className="flex items-center gap-5 mt-3">
+              <span className="flex items-center gap-1.5 text-[11px] text-white/40">
+                <span className="w-6 h-0.5 rounded-full bg-emerald-400 inline-block" />Revenue
+              </span>
+              <span className="flex items-center gap-1.5 text-[11px] text-white/40">
+                <span className="w-6 h-0.5 rounded-full bg-rose-400 inline-block" />Expenses
+              </span>
+            </div>
           </div>
-        </div>
+        </motion.div>
       )}
 
       {/* Breakdown panels */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-        {/* Sales by payment method */}
-        <div className="rounded-2xl bg-white/4 border border-white/8 p-5">
-          <p className="text-sm font-semibold text-white/60 mb-4">Sales by Payment Method</p>
-          {pmData.length === 0 ? (
-            <p className="text-xs text-white/25 text-center py-8">No sales in this period</p>
-          ) : (
-            <div className="space-y-3.5">
-              {pmData.map(({ name, value }) => (
-                <div key={name}>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-xs text-white/60">{name}</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] text-white/30">{((value / totalRevenue) * 100).toFixed(0)}%</span>
-                      <span className="text-xs font-bold text-white tabular-nums">{formatPrice(value)}</span>
+      <motion.div variants={FIELD_ITEM}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="rounded-2xl bg-white/4 border border-white/8 p-5">
+            <p className="text-sm font-semibold text-white/60 mb-4">Sales by Payment Method</p>
+            {pmData.length === 0 ? (
+              <p className="text-xs text-white/25 text-center py-8">No sales in this period</p>
+            ) : (
+              <div className="space-y-3.5">
+                {pmData.map(({ name, value }) => (
+                  <div key={name}>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-xs text-white/60">{name}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-white/30">{((value / totalRevenue) * 100).toFixed(0)}%</span>
+                        <span className="text-xs font-bold text-white tabular-nums">{formatPrice(value)}</span>
+                      </div>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-white/8 overflow-hidden">
+                      <div className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+                        style={{ width: `${(value / pmMax) * 100}%` }} />
                     </div>
                   </div>
-                  <div className="h-1.5 rounded-full bg-white/8 overflow-hidden">
-                    <div className="h-full rounded-full bg-emerald-500 transition-all duration-500"
-                      style={{ width: `${(value / pmMax) * 100}%` }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+                ))}
+              </div>
+            )}
+          </div>
 
-        {/* Expenses by category */}
-        <div className="rounded-2xl bg-white/4 border border-white/8 p-5">
-          <p className="text-sm font-semibold text-white/60 mb-4">Expenses by Category</p>
-          {catData.length === 0 ? (
-            <p className="text-xs text-white/25 text-center py-8">No expenses in this period</p>
-          ) : (
-            <div className="space-y-3.5">
-              {catData.map(({ name, color, value }) => (
-                <div key={name}>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-xs text-white/60">{name}</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] text-white/30">{((value / totalExpenses) * 100).toFixed(0)}%</span>
-                      <span className="text-xs font-bold text-white tabular-nums">{formatPrice(value)}</span>
+          <div className="rounded-2xl bg-white/4 border border-white/8 p-5">
+            <p className="text-sm font-semibold text-white/60 mb-4">Expenses by Category</p>
+            {catData.length === 0 ? (
+              <p className="text-xs text-white/25 text-center py-8">No expenses in this period</p>
+            ) : (
+              <div className="space-y-3.5">
+                {catData.map(({ name, color, value }) => (
+                  <div key={name}>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-xs text-white/60">{name}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-white/30">{((value / totalExpenses) * 100).toFixed(0)}%</span>
+                        <span className="text-xs font-bold text-white tabular-nums">{formatPrice(value)}</span>
+                      </div>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-white/8 overflow-hidden">
+                      <div className="h-full rounded-full transition-all duration-500"
+                        style={{ width: `${(value / catMax) * 100}%`, backgroundColor: color }} />
                     </div>
                   </div>
-                  <div className="h-1.5 rounded-full bg-white/8 overflow-hidden">
-                    <div className="h-full rounded-full transition-all duration-500"
-                      style={{ width: `${(value / catMax) * 100}%`, backgroundColor: color }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Transaction timeline */}
       {timeline.length > 0 && (
-        <div className="rounded-2xl border border-white/8 overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-3 bg-white/3 border-b border-white/8">
-            <p className="text-xs font-semibold text-white/40 uppercase tracking-wider">Transactions</p>
-            <div className="flex items-center gap-4 text-[11px] text-white/30">
-              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />Sales</span>
-              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-rose-500 inline-block" />Expenses</span>
-              <span>{timeline.length} entries</span>
+        <motion.div variants={FIELD_ITEM}>
+          <div className="rounded-2xl border border-white/8 overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-3 bg-white/3 border-b border-white/8">
+              <p className="text-xs font-semibold text-white/40 uppercase tracking-wider">Transactions</p>
+              <div className="flex items-center gap-4 text-[11px] text-white/30">
+                <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />Sales</span>
+                <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-rose-500 inline-block" />Expenses</span>
+                <span>{timeline.length} entries</span>
+              </div>
+            </div>
+            <div className="divide-y divide-white/5 max-h-[420px] overflow-y-auto">
+              {timeline.map(tx => (
+                <div key={`${tx.kind}-${tx.id}`}
+                  className="flex items-center gap-4 px-5 py-3 hover:bg-white/3 transition-colors">
+                  <div className={cn('w-1 h-9 rounded-full shrink-0',
+                    tx.kind === 'sale' ? 'bg-emerald-500' : 'bg-rose-500')} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-white truncate">{tx.label}</p>
+                    <p className="text-[11px] text-white/35">{tx.sub}</p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className={cn('text-sm font-bold tabular-nums',
+                      tx.kind === 'sale' ? 'text-emerald-400' : 'text-rose-400')}>
+                      {tx.kind === 'sale' ? '+' : '−'}{formatPrice(tx.amount)}
+                    </p>
+                    <p className="text-[10px] text-white/30">
+                      {new Date(tx.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                      {' · '}
+                      {new Date(tx.date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                    </p>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
-          <div className="divide-y divide-white/5 max-h-[420px] overflow-y-auto">
-            {timeline.map(tx => (
-              <div key={`${tx.kind}-${tx.id}`}
-                className="flex items-center gap-4 px-5 py-3 hover:bg-white/3 transition-colors">
-                <div className={cn('w-1 h-9 rounded-full shrink-0',
-                  tx.kind === 'sale' ? 'bg-emerald-500' : 'bg-rose-500')} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-white truncate">{tx.label}</p>
-                  <p className="text-[11px] text-white/35">{tx.sub}</p>
-                </div>
-                <div className="text-right shrink-0">
-                  <p className={cn('text-sm font-bold tabular-nums',
-                    tx.kind === 'sale' ? 'text-emerald-400' : 'text-rose-400')}>
-                    {tx.kind === 'sale' ? '+' : '−'}{formatPrice(tx.amount)}
-                  </p>
-                  <p className="text-[10px] text-white/30">
-                    {new Date(tx.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
-                    {' · '}
-                    {new Date(tx.date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        </motion.div>
       )}
 
       {timeline.length === 0 && !loading && (
@@ -497,6 +549,6 @@ export default function FinancePage() {
           No transactions found for this period
         </div>
       )}
-    </div>
+    </motion.div>
   )
 }

@@ -4,8 +4,14 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { logAudit } from '@/lib/logAudit'
 import { cn } from '@/lib/utils'
-import { SkeletonList } from '@/components/ui/SkeletonList'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
+import { motion, type Variants } from 'framer-motion'
+import { SkeletonList } from '@/components/ui/SkeletonList'
+
+const PAGE: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  show:   { opacity: 1, y: 0, transition: { duration: 0.22, ease: 'circOut' as const } },
+}
 import {
   Monitor, MonitorCheck, Plus, Pencil, Trash2,
   X, Loader2, ToggleLeft, ToggleRight, Check,
@@ -719,7 +725,7 @@ export default function DevicePage() {
 
   // ── Render ─────────────────────────────────────────────────
   return (
-    <div className="max-w-3xl mx-auto">
+    <motion.div variants={PAGE} initial="hidden" animate="show" className="max-w-3xl mx-auto">
 
       {/* Tab bar */}
       <div className="flex gap-1 mb-6 p-1 rounded-2xl bg-white/4 border border-white/8 w-fit">
@@ -1403,6 +1409,6 @@ export default function DevicePage() {
         </div>
       )}
 
-    </div>
+    </motion.div>
   )
 }

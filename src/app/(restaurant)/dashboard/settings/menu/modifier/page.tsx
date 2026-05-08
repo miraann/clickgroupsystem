@@ -1,22 +1,21 @@
-'use client'
-import { useState, useEffect } from 'react'
+﻿'use client'
+import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { SkeletonList } from '@/components/ui/SkeletonList'
-import { AnimatedList, AnimatedItem } from '@/components/ui/AnimatedList'
 import { Plus, Pencil, Trash2, Sliders, X, ToggleLeft, ToggleRight, Loader2, AlertCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { logAudit } from '@/lib/logAudit'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { useMenuModifiers, type CachedModifier, type CachedModOption } from '@/hooks/useMenuModifiers'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, type Variants } from 'framer-motion'
 
 type ModOption = CachedModOption
 type Modifier = CachedModifier
 
 function FadeSwitch({ id, children }: { id: string; children: React.ReactNode }) {
   return (
-    <AnimatePresence mode="popLayout" initial={false}>
+    <AnimatePresence mode="popLayout">
       <motion.div
         key={id}
         initial={{ opacity: 0 }}
@@ -32,6 +31,20 @@ function FadeSwitch({ id, children }: { id: string; children: React.ReactNode })
 
 const EMPTY_FORM = { name: '', required: false, min_select: 0, max_select: 1 }
 
+const PAGE: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  show:   { opacity: 1, y: 0,  transition: { duration: 0.55, ease: 'circOut' as const } },
+  exit:   { opacity: 0, y: -10, transition: { duration: 0.3 } },
+}
+const LIST: Variants = {
+  hidden:  {},
+  visible: { transition: { staggerChildren: 0.08, delayChildren: 0.15 } },
+}
+const ITEM_VAR: Variants = {
+  hidden:  { opacity: 0, y: 30 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.45, ease: 'circOut' as const } },
+}
+
 export default function ModifierPage() {
   const supabase = createClient()
   const { formatPrice } = useDefaultCurrency()
@@ -43,9 +56,7 @@ export default function ModifierPage() {
 
   const { data: swrMods, isLoading: loading, error: swrError, mutate } = useMenuModifiers(restaurantId)
 
-  const [mods, setMods] = useState<Modifier[]>([])
-  useEffect(() => { if (swrMods) setMods(swrMods) }, [swrMods])
-
+  const mods  = swrMods ?? []
   const error = swrError ? (swrError as Error).message : null
 
   const [modal, setModal]               = useState(false)
@@ -132,9 +143,7 @@ export default function ModifierPage() {
     const { error } = await supabase.from('menu_modifiers').delete().eq('id', id)
     if (!error) {
       logAudit(restaurantId!, 'delete', { entity: 'modifier', name }, id)
-      const updated = mods.filter(m => m.id !== id)
-      setMods(updated)
-      mutate(updated, false)
+      mutate(mods.filter(m => m.id !== id), false)
     }
     setDeleteId(null)
   }
@@ -153,7 +162,7 @@ export default function ModifierPage() {
   )
 
   return (
-    <div className="max-w-3xl mx-auto">
+    <motion.div key="menu-modifier-page" variants={PAGE} initial="hidden" animate="show" exit="exit" className="max-w-3xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
@@ -179,9 +188,9 @@ export default function ModifierPage() {
         {loading ? (
           <SkeletonList rows={5} />
         ) : (
-      <AnimatedList className="space-y-3">
+      <motion.div variants={LIST} initial="hidden" animate="visible" className="space-y-3">
         {mods.map(m => (
-          <AnimatedItem key={m.id} className="p-4 bg-white/5 border border-white/10 rounded-2xl">
+          <motion.div key={m.id} variants={ITEM_VAR} className="p-4 bg-white/5 border border-white/10 rounded-2xl">
             <div className="flex items-center gap-3 mb-3">
               <div className="flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
@@ -216,10 +225,10 @@ export default function ModifierPage() {
               ))}
               {m.modifier_options.length === 0 && <span className="text-xs text-white/25">{t.mod_no_data}</span>}
             </div>
-          </AnimatedItem>
+          </motion.div>
         ))}
         {mods.length === 0 && <div className="text-center py-16 text-white/25 text-sm">{t.mod_no_data}</div>}
-      </AnimatedList>
+      </motion.div>
         )}
       </FadeSwitch>
 
@@ -330,6 +339,6 @@ export default function ModifierPage() {
           </div>
         </div>
       )}
-    </div>
+    </motion.div>
   )
 }

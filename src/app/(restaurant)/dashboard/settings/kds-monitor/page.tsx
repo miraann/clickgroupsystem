@@ -4,7 +4,12 @@ import { createClient } from '@/lib/supabase/client'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { ActivitySquare, Search, Clock, Flame, CheckCheck, Loader2, ChevronDown, ChevronUp, X, Eye, User, QrCode, Calendar, Hash, UtensilsCrossed } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { SkeletonList } from '@/components/ui/SkeletonList'
+import { motion, type Variants } from 'framer-motion'
+
+const PAGE: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  show:   { opacity: 1, y: 0, transition: { duration: 0.22, ease: 'circOut' as const } },
+}
 
 interface KdsItemRecord {
   id: string
@@ -442,7 +447,7 @@ export default function KdsMonitorPage() {
   }, [search, records])
 
   return (
-    <div className="space-y-6">
+    <motion.div variants={PAGE} initial="hidden" animate="show" className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/20 flex items-center justify-center">
@@ -455,7 +460,11 @@ export default function KdsMonitorPage() {
       </div>
 
       {loading ? (
-        <SkeletonList rows={5} rowHeight="h-[80px]" />
+        <div className="space-y-2">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="h-[80px] rounded-2xl bg-white/5 border border-white/8 animate-pulse" />
+          ))}
+        </div>
       ) : (
         <>
           {/* Stats */}
@@ -534,6 +543,6 @@ export default function KdsMonitorPage() {
           )}
         </>
       )}
-    </div>
+    </motion.div>
   )
 }

@@ -202,9 +202,9 @@ export default function SettingsHomePage() {
         {/* Header */}
         <motion.div
           className="text-center mb-8"
-          initial={{ opacity: 0, y: 10 }}
+          initial={{ opacity: 0, y: 22 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, ease: 'easeOut' }}
+          transition={{ duration: 0.5, ease: 'circOut' }}
         >
           <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-white">{t.nav_settings}</h1>
           <p className="text-sm text-white/45 mt-1.5 max-w-lg mx-auto">{t.sh_subtitle}</p>
@@ -213,9 +213,9 @@ export default function SettingsHomePage() {
         {/* Search */}
         <motion.div
           className="flex justify-center mb-10"
-          initial={{ opacity: 0, y: 6 }}
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.06, ease: 'easeOut' }}
+          transition={{ duration: 0.45, delay: 0.09, ease: 'circOut' }}
         >
           <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/10 w-full max-w-md focus-within:border-amber-500/40 transition-colors">
             <Search className="w-4 h-4 text-white/40 shrink-0" />
@@ -228,43 +228,55 @@ export default function SettingsHomePage() {
           </div>
         </motion.div>
 
-        {/* Section grid */}
-        <div className="space-y-10">
-          {SECTIONS.map((section, si) => {
-            const visibleItems = section.items.filter(item => {
-              if (!q) return true
-              const label = t[item.labelKey] || ''
-              const sub   = item.subtitles[lang as keyof Subtitles] ?? item.subtitles.en
-              return label.toLowerCase().includes(q) || sub.toLowerCase().includes(q)
-            })
-            if (!visibleItems.length) return null
-            return (
-              <motion.section
-                key={section.groupKey}
-                className="mx-auto"
-                style={{ maxWidth: 1200 }}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.25, delay: 0.1 + si * 0.04, ease: 'easeOut' }}
-              >
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45 text-center mb-4">
-                  {t[section.groupKey]}
-                </p>
-                <div className="flex flex-wrap gap-3 justify-center">
-                  {visibleItems.map(item => (
-                    <Tile
-                      key={item.id}
-                      item={item}
-                      label={t[item.labelKey] || item.id}
-                      sub={item.subtitles[lang as keyof Subtitles] ?? item.subtitles.en}
-                      onClick={() => router.push(item.href)}
-                    />
-                  ))}
-                </div>
-              </motion.section>
-            )
-          })}
-        </div>
+        {/* Section grid — flat tile counter for top-to-bottom stagger */}
+        {(() => {
+          let tileIdx = 0
+          return (
+            <div className="space-y-10">
+              {SECTIONS.map((section, si) => {
+                const visibleItems = section.items.filter(item => {
+                  if (!q) return true
+                  const label = t[item.labelKey] || ''
+                  const sub   = item.subtitles[lang as keyof Subtitles] ?? item.subtitles.en
+                  return label.toLowerCase().includes(q) || sub.toLowerCase().includes(q)
+                })
+                if (!visibleItems.length) return null
+                return (
+                  <section key={section.groupKey} className="mx-auto" style={{ maxWidth: 1200 }}>
+                    <motion.p
+                      className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45 text-center mb-4"
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.4, ease: 'circOut', delay: 0.14 + si * 0.045 }}
+                    >
+                      {t[section.groupKey]}
+                    </motion.p>
+                    <div className="flex flex-wrap gap-3 justify-center">
+                      {visibleItems.map(item => {
+                        const delay = 0.18 + tileIdx++ * 0.04
+                        return (
+                          <motion.div
+                            key={item.id}
+                            initial={{ opacity: 0, y: 22 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.45, ease: 'circOut', delay }}
+                          >
+                            <Tile
+                              item={item}
+                              label={t[item.labelKey] || item.id}
+                              sub={item.subtitles[lang as keyof Subtitles] ?? item.subtitles.en}
+                              onClick={() => router.push(item.href)}
+                            />
+                          </motion.div>
+                        )
+                      })}
+                    </div>
+                  </section>
+                )
+              })}
+            </div>
+          )
+        })()}
 
         <p className="mt-16 mb-4 text-center text-[11px] tracking-wider text-white/25">
           ClickGroup POS · Multi-tenant Restaurant Management Platform

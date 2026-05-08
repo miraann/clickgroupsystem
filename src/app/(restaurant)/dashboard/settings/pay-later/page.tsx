@@ -7,7 +7,52 @@ import {
   DollarSign, TrendingUp, Users,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { SkeletonList } from '@/components/ui/SkeletonList'
+import { motion, AnimatePresence, type Variants } from 'framer-motion'
+
+const PAGE: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  show:   { opacity: 1, y: 0, transition: { duration: 0.22, ease: 'circOut' as const } },
+}
+const FIELDS: Variants = {
+  hidden: {},
+  show:   { transition: { staggerChildren: 0.28 } },
+}
+const FIELD_ITEM: Variants = {
+  hidden: { opacity: 0, y: -10 },
+  show:   { opacity: 1, y: 0, transition: { duration: 0.55, ease: 'circOut' as const } },
+}
+function Skel({ className }: { className?: string }) {
+  return <div className={cn('animate-pulse rounded-xl bg-white/8', className)} />
+}
+function SkelSection({ lines = 2 }: { lines?: number }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/3 overflow-hidden">
+      <div className="px-5 py-3.5 border-b border-white/8 bg-white/3">
+        <Skel className="h-3.5 w-36 rounded-md" />
+      </div>
+      <div className="p-5 space-y-3">
+        {Array.from({ length: lines }).map((_, i) => (
+          <Skel key={i} className={cn('h-11 rounded-xl', i === 1 ? 'w-3/4' : 'w-full')} />
+        ))}
+      </div>
+    </div>
+  )
+}
+function FadeSwitch({ id, children }: { id: string; children: React.ReactNode }) {
+  return (
+    <AnimatePresence mode="popLayout" initial={false}>
+      <motion.div
+        key={id}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.18 }}
+      >
+        {children}
+      </motion.div>
+    </AnimatePresence>
+  )
+}
 import { createClient } from '@/lib/supabase/client'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
@@ -79,153 +124,169 @@ export default function PayLaterPage() {
     setViewRec(null)
   }
 
-  if (loading) return <SkeletonList rows={5} />
-
   return (
-    <div className="space-y-6 max-w-5xl">
+    <motion.div variants={PAGE} initial="hidden" animate="show" className="space-y-6 max-w-5xl">
 
       {/* ── Summary cards ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-rose-500/20 via-rose-500/10 to-transparent border border-rose-500/25 p-4">
-          <p className="text-xs font-semibold text-rose-400/70 uppercase tracking-wider mb-1">{t.pl_outstanding}</p>
-          <p className="text-xl font-extrabold text-white tabular-nums">{formatPrice(outstanding)}</p>
-          <p className="text-xs text-white/30 mt-0.5">{totalAccounts} account{totalAccounts !== 1 ? 's' : ''}</p>
-          <DollarSign className="absolute bottom-3 right-3 w-7 h-7 text-rose-500/15" />
-        </div>
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-500/20 via-amber-500/10 to-transparent border border-amber-500/25 p-4">
-          <p className="text-xs font-semibold text-amber-400/70 uppercase tracking-wider mb-1">Overdue</p>
-          <p className="text-xl font-extrabold text-white tabular-nums">{overdueCount}</p>
-          <p className="text-xs text-white/30 mt-0.5">past due date</p>
-          <AlertCircle className="absolute bottom-3 right-3 w-7 h-7 text-amber-500/15" />
-        </div>
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500/20 via-emerald-500/10 to-transparent border border-emerald-500/25 p-4">
-          <p className="text-xs font-semibold text-emerald-400/70 uppercase tracking-wider mb-1">Total Collected</p>
-          <p className="text-xl font-extrabold text-white tabular-nums">{formatPrice(paidTotal)}</p>
-          <p className="text-xs text-white/30 mt-0.5">fully paid</p>
-          <TrendingUp className="absolute bottom-3 right-3 w-7 h-7 text-emerald-500/15" />
-        </div>
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-500/20 via-blue-500/10 to-transparent border border-blue-500/25 p-4">
-          <p className="text-xs font-semibold text-blue-400/70 uppercase tracking-wider mb-1">Total Records</p>
-          <p className="text-xl font-extrabold text-white tabular-nums">{records.length}</p>
-          <p className="text-xs text-white/30 mt-0.5">all time</p>
-          <Users className="absolute bottom-3 right-3 w-7 h-7 text-blue-500/15" />
-        </div>
-      </div>
+      <motion.div variants={FIELD_ITEM}>
+        <FadeSwitch id={loading ? 'skel-cards' : 'cards'}>
+          {loading ? (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {Array.from({ length: 4 }).map((_, i) => <Skel key={i} className="h-24 rounded-2xl" />)}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-rose-500/20 via-rose-500/10 to-transparent border border-rose-500/25 p-4">
+                <p className="text-xs font-semibold text-rose-400/70 uppercase tracking-wider mb-1">{t.pl_outstanding}</p>
+                <p className="text-xl font-extrabold text-white tabular-nums">{formatPrice(outstanding)}</p>
+                <p className="text-xs text-white/30 mt-0.5">{totalAccounts} account{totalAccounts !== 1 ? 's' : ''}</p>
+                <DollarSign className="absolute bottom-3 right-3 w-7 h-7 text-rose-500/15" />
+              </div>
+              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-500/20 via-amber-500/10 to-transparent border border-amber-500/25 p-4">
+                <p className="text-xs font-semibold text-amber-400/70 uppercase tracking-wider mb-1">Overdue</p>
+                <p className="text-xl font-extrabold text-white tabular-nums">{overdueCount}</p>
+                <p className="text-xs text-white/30 mt-0.5">past due date</p>
+                <AlertCircle className="absolute bottom-3 right-3 w-7 h-7 text-amber-500/15" />
+              </div>
+              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500/20 via-emerald-500/10 to-transparent border border-emerald-500/25 p-4">
+                <p className="text-xs font-semibold text-emerald-400/70 uppercase tracking-wider mb-1">Total Collected</p>
+                <p className="text-xl font-extrabold text-white tabular-nums">{formatPrice(paidTotal)}</p>
+                <p className="text-xs text-white/30 mt-0.5">fully paid</p>
+                <TrendingUp className="absolute bottom-3 right-3 w-7 h-7 text-emerald-500/15" />
+              </div>
+              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-500/20 via-blue-500/10 to-transparent border border-blue-500/25 p-4">
+                <p className="text-xs font-semibold text-blue-400/70 uppercase tracking-wider mb-1">Total Records</p>
+                <p className="text-xl font-extrabold text-white tabular-nums">{records.length}</p>
+                <p className="text-xs text-white/30 mt-0.5">all time</p>
+                <Users className="absolute bottom-3 right-3 w-7 h-7 text-blue-500/15" />
+              </div>
+            </div>
+          )}
+        </FadeSwitch>
+      </motion.div>
 
       {/* ── Controls ── */}
-      <div className="flex flex-wrap gap-3 items-center">
-        <div className="relative flex-1 min-w-[180px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/30" />
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder={`${t.search}…`}
-            className="w-full pl-9 pr-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500/40 transition-colors"
-          />
+      <motion.div variants={FIELD_ITEM}>
+        <div className="flex flex-wrap gap-3 items-center">
+          <div className="relative flex-1 min-w-[180px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/30" />
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder={`${t.search}…`}
+              className="w-full pl-9 pr-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500/40 transition-colors"
+            />
+          </div>
+          <div className="relative">
+            <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
+              className="appearance-none pl-3 pr-8 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white/70 focus:outline-none cursor-pointer">
+              <option value="all">All Statuses</option>
+              <option value="pending">Pending</option>
+              <option value="partial">Partial</option>
+              <option value="paid">Paid</option>
+            </select>
+            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/30 pointer-events-none" />
+          </div>
+          <button
+            onClick={() => setShowAdd(true)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold active:scale-95 transition-all shadow-lg shadow-amber-500/25 shrink-0"
+          >
+            <Plus className="w-4 h-4" />{t.pl_title}
+          </button>
         </div>
-        <div className="relative">
-          <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
-            className="appearance-none pl-3 pr-8 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white/70 focus:outline-none cursor-pointer">
-            <option value="all">All Statuses</option>
-            <option value="pending">Pending</option>
-            <option value="partial">Partial</option>
-            <option value="paid">Paid</option>
-          </select>
-          <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/30 pointer-events-none" />
-        </div>
-        <button
-          onClick={() => setShowAdd(true)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold active:scale-95 transition-all shadow-lg shadow-amber-500/25 shrink-0"
-        >
-          <Plus className="w-4 h-4" />{t.pl_title}
-        </button>
-      </div>
+      </motion.div>
 
       {/* ── List ── */}
-      <div className="rounded-2xl border border-white/8">
-        <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-3 px-5 py-3 bg-white/3 border-b border-white/8 text-xs font-semibold text-white/30 uppercase tracking-wider rounded-t-2xl">
-          <span>{t.pl_customer}</span>
-          <span className="w-36 text-right">{t.pl_amount}</span>
-          <span className="w-28">{t.pl_due}</span>
-          <span className="w-24">Status</span>
-          <span className="w-16" />
-        </div>
+      <motion.div variants={FIELD_ITEM}>
+        <FadeSwitch id={loading ? 'skel-list' : 'list'}>
+          {loading ? <SkelSection lines={4} /> : (
+            <div className="rounded-2xl border border-white/8">
+              <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-3 px-5 py-3 bg-white/3 border-b border-white/8 text-xs font-semibold text-white/30 uppercase tracking-wider rounded-t-2xl">
+                <span>{t.pl_customer}</span>
+                <span className="w-36 text-right">{t.pl_amount}</span>
+                <span className="w-28">{t.pl_due}</span>
+                <span className="w-24">Status</span>
+                <span className="w-16" />
+              </div>
 
-        {visible.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 gap-3">
-            <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
-              <CreditCard className="w-6 h-6 text-white/20" />
-            </div>
-            <p className="text-white/30 text-sm">{t.pl_no_data}</p>
-            <button onClick={() => setShowAdd(true)} className="text-xs text-amber-400 hover:text-amber-300 transition-colors">
-              + Add first record
-            </button>
-          </div>
-        ) : (
-          <div className="divide-y divide-white/5">
-            {visible.map(rec => {
-              const balance    = rec.original_amount - rec.paid_amount
-              const cfg        = STATUS_CFG[rec.status] ?? STATUS_CFG.pending
-              const StatusIcon = cfg.icon
-              const overdue    = isOverdue(rec)
-              return (
-                <div key={rec.id} className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-3 px-5 py-3.5 items-center hover:bg-white/3 transition-colors group">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-9 h-9 rounded-xl bg-amber-500/15 border border-amber-500/25 flex items-center justify-center shrink-0">
-                      <User className="w-4 h-4 text-amber-400" />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-semibold text-white truncate">{rec.customer_name}</p>
-                        {overdue && <span className="text-[9px] font-bold text-rose-400 bg-rose-500/15 border border-rose-500/25 px-1.5 py-0.5 rounded-md shrink-0">OVERDUE</span>}
-                      </div>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        {rec.customer_phone && <span className="text-[10px] text-white/30 flex items-center gap-0.5"><Phone className="w-2.5 h-2.5" />{rec.customer_phone}</span>}
-                        {rec.order_ref && <span className="text-[10px] text-white/30 flex items-center gap-0.5"><Hash className="w-2.5 h-2.5" />{rec.order_ref}</span>}
-                        {rec.table_num && <span className="text-[10px] text-white/30">Table {rec.table_num}</span>}
-                      </div>
-                    </div>
+              {visible.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 gap-3">
+                  <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
+                    <CreditCard className="w-6 h-6 text-white/20" />
                   </div>
-
-                  <div className="w-36 text-right">
-                    <p className={cn('text-sm font-bold tabular-nums', rec.status === 'paid' ? 'text-emerald-400' : 'text-white')}>
-                      {formatPrice(rec.status === 'paid' ? rec.original_amount : balance)}
-                    </p>
-                    {rec.status === 'partial' && (
-                      <p className="text-[10px] text-white/30 tabular-nums">of {formatPrice(rec.original_amount)}</p>
-                    )}
-                  </div>
-
-                  <div className="w-28">
-                    <p className="text-xs text-white/60">{fmtDate(rec.created_at)}</p>
-                    {rec.due_date && (
-                      <p className={cn('text-[10px]', overdue ? 'text-rose-400' : 'text-white/30')}>
-                        Due {fmtDate(rec.due_date)}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="w-24">
-                    <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-lg border text-[10px] font-bold', cfg.color)}>
-                      <StatusIcon className="w-2.5 h-2.5" />{cfg.label}
-                    </span>
-                  </div>
-
-                  <div className="w-16 flex items-center gap-1">
-                    <button
-                      onClick={() => setViewRec(rec)}
-                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-amber-500/15 border border-white/8 hover:border-amber-500/30 text-white/40 hover:text-amber-400 text-xs font-medium transition-all active:scale-95"
-                    >
-                      <Eye className="w-3.5 h-3.5" />
-                      <span className="hidden sm:inline">View</span>
-                    </button>
-                  </div>
+                  <p className="text-white/30 text-sm">{t.pl_no_data}</p>
+                  <button onClick={() => setShowAdd(true)} className="text-xs text-amber-400 hover:text-amber-300 transition-colors">
+                    + Add first record
+                  </button>
                 </div>
-              )
-            })}
-          </div>
-        )}
-      </div>
+              ) : (
+                <div className="divide-y divide-white/5">
+                  {visible.map(rec => {
+                    const balance    = rec.original_amount - rec.paid_amount
+                    const cfg        = STATUS_CFG[rec.status] ?? STATUS_CFG.pending
+                    const StatusIcon = cfg.icon
+                    const overdue    = isOverdue(rec)
+                    return (
+                      <div key={rec.id} className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-3 px-5 py-3.5 items-center hover:bg-white/3 transition-colors group">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-9 h-9 rounded-xl bg-amber-500/15 border border-amber-500/25 flex items-center justify-center shrink-0">
+                            <User className="w-4 h-4 text-amber-400" />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm font-semibold text-white truncate">{rec.customer_name}</p>
+                              {overdue && <span className="text-[9px] font-bold text-rose-400 bg-rose-500/15 border border-rose-500/25 px-1.5 py-0.5 rounded-md shrink-0">OVERDUE</span>}
+                            </div>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              {rec.customer_phone && <span className="text-[10px] text-white/30 flex items-center gap-0.5"><Phone className="w-2.5 h-2.5" />{rec.customer_phone}</span>}
+                              {rec.order_ref && <span className="text-[10px] text-white/30 flex items-center gap-0.5"><Hash className="w-2.5 h-2.5" />{rec.order_ref}</span>}
+                              {rec.table_num && <span className="text-[10px] text-white/30">Table {rec.table_num}</span>}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="w-36 text-right">
+                          <p className={cn('text-sm font-bold tabular-nums', rec.status === 'paid' ? 'text-emerald-400' : 'text-white')}>
+                            {formatPrice(rec.status === 'paid' ? rec.original_amount : balance)}
+                          </p>
+                          {rec.status === 'partial' && (
+                            <p className="text-[10px] text-white/30 tabular-nums">of {formatPrice(rec.original_amount)}</p>
+                          )}
+                        </div>
+
+                        <div className="w-28">
+                          <p className="text-xs text-white/60">{fmtDate(rec.created_at)}</p>
+                          {rec.due_date && (
+                            <p className={cn('text-[10px]', overdue ? 'text-rose-400' : 'text-white/30')}>
+                              Due {fmtDate(rec.due_date)}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="w-24">
+                          <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-lg border text-[10px] font-bold', cfg.color)}>
+                            <StatusIcon className="w-2.5 h-2.5" />{cfg.label}
+                          </span>
+                        </div>
+
+                        <div className="w-16 flex items-center gap-1">
+                          <button
+                            onClick={() => setViewRec(rec)}
+                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-amber-500/15 border border-white/8 hover:border-amber-500/30 text-white/40 hover:text-amber-400 text-xs font-medium transition-all active:scale-95"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">View</span>
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+        </FadeSwitch>
+      </motion.div>
 
       {visible.length > 0 && (
         <p className="text-xs text-white/25 text-right">
@@ -255,6 +316,6 @@ export default function PayLaterPage() {
           }}
         />
       )}
-    </div>
+    </motion.div>
   )
 }

@@ -6,7 +6,13 @@ import {
   CreditCard, Calendar, ArrowUpRight, ArrowDownRight,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { motion, type Variants } from 'framer-motion'
 import { SkeletonList } from '@/components/ui/SkeletonList'
+
+const PAGE: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  show:   { opacity: 1, y: 0, transition: { duration: 0.22, ease: 'circOut' as const } },
+}
 import { createClient } from '@/lib/supabase/client'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
@@ -209,7 +215,7 @@ export default function ReportPage() {
   ]
 
   return (
-    <div className="space-y-6">
+    <motion.div variants={PAGE} initial="hidden" animate="show" className="space-y-6">
 
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -428,6 +434,6 @@ export default function ReportPage() {
           )}
         </>
       )}
-    </div>
+    </motion.div>
   )
 }

@@ -1,10 +1,10 @@
-'use client'
+﻿'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { Hash, Save, CheckCircle2, Loader2, ToggleLeft, ToggleRight, AlertCircle } from 'lucide-react'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { cn } from '@/lib/utils'
 import { SkeletonList } from '@/components/ui/SkeletonList'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, type Variants } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
 
 type ResetPeriod = 'never' | 'daily' | 'shift'
@@ -22,7 +22,7 @@ const DEFAULTS: Settings = { prefix: 'ORD-', start_num: 1, current_num: 1, reset
 
 function FadeSwitch({ id, children }: { id: string; children: React.ReactNode }) {
   return (
-    <AnimatePresence mode="popLayout" initial={false}>
+    <AnimatePresence mode="popLayout">
       <motion.div
         key={id}
         initial={{ opacity: 0 }}
@@ -34,6 +34,12 @@ function FadeSwitch({ id, children }: { id: string; children: React.ReactNode })
       </motion.div>
     </AnimatePresence>
   )
+}
+
+const PAGE: Variants = {
+  hidden: { opacity: 0, y: 15 },
+  show:   { opacity: 1, y: 0,  transition: { duration: 0.2,  ease: 'circOut' as const } },
+  exit:   { opacity: 0, y: -10, transition: { duration: 0.15 } },
 }
 
 export default function OrderNumberPage() {
@@ -105,7 +111,7 @@ export default function OrderNumberPage() {
   )
 
   return (
-    <div className="max-w-lg mx-auto">
+    <motion.div key="menu-order-number-page" variants={PAGE} initial="hidden" animate="show" exit="exit" className="max-w-lg mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
@@ -176,6 +182,6 @@ export default function OrderNumberPage() {
       </div>
         )}
       </FadeSwitch>
-    </div>
+    </motion.div>
   )
 }

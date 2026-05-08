@@ -1,19 +1,18 @@
-'use client'
-import { useState, useEffect } from 'react'
+﻿'use client'
+import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { SkeletonList } from '@/components/ui/SkeletonList'
-import { AnimatedList, AnimatedItem } from '@/components/ui/AnimatedList'
 import { Plus, Pencil, Trash2, X, ToggleLeft, ToggleRight, Loader2, AlertCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { useSurcharges, type CachedSurcharge } from '@/hooks/useSurcharges'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, type Variants } from 'framer-motion'
 
 type Surcharge = CachedSurcharge
 
 function FadeSwitch({ id, children }: { id: string; children: React.ReactNode }) {
   return (
-    <AnimatePresence mode="popLayout" initial={false}>
+    <AnimatePresence mode="popLayout">
       <motion.div
         key={id}
         initial={{ opacity: 0 }}
@@ -36,6 +35,20 @@ const APPLIED_COLORS: Record<string, string> = {
 }
 const EMPTY_FORM = { name: '', type: 'percentage' as 'percentage' | 'fixed', value: 10, applied_to: 'All', active: true }
 
+const PAGE: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  show:   { opacity: 1, y: 0,  transition: { duration: 0.55, ease: 'circOut' as const } },
+  exit:   { opacity: 0, y: -10, transition: { duration: 0.3 } },
+}
+const LIST: Variants = {
+  hidden:  {},
+  visible: { transition: { staggerChildren: 0.08, delayChildren: 0.15 } },
+}
+const ITEM_VAR: Variants = {
+  hidden:  { opacity: 0, y: 30 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.45, ease: 'circOut' as const } },
+}
+
 export default function SurchargePage() {
   const supabase = createClient()
   const { t } = useLanguage()
@@ -45,11 +58,9 @@ export default function SurchargePage() {
   )
 
   const { data: swrData, isLoading: loading, error: swrError, mutate } = useSurcharges(restaurantId)
-  const error    = swrError ? (swrError as Error).message : null
-  const currency = swrData?.currency ?? { symbol: '$', decimal_places: 2 }
-
-  const [surcharges, setSurcharges] = useState<Surcharge[]>([])
-  useEffect(() => { if (swrData) setSurcharges(swrData.surcharges) }, [swrData])
+  const surcharges = swrData?.surcharges ?? []
+  const currency   = swrData?.currency ?? { symbol: '$', decimal_places: 2 }
+  const error      = swrError ? (swrError as Error).message : null
 
   const [modal,    setModal]    = useState(false)
   const [editId,   setEditId]   = useState<string | null>(null)
@@ -73,22 +84,14 @@ export default function SurchargePage() {
 
     if (editId) {
       const { error: err } = await supabase.from('surcharges').update(payload).eq('id', editId)
-      if (!err) {
-        const updated = surcharges.map(s => s.id === editId ? { ...s, ...payload } : s)
-        setSurcharges(updated)
-        mutate(prev => prev ? { ...prev, surcharges: updated } : prev, false)
-      }
+      if (!err) mutate(prev => prev ? { ...prev, surcharges: surcharges.map(s => s.id === editId ? { ...s, ...payload } : s) } : prev, false)
     } else {
       const nextOrder = surcharges.length > 0 ? Math.max(...surcharges.map(s => s.sort_order)) + 1 : 0
       const { data, error: err } = await supabase
         .from('surcharges')
         .insert({ restaurant_id: restaurantId, ...payload, sort_order: nextOrder })
         .select().single()
-      if (!err && data) {
-        const updated = [...surcharges, data as Surcharge]
-        setSurcharges(updated)
-        mutate(prev => prev ? { ...prev, surcharges: updated } : prev, false)
-      }
+      if (!err && data) mutate(prev => prev ? { ...prev, surcharges: [...surcharges, data as Surcharge] } : prev, false)
     }
     setSaving(false)
     setModal(false)
@@ -97,9 +100,7 @@ export default function SurchargePage() {
   // ── Toggle active ──────────────────────────────────────────
   const toggleActive = async (s: Surcharge) => {
     const newVal = !s.active
-    const updated = surcharges.map(x => x.id === s.id ? { ...x, active: newVal } : x)
-    setSurcharges(updated)
-    mutate(prev => prev ? { ...prev, surcharges: updated } : prev, false)
+    mutate(prev => prev ? { ...prev, surcharges: surcharges.map(x => x.id === s.id ? { ...x, active: newVal } : x) } : prev, false)
     await supabase.from('surcharges').update({ active: newVal, updated_at: new Date().toISOString() }).eq('id', s.id)
   }
 
@@ -109,11 +110,7 @@ export default function SurchargePage() {
       setDeleteId(id); setTimeout(() => setDeleteId(d => d === id ? null : d), 3000); return
     }
     const { error: err } = await supabase.from('surcharges').delete().eq('id', id)
-    if (!err) {
-      const updated = surcharges.filter(s => s.id !== id)
-      setSurcharges(updated)
-      mutate(prev => prev ? { ...prev, surcharges: updated } : prev, false)
-    }
+    if (!err) mutate(prev => prev ? { ...prev, surcharges: surcharges.filter(s => s.id !== id) } : prev, false)
     setDeleteId(null)
   }
 
@@ -131,7 +128,7 @@ export default function SurchargePage() {
   )
 
   return (
-    <div className="max-w-3xl mx-auto">
+    <motion.div key="menu-surcharge-page" variants={PAGE} initial="hidden" animate="show" exit="exit" className="max-w-3xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
@@ -154,9 +151,9 @@ export default function SurchargePage() {
         {loading ? (
           <SkeletonList rows={4} />
         ) : (
-      <AnimatedList className="space-y-2">
+      <motion.div variants={LIST} initial="hidden" animate="visible" className="space-y-2">
         {surcharges.map(s => (
-          <AnimatedItem key={s.id} className={cn('flex items-center gap-3 p-4 bg-white/5 border rounded-2xl transition-all', s.active ? 'border-white/10' : 'border-white/5 opacity-60')}>
+          <motion.div key={s.id} variants={ITEM_VAR} className={cn('flex items-center gap-3 p-4 bg-white/5 border rounded-2xl transition-all', s.active ? 'border-white/10' : 'border-white/5 opacity-60')}>
             <div className="w-10 h-10 rounded-xl bg-rose-500/15 border border-rose-500/20 flex items-center justify-center shrink-0">
               <span className="text-xs font-bold text-rose-400">
                 {s.type === 'percentage' ? `${s.value}%` : `${currency.symbol}${Number(s.value).toFixed(currency.decimal_places)}`}
@@ -183,10 +180,10 @@ export default function SurchargePage() {
               deleteId === s.id ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30 px-2' : 'w-8 bg-white/5 hover:bg-rose-500/10 text-white/40 hover:text-rose-400')}>
               {deleteId === s.id ? t.delete : <Trash2 className="w-3.5 h-3.5" />}
             </button>
-          </AnimatedItem>
+          </motion.div>
         ))}
         {surcharges.length === 0 && <div className="text-center py-16 text-white/25 text-sm">{t.sur_no_data}</div>}
-      </AnimatedList>
+      </motion.div>
         )}
       </FadeSwitch>
 
@@ -255,6 +252,6 @@ export default function SurchargePage() {
           </div>
         </div>
       )}
-    </div>
+    </motion.div>
   )
 }

@@ -10,9 +10,14 @@ import { createClient } from '@/lib/supabase/client'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import type { Member } from './types'
 import { TIERS, TIER_COLORS } from './types'
-import { SkeletonList } from '@/components/ui/SkeletonList'
 import { MemberModal }  from './MemberModal'
 import { PointsModal }  from './PointsModal'
+import { motion, type Variants } from 'framer-motion'
+
+const PAGE: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  show:   { opacity: 1, y: 0, transition: { duration: 0.22, ease: 'circOut' as const } },
+}
 
 export default function MemberPage() {
   const { t } = useLanguage()
@@ -83,8 +88,6 @@ export default function MemberPage() {
       ? sortDir === 'asc' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />
       : null
 
-  if (loading) return <SkeletonList rows={5} />
-
   if (error) return (
     <div className="flex items-start gap-3 p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 max-w-md">
       <AlertCircle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
@@ -98,7 +101,7 @@ export default function MemberPage() {
   )
 
   return (
-    <div className="max-w-4xl">
+    <motion.div variants={PAGE} initial="hidden" animate="show" className="max-w-4xl">
 
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
@@ -230,6 +233,6 @@ export default function MemberPage() {
           }}
         />
       )}
-    </div>
+    </motion.div>
   )
 }

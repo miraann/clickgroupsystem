@@ -1,19 +1,18 @@
-'use client'
-import { useState, useEffect } from 'react'
+﻿'use client'
+import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { SkeletonList } from '@/components/ui/SkeletonList'
-import { AnimatedList, AnimatedItem } from '@/components/ui/AnimatedList'
 import { Plus, Pencil, Trash2, Gift, X, ToggleLeft, ToggleRight, Loader2, AlertCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { useComboDiscounts, type CachedCombo } from '@/hooks/useComboDiscounts'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, type Variants } from 'framer-motion'
 
 type Combo = CachedCombo
 
 function FadeSwitch({ id, children }: { id: string; children: React.ReactNode }) {
   return (
-    <AnimatePresence mode="popLayout" initial={false}>
+    <AnimatePresence mode="popLayout">
       <motion.div
         key={id}
         initial={{ opacity: 0 }}
@@ -29,6 +28,20 @@ function FadeSwitch({ id, children }: { id: string; children: React.ReactNode })
 
 const EMPTY_FORM = { name: '', description: '', buy_qty: 2, get_qty: 1, discount_pct: 100, active: true }
 
+const PAGE: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  show:   { opacity: 1, y: 0,  transition: { duration: 0.55, ease: 'circOut' as const } },
+  exit:   { opacity: 0, y: -10, transition: { duration: 0.3 } },
+}
+const LIST: Variants = {
+  hidden:  {},
+  visible: { transition: { staggerChildren: 0.08, delayChildren: 0.15 } },
+}
+const ITEM_VAR: Variants = {
+  hidden:  { opacity: 0, y: 30 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.45, ease: 'circOut' as const } },
+}
+
 export default function ComboDiscountPage() {
   const supabase = createClient()
   const { t } = useLanguage()
@@ -38,10 +51,8 @@ export default function ComboDiscountPage() {
   )
 
   const { data: swrCombos, isLoading: loading, error: swrError, mutate } = useComboDiscounts(restaurantId)
-  const error   = swrError ? (swrError as Error).message : null
-
-  const [combos, setCombos] = useState<Combo[]>([])
-  useEffect(() => { if (swrCombos) setCombos(swrCombos) }, [swrCombos])
+  const combos = swrCombos ?? []
+  const error  = swrError ? (swrError as Error).message : null
 
   const [modal,    setModal]    = useState(false)
   const [editId,   setEditId]   = useState<string | null>(null)
@@ -65,22 +76,14 @@ export default function ComboDiscountPage() {
 
     if (editId) {
       const { error: err } = await supabase.from('combo_discounts').update(payload).eq('id', editId)
-      if (!err) {
-        const updated = combos.map(c => c.id === editId ? { ...c, ...payload } : c)
-        setCombos(updated)
-        mutate(updated, false)
-      }
+      if (!err) mutate(combos.map(c => c.id === editId ? { ...c, ...payload } : c), false)
     } else {
       const nextOrder = combos.length > 0 ? Math.max(...combos.map(c => c.sort_order)) + 1 : 0
       const { data, error: err } = await supabase
         .from('combo_discounts')
         .insert({ restaurant_id: restaurantId, ...payload, sort_order: nextOrder })
         .select().single()
-      if (!err && data) {
-        const updated = [...combos, data as Combo]
-        setCombos(updated)
-        mutate(updated, false)
-      }
+      if (!err && data) mutate([...combos, data as Combo], false)
     }
     setSaving(false)
     setModal(false)
@@ -89,9 +92,7 @@ export default function ComboDiscountPage() {
   // ── Toggle active ──────────────────────────────────────────
   const toggleActive = async (c: Combo) => {
     const newVal = !c.active
-    const updated = combos.map(x => x.id === c.id ? { ...x, active: newVal } : x)
-    setCombos(updated)
-    mutate(updated, false)
+    mutate(combos.map(x => x.id === c.id ? { ...x, active: newVal } : x), false)
     await supabase.from('combo_discounts').update({ active: newVal, updated_at: new Date().toISOString() }).eq('id', c.id)
   }
 
@@ -101,11 +102,7 @@ export default function ComboDiscountPage() {
       setDeleteId(id); setTimeout(() => setDeleteId(d => d === id ? null : d), 3000); return
     }
     const { error: err } = await supabase.from('combo_discounts').delete().eq('id', id)
-    if (!err) {
-      const updated = combos.filter(c => c.id !== id)
-      setCombos(updated)
-      mutate(updated, false)
-    }
+    if (!err) mutate(combos.filter(c => c.id !== id), false)
     setDeleteId(null)
   }
 
@@ -123,7 +120,7 @@ export default function ComboDiscountPage() {
   )
 
   return (
-    <div className="max-w-3xl mx-auto">
+    <motion.div key="menu-combo-discount-page" variants={PAGE} initial="hidden" animate="show" exit="exit" className="max-w-3xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
@@ -146,9 +143,9 @@ export default function ComboDiscountPage() {
         {loading ? (
           <SkeletonList rows={4} />
         ) : (
-      <AnimatedList className="space-y-3">
+      <motion.div variants={LIST} initial="hidden" animate="visible" className="space-y-3">
         {combos.map(c => (
-          <AnimatedItem key={c.id} className={cn('p-4 bg-white/5 border rounded-2xl transition-all', c.active ? 'border-white/10' : 'border-white/5 opacity-60')}>
+          <motion.div key={c.id} variants={ITEM_VAR} className={cn('p-4 bg-white/5 border rounded-2xl transition-all', c.active ? 'border-white/10' : 'border-white/5 opacity-60')}>
             <div className="flex items-start gap-3">
               <div className="w-10 h-10 rounded-xl bg-violet-500/15 border border-violet-500/25 flex items-center justify-center shrink-0">
                 <Gift className="w-5 h-5 text-violet-400" />
@@ -173,10 +170,10 @@ export default function ComboDiscountPage() {
                 {deleteId === c.id ? t.delete : <Trash2 className="w-3.5 h-3.5" />}
               </button>
             </div>
-          </AnimatedItem>
+          </motion.div>
         ))}
         {combos.length === 0 && <div className="text-center py-16 text-white/25 text-sm">{t.combo_no_data}</div>}
-      </AnimatedList>
+      </motion.div>
         )}
       </FadeSwitch>
 
@@ -232,6 +229,6 @@ export default function ComboDiscountPage() {
           </div>
         </div>
       )}
-    </div>
+    </motion.div>
   )
 }

@@ -1,26 +1,34 @@
-'use client'
-import { useState, useEffect, useCallback } from 'react'
-import { cn } from '@/lib/utils'
+﻿'use client'
 import { SkeletonList } from '@/components/ui/SkeletonList'
-import { Plus, Pencil, Trash2, UtensilsCrossed, X, ToggleLeft, ToggleRight, Loader2, AlertCircle, Sliders, ImageIcon, GripVertical, Package } from 'lucide-react'
-import { useLanguage } from '@/lib/i18n/LanguageContext'
-import { createClient } from '@/lib/supabase/client'
-import { logAudit } from '@/lib/logAudit'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
+import { useInventoryData } from '@/hooks/useInventoryData'
+import { useMenuCategories } from '@/hooks/useMenuCategories'
+import { useMenuItems } from '@/hooks/useMenuItems'
+import { useMenuModifiers } from '@/hooks/useMenuModifiers'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
+import { logAudit } from '@/lib/logAudit'
+import { createClient } from '@/lib/supabase/client'
+import { cn } from '@/lib/utils'
 import {
-  DndContext, closestCenter, PointerSensor, useSensor, useSensors,
+  closestCenter,
+  DndContext,
+  PointerSensor, useSensor, useSensors,
   type DragEndEvent,
 } from '@dnd-kit/core'
 import {
-  SortableContext, verticalListSortingStrategy,
-  useSortable, arrayMove,
+  arrayMove,
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { motion, AnimatePresence } from 'framer-motion'
+import { AnimatePresence, motion, type Variants } from 'framer-motion'
+import { AlertCircle, GripVertical, ImageIcon, Loader2, Package, Pencil, Plus, Sliders, ToggleLeft, ToggleRight, Trash2, UtensilsCrossed, X } from 'lucide-react'
+import { useState } from 'react'
 
 function FadeSwitch({ id, children }: { id: string; children: React.ReactNode }) {
   return (
-    <AnimatePresence mode="popLayout" initial={false}>
+    <AnimatePresence mode="popLayout">
       <motion.div
         key={id}
         initial={{ opacity: 0 }}
@@ -54,72 +62,57 @@ interface Item {
 
 const EMPTY_FORM = { name: '', category_id: '', price: 0, cost: 0, description: '', image_url: '', available: true, has_modifiers: false }
 
+const PAGE: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  show:   { opacity: 1, y: 0,  transition: { duration: 0.55, ease: 'circOut' as const } },
+  exit:   { opacity: 0, y: -10, transition: { duration: 0.3 } },
+}
+const LIST: Variants = {
+  hidden:  {},
+  visible: { transition: { staggerChildren: 0.08, delayChildren: 0.15 } },
+}
+const ITEM_VAR: Variants = {
+  hidden:  { opacity: 0, y: 30 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.45, ease: 'circOut' as const } },
+}
+
 export default function ItemPage() {
   const supabase = createClient()
   const { t } = useLanguage()
   const { symbol: cur, decimalPlaces, formatPrice } = useDefaultCurrency()
 
-  const [restaurantId, setRestaurantId]   = useState<string | null>(null)
-  const [categories, setCategories]       = useState<Category[]>([])
-  const [modifiers, setModifiers]         = useState<Modifier[]>([])
-  const [items, setItems]                 = useState<Item[]>([])
-  const [itemModMap, setItemModMap]       = useState<Map<string, string[]>>(new Map()) // item_id → modifier_id[]
-  const [loading, setLoading]             = useState(true)
-  const [error, setError]                 = useState<string | null>(null)
+  const [restaurantId] = useState<string | null>(() =>
+    typeof window !== 'undefined' ? localStorage.getItem('restaurant_id') : null
+  )
 
-  const [modal, setModal]                 = useState(false)
-  const [editId, setEditId]               = useState<string | null>(null)
-  const [form, setForm]                   = useState(EMPTY_FORM)
+  const { data: swrCats,  isLoading: catsLoading  }                          = useMenuCategories(restaurantId)
+  const { data: swrMods,  isLoading: modsLoading  }                          = useMenuModifiers(restaurantId)
+  const { data: swrItems, isLoading: itemsLoading, mutate: mutateItems }     = useMenuItems(restaurantId)
+  const { data: swrInv,   isLoading: invLoading   }                          = useInventoryData(restaurantId)
+
+  const loading    = catsLoading || modsLoading || itemsLoading || invLoading
+  const error      = null
+  const categories = swrCats ?? []
+  const modifiers  = (swrMods  ?? []).map(m => ({ id: m.id, name: m.name, required: m.required }))
+  const items      = (swrItems?.items ?? []) as Item[]
+  const itemModMap = swrItems?.modMap ?? new Map<string, string[]>()
+  const invItems   = (swrInv?.items ?? []).filter(i => i.active).map(i => ({ id: i.id, name: i.name, sku: i.sku, unit_id: i.unit_id }))
+  const invUnits   = (swrInv?.units ?? []).map(u => ({ id: u.id, abbreviation: u.abbreviation }))
+
+  const [modal, setModal]                   = useState(false)
+  const [editId, setEditId]                 = useState<string | null>(null)
+  const [form, setForm]                     = useState(EMPTY_FORM)
   const [selectedModIds, setSelectedModIds] = useState<string[]>([])
-  const [saving, setSaving]               = useState(false)
-  const [saveError, setSaveError]         = useState<string | null>(null)
-  const [uploading, setUploading]         = useState(false)
-  const [uploadError, setUploadError]     = useState<string | null>(null)
-  const [deleteId, setDeleteId]           = useState<string | null>(null)
-  const [filterCatId, setFilterCatId]     = useState<string | 'all'>('all')
+  const [saving, setSaving]                 = useState(false)
+  const [saveError, setSaveError]           = useState<string | null>(null)
+  const [uploading, setUploading]           = useState(false)
+  const [uploadError, setUploadError]       = useState<string | null>(null)
+  const [deleteId, setDeleteId]             = useState<string | null>(null)
+  const [filterCatId, setFilterCatId]       = useState<string | 'all'>('all')
 
   // Inventory
-  const [invItems, setInvItems]           = useState<InvItem[]>([])
-  const [invUnits, setInvUnits]           = useState<InvUnit[]>([])
-  const [ingredients, setIngredients]     = useState<Ingredient[]>([])
-  const [addIngId, setAddIngId]           = useState('')
-
-  // ── Load ───────────────────────────────────────────────────
-  const load = useCallback(async () => {
-    setLoading(true); setError(null)
-    const { data: rest } = await supabase.from('restaurants').select('id').eq('id', typeof window !== 'undefined' ? (localStorage.getItem('restaurant_id') ?? '') : '').maybeSingle()
-    if (!rest) { setError('Restaurant not found'); setLoading(false); return }
-    setRestaurantId(rest.id)
-
-    const [{ data: cats, error: e1 }, { data: its, error: e2 }, { data: mods, error: e3 }, { data: itemMods, error: e4 }, { data: invs }, { data: units }] = await Promise.all([
-      supabase.from('menu_categories').select('id, name, color').eq('restaurant_id', rest.id).order('sort_order'),
-      supabase.from('menu_items').select('*').eq('restaurant_id', rest.id).order('sort_order'),
-      supabase.from('menu_modifiers').select('id, name, required').eq('restaurant_id', rest.id).order('sort_order'),
-      supabase.from('menu_item_modifiers').select('item_id, modifier_id'),
-      supabase.from('inventory_items').select('id, name, sku, unit_id').eq('restaurant_id', rest.id).eq('active', true).order('name'),
-      supabase.from('inventory_units').select('id, abbreviation').eq('restaurant_id', rest.id),
-    ])
-
-    if (e1 || e2 || e3 || e4) { setError((e1 || e2 || e3 || e4)!.message); setLoading(false); return }
-
-    setCategories((cats ?? []) as Category[])
-    setItems((its ?? []) as Item[])
-    setModifiers((mods ?? []) as Modifier[])
-    setInvItems((invs ?? []) as InvItem[])
-    setInvUnits((units ?? []) as InvUnit[])
-
-    // Build item → modifier_ids map
-    const map = new Map<string, string[]>()
-    ;(itemMods ?? []).forEach((r: { item_id: string; modifier_id: string }) => {
-      const arr = map.get(r.item_id) ?? []
-      arr.push(r.modifier_id)
-      map.set(r.item_id, arr)
-    })
-    setItemModMap(map)
-    setLoading(false)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => { load() }, [load])
+  const [ingredients, setIngredients] = useState<Ingredient[]>([])
+  const [addIngId, setAddIngId]       = useState('')
 
   const catById = (id: string | null) => categories.find(c => c.id === id)
 
@@ -165,7 +158,7 @@ export default function ItemPage() {
       // Persist public URL to DB immediately if editing
       if (editId) {
         await supabase.from('menu_items').update({ image_url: publicUrl, updated_at: new Date().toISOString() }).eq('id', editId)
-        setItems(is => is.map(i => i.id === editId ? { ...i, image_url: publicUrl } : i))
+        mutateItems({ items: items.map(i => i.id === editId ? { ...i, image_url: publicUrl } : i), modMap: itemModMap }, false)
       }
     } else if (error) {
       setUploadError(error.message)
@@ -196,11 +189,12 @@ export default function ItemPage() {
     }
 
     let itemId = editId
+    let _newItems: Item[] = items
 
     if (editId) {
       const { error } = await supabase.from('menu_items').update(payload).eq('id', editId)
       if (error) { setSaveError(error.message); setSaving(false); return }
-      setItems(is => is.map(i => i.id === editId ? { ...i, ...payload } : i))
+      _newItems = items.map(i => i.id === editId ? { ...i, ...payload } as Item : i)
     } else {
       const nextOrder = items.length > 0 ? Math.max(...items.map(i => i.sort_order)) + 1 : 1
       const { data, error } = await supabase
@@ -208,11 +202,12 @@ export default function ItemPage() {
         .insert({ restaurant_id: restaurantId, ...payload, sort_order: nextOrder })
         .select().single()
       if (error) { setSaveError(error.message); setSaving(false); return }
-      setItems(is => [...is, data as Item])
+      _newItems = [...items, data as Item]
       itemId = data.id
     }
 
     // Sync modifiers: delete old, insert new
+    const _newMap = new Map(itemModMap)
     if (itemId) {
       await supabase.from('menu_item_modifiers').delete().eq('item_id', itemId)
       if (selectedModIds.length > 0) {
@@ -220,7 +215,7 @@ export default function ItemPage() {
           selectedModIds.map(mid => ({ item_id: itemId, modifier_id: mid }))
         )
       }
-      setItemModMap(m => new Map(m).set(itemId!, selectedModIds))
+      _newMap.set(itemId!, selectedModIds)
 
       // Sync ingredients: delete old, insert new
       await supabase.from('menu_item_ingredients').delete().eq('menu_item_id', itemId)
@@ -230,6 +225,7 @@ export default function ItemPage() {
         )
       }
     }
+    mutateItems({ items: _newItems, modMap: _newMap }, false)
 
     logAudit(restaurantId, editId ? 'edit' : 'add', { entity: 'menu_item', name: form.name, price: form.price }, editId ?? undefined)
     setSaving(false)
@@ -239,7 +235,7 @@ export default function ItemPage() {
   // ── Toggle available ───────────────────────────────────────
   const toggleAvailable = async (item: Item) => {
     const newVal = !item.available
-    setItems(is => is.map(i => i.id === item.id ? { ...i, available: newVal } : i))
+    mutateItems({ items: items.map(i => i.id === item.id ? { ...i, available: newVal } : i), modMap: itemModMap }, false)
     await supabase.from('menu_items').update({ available: newVal, updated_at: new Date().toISOString() }).eq('id', item.id)
     logAudit(restaurantId!, 'toggle', { entity: 'menu_item', name: item.name, available: newVal }, item.id)
   }
@@ -251,7 +247,7 @@ export default function ItemPage() {
     }
     const name = items.find(i => i.id === id)?.name
     const { error } = await supabase.from('menu_items').delete().eq('id', id)
-    if (!error) { logAudit(restaurantId!, 'delete', { entity: 'menu_item', name }, id); setItems(is => is.filter(i => i.id !== id)) }
+    if (!error) { logAudit(restaurantId!, 'delete', { entity: 'menu_item', name }, id); mutateItems({ items: items.filter(i => i.id !== id), modMap: itemModMap }, false) }
     setDeleteId(null)
   }
 
@@ -268,7 +264,7 @@ export default function ItemPage() {
     if (oldIndex === -1 || newIndex === -1) return
 
     const reordered = arrayMove(items, oldIndex, newIndex)
-    setItems(reordered)
+    mutateItems({ items: reordered, modMap: itemModMap }, false)
 
     // Persist new sort_order values
     const updates = reordered.map((item, idx) => ({ id: item.id, sort_order: idx }))
@@ -287,13 +283,13 @@ export default function ItemPage() {
         <p className="text-sm text-rose-400 font-semibold">Failed to load</p>
         <p className="text-xs text-white/40 mt-1 font-mono">{error}</p>
         <p className="text-xs text-white/30 mt-1">Run <code className="text-amber-400">supabase-menu-schema.sql</code> first.</p>
-        <button onClick={load} className="mt-2 px-3 py-1.5 rounded-lg bg-white/8 text-xs text-white/50 hover:bg-white/12 active:scale-95 transition-all">Retry</button>
+        <button onClick={() => mutateItems()} className="mt-2 px-3 py-1.5 rounded-lg bg-white/8 text-xs text-white/50 hover:bg-white/12 active:scale-95 transition-all">Retry</button>
       </div>
     </div>
   )
 
   return (
-    <div className="max-w-3xl mx-auto">
+    <motion.div key="menu-item-page" variants={PAGE} initial="hidden" animate="show" exit="exit" className="max-w-3xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-3">
@@ -339,26 +335,27 @@ export default function ItemPage() {
         ) : (
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={filtered.map(i => i.id)} strategy={verticalListSortingStrategy}>
-          <div className="space-y-2">
+          <motion.div key={filterCatId} variants={LIST} initial="hidden" animate="visible" className="space-y-2">
             {filtered.map(item => (
-              <SortableItemRow
-                key={item.id}
-                item={item}
-                cat={catById(item.category_id)}
-                modCount={(itemModMap.get(item.id) ?? []).length}
-                deleteId={deleteId}
-                formatPrice={formatPrice}
-                onToggle={toggleAvailable}
-                onEdit={openEdit}
-                onDelete={handleDelete}
-              />
+              <motion.div key={item.id} variants={ITEM_VAR}>
+                <SortableItemRow
+                  item={item}
+                  cat={catById(item.category_id)}
+                  modCount={(itemModMap.get(item.id) ?? []).length}
+                  deleteId={deleteId}
+                  formatPrice={formatPrice}
+                  onToggle={toggleAvailable}
+                  onEdit={openEdit}
+                  onDelete={handleDelete}
+                />
+              </motion.div>
             ))}
             {filtered.length === 0 && (
               <div className="text-center py-16 text-white/25 text-sm">
                 {t.item_no_data}
               </div>
             )}
-          </div>
+          </motion.div>
         </SortableContext>
       </DndContext>
         )}
@@ -580,7 +577,7 @@ export default function ItemPage() {
           </div>
         </div>
       )}
-    </div>
+    </motion.div>
   )
 }
 

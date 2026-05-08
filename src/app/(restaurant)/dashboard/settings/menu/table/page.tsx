@@ -1,38 +1,26 @@
-'use client'
-import { useState, useEffect } from 'react'
+﻿'use client'
+import { useState } from 'react'
 import { cn } from '@/lib/utils'
-import { SkeletonList } from '@/components/ui/SkeletonList'
-import { AnimatedList, AnimatedItem } from '@/components/ui/AnimatedList'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { Plus, Pencil, Trash2, LayoutGrid, X, Users, Loader2, AlertCircle, QrCode, Download, Copy, Check } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { logAudit } from '@/lib/logAudit'
 import { useTableGroups, type CachedTableGroup } from '@/hooks/useTableGroups'
 import { useTables, type CachedTable } from '@/hooks/useTables'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, type Variants } from 'framer-motion'
 
 type TableGroup = CachedTableGroup
 type Table = CachedTable
 
-function FadeSwitch({ id, children }: { id: string; children: React.ReactNode }) {
-  return (
-    <AnimatePresence mode="popLayout" initial={false}>
-      <motion.div
-        key={id}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.18 }}
-      >
-        {children}
-      </motion.div>
-    </AnimatePresence>
-  )
-}
-
 const SHAPE_ICONS: Record<string, string> = { Square: '⬜', Round: '⭕', Rectangle: '▬' }
 
 const EMPTY_FORM = { table_number: '', name: '', capacity: 4, group_id: '', shape: 'Square' as 'Square' | 'Round' | 'Rectangle' }
+
+const PAGE: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  show:   { opacity: 1, y: 0,  transition: { duration: 0.55, ease: 'circOut' as const } },
+  exit:   { opacity: 0, y: -10, transition: { duration: 0.3 } },
+}
 
 export default function TablePage() {
   const { t } = useLanguage()
@@ -42,16 +30,12 @@ export default function TablePage() {
     typeof window !== 'undefined' ? localStorage.getItem('restaurant_id') : null
   )
 
-  const { data: swrGroups, isLoading: loadingGroups, error: groupsError } = useTableGroups(restaurantId)
-  const { data: swrTables, isLoading: loadingTables, error: tablesError, mutate: mutateTables } = useTables(restaurantId)
+  const { data: swrGroups, error: groupsError } = useTableGroups(restaurantId)
+  const { data: swrTables, error: tablesError, mutate: mutateTables } = useTables(restaurantId)
 
-  const loading = loadingGroups || loadingTables
+  const groups = swrGroups ?? []
+  const tables = swrTables ?? []
   const error = groupsError ? (groupsError as Error).message : tablesError ? (tablesError as Error).message : null
-
-  const [groups, setGroups] = useState<TableGroup[]>([])
-  const [tables, setTables] = useState<Table[]>([])
-  useEffect(() => { if (swrGroups) setGroups(swrGroups) }, [swrGroups])
-  useEffect(() => { if (swrTables) setTables(swrTables) }, [swrTables])
 
   const [modalOpen, setModalOpen]       = useState(false)
   const [editId, setEditId]             = useState<string | null>(null)
@@ -88,11 +72,7 @@ export default function TablePage() {
         shape:        form.shape,
         updated_at:   new Date().toISOString(),
       }).eq('id', editId)
-      if (!error) {
-        const updated = tables.map(t => t.id === editId ? { ...t, ...form, group_id: form.group_id || null } : t)
-        setTables(updated)
-        mutateTables(updated, false)
-      }
+      if (!error) mutateTables(tables.map(t => t.id === editId ? { ...t, ...form, group_id: form.group_id || null } : t), false)
     } else {
       const nextSeq = (tables.length > 0 ? Math.max(...tables.map(t => t.seq)) : 0) + 1
       const { data, error } = await supabase.from('tables').insert({
@@ -105,11 +85,7 @@ export default function TablePage() {
         shape:        form.shape,
         sort_order:   nextSeq,
       }).select().single()
-      if (!error && data) {
-        const updated = [...tables, data as Table]
-        setTables(updated)
-        mutateTables(updated, false)
-      }
+      if (!error && data) mutateTables([...tables, data as Table], false)
     }
     logAudit(restaurantId!, editId ? 'edit' : 'add', { entity: 'table', table_number: form.table_number, capacity: form.capacity }, editId ?? undefined)
     setSaving(false)
@@ -123,9 +99,7 @@ export default function TablePage() {
     const { error } = await supabase.from('tables').delete().eq('id', id)
     if (!error) {
       logAudit(restaurantId!, 'delete', { entity: 'table', table_number: label }, id)
-      const updated = tables.filter(t => t.id !== id)
-      setTables(updated)
-      mutateTables(updated, false)
+      mutateTables(tables.filter(t => t.id !== id), false)
     }
     setDeleteId(null)
   }
@@ -136,6 +110,9 @@ export default function TablePage() {
     ...groups.map(g => ({ id: g.id, name: g.name, color: g.color, tables: tables.filter(t => t.group_id === g.id) })),
     ...(ungrouped.length > 0 ? [{ id: 'none', name: 'Ungrouped', color: '#6b7280', tables: ungrouped }] : []),
   ].filter(g => g.tables.length > 0)
+
+  // flat ordered list of all card IDs → used to compute per-card delay across ALL groups
+  const cardIds = grouped.flatMap(g => g.tables.map(t => t.id))
 
   // ── Render ─────────────────────────────────────────────────
   if (error) return (
@@ -151,7 +128,7 @@ export default function TablePage() {
   )
 
   return (
-    <div className="max-w-3xl mx-auto">
+    <motion.div key="menu-table-page" variants={PAGE} initial="hidden" animate="show" exit="exit">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
@@ -172,11 +149,6 @@ export default function TablePage() {
         </button>
       </div>
 
-      {/* FadeSwitch: skeleton ↔ real list */}
-      <FadeSwitch id={loading ? 'skel' : 'data'}>
-        {loading ? (
-          <SkeletonList rows={5} />
-        ) : (
       <div className="space-y-6">
         {grouped.map(group => (
           <div key={group.id}>
@@ -185,9 +157,15 @@ export default function TablePage() {
               <span className="text-xs font-semibold text-white/50 uppercase tracking-wider">{group.name}</span>
               <span className="text-xs text-white/30">({group.tables.length})</span>
             </div>
-            <AnimatedList className="space-y-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 3xl:grid-cols-5 gap-2">
               {group.tables.map(t => (
-                <AnimatedItem key={t.id} className="flex items-center gap-4 p-4 bg-white/5 border border-white/10 backdrop-blur-xl rounded-2xl">
+                <motion.div
+                  key={t.id}
+                  initial={{ opacity: 0, y: 28 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.45, ease: 'circOut', delay: 0.1 + cardIds.indexOf(t.id) * 0.07 }}
+                  className="flex items-center gap-3 p-4 bg-white/5 border border-white/10 backdrop-blur-xl rounded-2xl min-w-0"
+                >
                   <div className="w-10 h-10 rounded-xl bg-white/8 flex items-center justify-center text-base shrink-0">
                     {SHAPE_ICONS[t.shape]}
                   </div>
@@ -225,17 +203,15 @@ export default function TablePage() {
                   >
                     {deleteId === t.id ? 'Confirm?' : <Trash2 className="w-3.5 h-3.5" />}
                   </button>
-                </AnimatedItem>
+                </motion.div>
               ))}
-            </AnimatedList>
+            </div>
           </div>
         ))}
         {tables.length === 0 && (
           <div className="text-center py-16 text-white/25 text-sm">{t.tbl_no_data}</div>
         )}
       </div>
-        )}
-      </FadeSwitch>
 
       {/* Modal */}
       {modalOpen && (
@@ -410,6 +386,6 @@ export default function TablePage() {
           </div>
         )
       })()}
-    </div>
+    </motion.div>
   )
 }

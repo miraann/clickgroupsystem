@@ -1,9 +1,8 @@
-'use client'
-import { useState, useEffect } from 'react'
+﻿'use client'
+import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { Plus, Pencil, Trash2, Tag, X, Loader2, AlertCircle, GripVertical } from 'lucide-react'
-import { SkeletonList } from '@/components/ui/SkeletonList'
 import { createClient } from '@/lib/supabase/client'
 import { logAudit } from '@/lib/logAudit'
 import { useMenuCategories, type CachedCategory } from '@/hooks/useMenuCategories'
@@ -23,25 +22,9 @@ import {
   arrayMove,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, type Variants } from 'framer-motion'
 
 type Category = CachedCategory
-
-function FadeSwitch({ id, children }: { id: string; children: React.ReactNode }) {
-  return (
-    <AnimatePresence mode="popLayout" initial={false}>
-      <motion.div
-        key={id}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.18 }}
-      >
-        {children}
-      </motion.div>
-    </AnimatePresence>
-  )
-}
 
 const COLOR_PRESETS = [
   'linear-gradient(160deg,#c2185b,#7b0033)',
@@ -151,6 +134,12 @@ function SortableRow({
   )
 }
 
+const PAGE: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  show:   { opacity: 1, y: 0,  transition: { duration: 0.55, ease: 'circOut' as const } },
+  exit:   { opacity: 0, y: -10, transition: { duration: 0.3 } },
+}
+
 export default function CategoryPage() {
   const { t } = useLanguage()
   const supabase = createClient()
@@ -159,11 +148,8 @@ export default function CategoryPage() {
     typeof window !== 'undefined' ? localStorage.getItem('restaurant_id') : null
   )
 
-  const { data: swrCategories, isLoading: loading, error: swrError, mutate } = useMenuCategories(restaurantId)
-
-  const [categories, setCategories] = useState<Category[]>([])
-  useEffect(() => { if (swrCategories) setCategories(swrCategories) }, [swrCategories])
-
+  const { data: swrCategories, error: swrError, mutate } = useMenuCategories(restaurantId)
+  const categories = swrCategories ?? []
   const error = swrError ? (swrError as Error).message : null
 
   const [modalOpen, setModalOpen]       = useState(false)
@@ -185,8 +171,7 @@ export default function CategoryPage() {
     const oldIndex = categories.findIndex(c => c.id === active.id)
     const newIndex = categories.findIndex(c => c.id === over.id)
     const reordered = arrayMove(categories, oldIndex, newIndex).map((c, i) => ({ ...c, sort_order: i + 1 }))
-    setCategories(reordered)
-    mutate(reordered, false) // update SWR cache without refetch
+    mutate(reordered, false)
 
     await Promise.all(
       reordered.map(c =>
@@ -214,9 +199,7 @@ export default function CategoryPage() {
         .from('menu_categories')
         .update({ name: form.name, color: form.color, icon, active: form.active, updated_at: new Date().toISOString() })
         .eq('id', editId)
-      if (!error) {
-        setCategories(cs => cs.map(c => c.id === editId ? { ...c, name: form.name, color: form.color, icon, active: form.active } : c))
-      }
+      if (!error) mutate(categories.map(c => c.id === editId ? { ...c, name: form.name, color: form.color, icon, active: form.active } : c), false)
     } else {
       const nextOrder = categories.length > 0 ? Math.max(...categories.map(c => c.sort_order)) + 1 : 1
       const { data, error } = await supabase
@@ -224,7 +207,7 @@ export default function CategoryPage() {
         .insert({ restaurant_id: restaurantId, name: form.name, color: form.color, icon, active: form.active, sort_order: nextOrder })
         .select()
         .single()
-      if (!error && data) setCategories(cs => [...cs, data as Category])
+      if (!error && data) mutate([...categories, data as Category], false)
     }
 
     logAudit(restaurantId, editId ? 'edit' : 'add', { entity: 'menu_category', name: form.name }, editId ?? undefined)
@@ -235,7 +218,7 @@ export default function CategoryPage() {
   // ── Toggle active ──────────────────────────────────────────
   const toggleActive = async (c: Category) => {
     const newVal = !c.active
-    setCategories(cs => cs.map(x => x.id === c.id ? { ...x, active: newVal } : x))
+    mutate(categories.map(x => x.id === c.id ? { ...x, active: newVal } : x), false)
     await supabase.from('menu_categories').update({ active: newVal, updated_at: new Date().toISOString() }).eq('id', c.id)
     logAudit(restaurantId!, 'toggle', { entity: 'menu_category', name: c.name, active: newVal }, c.id)
   }
@@ -249,7 +232,7 @@ export default function CategoryPage() {
     }
     const name = categories.find(c => c.id === id)?.name
     const { error } = await supabase.from('menu_categories').delete().eq('id', id)
-    if (!error) { logAudit(restaurantId!, 'delete', { entity: 'menu_category', name }, id); setCategories(cs => cs.filter(c => c.id !== id)) }
+    if (!error) { logAudit(restaurantId!, 'delete', { entity: 'menu_category', name }, id); mutate(categories.filter(c => c.id !== id), false) }
     setDeleteId(null)
   }
 
@@ -267,7 +250,7 @@ export default function CategoryPage() {
   )
 
   return (
-    <div className="max-w-3xl mx-auto">
+    <motion.div key="menu-category-page" variants={PAGE} initial="hidden" animate="show" exit="exit">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
@@ -288,23 +271,24 @@ export default function CategoryPage() {
         </button>
       </div>
 
-      {/* FadeSwitch: skeleton ↔ real list */}
-      <FadeSwitch id={loading ? 'skel' : 'data'}>
-        {loading ? (
-          <SkeletonList rows={5} />
-        ) : (
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={categories.map(c => c.id)} strategy={verticalListSortingStrategy}>
           <div className="space-y-2">
-            {categories.map(c => (
-              <SortableRow
+            {categories.map((c, i) => (
+              <motion.div
                 key={c.id}
-                c={c}
-                deleteId={deleteId}
-                onEdit={openEdit}
-                onDelete={handleDelete}
-                onToggle={toggleActive}
-              />
+                initial={{ opacity: 0, y: 28 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.45, ease: 'circOut', delay: 0.1 + i * 0.07 }}
+              >
+                <SortableRow
+                  c={c}
+                  deleteId={deleteId}
+                  onEdit={openEdit}
+                  onDelete={handleDelete}
+                  onToggle={toggleActive}
+                />
+              </motion.div>
             ))}
             {categories.length === 0 && (
               <div className="text-center py-16 text-white/25 text-sm">{t.cat_no_data}</div>
@@ -312,8 +296,6 @@ export default function CategoryPage() {
           </div>
         </SortableContext>
       </DndContext>
-        )}
-      </FadeSwitch>
 
       {/* Modal */}
       {modalOpen && (
@@ -405,6 +387,6 @@ export default function CategoryPage() {
           </div>
         </div>
       )}
-    </div>
+    </motion.div>
   )
 }

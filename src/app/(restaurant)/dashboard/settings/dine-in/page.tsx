@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
+import { motion, AnimatePresence, type Variants } from 'framer-motion'
 import {
   Coffee, QrCode, BellRing,
   Users, Utensils, Clock, ShieldCheck, Info, ToggleLeft, ToggleRight,
@@ -8,7 +9,6 @@ import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { useDineInSettings, type CachedDineInSettings } from '@/hooks/useDineInSettings'
-import { SkeletonList } from '@/components/ui/SkeletonList'
 import { SaveButton } from '@/components/ui/SaveButton'
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch'
 import { SettingsSection } from '@/components/ui/SettingsSection'
@@ -23,6 +23,54 @@ const DEFAULTS: DineInSettings = {
   require_guest_count:    true,
   table_turnover_minutes: 90,
   dine_in_note:           '',
+}
+
+// ── Animation variants ───────────────────────────────────────
+const PAGE: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  show:   { opacity: 1, y: 0, transition: { duration: 0.22, ease: 'circOut' as const } },
+}
+const FIELDS: Variants = {
+  hidden: {},
+  show:   { transition: { staggerChildren: 0.28 } },
+}
+const FIELD_ITEM: Variants = {
+  hidden: { opacity: 0, y: -10 },
+  show:   { opacity: 1, y: 0, transition: { duration: 0.55, ease: 'circOut' as const } },
+}
+
+// ── Skeleton helpers ─────────────────────────────────────────
+function Skel({ className }: { className?: string }) {
+  return <div className={cn('animate-pulse rounded-xl bg-white/8', className)} />
+}
+function SkelSection({ lines = 2 }: { lines?: number }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/3 overflow-hidden">
+      <div className="px-5 py-3.5 border-b border-white/8 bg-white/3">
+        <Skel className="h-3.5 w-36 rounded-md" />
+      </div>
+      <div className="p-5 space-y-3">
+        {Array.from({ length: lines }).map((_, i) => (
+          <Skel key={i} className={cn('h-11 rounded-xl', i === 1 ? 'w-3/4' : 'w-full')} />
+        ))}
+      </div>
+    </div>
+  )
+}
+function FadeSwitch({ id, children }: { id: string; children: React.ReactNode }) {
+  return (
+    <AnimatePresence mode="popLayout" initial={false}>
+      <motion.div
+        key={id}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.18 }}
+      >
+        {children}
+      </motion.div>
+    </AnimatePresence>
+  )
 }
 
 export default function DineInPage() {
@@ -45,7 +93,6 @@ export default function DineInPage() {
 
   useEffect(() => { if (swrData) setCfg(swrData) }, [swrData])
 
-  // Optimistic toggle — updates SWR cache + writes to DB in background
   const autoSaveToggle = useCallback(async (key: keyof DineInSettings, value: boolean) => {
     const updated = { ...(swrData ?? cfg), [key]: value } as DineInSettings
     setCfg(updated)
@@ -76,10 +123,8 @@ export default function DineInPage() {
     }
   }, [restaurantId, supabase, cfg, mutate])
 
-  if (loading) return <SkeletonList rows={6} />
-
   return (
-    <div className="space-y-6 max-w-2xl">
+    <motion.div className="space-y-6" variants={PAGE} initial="hidden" animate="show">
 
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -92,123 +137,151 @@ export default function DineInPage() {
             <p className="text-xs text-white/40">{t.di_subtitle}</p>
           </div>
         </div>
-        <SaveButton state={saveState} onClick={save} />
+        <FadeSwitch id={loading ? 'skel-btn' : 'real-btn'}>
+          {loading
+            ? <Skel className="h-10 w-32 rounded-xl" />
+            : <SaveButton state={saveState} onClick={save} />}
+        </FadeSwitch>
       </div>
 
-      {/* ── QR Menu ── */}
-      <SettingsSection title={t.di_qr_section} icon={<QrCode className="w-4 h-4 text-amber-400" />}>
-        <div className="space-y-5">
-
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center transition-colors', cfg.enable_qr_ordering ? 'bg-amber-500/20' : 'bg-white/5')}>
-                {cfg.enable_qr_ordering
-                  ? <ToggleRight className="w-5 h-5 text-amber-400" />
-                  : <ToggleLeft  className="w-5 h-5 text-white/30" />}
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-white">{t.di_qr_ordering}</p>
-                <p className="text-xs text-white/40">{t.di_qr_ordering_desc}</p>
-              </div>
-            </div>
-            <ToggleSwitch on={cfg.enable_qr_ordering} onChange={v => autoSaveToggle('enable_qr_ordering', v)} />
+      {/* Sections */}
+      <FadeSwitch id={loading ? 'skel-sections' : 'real-sections'}>
+        {loading ? (
+          <div className="space-y-6">
+            <SkelSection lines={3} />
+            <SkelSection lines={2} />
+            <SkelSection lines={1} />
+            <Skel className="h-20 w-full rounded-2xl" />
           </div>
+        ) : (
+          <motion.div className="space-y-6" variants={FIELDS} initial="hidden" animate="show">
 
-          <div className="border-t border-white/6" />
+            {/* ── QR Menu ── */}
+            <motion.div variants={FIELD_ITEM}>
+              <SettingsSection title={t.di_qr_section} icon={<QrCode className="w-4 h-4 text-amber-400" />}>
+                <div className="space-y-5">
 
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center transition-colors', cfg.show_call_waiter ? 'bg-amber-500/20' : 'bg-white/5')}>
-                <BellRing className={cn('w-5 h-5', cfg.show_call_waiter ? 'text-amber-400' : 'text-white/30')} />
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center transition-colors', cfg.enable_qr_ordering ? 'bg-amber-500/20' : 'bg-white/5')}>
+                        {cfg.enable_qr_ordering
+                          ? <ToggleRight className="w-5 h-5 text-amber-400" />
+                          : <ToggleLeft  className="w-5 h-5 text-white/30" />}
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-white">{t.di_qr_ordering}</p>
+                        <p className="text-xs text-white/40">{t.di_qr_ordering_desc}</p>
+                      </div>
+                    </div>
+                    <ToggleSwitch on={cfg.enable_qr_ordering} onChange={v => autoSaveToggle('enable_qr_ordering', v)} />
+                  </div>
+
+                  <div className="border-t border-white/6" />
+
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center transition-colors', cfg.show_call_waiter ? 'bg-amber-500/20' : 'bg-white/5')}>
+                        <BellRing className={cn('w-5 h-5', cfg.show_call_waiter ? 'text-amber-400' : 'text-white/30')} />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-white">{t.di_call_waiter}</p>
+                        <p className="text-xs text-white/40">{t.di_call_waiter_desc}</p>
+                      </div>
+                    </div>
+                    <ToggleSwitch on={cfg.show_call_waiter} onChange={v => autoSaveToggle('show_call_waiter', v)} />
+                  </div>
+
+                  <div className="border-t border-white/6" />
+
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center transition-colors', cfg.auto_accept_qr_orders ? 'bg-amber-500/20' : 'bg-white/5')}>
+                        <ShieldCheck className={cn('w-5 h-5', cfg.auto_accept_qr_orders ? 'text-amber-400' : 'text-white/30')} />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-white">{t.di_auto_accept}</p>
+                        <p className="text-xs text-white/40">{t.di_auto_accept_desc}</p>
+                      </div>
+                    </div>
+                    <ToggleSwitch on={cfg.auto_accept_qr_orders} onChange={v => autoSaveToggle('auto_accept_qr_orders', v)} />
+                  </div>
+
+                </div>
+              </SettingsSection>
+            </motion.div>
+
+            {/* ── Table Service ── */}
+            <motion.div variants={FIELD_ITEM}>
+              <SettingsSection title={t.di_table_service} icon={<Utensils className="w-4 h-4 text-amber-400" />}>
+                <div className="space-y-5">
+
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center transition-colors', cfg.require_guest_count ? 'bg-amber-500/20' : 'bg-white/5')}>
+                        <Users className={cn('w-5 h-5', cfg.require_guest_count ? 'text-amber-400' : 'text-white/30')} />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-white">{t.di_require_guests}</p>
+                        <p className="text-xs text-white/40">{t.di_require_guests_d}</p>
+                      </div>
+                    </div>
+                    <ToggleSwitch on={cfg.require_guest_count} onChange={v => autoSaveToggle('require_guest_count', v)} />
+                  </div>
+
+                  <div className="border-t border-white/6" />
+
+                  <div className="space-y-1.5">
+                    <label className="flex items-center gap-1.5 text-[11px] font-semibold text-white/40 uppercase tracking-wider">
+                      <Clock className="w-3.5 h-3.5" />
+                      {t.di_turnover}
+                    </label>
+                    <input
+                      type="number" min={15} max={360}
+                      value={cfg.table_turnover_minutes}
+                      onChange={e => setCfg(c => ({ ...c, table_turnover_minutes: Number(e.target.value) }))}
+                      className="w-full px-4 py-3 rounded-2xl text-sm text-white bg-white/7 border border-white/10 focus:border-amber-500/50 outline-none transition-all"
+                    />
+                    <p className="text-[11px] text-white/30">{t.di_turnover_hint}</p>
+                  </div>
+
+                </div>
+              </SettingsSection>
+            </motion.div>
+
+            {/* ── Guest Note ── */}
+            <motion.div variants={FIELD_ITEM}>
+              <SettingsSection title={t.di_guest_msg} icon={<Info className="w-4 h-4 text-amber-400" />}>
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-semibold text-white/40 uppercase tracking-wider">
+                    {t.di_note_label}
+                  </label>
+                  <textarea
+                    rows={3}
+                    placeholder="e.g. Welcome! Please scan to order. Our staff are happy to help."
+                    value={cfg.dine_in_note}
+                    onChange={e => setCfg(c => ({ ...c, dine_in_note: e.target.value }))}
+                    className="w-full px-4 py-3 rounded-2xl text-sm text-white bg-white/7 border border-white/10 focus:border-amber-500/50 outline-none transition-all resize-none placeholder:text-white/20"
+                  />
+                  <p className="text-[11px] text-white/30">{t.di_note_hint}</p>
+                </div>
+              </SettingsSection>
+            </motion.div>
+
+            {/* ── Info ── */}
+            <motion.div variants={FIELD_ITEM}>
+              <div className="rounded-2xl border border-white/6 bg-white/2 p-5 flex items-start gap-3">
+                <Coffee className="w-5 h-5 text-white/25 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold text-white/50">{t.di_how_works}</p>
+                  <p className="text-xs text-white/30 leading-relaxed">{t.di_how_works_desc}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm font-semibold text-white">{t.di_call_waiter}</p>
-                <p className="text-xs text-white/40">{t.di_call_waiter_desc}</p>
-              </div>
-            </div>
-            <ToggleSwitch on={cfg.show_call_waiter} onChange={v => autoSaveToggle('show_call_waiter', v)} />
-          </div>
+            </motion.div>
 
-          <div className="border-t border-white/6" />
+          </motion.div>
+        )}
+      </FadeSwitch>
 
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center transition-colors', cfg.auto_accept_qr_orders ? 'bg-amber-500/20' : 'bg-white/5')}>
-                <ShieldCheck className={cn('w-5 h-5', cfg.auto_accept_qr_orders ? 'text-amber-400' : 'text-white/30')} />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-white">{t.di_auto_accept}</p>
-                <p className="text-xs text-white/40">{t.di_auto_accept_desc}</p>
-              </div>
-            </div>
-            <ToggleSwitch on={cfg.auto_accept_qr_orders} onChange={v => autoSaveToggle('auto_accept_qr_orders', v)} />
-          </div>
-
-        </div>
-      </SettingsSection>
-
-      {/* ── Table Service ── */}
-      <SettingsSection title={t.di_table_service} icon={<Utensils className="w-4 h-4 text-amber-400" />}>
-        <div className="space-y-5">
-
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center transition-colors', cfg.require_guest_count ? 'bg-amber-500/20' : 'bg-white/5')}>
-                <Users className={cn('w-5 h-5', cfg.require_guest_count ? 'text-amber-400' : 'text-white/30')} />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-white">{t.di_require_guests}</p>
-                <p className="text-xs text-white/40">{t.di_require_guests_d}</p>
-              </div>
-            </div>
-            <ToggleSwitch on={cfg.require_guest_count} onChange={v => autoSaveToggle('require_guest_count', v)} />
-          </div>
-
-          <div className="border-t border-white/6" />
-
-          <div className="space-y-1.5">
-            <label className="flex items-center gap-1.5 text-[11px] font-semibold text-white/40 uppercase tracking-wider">
-              <Clock className="w-3.5 h-3.5" />
-              {t.di_turnover}
-            </label>
-            <input
-              type="number" min={15} max={360}
-              value={cfg.table_turnover_minutes}
-              onChange={e => setCfg(c => ({ ...c, table_turnover_minutes: Number(e.target.value) }))}
-              className="w-full px-4 py-3 rounded-2xl text-sm text-white bg-white/7 border border-white/10 focus:border-amber-500/50 outline-none transition-all"
-            />
-            <p className="text-[11px] text-white/30">{t.di_turnover_hint}</p>
-          </div>
-
-        </div>
-      </SettingsSection>
-
-      {/* ── Guest Note ── */}
-      <SettingsSection title={t.di_guest_msg} icon={<Info className="w-4 h-4 text-amber-400" />}>
-        <div className="space-y-1.5">
-          <label className="text-[11px] font-semibold text-white/40 uppercase tracking-wider">
-            {t.di_note_label}
-          </label>
-          <textarea
-            rows={3}
-            placeholder="e.g. Welcome! Please scan to order. Our staff are happy to help."
-            value={cfg.dine_in_note}
-            onChange={e => setCfg(c => ({ ...c, dine_in_note: e.target.value }))}
-            className="w-full px-4 py-3 rounded-2xl text-sm text-white bg-white/7 border border-white/10 focus:border-amber-500/50 outline-none transition-all resize-none placeholder:text-white/20"
-          />
-          <p className="text-[11px] text-white/30">{t.di_note_hint}</p>
-        </div>
-      </SettingsSection>
-
-      {/* Info */}
-      <div className="rounded-2xl border border-white/6 bg-white/2 p-5 flex items-start gap-3">
-        <Coffee className="w-5 h-5 text-white/25 shrink-0 mt-0.5" />
-        <div className="space-y-1">
-          <p className="text-sm font-semibold text-white/50">{t.di_how_works}</p>
-          <p className="text-xs text-white/30 leading-relaxed">{t.di_how_works_desc}</p>
-        </div>
-      </div>
-
-    </div>
+    </motion.div>
   )
 }

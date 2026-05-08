@@ -12,8 +12,13 @@ import {
   Key, Shield, Search, ChevronDown, Loader2,
   Save, Check, ChevronRight, UserCircle, QrCode, Smartphone,
 } from 'lucide-react'
-import { SkeletonList } from '@/components/ui/SkeletonList'
 import { AnimatedList, AnimatedItem } from '@/components/ui/AnimatedList'
+import { motion, type Variants } from 'framer-motion'
+
+const PAGE: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  show:   { opacity: 1, y: 0, transition: { duration: 0.22, ease: 'circOut' as const } },
+}
 
 // ─── Staff types ────────────────────────────────────────────
 type Role = 'owner' | 'manager' | 'cashier' | 'waiter' | 'chef'
@@ -545,10 +550,8 @@ export default function UsersPage() {
   )
   const selectedRole = roles.find(r => r.id === selectedRoleId)
 
-  if (!mounted) return <SkeletonList rows={6} />
-
   return (
-    <div className="max-w-5xl">
+    <motion.div variants={PAGE} initial="hidden" animate="show" className="max-w-5xl">
       {/* Page header */}
       <div className="flex items-center gap-3 mb-5">
         <div className="w-10 h-10 rounded-2xl bg-amber-500/15 flex items-center justify-center">
@@ -604,7 +607,11 @@ export default function UsersPage() {
           </div>
 
           {loadingUsers ? (
-            <SkeletonList rows={4} />
+            <div className="space-y-2">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="h-[72px] rounded-2xl bg-white/5 border border-white/8 animate-pulse" />
+              ))}
+            </div>
           ) : (
             <AnimatedList className="space-y-2">
               {filtered.map(u => {
@@ -663,7 +670,11 @@ export default function UsersPage() {
                 {roles.length > 0 && <span className="ml-auto px-1.5 py-0.5 rounded-full text-[10px] font-bold text-white/40 bg-white/8">{roles.length}</span>}
               </div>
               {loadingRoles ? (
-                <div className="p-2"><SkeletonList rows={3} rowHeight="h-9" /></div>
+                <div className="p-2 space-y-1.5">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="h-9 rounded-xl bg-white/5 border border-white/8 animate-pulse" />
+                  ))}
+                </div>
               ) : roles.length === 0 ? (
                 <p className="text-center py-6 text-xs text-white/25">No roles yet</p>
               ) : (
@@ -761,7 +772,11 @@ export default function UsersPage() {
                   <div className="p-4">
                     <p className="text-xs text-white/30 mb-3">Staff assigned to <span className="text-amber-400 font-semibold">{selectedRole.name}</span> will inherit its permissions.</p>
                     {loadingRoleStaff ? (
-                      <SkeletonList rows={3} rowHeight="h-[58px]" />
+                      <div className="space-y-2">
+                        {Array.from({ length: 3 }).map((_, i) => (
+                          <div key={i} className="h-[58px] rounded-2xl bg-white/5 border border-white/8 animate-pulse" />
+                        ))}
+                      </div>
                     ) : roleStaff.length === 0 ? (
                       <p className="text-center py-8 text-sm text-white/25">No staff members found</p>
                     ) : (
@@ -1024,6 +1039,6 @@ export default function UsersPage() {
           </div>
         </div>
       )}
-    </div>
+    </motion.div>
   )
 }

@@ -5,8 +5,13 @@ import { createClient } from '@/lib/supabase/client'
 import { logAudit } from '@/lib/logAudit'
 import { useInventoryData, type CachedInvCategory, type CachedInvUnit, type CachedInvItem } from '@/hooks/useInventoryData'
 import { cn } from '@/lib/utils'
-import { SkeletonList } from '@/components/ui/SkeletonList'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
+import { motion, type Variants } from 'framer-motion'
+
+const PAGE: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  show:   { opacity: 1, y: 0, transition: { duration: 0.22, ease: 'circOut' as const } },
+}
 import {
   Package, Plus, Pencil, Trash2, X, Loader2, Check,
   ToggleLeft, ToggleRight, AlertTriangle, Tag, Ruler,
@@ -247,10 +252,8 @@ export default function InventoryPage() {
   const lowCount  = items.filter(i => i.current_stock > 0 && i.current_stock <= i.min_stock).length
   const okCount   = items.filter(i => i.current_stock > i.min_stock).length
 
-  if (loading) return <SkeletonList rows={6} />
-
   return (
-    <div className="max-w-4xl mx-auto">
+    <motion.div variants={PAGE} initial="hidden" animate="show" className="max-w-4xl mx-auto">
 
       {/* Page header */}
       <div className="flex items-center justify-between mb-6">
@@ -761,6 +764,6 @@ export default function InventoryPage() {
         </div>
       )}
 
-    </div>
+    </motion.div>
   )
 }

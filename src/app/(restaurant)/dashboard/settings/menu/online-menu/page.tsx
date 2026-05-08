@@ -1,8 +1,8 @@
-'use client'
+﻿'use client'
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { Globe, Copy, Check, Loader2, Save, ExternalLink, UtensilsCrossed, Plus } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, type Variants } from 'framer-motion'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { createClient } from '@/lib/supabase/client'
 import { useOnlineMenuSettings } from '@/hooks/useOnlineMenuSettings'
@@ -12,7 +12,7 @@ function Skel({ className }: { className?: string }) {
 }
 function FadeSwitch({ id, children }: { id: string; children: React.ReactNode }) {
   return (
-    <AnimatePresence mode="popLayout" initial={false}>
+    <AnimatePresence mode="popLayout">
       <motion.div key={id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }}>
         {children}
       </motion.div>
@@ -571,49 +571,57 @@ const SURFACE_PREVIEWS: { id: SurfaceStyle; label: string; desc: string }[] = [
   { id: 'card',   label: 'Card',           desc: 'Elevated card surfaces' },
 ]
 
+const PAGE: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  show:   { opacity: 1, y: 0,  transition: { duration: 0.55, ease: 'circOut' as const } },
+  exit:   { opacity: 0, y: -10, transition: { duration: 0.3 } },
+}
+const LIST: Variants = {
+  hidden:  {},
+  visible: { transition: { staggerChildren: 0.07, delayChildren: 0.1 } },
+}
+const ITEM_VAR: Variants = {
+  hidden:  { opacity: 0, y: 24 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: 'circOut' as const } },
+}
+
 // ── Main page ──────────────────────────────────────────────────
 export default function OnlineMenuTemplatePage() {
   const supabase = createClient()
   const { t } = useLanguage()
-  const [restaurantId, setRestaurantId] = useState<string | null>(null)
-  const [restaurantSlug, setRestaurantSlug] = useState<string | null>(null)
-  const [mounted, setMounted] = useState(false)
 
-  useEffect(() => {
-    setRestaurantId(localStorage.getItem('restaurant_id'))
-    setRestaurantSlug(localStorage.getItem('restaurant_slug'))
-    setMounted(true)
-  }, [])
+  const [restaurantId] = useState<string | null>(() =>
+    typeof window !== 'undefined' ? localStorage.getItem('restaurant_id') : null
+  )
+  const [restaurantSlug] = useState<string | null>(() =>
+    typeof window !== 'undefined' ? localStorage.getItem('restaurant_slug') : null
+  )
 
-  const { data: swrData, isLoading: swrLoading, mutate } = useOnlineMenuSettings(restaurantId)
-  const loading = !mounted || swrLoading
+  const { data: swrData, isLoading: loading, mutate } = useOnlineMenuSettings(restaurantId)
 
   const [settings, setSettings] = useState<MenuSettings>(DEFAULT)
-  const [preview,  setPreview]  = useState<PreviewData | null>(null)
+  const preview = swrData?.preview ?? null
   const [saving,   setSaving]   = useState(false)
   const [saved,    setSaved]    = useState(false)
   const [copied,   setCopied]   = useState(false)
   const [error,    setError]    = useState<string | null>(null)
 
-  // Sync local state from SWR cache
+  // Initialise settings once when SWR data first arrives
   useEffect(() => {
-    if (!swrData) return
-    if (swrData.settings) {
-      const d = swrData.settings
-      setSettings({
-        template:          (d.template          ?? DEFAULT.template)          as TemplateId,
-        primary_color:     d.primary_color      ?? DEFAULT.primary_color,
-        surface_style:     (d.surface_style     ?? DEFAULT.surface_style)     as SurfaceStyle,
-        category_style:    (d.category_style    ?? DEFAULT.category_style)    as CategoryStyle,
-        item_style:        (d.item_style        ?? DEFAULT.item_style)        as ItemStyle,
-        event_style:       (d.event_style       ?? DEFAULT.event_style)       as EventStyle,
-        social_style:      (d.social_style      ?? DEFAULT.social_style)      as SocialStyle,
-        show_prices:       d.show_prices        ?? true,
-        show_descriptions: d.show_descriptions  ?? true,
-        welcome_text:      d.welcome_text       ?? null,
-      })
-    }
-    setPreview(swrData.preview)
+    if (!swrData?.settings) return
+    const d = swrData.settings
+    setSettings({
+      template:          (d.template          ?? DEFAULT.template)          as TemplateId,
+      primary_color:     d.primary_color      ?? DEFAULT.primary_color,
+      surface_style:     (d.surface_style     ?? DEFAULT.surface_style)     as SurfaceStyle,
+      category_style:    (d.category_style    ?? DEFAULT.category_style)    as CategoryStyle,
+      item_style:        (d.item_style        ?? DEFAULT.item_style)        as ItemStyle,
+      event_style:       (d.event_style       ?? DEFAULT.event_style)       as EventStyle,
+      social_style:      (d.social_style      ?? DEFAULT.social_style)      as SocialStyle,
+      show_prices:       d.show_prices        ?? true,
+      show_descriptions: d.show_descriptions  ?? true,
+      welcome_text:      d.welcome_text       ?? null,
+    })
   }, [swrData])
 
   const save = async () => {
@@ -645,26 +653,29 @@ export default function OnlineMenuTemplatePage() {
   }
 
   return (
+    <motion.div key="menu-online-menu-page" variants={PAGE} initial="hidden" animate="show" exit="exit" className="max-w-[1600px] 2xl:max-w-[1800px] mx-auto">
     <FadeSwitch id={loading ? 'skel' : 'data'}>
     {loading ? (
-      <div className="flex gap-6 items-start">
-        <div className="flex-1 min-w-0 space-y-5 pb-10">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 xl:gap-12 items-start">
+        <div className="lg:col-span-7 xl:col-span-8 min-w-0 space-y-5 pb-10">
           <div className="flex items-start justify-between gap-4">
             <div className="space-y-2"><Skel className="h-5 w-40" /><Skel className="h-3 w-56" /></div>
             <Skel className="h-10 w-28 rounded-xl shrink-0" />
           </div>
           {[0,1,2,3,4].map(i => <Skel key={i} className="h-24 w-full rounded-2xl" />)}
         </div>
-        <Skel className="hidden lg:block w-[280px] h-[560px] rounded-[2.8rem] shrink-0" />
+        <div className="hidden lg:flex lg:col-span-5 xl:col-span-4 justify-center">
+          <Skel className="w-[260px] 2xl:w-[312px] h-[520px] 2xl:h-[624px] rounded-[2.8rem]" />
+        </div>
       </div>
     ) : (
-    <div className="flex gap-6 items-start">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 xl:gap-12 items-start">
 
       {/* ── Left: settings ───────────────────────────────── */}
-      <div className="flex-1 min-w-0 space-y-5 pb-10">
+      <motion.div variants={LIST} initial="hidden" animate="visible" className="lg:col-span-7 xl:col-span-8 min-w-0 space-y-5 pb-10">
 
         {/* Header */}
-        <div className="flex items-start justify-between gap-4">
+        <motion.div variants={ITEM_VAR} className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-base font-bold text-white flex items-center gap-2">
               <Globe className="w-4 h-4 text-amber-400" /> {t.om_title}
@@ -678,12 +689,12 @@ export default function OnlineMenuTemplatePage() {
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : saved ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
             {saved ? t.saved_ : saving ? t.save_changes : t.save_changes}
           </button>
-        </div>
+        </motion.div>
 
         {error && <div className="rounded-xl bg-rose-500/10 border border-rose-500/20 px-4 py-3 text-sm text-rose-400">{error}</div>}
 
         {/* Menu links */}
-        <div className="rounded-2xl bg-white/4 border border-white/10 p-4 space-y-3">
+        <motion.div variants={ITEM_VAR} className="rounded-2xl bg-white/4 border border-white/10 p-4 space-y-3">
           {/* Browse-only link */}
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-white/30 mb-1.5 flex items-center gap-1.5">
@@ -737,10 +748,10 @@ export default function OnlineMenuTemplatePage() {
               )}
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* 1. Quick presets */}
-        <div className="rounded-2xl bg-white/4 border border-white/10 p-4">
+        <motion.div variants={ITEM_VAR} className="rounded-2xl bg-white/4 border border-white/10 p-4">
           <p className="text-sm font-semibold text-white mb-1">Quick Start Presets</p>
           <p className="text-xs text-white/30 mb-3">Pick a preset then fine-tune below</p>
           <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
@@ -758,10 +769,10 @@ export default function OnlineMenuTemplatePage() {
               </button>
             ))}
           </div>
-        </div>
+        </motion.div>
 
         {/* 2. Theme color */}
-        <div className="rounded-2xl bg-white/4 border border-white/10 p-4 space-y-4">
+        <motion.div variants={ITEM_VAR} className="rounded-2xl bg-white/4 border border-white/10 p-4 space-y-4">
           <div>
             <p className="text-sm font-semibold text-white">Theme Color</p>
             <p className="text-xs text-white/30">Primary accent for buttons, rings, prices</p>
@@ -798,10 +809,10 @@ export default function OnlineMenuTemplatePage() {
               ))}
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* 3. Category style */}
-        <div className="rounded-2xl bg-white/4 border border-white/10 p-4">
+        <motion.div variants={ITEM_VAR} className="rounded-2xl bg-white/4 border border-white/10 p-4">
           <p className="text-sm font-semibold text-white mb-1">Category Style</p>
           <p className="text-xs text-white/30 mb-3">How menu categories are displayed</p>
           <div className="grid grid-cols-2 gap-3">
@@ -812,10 +823,10 @@ export default function OnlineMenuTemplatePage() {
                 preview={<div className="rounded-lg bg-white/5 border border-white/8 overflow-hidden">{c.preview}</div>} />
             ))}
           </div>
-        </div>
+        </motion.div>
 
         {/* 4. Item card style */}
-        <div className="rounded-2xl bg-white/4 border border-white/10 p-4">
+        <motion.div variants={ITEM_VAR} className="rounded-2xl bg-white/4 border border-white/10 p-4">
           <p className="text-sm font-semibold text-white mb-1">Item Card Style</p>
           <p className="text-xs text-white/30 mb-3">How menu items appear inside a category</p>
           <div className="grid grid-cols-3 gap-3">
@@ -826,10 +837,10 @@ export default function OnlineMenuTemplatePage() {
                 preview={<div className="rounded-lg bg-white/5 border border-white/8 overflow-hidden">{c.preview}</div>} />
             ))}
           </div>
-        </div>
+        </motion.div>
 
         {/* 5. Events style */}
-        <div className="rounded-2xl bg-white/4 border border-white/10 p-4">
+        <motion.div variants={ITEM_VAR} className="rounded-2xl bg-white/4 border border-white/10 p-4">
           <p className="text-sm font-semibold text-white mb-1">Events &amp; Offers Style</p>
           <p className="text-xs text-white/30 mb-3">How promotions and events are showcased</p>
           <div className="grid grid-cols-3 gap-3">
@@ -840,10 +851,10 @@ export default function OnlineMenuTemplatePage() {
                 preview={<div className="rounded-lg bg-white/5 border border-white/8 overflow-hidden">{c.preview}</div>} />
             ))}
           </div>
-        </div>
+        </motion.div>
 
         {/* 6. Social style */}
-        <div className="rounded-2xl bg-white/4 border border-white/10 p-4">
+        <motion.div variants={ITEM_VAR} className="rounded-2xl bg-white/4 border border-white/10 p-4">
           <p className="text-sm font-semibold text-white mb-1">Social Media Style</p>
           <p className="text-xs text-white/30 mb-3">How social links appear at the bottom</p>
           <div className="grid grid-cols-3 gap-3">
@@ -854,10 +865,10 @@ export default function OnlineMenuTemplatePage() {
                 preview={<div className="rounded-lg bg-white/5 border border-white/8 overflow-hidden">{c.preview}</div>} />
             ))}
           </div>
-        </div>
+        </motion.div>
 
         {/* 7. Display options */}
-        <div className="rounded-2xl bg-white/4 border border-white/10 p-4 space-y-3">
+        <motion.div variants={ITEM_VAR} className="rounded-2xl bg-white/4 border border-white/10 p-4 space-y-3">
           <p className="text-sm font-semibold text-white">Display Options</p>
           {[
             { k: 'show_prices'       as const, label: 'Show Prices',       desc: 'Display item prices to guests' },
@@ -884,18 +895,23 @@ export default function OnlineMenuTemplatePage() {
               maxLength={120}
               className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-amber-500/50 transition-all" />
           </div>
-        </div>
+        </motion.div>
 
-      </div>
+      </motion.div>
 
       {/* ── Right: live phone preview ─────────────────────── */}
-      <div className="hidden lg:flex flex-col items-center gap-3 sticky top-0 pt-0" style={{ width: 300, minWidth: 300 }}>
-        <div className="flex items-center gap-2 mb-1">
+      <div className="hidden lg:flex lg:col-span-5 xl:col-span-4 flex-col items-center gap-4 sticky top-10 xl:top-12">
+        <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
           <span className="text-xs text-white/40 font-medium">Live Preview</span>
         </div>
-        <PhonePreview s={settings} data={preview} />
-        <p className="text-[10px] text-white/20 text-center mt-1 px-4">
+        {/* container reserves the scaled height so sticky column stays correct */}
+        <div className="relative w-[260px] h-[520px] 2xl:w-[312px] 2xl:h-[624px]">
+          <div className="absolute top-0 left-0 origin-top-left 2xl:scale-[1.2]">
+            <PhonePreview s={settings} data={preview} />
+          </div>
+        </div>
+        <p className="text-[10px] text-white/20 text-center px-4">
           Updates instantly as you change styles
         </p>
       </div>
@@ -903,5 +919,6 @@ export default function OnlineMenuTemplatePage() {
     </div>
     )}
     </FadeSwitch>
+    </motion.div>
   )
 }

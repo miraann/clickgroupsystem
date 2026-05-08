@@ -7,7 +7,52 @@ import {
 } from 'lucide-react'
 import InvoiceModal from '@/components/restaurant/invoice-modal'
 import { cn } from '@/lib/utils'
-import { SkeletonList } from '@/components/ui/SkeletonList'
+import { motion, AnimatePresence, type Variants } from 'framer-motion'
+
+const PAGE: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  show:   { opacity: 1, y: 0, transition: { duration: 0.22, ease: 'circOut' as const } },
+}
+const FIELDS: Variants = {
+  hidden: {},
+  show:   { transition: { staggerChildren: 0.28 } },
+}
+const FIELD_ITEM: Variants = {
+  hidden: { opacity: 0, y: -10 },
+  show:   { opacity: 1, y: 0, transition: { duration: 0.55, ease: 'circOut' as const } },
+}
+function Skel({ className }: { className?: string }) {
+  return <div className={cn('animate-pulse rounded-xl bg-white/8', className)} />
+}
+function SkelSection({ lines = 2 }: { lines?: number }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/3 overflow-hidden">
+      <div className="px-5 py-3.5 border-b border-white/8 bg-white/3">
+        <Skel className="h-3.5 w-36 rounded-md" />
+      </div>
+      <div className="p-5 space-y-3">
+        {Array.from({ length: lines }).map((_, i) => (
+          <Skel key={i} className={cn('h-11 rounded-xl', i === 1 ? 'w-3/4' : 'w-full')} />
+        ))}
+      </div>
+    </div>
+  )
+}
+function FadeSwitch({ id, children }: { id: string; children: React.ReactNode }) {
+  return (
+    <AnimatePresence mode="popLayout" initial={false}>
+      <motion.div
+        key={id}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.18 }}
+      >
+        {children}
+      </motion.div>
+    </AnimatePresence>
+  )
+}
 import { createClient } from '@/lib/supabase/client'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
@@ -171,227 +216,221 @@ export default function SalesPage() {
     URL.revokeObjectURL(url)
   }
 
-  if (loading) return <SkeletonList rows={6} />
-
   return (
-    <div className="space-y-6 max-w-6xl">
+    <motion.div variants={PAGE} initial="hidden" animate="show" className="space-y-6 max-w-6xl">
 
       {/* ── KPI Cards ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Revenue */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-500/20 via-amber-500/8 to-transparent border border-amber-500/25 p-5">
-          <div className="absolute -top-6 -right-6 w-24 h-24 rounded-full bg-amber-500/8 blur-2xl" />
-          <p className="text-xs font-semibold text-amber-400/70 uppercase tracking-wider mb-1">{t.sales_total}</p>
-          <p className="text-2xl font-extrabold text-white tabular-nums leading-tight">{formatPrice(totalRevenue)}</p>
-          <p className="text-xs text-white/30 mt-1">{totalCount} {t.sales_orders}</p>
-          <TrendingUp className="absolute bottom-4 right-4 w-8 h-8 text-amber-500/15" />
-        </div>
-
-        {/* Invoices */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-500/20 via-blue-500/8 to-transparent border border-blue-500/25 p-5">
-          <div className="absolute -top-6 -right-6 w-24 h-24 rounded-full bg-blue-500/8 blur-2xl" />
-          <p className="text-xs font-semibold text-blue-400/70 uppercase tracking-wider mb-1">{t.sales_orders}</p>
-          <p className="text-2xl font-extrabold text-white tabular-nums leading-tight">{totalCount}</p>
-          <p className="text-xs text-white/30 mt-1">transactions</p>
-          <Receipt className="absolute bottom-4 right-4 w-8 h-8 text-blue-500/15" />
-        </div>
-
-        {/* Avg ticket */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-violet-500/20 via-violet-500/8 to-transparent border border-violet-500/25 p-5">
-          <div className="absolute -top-6 -right-6 w-24 h-24 rounded-full bg-violet-500/8 blur-2xl" />
-          <p className="text-xs font-semibold text-violet-400/70 uppercase tracking-wider mb-1">{t.sales_avg}</p>
-          <p className="text-2xl font-extrabold text-white tabular-nums leading-tight">{formatPrice(avgTicket)}</p>
-          <p className="text-xs text-white/30 mt-1">per invoice</p>
-          <ShoppingBag className="absolute bottom-4 right-4 w-8 h-8 text-violet-500/15" />
-        </div>
-
-        {/* Growth */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500/20 via-emerald-500/8 to-transparent border border-emerald-500/25 p-5">
-          <div className="absolute -top-6 -right-6 w-24 h-24 rounded-full bg-emerald-500/8 blur-2xl" />
-          <p className="text-xs font-semibold text-emerald-400/70 uppercase tracking-wider mb-1">7-Day Growth</p>
-          <div className="flex items-end gap-2">
-            <p className={cn('text-2xl font-extrabold tabular-nums leading-tight', growth >= 0 ? 'text-emerald-400' : 'text-rose-400')}>
-              {growth >= 0 ? '+' : ''}{growth.toFixed(1)}%
-            </p>
-            {growth >= 0
-              ? <TrendingUp className="w-4 h-4 text-emerald-400 mb-1" />
-              : <TrendingDown className="w-4 h-4 text-rose-400 mb-1" />
-            }
-          </div>
-          <p className="text-xs text-white/30 mt-1">vs previous 7 days</p>
-          <ArrowUpRight className="absolute bottom-4 right-4 w-8 h-8 text-emerald-500/15" />
-        </div>
-      </div>
+      <motion.div variants={FIELD_ITEM}>
+        <FadeSwitch id={loading ? 'skel-kpi' : 'kpi'}>
+          {loading ? (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              {Array.from({ length: 4 }).map((_, i) => <Skel key={i} className="h-28 rounded-2xl" />)}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-500/20 via-amber-500/8 to-transparent border border-amber-500/25 p-5">
+                <div className="absolute -top-6 -right-6 w-24 h-24 rounded-full bg-amber-500/8 blur-2xl" />
+                <p className="text-xs font-semibold text-amber-400/70 uppercase tracking-wider mb-1">{t.sales_total}</p>
+                <p className="text-2xl font-extrabold text-white tabular-nums leading-tight">{formatPrice(totalRevenue)}</p>
+                <p className="text-xs text-white/30 mt-1">{totalCount} {t.sales_orders}</p>
+                <TrendingUp className="absolute bottom-4 right-4 w-8 h-8 text-amber-500/15" />
+              </div>
+              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-500/20 via-blue-500/8 to-transparent border border-blue-500/25 p-5">
+                <div className="absolute -top-6 -right-6 w-24 h-24 rounded-full bg-blue-500/8 blur-2xl" />
+                <p className="text-xs font-semibold text-blue-400/70 uppercase tracking-wider mb-1">{t.sales_orders}</p>
+                <p className="text-2xl font-extrabold text-white tabular-nums leading-tight">{totalCount}</p>
+                <p className="text-xs text-white/30 mt-1">transactions</p>
+                <Receipt className="absolute bottom-4 right-4 w-8 h-8 text-blue-500/15" />
+              </div>
+              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-violet-500/20 via-violet-500/8 to-transparent border border-violet-500/25 p-5">
+                <div className="absolute -top-6 -right-6 w-24 h-24 rounded-full bg-violet-500/8 blur-2xl" />
+                <p className="text-xs font-semibold text-violet-400/70 uppercase tracking-wider mb-1">{t.sales_avg}</p>
+                <p className="text-2xl font-extrabold text-white tabular-nums leading-tight">{formatPrice(avgTicket)}</p>
+                <p className="text-xs text-white/30 mt-1">per invoice</p>
+                <ShoppingBag className="absolute bottom-4 right-4 w-8 h-8 text-violet-500/15" />
+              </div>
+              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500/20 via-emerald-500/8 to-transparent border border-emerald-500/25 p-5">
+                <div className="absolute -top-6 -right-6 w-24 h-24 rounded-full bg-emerald-500/8 blur-2xl" />
+                <p className="text-xs font-semibold text-emerald-400/70 uppercase tracking-wider mb-1">7-Day Growth</p>
+                <div className="flex items-end gap-2">
+                  <p className={cn('text-2xl font-extrabold tabular-nums leading-tight', growth >= 0 ? 'text-emerald-400' : 'text-rose-400')}>
+                    {growth >= 0 ? '+' : ''}{growth.toFixed(1)}%
+                  </p>
+                  {growth >= 0
+                    ? <TrendingUp className="w-4 h-4 text-emerald-400 mb-1" />
+                    : <TrendingDown className="w-4 h-4 text-rose-400 mb-1" />
+                  }
+                </div>
+                <p className="text-xs text-white/30 mt-1">vs previous 7 days</p>
+                <ArrowUpRight className="absolute bottom-4 right-4 w-8 h-8 text-emerald-500/15" />
+              </div>
+            </div>
+          )}
+        </FadeSwitch>
+      </motion.div>
 
       {/* ── Revenue Chart ── */}
-      <div className="rounded-2xl bg-white/4 border border-white/8 p-5">
-        <div className="flex items-center justify-between mb-4">
-          <p className="text-sm font-semibold text-white/60">Revenue · Last 7 Days</p>
-          <button
-            onClick={() => restaurantId && load(restaurantId, dateFrom, dateTo)}
-            className="flex items-center gap-1.5 text-xs text-white/30 hover:text-amber-400 transition-colors"
-          >
-            <RefreshCw className="w-3 h-3" />{t.rpt_refresh}
-          </button>
-        </div>
-        <ResponsiveContainer width="100%" height={160}>
-          <AreaChart data={chartData} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
-            <defs>
-              <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%"  stopColor="#f59e0b" stopOpacity={0.35} />
-                <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}    />
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-            <XAxis dataKey="day" tick={{ fill: 'rgba(255,255,255,0.25)', fontSize: 10 }} axisLine={false} tickLine={false} />
-            <YAxis hide />
-            <Tooltip content={<ChartTooltip formatPrice={formatPrice} />} />
-            <Area type="monotone" dataKey="revenue" stroke="#f59e0b" strokeWidth={2}
-              fill="url(#revGrad)" dot={false} activeDot={{ r: 4, fill: '#f59e0b' }} />
-            <Area type="monotone" dataKey="count" stroke="#3b82f6" strokeWidth={1.5}
-              fill="transparent" dot={false} activeDot={{ r: 3, fill: '#3b82f6' }} strokeDasharray="4 2" />
-          </AreaChart>
-        </ResponsiveContainer>
-        <div className="flex gap-4 mt-3">
-          <div className="flex items-center gap-1.5"><span className="w-3 h-0.5 bg-amber-400 rounded-full inline-block" /><span className="text-[10px] text-white/30">Revenue</span></div>
-          <div className="flex items-center gap-1.5"><span className="w-3 h-0.5 bg-blue-400 rounded-full inline-block border-dashed" /><span className="text-[10px] text-white/30">Invoices</span></div>
-        </div>
-      </div>
+      <motion.div variants={FIELD_ITEM}>
+        <FadeSwitch id={loading ? 'skel-chart' : 'chart'}>
+          {loading ? <Skel className="h-48 rounded-2xl" /> : (
+            <div className="rounded-2xl bg-white/4 border border-white/8 p-5">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-sm font-semibold text-white/60">Revenue · Last 7 Days</p>
+                <button
+                  onClick={() => restaurantId && load(restaurantId, dateFrom, dateTo)}
+                  className="flex items-center gap-1.5 text-xs text-white/30 hover:text-amber-400 transition-colors"
+                >
+                  <RefreshCw className="w-3 h-3" />{t.rpt_refresh}
+                </button>
+              </div>
+              <ResponsiveContainer width="100%" height={160}>
+                <AreaChart data={chartData} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+                  <defs>
+                    <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%"  stopColor="#f59e0b" stopOpacity={0.35} />
+                      <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}    />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                  <XAxis dataKey="day" tick={{ fill: 'rgba(255,255,255,0.25)', fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <YAxis hide />
+                  <Tooltip content={<ChartTooltip formatPrice={formatPrice} />} />
+                  <Area type="monotone" dataKey="revenue" stroke="#f59e0b" strokeWidth={2}
+                    fill="url(#revGrad)" dot={false} activeDot={{ r: 4, fill: '#f59e0b' }} />
+                  <Area type="monotone" dataKey="count" stroke="#3b82f6" strokeWidth={1.5}
+                    fill="transparent" dot={false} activeDot={{ r: 3, fill: '#3b82f6' }} strokeDasharray="4 2" />
+                </AreaChart>
+              </ResponsiveContainer>
+              <div className="flex gap-4 mt-3">
+                <div className="flex items-center gap-1.5"><span className="w-3 h-0.5 bg-amber-400 rounded-full inline-block" /><span className="text-[10px] text-white/30">Revenue</span></div>
+                <div className="flex items-center gap-1.5"><span className="w-3 h-0.5 bg-blue-400 rounded-full inline-block border-dashed" /><span className="text-[10px] text-white/30">Invoices</span></div>
+              </div>
+            </div>
+          )}
+        </FadeSwitch>
+      </motion.div>
 
       {/* ── Controls ── */}
-      <div className="flex flex-wrap gap-3 items-center">
-        {/* Search */}
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/30" />
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder={t.search}
-            className="w-full pl-9 pr-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500/40 transition-colors"
-          />
-          {search && <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/25 hover:text-white"><X className="w-3.5 h-3.5" /></button>}
+      <motion.div variants={FIELD_ITEM}>
+        <div className="flex flex-wrap gap-3 items-center">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/30" />
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder={t.search}
+              className="w-full pl-9 pr-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500/40 transition-colors"
+            />
+            {search && <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/25 hover:text-white"><X className="w-3.5 h-3.5" /></button>}
+          </div>
+          <div className="flex items-center gap-2 px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl">
+            <Calendar className="w-3.5 h-3.5 text-white/30 shrink-0" />
+            <input type="date" value={dateFrom}
+              onChange={e => { const v = e.target.value; setDateFrom(v); if (restaurantId) load(restaurantId, v, dateTo) }}
+              className="bg-transparent text-sm text-white/70 focus:outline-none w-32 [color-scheme:dark] cursor-pointer" />
+          </div>
+          <span className="text-white/20 text-xs">to</span>
+          <div className="flex items-center gap-2 px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl">
+            <Calendar className="w-3.5 h-3.5 text-white/30 shrink-0" />
+            <input type="date" value={dateTo}
+              onChange={e => { const v = e.target.value; setDateTo(v); if (restaurantId) load(restaurantId, dateFrom, v) }}
+              className="bg-transparent text-sm text-white/70 focus:outline-none w-32 [color-scheme:dark] cursor-pointer" />
+          </div>
+          {(dateFrom || dateTo) && (
+            <button onClick={() => { setDateFrom(''); setDateTo(''); if (restaurantId) load(restaurantId) }}
+              className="text-white/25 hover:text-rose-400 transition-colors"><X className="w-3.5 h-3.5" /></button>
+          )}
+          <div className="relative">
+            <select value={filterMethod} onChange={e => setFilterMethod(e.target.value)}
+              className="appearance-none pl-3 pr-8 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white/70 focus:outline-none cursor-pointer">
+              <option value="all">All Methods</option>
+              {methods.map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
+            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/30 pointer-events-none" />
+          </div>
+          <button onClick={exportCSV}
+            className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 hover:border-amber-500/30 hover:text-amber-400 text-white/40 text-xs font-medium transition-all active:scale-95">
+            <Download className="w-3.5 h-3.5" />{t.rpt_export}
+          </button>
         </div>
-
-        {/* Date from */}
-        <div className="flex items-center gap-2 px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl">
-          <Calendar className="w-3.5 h-3.5 text-white/30 shrink-0" />
-          <input type="date" value={dateFrom}
-            onChange={e => { const v = e.target.value; setDateFrom(v); if (restaurantId) load(restaurantId, v, dateTo) }}
-            className="bg-transparent text-sm text-white/70 focus:outline-none w-32 [color-scheme:dark] cursor-pointer" />
-        </div>
-        <span className="text-white/20 text-xs">to</span>
-        <div className="flex items-center gap-2 px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl">
-          <Calendar className="w-3.5 h-3.5 text-white/30 shrink-0" />
-          <input type="date" value={dateTo}
-            onChange={e => { const v = e.target.value; setDateTo(v); if (restaurantId) load(restaurantId, dateFrom, v) }}
-            className="bg-transparent text-sm text-white/70 focus:outline-none w-32 [color-scheme:dark] cursor-pointer" />
-        </div>
-        {(dateFrom || dateTo) && (
-          <button onClick={() => { setDateFrom(''); setDateTo(''); if (restaurantId) load(restaurantId) }}
-            className="text-white/25 hover:text-rose-400 transition-colors"><X className="w-3.5 h-3.5" /></button>
-        )}
-
-        {/* Payment method */}
-        <div className="relative">
-          <select value={filterMethod} onChange={e => setFilterMethod(e.target.value)}
-            className="appearance-none pl-3 pr-8 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white/70 focus:outline-none cursor-pointer">
-            <option value="all">All Methods</option>
-            {methods.map(m => <option key={m} value={m}>{m}</option>)}
-          </select>
-          <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/30 pointer-events-none" />
-        </div>
-
-        {/* Export */}
-        <button onClick={exportCSV}
-          className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 hover:border-amber-500/30 hover:text-amber-400 text-white/40 text-xs font-medium transition-all active:scale-95">
-          <Download className="w-3.5 h-3.5" />{t.rpt_export}
-        </button>
-      </div>
+      </motion.div>
 
       {/* ── Invoices Table ── */}
-      <div className="rounded-2xl border border-white/8">
-        {/* Header */}
-        <div className="grid grid-cols-[auto_1fr_auto_auto_auto_auto] gap-3 px-5 py-3 bg-white/3 border-b border-white/8 rounded-t-2xl text-xs font-semibold text-white/30 uppercase tracking-wider">
-          <span className="w-32">{t.sales_order_id}</span>
-          <span>{t.sales_customer}</span>
-          <span className="w-28 text-center">{t.sales_type}</span>
-          <span className="w-28 text-right">{t.sales_amount}</span>
-          <span className="w-32">{t.sales_date}</span>
-          <span className="w-20" />
-        </div>
-
-        {visible.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 gap-3">
-            <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
-              <FileText className="w-6 h-6 text-white/20" />
-            </div>
-            <p className="text-white/30 text-sm">{t.sales_no_data}</p>
-          </div>
-        ) : (
-          <div className="divide-y divide-white/5">
-            {visible.map(inv => (
-              <div
-                key={inv.id}
-                className="grid grid-cols-[auto_1fr_auto_auto_auto_auto] gap-3 px-5 py-3.5 items-center hover:bg-white/3 transition-colors group"
-              >
-                {/* Invoice num */}
-                <div className="w-32">
-                  <p className="text-xs font-bold text-amber-400 tabular-nums font-mono">{inv.invoice_num}</p>
-                  {inv.table_num && <p className="text-[10px] text-white/30">Table {inv.table_num}</p>}
-                </div>
-
-                {/* Customer / cashier */}
-                <div className="min-w-0">
-                  <p className="text-sm text-white/80 truncate">{inv.customer_name ?? '—'}</p>
-                  <p className="text-[10px] text-white/30 flex items-center gap-1">
-                    <User className="w-2.5 h-2.5" />{inv.cashier ?? 'Staff'}
-                  </p>
-                </div>
-
-                {/* Method */}
-                <div className="w-28 flex justify-center">
-                  <span className="px-2.5 py-1 rounded-lg bg-white/8 border border-white/10 text-xs text-white/60 font-medium">
-                    {inv.payment_method ?? '—'}
-                  </span>
-                </div>
-
-                {/* Amount */}
-                <div className="w-28 text-right">
-                  <p className="text-sm font-bold text-white tabular-nums">{formatPrice(inv.total ?? 0)}</p>
-                  {inv.discount != null && inv.discount > 0 && (
-                    <p className="text-[10px] text-emerald-400/70 tabular-nums">−{formatPrice(inv.discount)}</p>
-                  )}
-                </div>
-
-                {/* Date */}
-                <div className="w-32">
-                  <p className="text-xs text-white/60">{fmtDate(inv.created_at)}</p>
-                  <p className="text-[10px] text-white/30">{fmtTime(inv.created_at)}</p>
-                </div>
-
-                {/* View button */}
-                <div className="w-20 flex justify-end">
-                  <button
-                    onClick={() => setSelected(inv)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-amber-500/15 border border-white/8 hover:border-amber-500/30 text-white/40 hover:text-amber-400 text-xs font-medium transition-all active:scale-95"
-                  >
-                    <Eye className="w-3.5 h-3.5" />{t.rec_preview}
-                  </button>
-                </div>
+      <motion.div variants={FIELD_ITEM}>
+        <FadeSwitch id={loading ? 'skel-table' : 'table'}>
+          {loading ? <SkelSection lines={6} /> : (
+            <div className="rounded-2xl border border-white/8">
+              <div className="grid grid-cols-[auto_1fr_auto_auto_auto_auto] gap-3 px-5 py-3 bg-white/3 border-b border-white/8 rounded-t-2xl text-xs font-semibold text-white/30 uppercase tracking-wider">
+                <span className="w-32">{t.sales_order_id}</span>
+                <span>{t.sales_customer}</span>
+                <span className="w-28 text-center">{t.sales_type}</span>
+                <span className="w-28 text-right">{t.sales_amount}</span>
+                <span className="w-32">{t.sales_date}</span>
+                <span className="w-20" />
               </div>
-            ))}
-          </div>
-        )}
-      </div>
 
-      {/* Footer count */}
+              {visible.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 gap-3">
+                  <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
+                    <FileText className="w-6 h-6 text-white/20" />
+                  </div>
+                  <p className="text-white/30 text-sm">{t.sales_no_data}</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-white/5">
+                  {visible.map(inv => (
+                    <div
+                      key={inv.id}
+                      className="grid grid-cols-[auto_1fr_auto_auto_auto_auto] gap-3 px-5 py-3.5 items-center hover:bg-white/3 transition-colors group"
+                    >
+                      <div className="w-32">
+                        <p className="text-xs font-bold text-amber-400 tabular-nums font-mono">{inv.invoice_num}</p>
+                        {inv.table_num && <p className="text-[10px] text-white/30">Table {inv.table_num}</p>}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm text-white/80 truncate">{inv.customer_name ?? '—'}</p>
+                        <p className="text-[10px] text-white/30 flex items-center gap-1">
+                          <User className="w-2.5 h-2.5" />{inv.cashier ?? 'Staff'}
+                        </p>
+                      </div>
+                      <div className="w-28 flex justify-center">
+                        <span className="px-2.5 py-1 rounded-lg bg-white/8 border border-white/10 text-xs text-white/60 font-medium">
+                          {inv.payment_method ?? '—'}
+                        </span>
+                      </div>
+                      <div className="w-28 text-right">
+                        <p className="text-sm font-bold text-white tabular-nums">{formatPrice(inv.total ?? 0)}</p>
+                        {inv.discount != null && inv.discount > 0 && (
+                          <p className="text-[10px] text-emerald-400/70 tabular-nums">−{formatPrice(inv.discount)}</p>
+                        )}
+                      </div>
+                      <div className="w-32">
+                        <p className="text-xs text-white/60">{fmtDate(inv.created_at)}</p>
+                        <p className="text-[10px] text-white/30">{fmtTime(inv.created_at)}</p>
+                      </div>
+                      <div className="w-20 flex justify-end">
+                        <button
+                          onClick={() => setSelected(inv)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-amber-500/15 border border-white/8 hover:border-amber-500/30 text-white/40 hover:text-amber-400 text-xs font-medium transition-all active:scale-95"
+                        >
+                          <Eye className="w-3.5 h-3.5" />{t.rec_preview}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </FadeSwitch>
+      </motion.div>
+
       {visible.length > 0 && (
         <p className="text-xs text-white/25 text-right">
           {visible.length} invoice{visible.length !== 1 ? 's' : ''} · {formatPrice(visible.reduce((s, r) => s + r.total, 0))} total
         </p>
       )}
 
-      {/* ── Invoice Modal ── */}
       {selected && restaurantId && (
         <InvoiceModal
           mode="payment"
@@ -415,6 +454,6 @@ export default function SalesPage() {
           onClose={() => setSelected(null)}
         />
       )}
-    </div>
+    </motion.div>
   )
 }

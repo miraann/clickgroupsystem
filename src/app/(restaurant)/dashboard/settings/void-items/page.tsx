@@ -3,8 +3,53 @@ import { useState, useEffect, useCallback } from 'react'
 import { Ban, AlertCircle, Search, Calendar, ChevronDown } from 'lucide-react'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { cn } from '@/lib/utils'
-import { SkeletonList } from '@/components/ui/SkeletonList'
 import { createClient } from '@/lib/supabase/client'
+import { motion, AnimatePresence, type Variants } from 'framer-motion'
+
+const PAGE: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  show:   { opacity: 1, y: 0, transition: { duration: 0.22, ease: 'circOut' as const } },
+}
+const FIELDS: Variants = {
+  hidden: {},
+  show:   { transition: { staggerChildren: 0.28 } },
+}
+const FIELD_ITEM: Variants = {
+  hidden: { opacity: 0, y: -10 },
+  show:   { opacity: 1, y: 0, transition: { duration: 0.55, ease: 'circOut' as const } },
+}
+function Skel({ className }: { className?: string }) {
+  return <div className={cn('animate-pulse rounded-xl bg-white/8', className)} />
+}
+function SkelSection({ lines = 2 }: { lines?: number }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/3 overflow-hidden">
+      <div className="px-5 py-3.5 border-b border-white/8 bg-white/3">
+        <Skel className="h-3.5 w-36 rounded-md" />
+      </div>
+      <div className="p-5 space-y-3">
+        {Array.from({ length: lines }).map((_, i) => (
+          <Skel key={i} className={cn('h-11 rounded-xl', i === 1 ? 'w-3/4' : 'w-full')} />
+        ))}
+      </div>
+    </div>
+  )
+}
+function FadeSwitch({ id, children }: { id: string; children: React.ReactNode }) {
+  return (
+    <AnimatePresence mode="popLayout" initial={false}>
+      <motion.div
+        key={id}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.18 }}
+      >
+        {children}
+      </motion.div>
+    </AnimatePresence>
+  )
+}
 
 interface VoidItem {
   id: string
@@ -84,8 +129,6 @@ export default function VoidItemsPage() {
     { label: 'All time', value: 'all' },
   ]
 
-  if (loading) return <SkeletonList rows={4} />
-
   if (error) return (
     <div className="flex items-start gap-3 p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 max-w-md">
       <AlertCircle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
@@ -98,7 +141,7 @@ export default function VoidItemsPage() {
   )
 
   return (
-    <div className="max-w-3xl mx-auto">
+    <motion.div variants={PAGE} initial="hidden" animate="show" className="max-w-3xl mx-auto">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <div className="w-9 h-9 rounded-xl bg-rose-500/15 flex items-center justify-center">
@@ -131,71 +174,75 @@ export default function VoidItemsPage() {
         </div>
       </div>
 
-      {/* Summary strip */}
-      {filtered.length > 0 && (
-        <div className="flex items-center justify-between px-4 py-3 rounded-2xl bg-rose-500/8 border border-rose-500/15 mb-4">
-          <div className="flex items-center gap-4">
-            <div>
-              <p className="text-xs text-white/35">Voided items</p>
-              <p className="text-lg font-bold text-white">{filtered.reduce((s, i) => s + i.qty, 0)}</p>
-            </div>
-            <div className="w-px h-8 bg-white/10" />
-            <div>
-              <p className="text-xs text-white/35">Value voided</p>
-              <p className="text-lg font-bold text-rose-400">${totalLost.toFixed(2)}</p>
-            </div>
-          </div>
-          <span className="text-xs text-white/25">{filtered.length} records</span>
-        </div>
-      )}
-
-      {/* List */}
-      {filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 gap-3">
-          <div className="w-14 h-14 rounded-2xl bg-white/4 border border-white/8 flex items-center justify-center">
-            <Ban className="w-6 h-6 text-white/15" />
-          </div>
-          <p className="text-sm text-white/25">{search ? 'No matching void items' : t.vi_no_data}</p>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {filtered.map(item => (
-            <div key={item.id} className="flex items-start gap-4 px-4 py-3.5 bg-white/4 border border-white/8 rounded-2xl hover:border-white/12 transition-all">
-              {/* Red dot */}
-              <div className="mt-1.5 w-2 h-2 rounded-full bg-rose-500/60 shrink-0" />
-
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <p className="text-sm font-medium text-white">{item.item_name}</p>
-                  {item.orders?.table_number && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-white/8 text-white/40">
-                      Table {item.orders.table_number}
-                    </span>
-                  )}
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-white/8 text-white/40">×{item.qty}</span>
+      {/* Summary strip + List */}
+      <motion.div variants={FIELD_ITEM}>
+        <FadeSwitch id={loading ? 'skel-list' : 'list'}>
+          {loading ? <SkelSection lines={4} /> : (
+            <>
+              {filtered.length > 0 && (
+                <div className="flex items-center justify-between px-4 py-3 rounded-2xl bg-rose-500/8 border border-rose-500/15 mb-4">
+                  <div className="flex items-center gap-4">
+                    <div>
+                      <p className="text-xs text-white/35">Voided items</p>
+                      <p className="text-lg font-bold text-white">{filtered.reduce((s, i) => s + i.qty, 0)}</p>
+                    </div>
+                    <div className="w-px h-8 bg-white/10" />
+                    <div>
+                      <p className="text-xs text-white/35">Value voided</p>
+                      <p className="text-lg font-bold text-rose-400">${totalLost.toFixed(2)}</p>
+                    </div>
+                  </div>
+                  <span className="text-xs text-white/25">{filtered.length} records</span>
                 </div>
-                {item.void_reason ? (
-                  <p className="text-xs text-rose-400/70 mt-0.5">{t.vi_reason}: {item.void_reason}</p>
-                ) : (
-                  <p className="text-xs text-white/20 mt-0.5 italic">No reason recorded</p>
-                )}
-                <div className="flex items-center gap-2 mt-1 flex-wrap">
-                  <p className="text-[11px] text-white/25">
-                    {new Date(item.created_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
-                  </p>
-                  <span className="text-white/15">·</span>
-                  <span className="text-[11px] text-white/35 font-medium">{item.voided_by ?? 'Staff'}</span>
-                </div>
-              </div>
+              )}
 
-              <div className="text-right shrink-0">
-                <p className="text-sm font-bold text-rose-400/80">${(item.item_price * item.qty).toFixed(2)}</p>
-                <p className="text-xs text-white/30">${item.item_price.toFixed(2)} each</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
+              {filtered.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 gap-3">
+                  <div className="w-14 h-14 rounded-2xl bg-white/4 border border-white/8 flex items-center justify-center">
+                    <Ban className="w-6 h-6 text-white/15" />
+                  </div>
+                  <p className="text-sm text-white/25">{search ? 'No matching void items' : t.vi_no_data}</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {filtered.map(item => (
+                    <div key={item.id} className="flex items-start gap-4 px-4 py-3.5 bg-white/4 border border-white/8 rounded-2xl hover:border-white/12 transition-all">
+                      <div className="mt-1.5 w-2 h-2 rounded-full bg-rose-500/60 shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-medium text-white">{item.item_name}</p>
+                          {item.orders?.table_number && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-white/8 text-white/40">
+                              Table {item.orders.table_number}
+                            </span>
+                          )}
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-white/8 text-white/40">×{item.qty}</span>
+                        </div>
+                        {item.void_reason ? (
+                          <p className="text-xs text-rose-400/70 mt-0.5">{t.vi_reason}: {item.void_reason}</p>
+                        ) : (
+                          <p className="text-xs text-white/20 mt-0.5 italic">No reason recorded</p>
+                        )}
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                          <p className="text-[11px] text-white/25">
+                            {new Date(item.created_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
+                          </p>
+                          <span className="text-white/15">·</span>
+                          <span className="text-[11px] text-white/35 font-medium">{item.voided_by ?? 'Staff'}</span>
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-sm font-bold text-rose-400/80">${(item.item_price * item.qty).toFixed(2)}</p>
+                        <p className="text-xs text-white/30">${item.item_price.toFixed(2)} each</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </FadeSwitch>
+      </motion.div>
+    </motion.div>
   )
 }

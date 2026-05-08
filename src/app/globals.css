@@ -18,6 +18,10 @@
   --color-foreground: var(--foreground);
 }
 
+@theme {
+  --breakpoint-3xl: 120rem; /* 1920px — ultra-wide monitors */
+}
+
 * {
   box-sizing: border-box;
 }

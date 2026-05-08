@@ -41,10 +41,10 @@ export default function MenuSettingsLayout({ children }: { children: React.React
 
   return (
     <div className="flex flex-col h-full -m-6">
-      {/* Tab bar */}
-      <div className="sticky top-0 z-20 bg-[#022658]/90 backdrop-blur-xl border-b border-white/8">
+      {/* Tab bar — full-width, fluid padding matches content below */}
+      <div className="sticky top-0 z-20 bg-[#022658]/90 backdrop-blur-xl border-b border-white/8 w-full">
         <div className="overflow-x-auto scrollbar-none">
-          <div className="flex gap-0.5 px-4 pt-3 pb-0 min-w-max">
+          <div className="flex gap-0.5 px-6 md:px-12 2xl:px-24 3xl:px-44 pt-3 pb-0 min-w-max">
             {TABS.map((tab) => {
               const active = pathname === tab.href || pathname.startsWith(tab.href + '/')
               return (
@@ -70,16 +70,17 @@ export default function MenuSettingsLayout({ children }: { children: React.React
         </div>
       </div>
 
-      {/* Content — opacity-only crossfade, no y-transform so layout never shifts */}
-      <div className="flex-1 overflow-y-auto p-6">
-        <div className="min-h-[600px]">
-          <AnimatePresence mode="popLayout" initial={false}>
+      {/* Content — fluid horizontal padding + slightly taller vertical on large screens */}
+      <div className="flex-1 overflow-y-auto px-6 md:px-12 2xl:px-24 3xl:px-44 py-6 2xl:py-8 3xl:py-12">
+        <div className="min-h-[600px] w-full">
+          <AnimatePresence mode="wait">
             <motion.div
               key={pathname}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.15 }}
+              transition={{ duration: 0.2 }}
+              className="w-full"
             >
               {children}
             </motion.div>

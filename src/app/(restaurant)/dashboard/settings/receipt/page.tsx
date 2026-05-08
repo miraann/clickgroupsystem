@@ -9,13 +9,18 @@ import {
   RotateCcw, X, User, Clock,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { SkeletonList } from '@/components/ui/SkeletonList'
 import { createClient } from '@/lib/supabase/client'
+import { motion, type Variants } from 'framer-motion'
 import { logAudit } from '@/lib/logAudit'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import InvoiceViewModal from '@/components/restaurant/invoice-view-modal'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch'
+
+const PAGE: Variants = {
+  hidden: { opacity: 0, y: 22 },
+  show:   { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'circOut' as const } },
+}
 
 interface RS {
   id?: string
@@ -323,7 +328,11 @@ function AllInvoices({ restaurantId }: { restaurantId: string }) {
 
       {/* List */}
       {loading ? (
-        <SkeletonList rows={4} rowHeight="h-[72px]" />
+        <div className="space-y-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="h-[72px] rounded-2xl bg-white/5 border border-white/8 animate-pulse" />
+          ))}
+        </div>
       ) : invoices.length === 0 ? (
         <div className="text-center py-20 text-white/30">
           <FileText className="w-10 h-10 mx-auto mb-3 opacity-30" />
@@ -513,12 +522,10 @@ function InvoiceNumberTab({ restaurantId }: { restaurantId: string }) {
     setSaving(false)
   }
 
-  if (loading) return <SkeletonList rows={4} />
-
   const preview = `${settings.prefix}${settings.start_num}`
 
   return (
-    <div className="max-w-lg space-y-5">
+    <motion.div variants={PAGE} initial="hidden" animate="show" className="max-w-lg space-y-5">
       {/* Preview */}
       <div className="p-5 bg-gradient-to-br from-amber-500/10 to-orange-500/5 border border-amber-500/20 rounded-2xl text-center">
         <p className="text-xs text-white/40 mb-2 uppercase tracking-wider">Preview</p>
@@ -576,7 +583,7 @@ function InvoiceNumberTab({ restaurantId }: { restaurantId: string }) {
           : saved ? <><CheckCircle2 className="w-4 h-4" /> Saved!</>
           : <><Save className="w-4 h-4" /> Save Invoice Number Settings</>}
       </button>
-    </div>
+    </motion.div>
   )
 }
 
@@ -613,12 +620,10 @@ function OrderNumberTab({ restaurantId }: { restaurantId: string }) {
     setSaving(false)
   }
 
-  if (loading) return <SkeletonList rows={4} />
-
   const preview = `${settings.prefix}${String(settings.start_num).padStart(3, '0')}`
 
   return (
-    <div className="max-w-lg space-y-5">
+    <motion.div variants={PAGE} initial="hidden" animate="show" className="max-w-lg space-y-5">
       {/* Preview */}
       <div className="p-5 bg-gradient-to-br from-indigo-500/10 to-violet-500/5 border border-indigo-500/20 rounded-2xl text-center">
         <p className="text-xs text-white/40 mb-2 uppercase tracking-wider">Preview</p>
@@ -686,7 +691,7 @@ function OrderNumberTab({ restaurantId }: { restaurantId: string }) {
           : saved ? <><CheckCircle2 className="w-4 h-4" /> Saved!</>
           : <><Save className="w-4 h-4" /> Save Order Number Settings</>}
       </button>
-    </div>
+    </motion.div>
   )
 }
 
@@ -815,7 +820,11 @@ function RecoverTableTab({ restaurantId }: { restaurantId: string }) {
 
       {/* Recovery log list */}
       {loading ? (
-        <SkeletonList rows={3} rowHeight="h-[64px]" />
+        <div className="space-y-2">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="h-[64px] rounded-2xl bg-white/5 border border-white/8 animate-pulse" />
+          ))}
+        </div>
       ) : logs.length === 0 ? (
         <div className="text-center py-14 text-white/25 text-sm">No recoveries yet</div>
       ) : (
@@ -1047,13 +1056,16 @@ export default function ReceiptSettingsPage() {
     load()
   }
 
-  if (loading) return <SkeletonList rows={5} />
-
   return (
-    <div>
+    <motion.div variants={PAGE} initial="hidden" animate="show">
 
       {/* ── Tab bar ── */}
-      <div className="flex flex-wrap gap-1 mb-6 p-1 rounded-2xl bg-white/4 border border-white/8 w-fit">
+      <motion.div
+        className="flex flex-wrap gap-1 mb-6 p-1 rounded-2xl bg-white/4 border border-white/8 w-fit"
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, ease: 'circOut', delay: 0.06 }}
+      >
         {([
           { key: 'invoices',    icon: <FileText    className="w-4 h-4" />,  label: t.rec_recent },
           { key: 'settings',   icon: <Receipt     className="w-4 h-4" />,  label: t.rec_title },
@@ -1074,7 +1086,7 @@ export default function ReceiptSettingsPage() {
             {icon}{label}
           </button>
         ))}
-      </div>
+      </motion.div>
 
       {/* ── Settings tab ── */}
       {tab === 'settings' && (
@@ -1084,7 +1096,11 @@ export default function ReceiptSettingsPage() {
           <div className="flex-1 min-w-0 space-y-5">
 
             {/* Branding */}
-            <section className="rounded-2xl bg-white/4 border border-white/8 p-4 space-y-4">
+            <motion.section
+              className="rounded-2xl bg-white/4 border border-white/8 p-4 space-y-4"
+              initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.45, ease: 'circOut', delay: 0.12 }}
+            >
               <p className="text-xs font-bold text-white/40 uppercase tracking-widest">Branding</p>
 
               {/* Logo upload */}
@@ -1138,10 +1154,14 @@ export default function ReceiptSettingsPage() {
                   className={cn(INPUT, 'max-w-[100px]')}
                 />
               </Field>
-            </section>
+            </motion.section>
 
             {/* Contact */}
-            <section className="rounded-2xl bg-white/4 border border-white/8 p-4 space-y-4">
+            <motion.section
+              className="rounded-2xl bg-white/4 border border-white/8 p-4 space-y-4"
+              initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.45, ease: 'circOut', delay: 0.19 }}
+            >
               <p className="text-xs font-bold text-white/40 uppercase tracking-widest">Contact Info</p>
 
               <Field label={t.rec_phone}>
@@ -1162,10 +1182,14 @@ export default function ReceiptSettingsPage() {
                   className={cn(INPUT, 'resize-none')}
                 />
               </Field>
-            </section>
+            </motion.section>
 
             {/* Content */}
-            <section className="rounded-2xl bg-white/4 border border-white/8 p-4 space-y-4">
+            <motion.section
+              className="rounded-2xl bg-white/4 border border-white/8 p-4 space-y-4"
+              initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.45, ease: 'circOut', delay: 0.26 }}
+            >
               <p className="text-xs font-bold text-white/40 uppercase tracking-widest">Receipt Content</p>
 
               <Field label={t.rec_thank_you}>
@@ -1181,10 +1205,14 @@ export default function ReceiptSettingsPage() {
                 <span className="text-xs text-white/35">Footer Note</span>
                 <span className="text-xs text-white/25 italic">Powered by ClickGroup · 07701466787</span>
               </div>
-            </section>
+            </motion.section>
 
             {/* QR Code */}
-            <section className="rounded-2xl bg-white/4 border border-white/8 p-4 space-y-4">
+            <motion.section
+              className="rounded-2xl bg-white/4 border border-white/8 p-4 space-y-4"
+              initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.45, ease: 'circOut', delay: 0.33 }}
+            >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <QrCode className="w-4 h-4 text-white/40" />
@@ -1227,10 +1255,14 @@ export default function ReceiptSettingsPage() {
                   </div>
                 </div>
               )}
-            </section>
+            </motion.section>
 
             {/* Display toggles */}
-            <section className="rounded-2xl bg-white/4 border border-white/8 p-4 space-y-3">
+            <motion.section
+              className="rounded-2xl bg-white/4 border border-white/8 p-4 space-y-3"
+              initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.45, ease: 'circOut', delay: 0.40 }}
+            >
               <p className="text-xs font-bold text-white/40 uppercase tracking-widest">Show / Hide</p>
 
               {([
@@ -1243,7 +1275,7 @@ export default function ReceiptSettingsPage() {
                   <ToggleSwitch on={form[key] as boolean} onChange={v => set(key, v)} />
                 </div>
               ))}
-            </section>
+            </motion.section>
 
             {/* Error */}
             {error && (
@@ -1299,6 +1331,6 @@ export default function ReceiptSettingsPage() {
         <RecoverTableTab restaurantId={restaurantId} />
       )}
 
-    </div>
+    </motion.div>
   )
 }

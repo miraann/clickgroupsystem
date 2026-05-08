@@ -7,8 +7,13 @@ import {
   Pencil, Trash2, Save,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { SkeletonList } from '@/components/ui/SkeletonList'
 import { createClient } from '@/lib/supabase/client'
+import { motion, type Variants } from 'framer-motion'
+
+const PAGE: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  show:   { opacity: 1, y: 0, transition: { duration: 0.22, ease: 'circOut' as const } },
+}
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 const WA_GREEN = '#25D366'
@@ -292,10 +297,8 @@ export default function WhatsAppPage() {
     return !q || c.name.toLowerCase().includes(q) || (c.phone ?? '').includes(q)
   })
 
-  if (!mounted) return <SkeletonList rows={6} />
-
   return (
-    <div className="max-w-5xl">
+    <motion.div variants={PAGE} initial="hidden" animate="show" className="max-w-5xl">
 
       {/* Header */}
       <div className="flex items-center gap-3 mb-5">
@@ -879,6 +882,6 @@ export default function WhatsAppPage() {
         </div>
       )}
 
-    </div>
+    </motion.div>
   )
 }
