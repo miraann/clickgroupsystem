@@ -6,12 +6,18 @@ import { logAudit } from '@/lib/logAudit'
 import { cn } from '@/lib/utils'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { motion, type Variants } from 'framer-motion'
-import { SkeletonList } from '@/components/ui/SkeletonList'
 
 const PAGE: Variants = {
   hidden: { opacity: 0, y: 20 },
-  show:   { opacity: 1, y: 0, transition: { duration: 0.22, ease: 'circOut' as const } },
+  show:   { opacity: 1, y: 0, transition: { duration: 0.45, ease: 'circOut' as const } },
 }
+
+const EASE = [0.16, 1, 0.3, 1] as const
+const fadeUp = (delay = 0) => ({
+  initial: { opacity: 0, y: 18 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.45, ease: EASE, delay },
+})
 import {
   Monitor, MonitorCheck, Plus, Pencil, Trash2,
   X, Loader2, ToggleLeft, ToggleRight, Check,
@@ -290,7 +296,7 @@ export default function DevicePage() {
   // KDS state
   const [stations, setStations]       = useState<KdsStation[]>([])
   const [categories, setCategories]   = useState<Category[]>([])
-  const [kdsLoading, setKdsLoading]   = useState(true)
+  const [kdsLoading, setKdsLoading]   = useState(false)
   const [kdsError, setKdsError]       = useState<string | null>(null)
   const [kdsModal, setKdsModal]       = useState(false)
   const [kdsEditId, setKdsEditId]     = useState<string | null>(null)
@@ -300,7 +306,7 @@ export default function DevicePage() {
 
   // Printer state
   const [printers, setPrinters]           = useState<PrinterDevice[]>([])
-  const [prtLoading, setPrtLoading]       = useState(true)
+  const [prtLoading, setPrtLoading]       = useState(false)
   const [prtError, setPrtError]           = useState<string | null>(null)
   const [prtModal, setPrtModal]           = useState(false)
   const [prtEditId, setPrtEditId]         = useState<string | null>(null)
@@ -728,7 +734,7 @@ export default function DevicePage() {
     <motion.div variants={PAGE} initial="hidden" animate="show" className="max-w-3xl mx-auto">
 
       {/* Tab bar */}
-      <div className="flex gap-1 mb-6 p-1 rounded-2xl bg-white/4 border border-white/8 w-fit">
+      <motion.div {...fadeUp(0.05)} className="flex gap-1 mb-6 p-1 rounded-2xl bg-white/4 border border-white/8 w-fit">
         {([
           { key: 'kds',      icon: <MonitorCheck className="w-4 h-4" />, label: t.dev_kds },
           { key: 'printers', icon: <Printer      className="w-4 h-4" />, label: t.dev_printers },
@@ -740,11 +746,11 @@ export default function DevicePage() {
             {icon}{label}
           </button>
         ))}
-      </div>
+      </motion.div>
 
       {/* ══ KDS Stations tab ══ */}
       {tab === 'kds' && (
-        <div>
+        <motion.div key="kds" {...fadeUp(0.12)}>
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-amber-500/15 flex items-center justify-center">
@@ -762,11 +768,9 @@ export default function DevicePage() {
             </button>
           </div>
 
-          {kdsLoading ? (
-            <SkeletonList rows={3} rowHeight="h-[58px]" />
-          ) : kdsError ? (
+          {kdsError ? (
             <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-sm text-rose-400">{kdsError}</div>
-          ) : stations.length === 0 ? (
+          ) : stations.length === 0 && !kdsLoading ? (
             <div className="text-center py-20 text-white/25">
               <MonitorCheck className="w-12 h-12 mx-auto mb-3 opacity-20" />
               <p className="text-sm font-medium">{t.dev_no_stations}</p>
@@ -774,10 +778,10 @@ export default function DevicePage() {
             </div>
           ) : (
             <div className="space-y-3">
-              {stations.map(s => {
+              {stations.map((s, i) => {
                 const assignedCats = categories.filter(c => s.category_ids.includes(c.id))
                 return (
-                  <div key={s.id} className={cn(
+                  <motion.div key={s.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: EASE, delay: i * 0.07 }} className={cn(
                     'flex items-center gap-4 p-4 rounded-2xl border transition-all',
                     s.active ? 'bg-white/5 border-white/10' : 'bg-white/2 border-white/5 opacity-60'
                   )}>
@@ -818,17 +822,17 @@ export default function DevicePage() {
                           : 'w-8 bg-white/5 hover:bg-rose-500/10 text-white/40 hover:text-rose-400')}>
                       {kdsDeleteId === s.id ? 'Confirm?' : <Trash2 className="w-3.5 h-3.5" />}
                     </button>
-                  </div>
+                  </motion.div>
                 )
               })}
             </div>
           )}
-        </div>
+        </motion.div>
       )}
 
       {/* ══ Printers tab ══ */}
       {tab === 'printers' && (
-        <div>
+        <motion.div key="printers" {...fadeUp(0.12)}>
           <div className="flex items-center justify-between mb-5">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-blue-500/15 flex items-center justify-center">
@@ -1023,11 +1027,9 @@ export default function DevicePage() {
           </div>
 
           {/* ── Configured Printers List ── */}
-          {prtLoading ? (
-            <SkeletonList rows={3} rowHeight="h-[58px]" />
-          ) : prtError ? (
+          {prtError ? (
             <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-sm text-rose-400">{prtError}</div>
-          ) : printers.length === 0 ? (
+          ) : printers.length === 0 && !prtLoading ? (
             <div className="text-center py-14 text-white/25">
               <Printer className="w-12 h-12 mx-auto mb-3 opacity-20" />
               <p className="text-sm font-medium">{t.dev_no_printers}</p>
@@ -1035,7 +1037,7 @@ export default function DevicePage() {
             </div>
           ) : (
             <div className="space-y-3">
-              {printers.map(p => {
+              {printers.map((p, i) => {
                 const purpose = purposeInfo(p.purpose)
                 const conn    = connInfo(p.connection_type)
                 const connDetail = p.connection_type === 'ip'
@@ -1045,7 +1047,7 @@ export default function DevicePage() {
                   : (p.usb_path ?? '—')
 
                 return (
-                  <div key={p.id} className={cn(
+                  <motion.div key={p.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: EASE, delay: i * 0.07 }} className={cn(
                     'flex items-center gap-4 p-4 rounded-2xl border transition-all',
                     p.active ? 'bg-white/5 border-white/10' : 'bg-white/2 border-white/5 opacity-60'
                   )}>
@@ -1119,17 +1121,17 @@ export default function DevicePage() {
                           : 'w-8 bg-white/5 hover:bg-rose-500/10 text-white/40 hover:text-rose-400')}>
                       {prtDeleteId === p.id ? 'Confirm?' : <Trash2 className="w-3.5 h-3.5" />}
                     </button>
-                  </div>
+                  </motion.div>
                 )
               })}
             </div>
           )}
-        </div>
+        </motion.div>
       )}
 
       {/* ══ Other Devices tab ══ */}
       {tab === 'other' && (
-        <div>
+        <motion.div key="other" {...fadeUp(0.12)}>
           <div className="flex items-center gap-3 mb-6">
             <div className="w-9 h-9 rounded-xl bg-cyan-500/15 flex items-center justify-center">
               <Monitor className="w-5 h-5 text-cyan-400" />
@@ -1140,16 +1142,16 @@ export default function DevicePage() {
             </div>
           </div>
           <div className="space-y-3">
-            {['POS Terminals', 'Cash Drawer', 'Card Reader / Payment Terminal', 'Barcode Scanner', 'Device Pairing'].map(item => (
-              <div key={item} className="flex items-center justify-between px-4 py-3.5 rounded-2xl bg-white/3 border border-white/8">
+            {['POS Terminals', 'Cash Drawer', 'Card Reader / Payment Terminal', 'Barcode Scanner', 'Device Pairing'].map((item, i) => (
+              <motion.div key={item} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.38, ease: EASE, delay: i * 0.06 }} className="flex items-center justify-between px-4 py-3.5 rounded-2xl bg-white/3 border border-white/8">
                 <span className="text-sm text-white/50">{item}</span>
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/8 text-white/30 font-medium uppercase tracking-wider">
                   Coming Soon
                 </span>
-              </div>
+              </motion.div>
             ))}
           </div>
-        </div>
+        </motion.div>
       )}
 
       {/* ══ KDS Modal ══ */}

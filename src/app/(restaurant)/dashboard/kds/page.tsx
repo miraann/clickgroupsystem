@@ -269,16 +269,21 @@ function OrderCard({
         <ElapsedBadge isoDate={order.oldest_at} />
       </div>
 
-      {/* Items */}
-      <div className="flex-1 px-3 py-3 space-y-1.5">
-        {order.items.map(item => (
-          <ItemRow
-            key={item.id}
-            item={item}
-            busy={bumping.has(item.id)}
-            onAction={onItemAction}
-          />
-        ))}
+      {/* Items — sent first, then cooking, then ready; scrollable within the card */}
+      <div className="flex-1 overflow-y-auto px-3 py-3 space-y-1.5 max-h-[52vh]">
+        {[...order.items]
+          .sort((a, b) => {
+            const rank: Record<string, number> = { sent: 0, cooking: 1, ready: 2 }
+            return (rank[a.status] ?? 3) - (rank[b.status] ?? 3)
+          })
+          .map(item => (
+            <ItemRow
+              key={item.id}
+              item={item}
+              busy={bumping.has(item.id)}
+              onAction={onItemAction}
+            />
+          ))}
       </div>
 
       {/* Progress bar */}
@@ -464,45 +469,42 @@ function KdsPage() {
   const playVoidAlert  = useCallback(() => playBeeps([880, 660, 440]), [playBeeps])
   const playNewOrder   = useCallback(() => playBeeps([440, 660, 880]), [playBeeps])
 
-  // 1-minute reminder while any items are still 'sent' (chef hasn't started cooking)
+  // Track whether there are unstarted 'sent' items — read by the repeat interval below
+  const hasSentRef = useRef(false)
   useEffect(() => {
-    // Only remind if the current station has unstarted sent items
-    const hasSent = allOrders.some(o => o.items.some(i => {
+    hasSentRef.current = allOrders.some(o => o.items.some(i => {
       if (i.status !== 'sent') return false
       if (!activeStationId) return true
       if (i.station_id === activeStationId) return true
       const stn = stations.find(s => s.id === activeStationId)
       return !!stn && stn.category_ids.length === 0
     }))
-    if (hasSent) {
-      if (!newOrderLoopRef.current) {
-        newOrderLoopRef.current = setInterval(() => {
-          const activeId = activeStationIdRef.current
-          const stnList  = stationsRef.current
-          const station  = stnList.find(s => s.id === activeId)
-          const hasSentNow = allOrdersRef.current.some(o => o.items.some(i => {
-            if (i.status !== 'sent') return false
-            if (!activeId) return true
-            if (i.station_id === activeId) return true
-            if (station && station.category_ids.length === 0) return true
-            return false
-          }))
-          if (hasSentNow) playNewOrder()
-        }, 60000)
-      }
-    } else {
-      if (newOrderLoopRef.current) {
-        clearInterval(newOrderLoopRef.current)
-        newOrderLoopRef.current = null
-      }
-    }
+  }, [allOrders, activeStationId, stations])
+
+  // Repeat alert every 15 s while unstarted items exist.
+  // Single stable interval — never cancelled by polling updates (allOrders changes every 4s).
+  useEffect(() => {
+    newOrderLoopRef.current = setInterval(() => {
+      if (!hasSentRef.current) return
+      const activeId = activeStationIdRef.current
+      const stnList  = stationsRef.current
+      const station  = stnList.find(s => s.id === activeId)
+      const hasSentNow = allOrdersRef.current.some(o => o.items.some(i => {
+        if (i.status !== 'sent') return false
+        if (!activeId) return true
+        if (i.station_id === activeId) return true
+        if (station && station.category_ids.length === 0) return true
+        return false
+      }))
+      if (hasSentNow) playNewOrder()
+    }, 15000)
     return () => {
       if (newOrderLoopRef.current) {
         clearInterval(newOrderLoopRef.current)
         newOrderLoopRef.current = null
       }
     }
-  }, [allOrders, activeStationId, stations, playNewOrder]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [playNewOrder]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Mirror the same logic as visibleOrders:
   // – All tab  → show every alert
@@ -871,7 +873,7 @@ function KdsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f] text-white flex flex-col">
+    <div className="h-screen bg-[#0a0a0f] text-white flex flex-col overflow-hidden">
 
       {/* ── Header ── */}
       <header className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-white/8 bg-black/30 backdrop-blur-sm sticky top-0 z-10">
@@ -1001,7 +1003,7 @@ function KdsPage() {
       )}
 
       {/* ── Body ── */}
-      <main className="flex-1 p-3 sm:p-6">
+      <main className="flex-1 overflow-y-auto p-3 sm:p-4">
         {loading ? (
           <div className="flex items-center justify-center h-64">
             <RefreshCw className="w-8 h-8 text-amber-400 animate-spin" />

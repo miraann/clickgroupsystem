@@ -1,33 +1,16 @@
 ﻿'use client'
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
-import { SkeletonList } from '@/components/ui/SkeletonList'
 import { Plus, Pencil, Trash2, Sliders, X, ToggleLeft, ToggleRight, Loader2, AlertCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { logAudit } from '@/lib/logAudit'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { useMenuModifiers, type CachedModifier, type CachedModOption } from '@/hooks/useMenuModifiers'
-import { motion, AnimatePresence, type Variants } from 'framer-motion'
+import { motion, type Variants } from 'framer-motion'
 
 type ModOption = CachedModOption
 type Modifier = CachedModifier
-
-function FadeSwitch({ id, children }: { id: string; children: React.ReactNode }) {
-  return (
-    <AnimatePresence mode="popLayout">
-      <motion.div
-        key={id}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.18 }}
-      >
-        {children}
-      </motion.div>
-    </AnimatePresence>
-  )
-}
 
 const EMPTY_FORM = { name: '', required: false, min_select: 0, max_select: 1 }
 
@@ -54,7 +37,7 @@ export default function ModifierPage() {
     typeof window !== 'undefined' ? localStorage.getItem('restaurant_id') : null
   )
 
-  const { data: swrMods, isLoading: loading, error: swrError, mutate } = useMenuModifiers(restaurantId)
+  const { data: swrMods, error: swrError, mutate } = useMenuModifiers(restaurantId)
 
   const mods  = swrMods ?? []
   const error = swrError ? (swrError as Error).message : null
@@ -183,11 +166,6 @@ export default function ModifierPage() {
         </button>
       </div>
 
-      {/* FadeSwitch: skeleton ↔ real list */}
-      <FadeSwitch id={loading ? 'skel' : 'data'}>
-        {loading ? (
-          <SkeletonList rows={5} />
-        ) : (
       <motion.div variants={LIST} initial="hidden" animate="visible" className="space-y-3">
         {mods.map(m => (
           <motion.div key={m.id} variants={ITEM_VAR} className="p-4 bg-white/5 border border-white/10 rounded-2xl">
@@ -229,8 +207,6 @@ export default function ModifierPage() {
         ))}
         {mods.length === 0 && <div className="text-center py-16 text-white/25 text-sm">{t.mod_no_data}</div>}
       </motion.div>
-        )}
-      </FadeSwitch>
 
       {/* Modal */}
       {modal && (

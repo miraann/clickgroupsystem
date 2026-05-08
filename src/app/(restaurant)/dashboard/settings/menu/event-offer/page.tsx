@@ -35,7 +35,6 @@
 'use client'
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
-import { SkeletonList } from '@/components/ui/SkeletonList'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import {
   Plus, Pencil, Trash2, CalendarDays, X,
@@ -52,25 +51,9 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { useEventOffers, type CachedEventOffer } from '@/hooks/useEventOffers'
-import { motion, AnimatePresence, type Variants } from 'framer-motion'
+import { motion, type Variants } from 'framer-motion'
 
 type EventOffer = CachedEventOffer
-
-function FadeSwitch({ id, children }: { id: string; children: React.ReactNode }) {
-  return (
-    <AnimatePresence mode="popLayout">
-      <motion.div
-        key={id}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.18 }}
-      >
-        {children}
-      </motion.div>
-    </AnimatePresence>
-  )
-}
 
 const EMPTY_FORM = {
   title: '',
@@ -176,7 +159,7 @@ export default function EventOfferPage() {
     typeof window !== 'undefined' ? localStorage.getItem('restaurant_id') : null
   )
 
-  const { data: swrEvents, isLoading: loading, error: swrError, mutate } = useEventOffers(restaurantId)
+  const { data: swrEvents, error: swrError, mutate } = useEventOffers(restaurantId)
 
   const events = swrEvents ?? []
   const error  = swrError ? (swrError as Error).message : null
@@ -336,35 +319,28 @@ export default function EventOfferPage() {
         </button>
       </div>
 
-      {/* FadeSwitch: skeleton ↔ real list */}
-      <FadeSwitch id={loading ? 'skel' : 'data'}>
-        {loading ? (
-          <SkeletonList rows={4} />
-        ) : (
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <SortableContext items={events.map(e => e.id)} strategy={verticalListSortingStrategy}>
-              <motion.div variants={LIST} initial="hidden" animate="visible" className="space-y-2">
-                {events.map(ev => (
-                  <motion.div key={ev.id} variants={ITEM_VAR}>
-                    <SortableEventRow
-                      ev={ev}
-                      deleteId={deleteId}
-                      onEdit={openEdit}
-                      onDelete={handleDelete}
-                      onToggle={toggleActive}
-                    />
-                  </motion.div>
-                ))}
-                {events.length === 0 && (
-                  <div className="text-center py-16 text-white/25 text-sm">
-                    {t.evt_no_data}
-                  </div>
-                )}
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={events.map(e => e.id)} strategy={verticalListSortingStrategy}>
+          <motion.div variants={LIST} initial="hidden" animate="visible" className="space-y-2">
+            {events.map(ev => (
+              <motion.div key={ev.id} variants={ITEM_VAR}>
+                <SortableEventRow
+                  ev={ev}
+                  deleteId={deleteId}
+                  onEdit={openEdit}
+                  onDelete={handleDelete}
+                  onToggle={toggleActive}
+                />
               </motion.div>
-            </SortableContext>
-          </DndContext>
-        )}
-      </FadeSwitch>
+            ))}
+            {events.length === 0 && (
+              <div className="text-center py-16 text-white/25 text-sm">
+                {t.evt_no_data}
+              </div>
+            )}
+          </motion.div>
+        </SortableContext>
+      </DndContext>
 
       {/* Modal */}
       {modal && (

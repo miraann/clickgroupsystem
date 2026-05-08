@@ -1,30 +1,13 @@
 ﻿'use client'
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
-import { SkeletonList } from '@/components/ui/SkeletonList'
 import { Plus, Pencil, Trash2, Gift, X, ToggleLeft, ToggleRight, Loader2, AlertCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { useComboDiscounts, type CachedCombo } from '@/hooks/useComboDiscounts'
-import { motion, AnimatePresence, type Variants } from 'framer-motion'
+import { motion, type Variants } from 'framer-motion'
 
 type Combo = CachedCombo
-
-function FadeSwitch({ id, children }: { id: string; children: React.ReactNode }) {
-  return (
-    <AnimatePresence mode="popLayout">
-      <motion.div
-        key={id}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.18 }}
-      >
-        {children}
-      </motion.div>
-    </AnimatePresence>
-  )
-}
 
 const EMPTY_FORM = { name: '', description: '', buy_qty: 2, get_qty: 1, discount_pct: 100, active: true }
 
@@ -50,7 +33,7 @@ export default function ComboDiscountPage() {
     typeof window !== 'undefined' ? localStorage.getItem('restaurant_id') : null
   )
 
-  const { data: swrCombos, isLoading: loading, error: swrError, mutate } = useComboDiscounts(restaurantId)
+  const { data: swrCombos, error: swrError, mutate } = useComboDiscounts(restaurantId)
   const combos = swrCombos ?? []
   const error  = swrError ? (swrError as Error).message : null
 
@@ -138,11 +121,6 @@ export default function ComboDiscountPage() {
         </button>
       </div>
 
-      {/* FadeSwitch: skeleton ↔ real list */}
-      <FadeSwitch id={loading ? 'skel' : 'data'}>
-        {loading ? (
-          <SkeletonList rows={4} />
-        ) : (
       <motion.div variants={LIST} initial="hidden" animate="visible" className="space-y-3">
         {combos.map(c => (
           <motion.div key={c.id} variants={ITEM_VAR} className={cn('p-4 bg-white/5 border rounded-2xl transition-all', c.active ? 'border-white/10' : 'border-white/5 opacity-60')}>
@@ -174,8 +152,6 @@ export default function ComboDiscountPage() {
         ))}
         {combos.length === 0 && <div className="text-center py-16 text-white/25 text-sm">{t.combo_no_data}</div>}
       </motion.div>
-        )}
-      </FadeSwitch>
 
       {/* Modal */}
       {modal && (

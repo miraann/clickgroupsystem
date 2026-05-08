@@ -162,7 +162,7 @@ const [moduleEnabled,  setModuleEnabled]  = useState<boolean | null>(null)
       <main className="flex-1 overflow-y-auto">
         {isHome ? (
           children
-        ) : pathname.startsWith('/dashboard/settings/menu/') ? (
+        ) : pathname === '/dashboard/settings/menu' || pathname.startsWith('/dashboard/settings/menu/') ? (
           /* Menu sub-pages — menu layout owns all spacing via its own -m-6 + fluid px */
           <div className="min-h-[calc(100vh-120px)]">
             {moduleEnabled === false && activeModuleKey

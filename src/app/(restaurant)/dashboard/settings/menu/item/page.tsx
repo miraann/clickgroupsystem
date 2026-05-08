@@ -1,5 +1,4 @@
 ﻿'use client'
-import { SkeletonList } from '@/components/ui/SkeletonList'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import { useInventoryData } from '@/hooks/useInventoryData'
 import { useMenuCategories } from '@/hooks/useMenuCategories'
@@ -22,25 +21,10 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { AnimatePresence, motion, type Variants } from 'framer-motion'
+import { motion, type Variants } from 'framer-motion'
 import { AlertCircle, GripVertical, ImageIcon, Loader2, Package, Pencil, Plus, Sliders, ToggleLeft, ToggleRight, Trash2, UtensilsCrossed, X } from 'lucide-react'
 import { useState } from 'react'
 
-function FadeSwitch({ id, children }: { id: string; children: React.ReactNode }) {
-  return (
-    <AnimatePresence mode="popLayout">
-      <motion.div
-        key={id}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.18 }}
-      >
-        {children}
-      </motion.div>
-    </AnimatePresence>
-  )
-}
 
 interface Category  { id: string; name: string; color: string }
 interface Modifier   { id: string; name: string; required: boolean }
@@ -85,12 +69,11 @@ export default function ItemPage() {
     typeof window !== 'undefined' ? localStorage.getItem('restaurant_id') : null
   )
 
-  const { data: swrCats,  isLoading: catsLoading  }                          = useMenuCategories(restaurantId)
-  const { data: swrMods,  isLoading: modsLoading  }                          = useMenuModifiers(restaurantId)
-  const { data: swrItems, isLoading: itemsLoading, mutate: mutateItems }     = useMenuItems(restaurantId)
-  const { data: swrInv,   isLoading: invLoading   }                          = useInventoryData(restaurantId)
+  const { data: swrCats }                       = useMenuCategories(restaurantId)
+  const { data: swrMods }                       = useMenuModifiers(restaurantId)
+  const { data: swrItems, mutate: mutateItems } = useMenuItems(restaurantId)
+  const { data: swrInv }                        = useInventoryData(restaurantId)
 
-  const loading    = catsLoading || modsLoading || itemsLoading || invLoading
   const error      = null
   const categories = swrCats ?? []
   const modifiers  = (swrMods  ?? []).map(m => ({ id: m.id, name: m.name, required: m.required }))
@@ -328,11 +311,6 @@ export default function ItemPage() {
         ))}
       </div>
 
-      {/* FadeSwitch: skeleton ↔ real list */}
-      <FadeSwitch id={loading ? 'skel' : 'data'}>
-        {loading ? (
-          <SkeletonList rows={5} />
-        ) : (
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={filtered.map(i => i.id)} strategy={verticalListSortingStrategy}>
           <motion.div key={filterCatId} variants={LIST} initial="hidden" animate="visible" className="space-y-2">
@@ -358,8 +336,6 @@ export default function ItemPage() {
           </motion.div>
         </SortableContext>
       </DndContext>
-        )}
-      </FadeSwitch>
 
       {/* Modal */}
       {modal && (

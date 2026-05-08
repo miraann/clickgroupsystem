@@ -1,31 +1,14 @@
 ﻿'use client'
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
-import { SkeletonList } from '@/components/ui/SkeletonList'
 import { AnimatedList, AnimatedItem } from '@/components/ui/AnimatedList'
 import { Plus, Pencil, Trash2, Percent, X, ToggleLeft, ToggleRight, Loader2, AlertCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { useDiscounts, type CachedDiscount } from '@/hooks/useDiscounts'
-import { motion, AnimatePresence, type Variants } from 'framer-motion'
+import { motion, type Variants } from 'framer-motion'
 
 type Discount = CachedDiscount
-
-function FadeSwitch({ id, children }: { id: string; children: React.ReactNode }) {
-  return (
-    <AnimatePresence mode="popLayout">
-      <motion.div
-        key={id}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.18 }}
-      >
-        {children}
-      </motion.div>
-    </AnimatePresence>
-  )
-}
 
 const EMPTY_FORM = { name: '', type: 'percentage' as 'percentage' | 'fixed', value: 10, min_order: 0, active: true }
 
@@ -43,7 +26,7 @@ export default function DiscountPage() {
     typeof window !== 'undefined' ? localStorage.getItem('restaurant_id') : null
   )
 
-  const { data: swrDiscounts, isLoading: loading, error: swrError, mutate } = useDiscounts(restaurantId)
+  const { data: swrDiscounts, error: swrError, mutate } = useDiscounts(restaurantId)
 
   const [discounts, setDiscounts] = useState<Discount[]>([])
   useEffect(() => { if (swrDiscounts) setDiscounts(swrDiscounts) }, [swrDiscounts])
@@ -148,11 +131,6 @@ export default function DiscountPage() {
         </button>
       </div>
 
-      {/* FadeSwitch: skeleton ↔ real list */}
-      <FadeSwitch id={loading ? 'skel' : 'data'}>
-        {loading ? (
-          <SkeletonList rows={4} />
-        ) : (
       <AnimatedList className="space-y-2">
         {discounts.map(d => (
           <AnimatedItem key={d.id} className={cn('flex items-center gap-3 p-4 bg-white/5 border rounded-2xl transition-all', d.active ? 'border-white/10' : 'border-white/5 opacity-60')}>
@@ -182,8 +160,6 @@ export default function DiscountPage() {
         ))}
         {discounts.length === 0 && <div className="text-center py-16 text-white/25 text-sm">{t.disc_no_data}</div>}
       </AnimatedList>
-        )}
-      </FadeSwitch>
 
       {/* Modal */}
       {modal && (

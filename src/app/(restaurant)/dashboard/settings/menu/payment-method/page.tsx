@@ -1,7 +1,6 @@
 ﻿'use client'
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
-import { SkeletonList } from '@/components/ui/SkeletonList'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import {
   Plus, Pencil, Trash2, CreditCard, X,
@@ -10,7 +9,7 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { usePaymentMethods, type CachedPayMethod, type CachedCurrency } from '@/hooks/usePaymentMethods'
-import { motion, AnimatePresence, type Variants } from 'framer-motion'
+import { motion, type Variants } from 'framer-motion'
 
 // ── Types ──────────────────────────────────────────────────────
 type IconType = 'cash' | 'card' | 'online' | 'wallet' | 'other'
@@ -46,21 +45,6 @@ const EMPTY_CUR  = { name: '', symbol: '', decimal_places: 2, is_default: false 
 
 function getEmoji(type: IconType) { return ICONS.find(i => i.value === type)?.emoji ?? '💳' }
 
-function FadeSwitch({ id, children }: { id: string; children: React.ReactNode }) {
-  return (
-    <AnimatePresence mode="popLayout">
-      <motion.div
-        key={id}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.18 }}
-      >
-        {children}
-      </motion.div>
-    </AnimatePresence>
-  )
-}
 
 const PAGE: Variants = {
   hidden: { opacity: 0, y: 20 },
@@ -86,7 +70,7 @@ export default function PaymentMethodPage() {
     typeof window !== 'undefined' ? localStorage.getItem('restaurant_id') : null
   )
 
-  const { data: swrData, isLoading: loading, error: swrError, mutate } = usePaymentMethods(restaurantId)
+  const { data: swrData, error: swrError, mutate } = usePaymentMethods(restaurantId)
   const methods    = (swrData?.methods    ?? []) as PayMethod[]
   const currencies = swrData?.currencies ?? []
   const error      = swrError ? (swrError as Error).message : null
@@ -248,11 +232,7 @@ export default function PaymentMethodPage() {
   return (
     <motion.div key="menu-payment-method-page" variants={PAGE} initial="hidden" animate="show" exit="exit" className="max-w-3xl mx-auto">
 
-      {/* FadeSwitch: skeleton ↔ real content */}
-      <FadeSwitch id={loading ? 'skel' : 'data'}>
-        {loading ? (
-          <SkeletonList rows={4} />
-        ) : (<>
+      <>
 
       {/* ── Tab bar ── */}
       <div className="flex gap-1 mb-6 p-1 rounded-2xl bg-white/4 border border-white/8 w-fit">
@@ -545,8 +525,7 @@ export default function PaymentMethodPage() {
           </div>
         </div>
       )}
-        </>)}
-      </FadeSwitch>
+      </>
     </motion.div>
   )
 }

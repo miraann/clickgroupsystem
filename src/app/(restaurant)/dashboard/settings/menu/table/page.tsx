@@ -157,51 +157,51 @@ export default function TablePage() {
               <span className="text-xs font-semibold text-white/50 uppercase tracking-wider">{group.name}</span>
               <span className="text-xs text-white/30">({group.tables.length})</span>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 3xl:grid-cols-5 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3 3xl:grid-cols-4 gap-3">
               {group.tables.map(t => (
                 <motion.div
                   key={t.id}
                   initial={{ opacity: 0, y: 28 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.45, ease: 'circOut', delay: 0.1 + cardIds.indexOf(t.id) * 0.07 }}
-                  className="flex items-center gap-3 p-4 bg-white/5 border border-white/10 backdrop-blur-xl rounded-2xl min-w-0"
+                  className="flex items-center gap-4 p-5 bg-white/5 border border-white/10 backdrop-blur-xl rounded-2xl min-w-0"
                 >
-                  <div className="w-10 h-10 rounded-xl bg-white/8 flex items-center justify-center text-base shrink-0">
+                  <div className="w-12 h-12 rounded-xl bg-white/8 flex items-center justify-center text-lg shrink-0">
                     {SHAPE_ICONS[t.shape]}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold text-white">{t.table_number}</span>
-                      {t.name && <span className="text-xs text-white/40">{t.name}</span>}
+                      <span className="text-base font-semibold text-white">{t.table_number}</span>
+                      {t.name && <span className="text-sm text-white/40">{t.name}</span>}
                     </div>
-                    <div className="flex items-center gap-3 mt-0.5">
-                      <span className="text-xs text-white/30 flex items-center gap-1"><Users className="w-3 h-3" /> {t.capacity}</span>
-                      <span className="text-xs text-white/25">{t.shape}</span>
+                    <div className="flex items-center gap-3 mt-1">
+                      <span className="text-sm text-white/30 flex items-center gap-1"><Users className="w-3.5 h-3.5" /> {t.capacity}</span>
+                      <span className="text-sm text-white/25">{t.shape}</span>
                     </div>
                   </div>
                   <button
                     onClick={() => setQrTable(t)}
-                    className="w-8 h-8 rounded-lg bg-white/5 hover:bg-amber-500/15 flex items-center justify-center text-white/40 hover:text-amber-400 transition-all active:scale-95"
+                    className="w-9 h-9 rounded-lg bg-white/5 hover:bg-amber-500/15 flex items-center justify-center text-white/40 hover:text-amber-400 transition-all active:scale-95"
                     title="Show QR Code"
                   >
-                    <QrCode className="w-3.5 h-3.5" />
+                    <QrCode className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => openEdit(t)}
-                    className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/40 hover:text-white transition-all active:scale-95"
+                    className="w-9 h-9 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/40 hover:text-white transition-all active:scale-95"
                   >
-                    <Pencil className="w-3.5 h-3.5" />
+                    <Pencil className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => handleDelete(t.id)}
                     className={cn(
-                      'h-8 rounded-lg flex items-center justify-center transition-all active:scale-95 text-xs font-medium',
+                      'h-9 rounded-lg flex items-center justify-center transition-all active:scale-95 text-xs font-medium',
                       deleteId === t.id
                         ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30 px-2'
-                        : 'w-8 bg-white/5 hover:bg-rose-500/10 text-white/40 hover:text-rose-400'
+                        : 'w-9 bg-white/5 hover:bg-rose-500/10 text-white/40 hover:text-rose-400'
                     )}
                   >
-                    {deleteId === t.id ? 'Confirm?' : <Trash2 className="w-3.5 h-3.5" />}
+                    {deleteId === t.id ? 'Confirm?' : <Trash2 className="w-4 h-4" />}
                   </button>
                 </motion.div>
               ))}

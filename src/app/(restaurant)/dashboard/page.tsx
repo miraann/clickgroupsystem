@@ -440,7 +440,8 @@ export default function TablesPage() {
   const [showWaiterPanel, setShowWaiterPanel]   = useState(false)
   const [showLangPicker, setShowLangPicker]     = useState(false)
   const { lang, setLang, t: tr } = useLanguage()
-  const alertIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const alertIntervalRef       = useRef<ReturnType<typeof setInterval> | null>(null)
+  const waiterAlertIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const soundsEnabledRef  = useRef(true)
   const alertRepeatMsRef  = useRef(30000)
 
@@ -551,7 +552,12 @@ export default function TablesPage() {
       supabase.from('waiter_calls').select('id, table_number, table_name, created_at').eq('restaurant_id', storedId).eq('status', 'pending').order('created_at'),
     ])
 
-    setWaiterCalls((waiterCallsData ?? []) as WaiterCall[])
+    const pendingCalls = (waiterCallsData ?? []) as WaiterCall[]
+    setWaiterCalls(pendingCalls)
+    if (pendingCalls.length > 0) {
+      setShowWaiterPanel(true)
+      playWaiterAlert()
+    }
     setPendingCount(pendingCnt ?? 0)
     setDeliveryCount(deliveryCnt ?? 0)
     setGuestPendingCount(guestPendingRes?.count ?? 0)
@@ -633,6 +639,27 @@ export default function TablesPage() {
       }
     }
   }, [deliveryCount, guestPendingCount, playNewOrderAlert])
+
+  // Repeat waiter alert while there are unacknowledged calls
+  useEffect(() => {
+    if (waiterCalls.length > 0) {
+      if (waiterAlertIntervalRef.current) clearInterval(waiterAlertIntervalRef.current)
+      waiterAlertIntervalRef.current = setInterval(() => {
+        playWaiterAlert()
+      }, alertRepeatMsRef.current)
+    } else {
+      if (waiterAlertIntervalRef.current) {
+        clearInterval(waiterAlertIntervalRef.current)
+        waiterAlertIntervalRef.current = null
+      }
+    }
+    return () => {
+      if (waiterAlertIntervalRef.current) {
+        clearInterval(waiterAlertIntervalRef.current)
+        waiterAlertIntervalRef.current = null
+      }
+    }
+  }, [waiterCalls.length, playWaiterAlert]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchRef = useRef(fetchOrders)
   useEffect(() => { fetchRef.current = fetchOrders }, [fetchOrders])
@@ -793,9 +820,9 @@ export default function TablesPage() {
                 <ChefHat size={18} />
               </Link>
             )}
-            {can('dashboard.cfd') && cachedRestaurantId && (
+            {can('dashboard.cfd') && swrData?.restaurant?.menu_slug && (
               <button
-                onClick={() => window.open(`/cfd/${cachedRestaurantId}`, 'CFD', 'width=1024,height=768,menubar=no,toolbar=no,location=no,status=no')}
+                onClick={() => window.open(`/cfd/${swrData.restaurant!.menu_slug}`, 'CFD', 'width=1024,height=768,menubar=no,toolbar=no,location=no,status=no')}
                 className="hidden sm:flex w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 items-center justify-center text-blue-400 hover:bg-blue-500/20 hover:border-blue-500/40 transition-all active:scale-95"
                 title="Customer Facing Display"
               >
@@ -969,28 +996,22 @@ export default function TablesPage() {
       <div className="sticky bottom-0 z-30 border-t border-white/8 bg-[#022658]/90 backdrop-blur-2xl px-4 py-3">
         <div className={cn(
           'grid gap-2 max-w-2xl mx-auto',
-          (showDeliveryButton && showTakeoutButton) ? 'grid-cols-2 sm:grid-cols-5' : (showDeliveryButton || showTakeoutButton) ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-2 sm:grid-cols-3'
+          (showDeliveryButton && showTakeoutButton) ? 'grid-cols-2 sm:grid-cols-4' : (showDeliveryButton || showTakeoutButton) ? 'grid-cols-2 sm:grid-cols-3' : 'grid-cols-2 sm:grid-cols-2'
         )}>
-          {can('dashboard.btn_new_order') && (
-            <button className="flex items-center justify-center gap-1.5 h-12 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-sm font-semibold transition-all shadow-lg shadow-amber-500/25 touch-manipulation">
-              <Plus className="w-4 h-4" />
-              {tr.new_order}
-            </button>
-          )}
           {can('dashboard.btn_qr_orders') && (
             <Link
               href="/dashboard/pending-orders"
               className={cn(
-                'relative flex items-center justify-center gap-1.5 h-12 rounded-xl border text-sm font-semibold transition-all active:scale-95 touch-manipulation',
+                'relative flex items-center justify-center gap-1.5 h-12 rounded-xl text-sm font-semibold transition-all active:scale-95 touch-manipulation shadow-lg',
                 pendingCount > 0
-                  ? 'bg-amber-500/20 border-amber-500/40 text-amber-300 hover:bg-amber-500/30'
-                  : 'bg-white/8 border-white/12 text-white/70 hover:bg-white/12'
+                  ? 'bg-amber-500 text-white hover:bg-amber-600 shadow-amber-500/30'
+                  : 'bg-amber-500/70 text-white hover:bg-amber-500 shadow-amber-500/20'
               )}
             >
               <Bell className="w-4 h-4" />
               QR Orders
               {pendingCount > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 rounded-full bg-amber-500 text-white text-[10px] font-bold flex items-center justify-center px-1 shadow-lg shadow-amber-500/40">
+                <span className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 rounded-full bg-white text-amber-600 text-[10px] font-bold flex items-center justify-center px-1 shadow-lg">
                   {pendingCount > 99 ? '99+' : pendingCount}
                 </span>
               )}
@@ -1000,16 +1021,16 @@ export default function TablesPage() {
             <Link
               href="/dashboard/delivery-orders"
               className={cn(
-                'relative flex items-center justify-center gap-1.5 h-12 rounded-xl border text-sm font-semibold transition-all active:scale-95 touch-manipulation',
+                'relative flex items-center justify-center gap-1.5 h-12 rounded-xl text-sm font-semibold transition-all active:scale-95 touch-manipulation shadow-lg',
                 deliveryCount > 0
-                  ? 'bg-indigo-500/20 border-indigo-500/40 text-indigo-300 hover:bg-indigo-500/30'
-                  : 'bg-white/8 border-white/12 text-white/70 hover:bg-white/12'
+                  ? 'bg-blue-500 text-white hover:bg-blue-600 shadow-blue-500/30'
+                  : 'bg-blue-500/70 text-white hover:bg-blue-500 shadow-blue-500/20'
               )}
             >
               <Truck className="w-4 h-4" />
               {tr.delivery}
               {deliveryCount > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 rounded-full bg-indigo-500 text-white text-[10px] font-bold flex items-center justify-center px-1 shadow-lg shadow-indigo-500/40">
+                <span className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 rounded-full bg-white text-blue-600 text-[10px] font-bold flex items-center justify-center px-1 shadow-lg">
                   {deliveryCount > 99 ? '99+' : deliveryCount}
                 </span>
               )}
@@ -1018,14 +1039,14 @@ export default function TablesPage() {
           {showTakeoutButton && can('dashboard.btn_takeout') && (
             <Link
               href="/dashboard/takeout-orders"
-              className="relative flex items-center justify-center gap-1.5 h-12 rounded-xl border bg-white/8 border-white/12 text-white/70 hover:bg-white/12 text-sm font-semibold transition-all active:scale-95 touch-manipulation"
+              className="relative flex items-center justify-center gap-1.5 h-12 rounded-xl bg-emerald-500/70 hover:bg-emerald-500 text-white text-sm font-semibold transition-all active:scale-95 touch-manipulation shadow-lg shadow-emerald-500/20"
             >
               <ShoppingBag className="w-4 h-4" />
               {tr.takeout}
             </Link>
           )}
           {can('dashboard.btn_settings') && (
-            <Link href="/dashboard/settings" className="flex items-center justify-center gap-1.5 h-12 rounded-xl bg-white/8 border border-white/12 hover:bg-white/12 active:scale-95 text-white/70 text-sm font-medium transition-all touch-manipulation">
+            <Link href="/dashboard/settings" className="flex items-center justify-center gap-1.5 h-12 rounded-xl bg-violet-500/70 hover:bg-violet-500 active:scale-95 text-white text-sm font-semibold transition-all touch-manipulation shadow-lg shadow-violet-500/20">
               <Settings className="w-4 h-4" />
               {tr.nav_settings}
             </Link>
@@ -1093,10 +1114,13 @@ export default function TablesPage() {
                         </p>
                       </div>
                       <button
-                        onClick={() => {
-                          // Optimistic: dismiss immediately, write in background
+                        onClick={async () => {
                           setWaiterCalls(prev => prev.filter(c => c.id !== call.id))
-                          createClient().from('waiter_calls').update({ status: 'acknowledged' }).eq('id', call.id)
+                          const { error } = await createClient()
+                            .from('waiter_calls')
+                            .update({ status: 'acknowledged' })
+                            .eq('id', call.id)
+                          if (error) fetchRef.current()
                         }}
                         className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 text-xs font-semibold hover:bg-emerald-500/25 active:scale-95 transition-all"
                       >
@@ -1112,11 +1136,14 @@ export default function TablesPage() {
               {waiterCalls.length > 1 && (
                 <div className="px-4 pb-4">
                   <button
-                    onClick={() => {
-                      // Optimistic: clear all immediately, write in background
+                    onClick={async () => {
                       const ids = waiterCalls.map(c => c.id)
                       setWaiterCalls([])
-                      createClient().from('waiter_calls').update({ status: 'acknowledged' }).in('id', ids)
+                      const { error } = await createClient()
+                        .from('waiter_calls')
+                        .update({ status: 'acknowledged' })
+                        .in('id', ids)
+                      if (error) fetchRef.current()
                     }}
                     className="w-full h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 text-sm font-semibold flex items-center justify-center gap-2 hover:bg-emerald-500/25 active:scale-95 transition-all"
                   >

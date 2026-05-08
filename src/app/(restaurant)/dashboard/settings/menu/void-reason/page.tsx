@@ -1,30 +1,13 @@
 'use client'
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
-import { SkeletonList } from '@/components/ui/SkeletonList'
 import { Plus, Trash2, XCircle, ToggleLeft, ToggleRight, Loader2, AlertCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { useVoidReasons, type CachedVoidReason } from '@/hooks/useVoidReasons'
-import { motion, AnimatePresence, type Variants } from 'framer-motion'
+import { motion, type Variants } from 'framer-motion'
 
 type VoidReason = CachedVoidReason
-
-function FadeSwitch({ id, children }: { id: string; children: React.ReactNode }) {
-  return (
-    <AnimatePresence mode="popLayout">
-      <motion.div
-        key={id}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.18 }}
-      >
-        {children}
-      </motion.div>
-    </AnimatePresence>
-  )
-}
 
 const PAGE: Variants = {
   hidden: { opacity: 0, y: 20 },
@@ -48,7 +31,7 @@ export default function VoidReasonPage() {
     typeof window !== 'undefined' ? localStorage.getItem('restaurant_id') : null
   )
 
-  const { data: swrReasons, isLoading: loading, error: swrError, mutate } = useVoidReasons(restaurantId)
+  const { data: swrReasons, error: swrError, mutate } = useVoidReasons(restaurantId)
 
   const reasons = swrReasons ?? []
   const error   = swrError ? (swrError as Error).message : null
@@ -134,36 +117,29 @@ export default function VoidReasonPage() {
         </button>
       </div>
 
-      {/* FadeSwitch: skeleton ↔ real list */}
-      <FadeSwitch id={loading ? 'skel' : 'data'}>
-        {loading ? (
-          <SkeletonList rows={4} />
-        ) : (
-          <motion.div variants={LIST} initial="hidden" animate="visible" className="space-y-2">
-            {reasons.map(r => (
-              <motion.div
-                key={r.id}
-                variants={ITEM_VAR}
-                className={cn('flex items-center gap-3 px-4 py-3 bg-white/5 border rounded-2xl transition-all',
-                  r.active ? 'border-white/10' : 'border-white/5 opacity-50')}
-              >
-                <p className={cn('flex-1 text-sm', r.active ? 'text-white' : 'text-white/40')}>{r.text}</p>
-                <button onClick={() => toggle(r)} className="active:scale-95 shrink-0">
-                  {r.active ? <ToggleRight className="w-6 h-6 text-amber-400" /> : <ToggleLeft className="w-6 h-6 text-white/25" />}
-                </button>
-                <button
-                  onClick={() => handleDelete(r.id)}
-                  className={cn('h-8 rounded-lg flex items-center justify-center transition-all active:scale-95 text-xs font-medium shrink-0',
-                    deleteId === r.id ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30 px-2' : 'w-8 bg-white/5 hover:bg-rose-500/10 text-white/40 hover:text-rose-400')}
-                >
-                  {deleteId === r.id ? t.confirm : <Trash2 className="w-3.5 h-3.5" />}
-                </button>
-              </motion.div>
-            ))}
-            {reasons.length === 0 && <div className="text-center py-12 text-white/25 text-sm">{t.vr_no_data}</div>}
+      <motion.div variants={LIST} initial="hidden" animate="visible" className="space-y-2">
+        {reasons.map(r => (
+          <motion.div
+            key={r.id}
+            variants={ITEM_VAR}
+            className={cn('flex items-center gap-3 px-4 py-3 bg-white/5 border rounded-2xl transition-all',
+              r.active ? 'border-white/10' : 'border-white/5 opacity-50')}
+          >
+            <p className={cn('flex-1 text-sm', r.active ? 'text-white' : 'text-white/40')}>{r.text}</p>
+            <button onClick={() => toggle(r)} className="active:scale-95 shrink-0">
+              {r.active ? <ToggleRight className="w-6 h-6 text-amber-400" /> : <ToggleLeft className="w-6 h-6 text-white/25" />}
+            </button>
+            <button
+              onClick={() => handleDelete(r.id)}
+              className={cn('h-8 rounded-lg flex items-center justify-center transition-all active:scale-95 text-xs font-medium shrink-0',
+                deleteId === r.id ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30 px-2' : 'w-8 bg-white/5 hover:bg-rose-500/10 text-white/40 hover:text-rose-400')}
+            >
+              {deleteId === r.id ? t.confirm : <Trash2 className="w-3.5 h-3.5" />}
+            </button>
           </motion.div>
-        )}
-      </FadeSwitch>
+        ))}
+        {reasons.length === 0 && <div className="text-center py-12 text-white/25 text-sm">{t.vr_no_data}</div>}
+      </motion.div>
     </motion.div>
   )
 }

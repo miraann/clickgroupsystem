@@ -1142,7 +1142,7 @@ export default function DeliveryOrderPage() {
       {categories.length > 0 && (
         <div className="w-full mt-6 overflow-x-hidden">
           {categoryStyle === 'circles' ? (
-            <div className="scroll-hide flex gap-5 overflow-x-auto px-6 py-4"
+            <div className="scroll-hide flex gap-5 overflow-x-auto px-6 py-4 justify-center"
               style={{ scrollbarWidth: 'none', overflowY: 'visible' } as React.CSSProperties}>
               {categories.map(cat => {
                 const isActive = activeId === cat.id
@@ -1171,7 +1171,7 @@ export default function DeliveryOrderPage() {
               })}
             </div>
           ) : categoryStyle === 'square' ? (
-            <div className="scroll-hide flex gap-3 overflow-x-auto px-6 py-3"
+            <div className="scroll-hide flex gap-3 overflow-x-auto px-6 py-3 justify-center"
               style={{ scrollbarWidth: 'none' } as React.CSSProperties}>
               {categories.map(cat => {
                 const isActive = activeId === cat.id
@@ -1199,7 +1199,7 @@ export default function DeliveryOrderPage() {
               })}
             </div>
           ) : categoryStyle === 'horizontal' ? (
-            <div className="flex flex-col gap-2 px-4">
+            <div className="flex flex-col gap-2 px-4 max-w-lg mx-auto w-full">
               {categories.map(cat => {
                 const isActive = activeId === cat.id
                 return (
@@ -1228,7 +1228,7 @@ export default function DeliveryOrderPage() {
               })}
             </div>
           ) : (
-            <div className="scroll-hide flex gap-2 overflow-x-auto px-6 py-3"
+            <div className="scroll-hide flex gap-2 overflow-x-auto px-6 py-3 justify-center"
               style={{ scrollbarWidth: 'none' } as React.CSSProperties}>
               {categories.map(cat => {
                 const isActive = activeId === cat.id
@@ -1393,9 +1393,9 @@ export default function DeliveryOrderPage() {
       {!showItems && (
         <>
           {events.length > 0 && (
-            <div className="w-full mt-6 text-left">
-              <h2 className={`text-lg font-bold mb-3 px-6 ${tpl.sectionTitle}`}>Event &amp; Offers</h2>
-              <div className="scroll-hide flex gap-5 overflow-x-auto px-6 pb-4 pt-2"
+            <div className="w-full mt-6">
+              <h2 className={`text-lg font-bold mb-3 px-6 text-center ${tpl.sectionTitle}`}>Event &amp; Offers</h2>
+              <div className="scroll-hide flex gap-5 overflow-x-auto px-6 pb-4 pt-2 justify-center"
                 style={{ scrollbarWidth: 'none' } as React.CSSProperties}>
                 {events.map((ev, idx) => (
                   <div key={ev.id} onClick={() => openStory(idx)}
@@ -1418,8 +1418,8 @@ export default function DeliveryOrderPage() {
           )}
 
           {socialLinks.length > 0 && (
-            <div className="w-full mt-4 pb-10 text-left">
-              <div className="scroll-hide flex gap-3 overflow-x-auto px-6 py-2"
+            <div className="w-full mt-4 pb-10">
+              <div className="scroll-hide flex gap-3 overflow-x-auto px-6 py-2 justify-center"
                 style={{ scrollbarWidth: 'none' } as React.CSSProperties}>
                 {socialLinks.map(s => {
                   const href = buildSocialHref(s.key, s.value)

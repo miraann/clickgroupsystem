@@ -624,7 +624,7 @@ export default function GuestPage() {
           {categoryStyle === 'circles' ? (
             /* ── Circles ── */
             <div
-              className="cat-scroll flex gap-5 overflow-x-auto px-6 py-4"
+              className="cat-scroll flex gap-5 overflow-x-auto px-6 py-4 justify-center"
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', overflowY: 'visible' } as React.CSSProperties}
             >
               {categories.map(cat => {
@@ -664,7 +664,7 @@ export default function GuestPage() {
           ) : categoryStyle === 'square' ? (
             /* ── Square cards ── */
             <div
-              className="cat-scroll flex gap-3 overflow-x-auto px-6 py-3"
+              className="cat-scroll flex gap-3 overflow-x-auto px-6 py-3 justify-center"
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
             >
               {categories.map(cat => {
@@ -703,7 +703,7 @@ export default function GuestPage() {
             </div>
           ) : categoryStyle === 'horizontal' ? (
             /* ── Horizontal list ── */
-            <div className="flex flex-col gap-2 px-4">
+            <div className="flex flex-col gap-2 px-4 max-w-lg mx-auto w-full">
               {categories.map(cat => {
                 const isActive = activeId === cat.id
                 const isDark = tpl.pageBg.includes('0a0a') || tpl.pageBg.includes('080c')
@@ -742,7 +742,7 @@ export default function GuestPage() {
           ) : (
             /* ── Pills ── */
             <div
-              className="cat-scroll flex gap-2 overflow-x-auto px-6 py-3"
+              className="cat-scroll flex gap-2 overflow-x-auto px-6 py-3 justify-center"
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
             >
               {categories.map(cat => {
@@ -951,13 +951,13 @@ export default function GuestPage() {
       {!showItems && (
         <>
           {events.length > 0 && (
-            <div className="w-full mt-6 text-left">
-              <h2 className={`text-lg font-bold mb-3 px-6 ${tpl.sectionTitleColor}`}>Event &amp; Offers</h2>
+            <div className="w-full mt-6">
+              <h2 className={`text-lg font-bold mb-3 px-6 text-center ${tpl.sectionTitleColor}`}>Event &amp; Offers</h2>
 
               {eventStyle === 'story' ? (
                 /* ── Story circles ── */
                 <div
-                  className="cat-scroll flex gap-4 overflow-x-auto px-6 pb-4 pt-2"
+                  className="cat-scroll flex gap-4 overflow-x-auto px-6 pb-4 pt-2 justify-center"
                   style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
                 >
                   {events.map((ev, idx) => (
@@ -981,7 +981,7 @@ export default function GuestPage() {
                 </div>
               ) : eventStyle === 'banner' ? (
                 /* ── Stacked banners ── */
-                <div className="flex flex-col gap-3 px-4">
+                <div className="flex flex-col gap-3 px-4 max-w-lg mx-auto w-full">
                   {events.map((ev, idx) => (
                     <div
                       key={ev.id}
@@ -1005,7 +1005,7 @@ export default function GuestPage() {
               ) : (
                 /* ── Cards (default horizontal scroll) ── */
                 <div
-                  className="cat-scroll flex gap-5 overflow-x-auto px-6 pb-4 pt-2"
+                  className="cat-scroll flex gap-5 overflow-x-auto px-6 pb-4 pt-2 justify-center"
                   style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
                 >
                   {events.map((ev, idx) => (
@@ -1034,10 +1034,10 @@ export default function GuestPage() {
           )}
 
           {socialLinks.length > 0 && (
-            <div className="w-full mt-6 pb-10 text-left">
+            <div className="w-full mt-6 pb-10">
               {socialStyle === 'grid' ? (
                 /* ── 2-col grid ── */
-                <div className="grid grid-cols-2 gap-2 px-4">
+                <div className="grid grid-cols-2 gap-2 px-4 max-w-sm mx-auto w-full">
                   {socialLinks.map(s => {
                     const href = buildSocialHref(s.key, s.value)
                     const isDark = tpl.pageBg.includes('0a0a') || tpl.pageBg.includes('080c')
@@ -1061,7 +1061,7 @@ export default function GuestPage() {
               ) : socialStyle === 'icons' ? (
                 /* ── Icon circles only ── */
                 <div
-                  className="social-scroll flex gap-4 overflow-x-auto px-6 py-2"
+                  className="social-scroll flex gap-4 overflow-x-auto px-6 py-2 justify-center"
                   style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
                 >
                   {socialLinks.map(s => {
@@ -1085,7 +1085,7 @@ export default function GuestPage() {
               ) : (
                 /* ── Pills (default horizontal scroll) ── */
                 <div
-                  className="social-scroll flex gap-3 overflow-x-auto px-6 py-2"
+                  className="social-scroll flex gap-3 overflow-x-auto px-6 py-2 justify-center"
                   style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
                 >
                   {socialLinks.map(s => {

@@ -18,7 +18,7 @@ export interface TableWithStatus {
 }
 
 export interface DashboardFullData {
-  restaurant: { name: string; logo_url: string | null; settings: Record<string, unknown> } | null
+  restaurant: { name: string; logo_url: string | null; settings: Record<string, unknown>; menu_slug: string | null } | null
   tables: TableWithStatus[]
   groups: { id: string; name: string; color: string }[]
 }
@@ -38,7 +38,7 @@ async function fetchDashboardData(restaurantId: string): Promise<DashboardFullDa
     { data: todayRes },
   ] = await Promise.all([
     supabase.from('restaurants')
-      .select('name, logo_url, settings')
+      .select('name, logo_url, settings, menu_slug')
       .eq('id', restaurantId).maybeSingle(),
     supabase.from('tables')
       .select('id, seq, table_number, capacity, shape, group_id')
@@ -91,7 +91,7 @@ async function fetchDashboardData(restaurantId: string): Promise<DashboardFullDa
 
   return {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    restaurant: rest ? { name: rest.name, logo_url: rest.logo_url, settings: ((rest as any).settings as Record<string, unknown>) ?? {} } : null,
+    restaurant: rest ? { name: rest.name, logo_url: rest.logo_url, settings: ((rest as any).settings as Record<string, unknown>) ?? {}, menu_slug: (rest as any).menu_slug ?? null } : null,
     tables,
     groups: (grps ?? []) as { id: string; name: string; color: string }[],
   }
