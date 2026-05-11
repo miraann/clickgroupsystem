@@ -2,13 +2,29 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { ModuleGate } from '@/components/ModuleGate'
 import { Bell, Check, X, Loader2, RefreshCw, AlertCircle, ChefHat, Clock } from 'lucide-react'
-import { SkeletonList } from '@/components/ui/SkeletonList'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { usePermissions } from '@/lib/permissions/PermissionsContext'
 import { getStaffHome } from '@/lib/permissions/staffHome'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
+import { motion, AnimatePresence, type Variants } from 'framer-motion'
+
+const PAGE: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  show:   { opacity: 1, y: 0,  transition: { duration: 0.55, ease: 'circOut' as const } },
+}
+
+const CONTAINER: Variants = {
+  hidden: {},
+  show:   { transition: { staggerChildren: 0.08 } },
+}
+
+const CARD: Variants = {
+  hidden: { opacity: 0, y: 24, scale: 0.98 },
+  show:   { opacity: 1, y: 0,  scale: 1, transition: { duration: 0.45, ease: 'circOut' as const } },
+  exit:   { opacity: 0, x: 40, scale: 0.96, transition: { duration: 0.28, ease: 'easeIn' as const } },
+}
 
 interface PendingItem {
   id: string
@@ -56,7 +72,6 @@ export default function PendingOrdersPage() {
   }, [permsLoading, isOwner, permissions, can, router])
 
   const [groups, setGroups]       = useState<PendingGroup[]>([])
-  const [loading, setLoading]     = useState(true)
   const [error, setError]         = useState<string | null>(null)
   const [lastRefresh, setLastRefresh] = useState(new Date())
   // eslint-disable-next-line @typescript-eslint/no-empty-function
@@ -64,7 +79,7 @@ export default function PendingOrdersPage() {
 
   const load = useCallback(async () => {
     const { data: rest } = await supabase.from('restaurants').select('id').eq('id', typeof window !== 'undefined' ? (localStorage.getItem('restaurant_id') ?? '') : '').maybeSingle()
-    if (!rest) { setError('Restaurant not found'); setLoading(false); return }
+    if (!rest) { setError('Restaurant not found'); return }
 
     const [{ data: pendingData, error: pendingErr }, { data: tablesData }, { data: groupsData }] = await Promise.all([
       supabase
@@ -84,7 +99,7 @@ export default function PendingOrdersPage() {
         .eq('restaurant_id', rest.id),
     ])
 
-    if (pendingErr) { setError(pendingErr.message); setLoading(false); return }
+    if (pendingErr) { setError(pendingErr.message); return }
 
     // Build seq -> display label map and seq -> group_label map
     const labelMap = new Map<number, string>()
@@ -124,7 +139,6 @@ export default function PendingOrdersPage() {
 
     setGroups(Array.from(map.values()))
     setLastRefresh(new Date())
-    setLoading(false)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { loadRef.current = load }, [load])
@@ -225,14 +239,6 @@ export default function PendingOrdersPage() {
       })
   }
 
-  if (loading) return (
-    <div className="min-h-screen bg-[#022658] flex flex-col">
-      <div className="flex-1 max-w-2xl mx-auto w-full px-4 py-5">
-        <SkeletonList rows={4} rowHeight="h-[130px]" />
-      </div>
-    </div>
-  )
-
   if (error) return (
     <div className="min-h-screen bg-[#022658] flex items-center justify-center p-6">
       <div className="flex items-start gap-3 p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 max-w-sm">
@@ -248,7 +254,7 @@ export default function PendingOrdersPage() {
 
   return (
     <ModuleGate moduleKey="dine_in">
-    <div className="min-h-screen bg-[#022658] flex flex-col">
+    <motion.div key="pending-orders-page" variants={PAGE} initial="hidden" animate="show" className="min-h-screen bg-[#022658] flex flex-col">
 
       {/* Header */}
       <header className="sticky top-0 z-30 border-b border-white/8 bg-[#022658]/80 backdrop-blur-2xl">
@@ -275,7 +281,7 @@ export default function PendingOrdersPage() {
               </p>
             </div>
           </div>
-          <button onClick={() => { setLoading(true); load() }}
+          <button onClick={() => load()}
             className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 active:scale-95 transition-all">
             <RefreshCw className="w-4 h-4" />
           </button>
@@ -286,7 +292,11 @@ export default function PendingOrdersPage() {
       <div className="flex-1 max-w-2xl mx-auto w-full px-4 py-5 space-y-4">
 
         {groups.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-24 gap-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.92 }}
+            animate={{ opacity: 1, scale: 1, transition: { duration: 0.5, ease: 'circOut' as const } }}
+            className="flex flex-col items-center justify-center py-24 gap-4"
+          >
             <div className="w-16 h-16 rounded-2xl bg-emerald-500/12 border border-emerald-500/20 flex items-center justify-center">
               <Check className="w-8 h-8 text-emerald-400" />
             </div>
@@ -294,13 +304,15 @@ export default function PendingOrdersPage() {
               <p className="text-base font-semibold text-white/60">All caught up!</p>
               <p className="text-sm text-white/25 mt-1">No pending guest orders right now</p>
             </div>
-          </div>
+          </motion.div>
         ) : (
-          groups.map(group => {
+          <AnimatePresence initial={false}>
+          <motion.div variants={CONTAINER} initial="hidden" animate="show" className="space-y-4">
+          {groups.map(group => {
             const groupTotal = group.items.reduce((s, i) => s + i.item_price * i.qty, 0)
 
             return (
-              <div key={group.order_id} className="rounded-2xl border border-amber-500/20 bg-amber-500/4 overflow-hidden">
+              <motion.div key={group.order_id} variants={CARD} exit="exit" layout className="rounded-2xl border border-amber-500/20 bg-amber-500/4 overflow-hidden">
 
                 {/* Group header */}
                 <div className="flex items-center justify-between px-4 py-3 border-b border-white/8 bg-amber-500/8">
@@ -376,12 +388,14 @@ export default function PendingOrdersPage() {
                   })}
                 </div>
 
-              </div>
+              </motion.div>
             )
-          })
+          })}
+          </motion.div>
+          </AnimatePresence>
         )}
       </div>
-    </div>
+    </motion.div>
     </ModuleGate>
   )
 }

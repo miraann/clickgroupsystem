@@ -415,7 +415,7 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
       <div className="shrink-0 flex items-center border-b border-white/8 bg-[#080b14]">
         <button
           onClick={onClose}
-          className="w-14 h-12 flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/5 transition-all active:scale-95 touch-manipulation border-r border-white/8 shrink-0"
+          className="w-12 md:w-14 h-11 md:h-12 flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/5 transition-all active:scale-95 touch-manipulation border-r border-white/8 shrink-0"
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
@@ -432,7 +432,7 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
               key={tab.id}
               onClick={() => setActiveTab(activeTab === tab.id ? null : tab.id)}
               className={cn(
-                'shrink-0 flex-1 min-w-[100px] h-12 text-sm font-semibold border-r border-white/8 transition-all active:scale-95 touch-manipulation',
+                'shrink-0 flex-1 min-w-[72px] h-11 text-xs md:text-sm font-semibold border-r border-white/8 transition-all active:scale-95 touch-manipulation',
                 activeTab === tab.id ? tab.active : tab.inactive
               )}
             >
@@ -445,8 +445,8 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
       {/* ── Body ── */}
       <div className="flex flex-1 overflow-hidden">
 
-        {/* ── Left: Receipt ── */}
-        <div className="w-80 xl:w-96 shrink-0 flex flex-col border-r border-white/8">
+        {/* ── Left: Receipt (desktop only) ── */}
+        <div className="hidden md:flex md:w-80 xl:w-96 shrink-0 flex-col border-r border-white/8">
 
           {/* Order meta */}
           <div className="shrink-0 p-5 border-b border-white/8 space-y-1.5">
@@ -524,7 +524,24 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
         </div>
 
         {/* ── Right: Payment ── */}
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
+
+          {/* Mobile-only: compact order info (receipt panel is hidden on mobile) */}
+          <div className="md:hidden shrink-0 flex items-center justify-between px-4 py-2.5 border-b border-white/8 bg-black/20">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-amber-500/15 border border-amber-500/25 flex items-center justify-center shrink-0">
+                <Users className="w-4 h-4 text-amber-400" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-white leading-tight">{isNaN(parseInt(tableNum)) ? tableNum : `Table ${tableNum}`}{guests > 0 ? ` · ${guests} Guests` : ''}</p>
+                <p className="text-[11px] text-white/35">{items.length} item{items.length !== 1 ? 's' : ''} · {isNaN(parseInt(tableNum)) ? tableNum : 'Dine In'}</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-[10px] text-white/30 uppercase tracking-wide">Total</p>
+              <p className="text-base font-bold text-amber-400 tabular-nums">{formatPrice(finalTotal)}</p>
+            </div>
+          </div>
 
           {/* Summary row */}
           <div className="shrink-0 grid grid-cols-4 divide-x divide-white/8 border-b border-white/8">
@@ -534,9 +551,9 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
               { label: 'Paid',   value: enteredNum > 0 ? formatPrice(enteredNum) : formatPrice(0),                color: enteredNum > 0 ? 'text-white/70' : 'text-white/25' },
               { label: 'Change', value: formatPrice(change),                                                       color: change > 0 ? 'text-emerald-400' : 'text-white/25' },
             ].map(s => (
-              <div key={s.label} className="flex flex-col items-center justify-center py-4 gap-1">
-                <span className="text-xs text-white/30 uppercase tracking-wider">{s.label}</span>
-                <span className={cn('text-lg font-bold tabular-nums', s.color)}>{s.value}</span>
+              <div key={s.label} className="flex flex-col items-center justify-center py-2 md:py-4 gap-0.5 md:gap-1">
+                <span className="text-[10px] md:text-xs text-white/30 uppercase tracking-wider">{s.label}</span>
+                <span className={cn('text-sm md:text-lg font-bold tabular-nums', s.color)}>{s.value}</span>
               </div>
             ))}
           </div>
@@ -713,7 +730,7 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
           )}
 
           {/* Amount display */}
-          <div className="shrink-0 flex items-center justify-between px-6 py-4 border-b border-white/8">
+          <div className="shrink-0 flex items-center justify-between px-4 md:px-6 py-3 md:py-4 border-b border-white/8">
             <div>
               {entered ? (
                 <p className="text-3xl font-bold text-white tabular-nums">{cur}{entered}</p>
@@ -752,7 +769,7 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
               <button
                 key={key}
                 onClick={() => press(key)}
-                className="bg-[#080b14] hover:bg-white/5 active:bg-white/10 active:scale-95 text-xl font-semibold text-white/70 transition-all touch-manipulation flex items-center justify-center"
+                className="bg-[#022658] hover:bg-white/5 active:bg-white/10 active:scale-95 text-xl font-semibold text-white/70 transition-all touch-manipulation flex items-center justify-center"
               >
                 {key}
               </button>
@@ -764,7 +781,7 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
             <div className="shrink-0 flex gap-px h-20 bg-white/5">
               <button
                 onClick={() => setActiveTab(null)}
-                className="flex-1 bg-[#080b14] hover:bg-white/5 active:bg-white/10 text-white/40 hover:text-white/60 text-xs font-medium transition-all touch-manipulation flex items-center justify-center"
+                className="flex-1 bg-[#022658] hover:bg-white/5 active:bg-white/10 text-white/40 hover:text-white/60 text-xs font-medium transition-all touch-manipulation flex items-center justify-center"
               >
                 Cancel
               </button>
@@ -792,7 +809,7 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
             <div className="shrink-0 flex gap-px h-20 bg-white/5">
               <button
                 onClick={() => press('⌫')}
-                className="flex-1 bg-[#080b14] hover:bg-white/5 active:bg-white/10 text-white/40 hover:text-rose-400 transition-all touch-manipulation flex items-center justify-center"
+                className="flex-1 bg-[#022658] hover:bg-white/5 active:bg-white/10 text-white/40 hover:text-rose-400 transition-all touch-manipulation flex items-center justify-center"
               >
                 <Delete className="w-5 h-5" />
               </button>

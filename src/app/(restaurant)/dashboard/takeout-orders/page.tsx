@@ -12,6 +12,22 @@ import { createClient } from '@/lib/supabase/client'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import { assignOrderNumber } from '@/lib/orderNumber'
 import InvoiceViewModal from '@/components/restaurant/invoice-view-modal'
+import { motion, AnimatePresence, type Variants } from 'framer-motion'
+
+const PAGE: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  show:   { opacity: 1, y: 0, transition: { duration: 0.55, ease: 'circOut' as const } },
+}
+
+const CONTAINER: Variants = {
+  hidden: {},
+  show:   { transition: { staggerChildren: 0.07 } },
+}
+
+const CARD: Variants = {
+  hidden: { opacity: 0, y: 20, scale: 0.98 },
+  show:   { opacity: 1, y: 0,  scale: 1, transition: { duration: 0.4, ease: 'circOut' as const } },
+}
 
 interface TakeoutOrder {
   id: string
@@ -48,7 +64,6 @@ export default function TakeoutOrdersPage() {
 
   const [restaurantId, setRestaurantId] = useState<string | null>(null)
   const [orders, setOrders]     = useState<TakeoutOrder[]>([])
-  const [loading, setLoading]   = useState(true)
   const [error, setError]       = useState<string | null>(null)
   const [filter, setFilter]     = useState<'active' | 'all'>('active')
   const [lastRefresh, setLastRefresh] = useState(new Date())
@@ -82,7 +97,7 @@ export default function TakeoutOrdersPage() {
 
   const load = useCallback(async () => {
     const { data: rest } = await supabase.from('restaurants').select('id, settings').eq('id', typeof window !== 'undefined' ? (localStorage.getItem('restaurant_id') ?? '') : '').maybeSingle()
-    if (!rest) { setError('Restaurant not found'); setLoading(false); return }
+    if (!rest) { setError('Restaurant not found'); return }
     setRestaurantId(rest.id)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const s = ((rest as any).settings ?? {}) as Record<string, unknown>
@@ -96,7 +111,7 @@ export default function TakeoutOrdersPage() {
       .order('created_at', { ascending: false })
       .limit(100)
 
-    if (err) { setError(err.message); setLoading(false); return }
+    if (err) { setError(err.message); return }
 
     const orderIds = (data ?? []).map((r: { id: string }) => r.id)
     const { data: itemCounts } = orderIds.length > 0
@@ -123,7 +138,6 @@ export default function TakeoutOrdersPage() {
 
     setOrders(mapped)
     setLastRefresh(new Date())
-    setLoading(false)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { loadRef.current = load }, [load])
@@ -181,15 +195,9 @@ export default function TakeoutOrdersPage() {
 
   const activeCount = orders.filter(o => o.status === 'active').length
 
-  if (loading) return (
-    <div className="flex items-center justify-center h-64">
-      <Loader2 className="w-6 h-6 text-amber-400 animate-spin" />
-    </div>
-  )
-
   return (
     <ModuleGate moduleKey="takeout">
-    <div className="min-h-screen bg-[#022658] text-white flex flex-col">
+    <motion.div key="takeout-orders-page" variants={PAGE} initial="hidden" animate="show" className="min-h-screen bg-[#022658] text-white flex flex-col">
 
       {/* ── Header ── */}
       <header className="sticky top-0 z-20 bg-[#022658]/95 backdrop-blur-xl border-b border-white/8 px-4 py-3">
@@ -213,7 +221,7 @@ export default function TakeoutOrdersPage() {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => { setLoading(true); load() }}
+              onClick={() => load()}
               className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 transition-all active:scale-95"
             >
               <RefreshCw className="w-4 h-4" />
@@ -276,19 +284,27 @@ export default function TakeoutOrdersPage() {
 
         {/* ── Order list ── */}
         {filtered.length === 0 && !error && (
-          <div className="flex flex-col items-center justify-center py-12 gap-3">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.92 }}
+            animate={{ opacity: 1, scale: 1, transition: { duration: 0.5, ease: 'circOut' as const } }}
+            className="flex flex-col items-center justify-center py-12 gap-3"
+          >
             <div className="w-14 h-14 rounded-2xl bg-white/5 flex items-center justify-center">
               <UtensilsCrossed className="w-7 h-7 text-white/15" />
             </div>
             <p className="text-sm text-white/30">No {filter === 'active' ? 'active' : ''} takeout orders</p>
-          </div>
+          </motion.div>
         )}
 
+        <AnimatePresence initial={false}>
+        <motion.div variants={CONTAINER} initial="hidden" animate="show" className="space-y-3">
         {filtered.map(order => {
           const isActive = order.status === 'active'
           return (
-            <button
+            <motion.button
               key={order.id}
+              variants={CARD}
+              layout
               onClick={() => {
                 if (!isActive) { openClosedOrder(order); return }
                 const p = new URLSearchParams({ source: 'takeout' })
@@ -351,9 +367,11 @@ export default function TakeoutOrdersPage() {
                 <span className="text-sm font-extrabold text-white">{formatPrice(order.total)}</span>
                 <ChevronRight className="w-4 h-4 text-white/20" />
               </div>
-            </button>
+            </motion.button>
           )
         })}
+        </motion.div>
+        </AnimatePresence>
       </div>
 
       {/* ── New Takeout Order Modal ── */}
@@ -460,7 +478,7 @@ export default function TakeoutOrdersPage() {
           onClose={() => setViewInvoice(null)}
         />
       )}
-    </div>
+    </motion.div>
     </ModuleGate>
   )
 }

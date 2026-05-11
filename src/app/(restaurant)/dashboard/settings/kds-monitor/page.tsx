@@ -10,6 +10,14 @@ const PAGE: Variants = {
   hidden: { opacity: 0, y: 20 },
   show:   { opacity: 1, y: 0, transition: { duration: 0.22, ease: 'circOut' as const } },
 }
+const FIELDS: Variants = {
+  hidden: {},
+  show:   { transition: { staggerChildren: 0.08 } },
+}
+const FIELD_ITEM: Variants = {
+  hidden: { opacity: 0, y: -10 },
+  show:   { opacity: 1, y: 0, transition: { duration: 0.4, ease: 'circOut' as const } },
+}
 
 interface KdsItemRecord {
   id: string
@@ -448,8 +456,9 @@ export default function KdsMonitorPage() {
 
   return (
     <motion.div variants={PAGE} initial="hidden" animate="show" className="space-y-6">
+
       {/* Header */}
-      <div className="flex items-center gap-3">
+      <motion.div variants={FIELD_ITEM} className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/20 flex items-center justify-center">
           <ActivitySquare className="w-5 h-5 text-amber-400" />
         </div>
@@ -457,18 +466,19 @@ export default function KdsMonitorPage() {
           <h1 className="text-lg font-bold text-white">{t.kds_title}</h1>
           <p className="text-xs text-white/35">{t.kds_subtitle}</p>
         </div>
-      </div>
+      </motion.div>
 
       {loading ? (
-        <div className="space-y-2">
+        <motion.div variants={FIELD_ITEM} className="space-y-2">
           {Array.from({ length: 5 }).map((_, i) => (
             <div key={i} className="h-[80px] rounded-2xl bg-white/5 border border-white/8 animate-pulse" />
           ))}
-        </div>
+        </motion.div>
       ) : (
-        <>
+        <motion.div variants={FIELDS} initial="hidden" animate="show" className="space-y-6">
+
           {/* Stats */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <motion.div variants={FIELD_ITEM} className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <StatCard
               label={t.kds_pending}
               value={avgPending !== null ? fmtSecs(avgPending) : '—'}
@@ -493,10 +503,10 @@ export default function KdsMonitorPage() {
               sub="Slowest dish"
               color="border-purple-500/20 bg-purple-500/5"
             />
-          </div>
+          </motion.div>
 
           {/* Search */}
-          <div className="relative">
+          <motion.div variants={FIELD_ITEM} className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
             <input
               value={search}
@@ -509,39 +519,41 @@ export default function KdsMonitorPage() {
                 <X className="w-4 h-4" />
               </button>
             )}
-          </div>
+          </motion.div>
 
           {/* Legend */}
-          <div className="flex flex-wrap items-center gap-4 text-xs text-white/30">
+          <motion.div variants={FIELD_ITEM} className="flex flex-wrap items-center gap-4 text-xs text-white/30">
             <div className="flex items-center gap-1.5"><Clock className="w-3 h-3 text-amber-400" /> Wait time = sent to kitchen → chef started cooking</div>
             <div className="flex items-center gap-1.5"><Flame className="w-3 h-3 text-blue-400" /> Cook time = start cooking → ready</div>
             <div className="ml-auto">{filtered.length} order{filtered.length !== 1 ? 's' : ''} · {allItems.length} items</div>
-          </div>
+          </motion.div>
 
           {/* Records */}
-          {filtered.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 gap-3">
-              <ActivitySquare className="w-10 h-10 text-white/10" />
-              <p className="text-white/30 text-sm">{search ? 'No results found' : t.kds_no_orders}</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {/* Table header */}
-              <div className="grid grid-cols-12 gap-2 px-4 text-[10px] font-bold text-white/20 uppercase tracking-wider">
-                <div className="col-span-1">{t.kds_order}</div>
-                <div className="col-span-1">{t.kds_table}</div>
-                <div className="col-span-3">{t.kds_time}</div>
-                <div className="col-span-2">{t.kds_items}</div>
-                <div className="col-span-2 text-center">{t.kds_pending}</div>
-                <div className="col-span-2 text-center">{t.kds_cooking}</div>
-                <div className="col-span-1" />
+          <motion.div variants={FIELD_ITEM}>
+            {filtered.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 gap-3">
+                <ActivitySquare className="w-10 h-10 text-white/10" />
+                <p className="text-white/30 text-sm">{search ? 'No results found' : t.kds_no_orders}</p>
               </div>
-              {filtered.map(record => (
-                <OrderRow key={record.order_id} record={record} />
-              ))}
-            </div>
-          )}
-        </>
+            ) : (
+              <div className="space-y-2">
+                <div className="grid grid-cols-12 gap-2 px-4 text-[10px] font-bold text-white/20 uppercase tracking-wider">
+                  <div className="col-span-1">{t.kds_order}</div>
+                  <div className="col-span-1">{t.kds_table}</div>
+                  <div className="col-span-3">{t.kds_time}</div>
+                  <div className="col-span-2">{t.kds_items}</div>
+                  <div className="col-span-2 text-center">{t.kds_pending}</div>
+                  <div className="col-span-2 text-center">{t.kds_cooking}</div>
+                  <div className="col-span-1" />
+                </div>
+                {filtered.map(record => (
+                  <OrderRow key={record.order_id} record={record} />
+                ))}
+              </div>
+            )}
+          </motion.div>
+
+        </motion.div>
       )}
     </motion.div>
   )

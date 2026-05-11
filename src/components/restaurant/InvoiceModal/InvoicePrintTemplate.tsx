@@ -42,45 +42,45 @@ export function InvoicePrintTemplate({
     <div id="invoice-print" className="bg-white rounded-2xl shadow-2xl shadow-black/50 overflow-hidden text-[11px] font-sans">
 
       {/* ── Header: date/cashier | logo+name | invoice/employee ── */}
-      <div className="px-5 pt-5 pb-4">
-        <div className="flex items-start justify-between">
+      <div className="px-4 pt-5 pb-4">
+        <div className="flex items-start justify-between gap-1">
 
           {/* Left column */}
-          <div className="space-y-0.5 text-[10px]">
-            <div className="font-extrabold text-black">{dateStr}</div>
+          <div className="space-y-0.5 text-[10px] shrink-0 min-w-0 max-w-[30%]">
+            <div className="font-extrabold text-black truncate">{dateStr}</div>
             <div className="font-extrabold text-black">{timeStr}</div>
             <div className="font-bold text-black mt-2">Cashier</div>
-            <div className="font-extrabold text-black">{cashier}</div>
+            <div className="font-extrabold text-black truncate">{cashier}</div>
           </div>
 
           {/* Center: logo + restaurant name */}
-          <div className="flex flex-col items-center gap-1.5 px-2 flex-1">
+          <div className="flex flex-col items-center gap-1.5 px-1 flex-1 min-w-0">
             {rs.show_logo && rs.logo_url ? (
-              <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-gray-200 shadow shrink-0">
+              <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-gray-200 shadow shrink-0">
                 <img src={rs.logo_url} alt="logo" className="w-full h-full object-cover" />
               </div>
             ) : rs.show_logo ? (
-              <div className="w-16 h-16 rounded-full bg-gray-100 border-2 border-gray-200 flex items-center justify-center shrink-0">
-                <ImageIcon className="w-7 h-7 text-gray-300" />
+              <div className="w-14 h-14 rounded-full bg-gray-100 border-2 border-gray-200 flex items-center justify-center shrink-0">
+                <ImageIcon className="w-6 h-6 text-gray-300" />
               </div>
             ) : null}
-            <div className="text-center">
-              <p className="font-extrabold text-black text-[14px] leading-tight">{displayName}</p>
+            <div className="text-center min-w-0 w-full">
+              <p className="font-extrabold text-black text-[13px] leading-tight break-words">{displayName}</p>
               {rs.show_phone && rs.phone && (
                 <p className="font-bold text-black text-[10px] mt-0.5">{rs.phone}</p>
               )}
               {rs.show_address && rs.address && (
-                <p className="font-semibold text-black text-[10px]">{rs.address}</p>
+                <p className="font-semibold text-black text-[10px] break-words">{rs.address}</p>
               )}
             </div>
           </div>
 
           {/* Right column */}
-          <div className="space-y-0.5 text-[10px] text-right">
+          <div className="space-y-0.5 text-[10px] text-right shrink-0 min-w-0 max-w-[30%]">
             <div className="font-bold text-black">Invoice No.</div>
-            <div className="font-extrabold text-black">{invoiceNum}</div>
+            <div className="font-extrabold text-black truncate">{invoiceNum}</div>
             <div className="font-bold text-black mt-2">Employee</div>
-            <div className="font-extrabold text-black">{cashier}</div>
+            <div className="font-extrabold text-black truncate">{cashier}</div>
           </div>
         </div>
       </div>

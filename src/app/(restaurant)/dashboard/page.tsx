@@ -748,10 +748,10 @@ export default function TablesPage() {
         <div className="flex items-center justify-between px-5 py-3">
           {/* Left: restaurant + user */}
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/30 shrink-0 overflow-hidden">
+            <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/30 shrink-0 overflow-hidden">
               {restaurant?.logo_url
                 ? <img src={restaurant.logo_url} alt="logo" className="w-full h-full object-cover" />
-                : <ChefHat className="w-5 h-5 text-white" />}
+                : <ChefHat size={26} className="text-white" />}
             </div>
             <div>
               <p className="text-sm font-bold text-white leading-none">{restaurant?.name ?? '...'}</p>
@@ -782,56 +782,56 @@ export default function TablesPage() {
               </div>
             )}
             {can('dashboard.btn_reports') && (
-              <Link href="/dashboard/reports" className="hidden sm:flex w-10 h-10 rounded-xl bg-white/5 border border-white/10 items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 transition-all active:scale-95">
-                <DollarSign className="w-4.5 h-4.5" size={18} />
+              <Link href="/dashboard/reports" className="hidden sm:flex w-14 h-14 rounded-xl bg-white/5 border border-white/10 items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 transition-all active:scale-95">
+                <DollarSign size={26} />
               </Link>
             )}
             {(isOwner || can('dashboard.btn_audit_log')) && (
-              <Link href="/dashboard/audit-log" title="Audit Log" className="hidden sm:flex w-10 h-10 rounded-xl bg-white/5 border border-white/10 items-center justify-center text-white/40 hover:text-indigo-400 hover:bg-indigo-500/10 hover:border-indigo-500/30 transition-all active:scale-95">
-                <Shield size={18} />
+              <Link href="/dashboard/audit-log" title="Audit Log" className="hidden sm:flex w-14 h-14 rounded-xl bg-white/5 border border-white/10 items-center justify-center text-white/40 hover:text-indigo-400 hover:bg-indigo-500/10 hover:border-indigo-500/30 transition-all active:scale-95">
+                <Shield size={26} />
               </Link>
             )}
             {can('dashboard.btn_staff') && (
-              <Link href="/dashboard/staff" className="hidden sm:flex w-10 h-10 rounded-xl bg-white/5 border border-white/10 items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 transition-all active:scale-95">
-                <Users className="w-4.5 h-4.5" size={18} />
+              <Link href="/dashboard/staff" className="hidden sm:flex w-14 h-14 rounded-xl bg-white/5 border border-white/10 items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 transition-all active:scale-95">
+                <Users size={26} />
               </Link>
             )}
             {can('dashboard.btn_waiter') && (
               <button
                 onClick={() => setShowWaiterPanel(p => !p)}
                 className={cn(
-                  'w-10 h-10 rounded-xl border flex items-center justify-center transition-all active:scale-95 relative',
+                  'w-14 h-14 rounded-xl border flex items-center justify-center transition-all active:scale-95 relative',
                   waiterCalls.length > 0
                     ? 'bg-violet-500/15 border-violet-500/40 text-violet-400 hover:bg-violet-500/25 animate-pulse'
                     : 'bg-white/5 border-white/10 text-white/40 hover:text-white/70 hover:bg-white/10'
                 )}
                 title="Waiter Calls"
               >
-                <BellRing size={18} />
+                <BellRing size={26} />
                 {waiterCalls.length > 0 && (
-                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full bg-violet-500 text-white text-[10px] font-bold flex items-center justify-center px-1 shadow-lg shadow-violet-500/40">
+                  <span className="absolute -top-1 -right-1 min-w-[22px] h-[22px] rounded-full bg-violet-500 text-white text-xs font-bold flex items-center justify-center px-1 shadow-lg shadow-violet-500/40">
                     {waiterCalls.length > 99 ? '99+' : waiterCalls.length}
                   </span>
                 )}
               </button>
             )}
             {can('dashboard.btn_kds') && (
-              <Link href="/dashboard/kds" className="hidden sm:flex w-10 h-10 rounded-xl bg-white/5 border border-white/10 items-center justify-center text-white/40 hover:text-amber-400 hover:bg-amber-500/10 hover:border-amber-500/30 transition-all active:scale-95" title="Kitchen Display">
-                <ChefHat size={18} />
+              <Link href="/dashboard/kds" className="hidden sm:flex w-14 h-14 rounded-xl bg-white/5 border border-white/10 items-center justify-center text-white/40 hover:text-amber-400 hover:bg-amber-500/10 hover:border-amber-500/30 transition-all active:scale-95" title="Kitchen Display">
+                <ChefHat size={26} />
               </Link>
             )}
             {can('dashboard.cfd') && swrData?.restaurant?.menu_slug && (
               <button
                 onClick={() => window.open(`/cfd/${swrData.restaurant!.menu_slug}`, 'CFD', 'width=1024,height=768,menubar=no,toolbar=no,location=no,status=no')}
-                className="hidden sm:flex w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 items-center justify-center text-blue-400 hover:bg-blue-500/20 hover:border-blue-500/40 transition-all active:scale-95"
+                className="hidden sm:flex w-14 h-14 rounded-xl bg-blue-500/10 border border-blue-500/20 items-center justify-center text-blue-400 hover:bg-blue-500/20 hover:border-blue-500/40 transition-all active:scale-95"
                 title="Customer Facing Display"
               >
-                <Monitor size={18} />
+                <Monitor size={26} />
               </button>
             )}
             {can('dashboard.btn_guests') && (
-              <Link href="/dashboard/guests" className="hidden sm:flex w-10 h-10 rounded-xl bg-white/5 border border-white/10 items-center justify-center text-white/40 hover:text-amber-400 hover:bg-amber-500/10 hover:border-amber-500/30 transition-all active:scale-95" title="Guest Tracking">
-                <Users size={18} />
+              <Link href="/dashboard/guests" className="hidden sm:flex w-14 h-14 rounded-xl bg-white/5 border border-white/10 items-center justify-center text-white/40 hover:text-amber-400 hover:bg-amber-500/10 hover:border-amber-500/30 transition-all active:scale-95" title="Guest Tracking">
+                <Users size={26} />
               </Link>
             )}
             {/* Language picker */}
@@ -839,10 +839,10 @@ export default function TablesPage() {
               <div className="relative">
                 <button
                   onClick={() => setShowLangPicker(v => !v)}
-                  className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 transition-all active:scale-95"
+                  className="w-14 h-14 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 transition-all active:scale-95"
                   title="Language"
                 >
-                  <Globe size={18} />
+                  <Globe size={26} />
                 </button>
                 {showLangPicker && (
                   <div className="absolute top-full mt-2 right-0 w-44 rounded-2xl border border-white/12 bg-[#0d1120] shadow-2xl overflow-hidden z-50">
@@ -879,9 +879,9 @@ export default function TablesPage() {
                 keys.forEach(k => localStorage.removeItem(k))
                 router.replace(slug ? `/pos/${slug}/login` : '/restaurant-login')
               }}
-              className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-rose-400/50 hover:text-rose-400 hover:bg-rose-500/10 transition-all active:scale-95"
+              className="w-14 h-14 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-rose-400/50 hover:text-rose-400 hover:bg-rose-500/10 transition-all active:scale-95"
             >
-              <LogOut size={18} />
+              <LogOut size={26} />
             </button>
           </div>
         </div>

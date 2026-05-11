@@ -79,13 +79,13 @@ export function BottomBar({
       )}
 
       <div className="flex items-center gap-3">
-        <div className="flex-1">
-          <p className="text-xs text-white/25">Table {table}{guestCount > 0 ? ` · ${guestCount} guests` : ''}</p>
-          <p className="text-base font-bold text-white tabular-nums">
+        <div className="flex-1 min-w-0">
+          <p className="text-xs text-white/25 truncate">Table {table}{guestCount > 0 ? ` · ${guestCount} guests` : ''}</p>
+          <p className="text-base font-bold text-white tabular-nums truncate">
             Total&nbsp;<span className={grandTotal > 0 ? 'text-amber-400' : 'text-white/30'}>{formatPrice(grandTotal)}</span>
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 shrink-0">
           {canCfd && (
             <button
               onClick={openCfd}
@@ -101,8 +101,8 @@ export function BottomBar({
               onClick={openPayment}
               whileTap={{ scale: 0.95 }}
               transition={{ duration: 0.1 }}
-              className="flex items-center gap-2 px-5 h-12 rounded-xl bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 text-sm font-semibold transition-colors touch-manipulation">
-              <CreditCard className="w-4 h-4" />Pay
+              className="flex items-center gap-2 px-3 sm:px-5 h-12 rounded-xl bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 text-sm font-semibold transition-colors touch-manipulation">
+              <CreditCard className="w-4 h-4" /><span className="hidden sm:inline">Pay</span>
             </motion.button>
           )}
           {canSend && (
@@ -111,12 +111,13 @@ export function BottomBar({
               disabled={draftSize === 0 || sending}
               whileTap={draftSize > 0 && !sending ? { scale: 0.95 } : {}}
               transition={{ duration: 0.1 }}
-              className={cn('flex items-center gap-2 px-6 h-12 rounded-xl text-sm font-bold transition-colors touch-manipulation',
+              className={cn('flex items-center gap-2 px-3 sm:px-6 h-12 rounded-xl text-sm font-bold transition-colors touch-manipulation',
                 draftSize > 0 && !sending
                   ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/30'
                   : 'bg-white/5 border border-white/8 text-white/20 cursor-not-allowed')}>
               {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              {sending ? 'Sending…' : 'Send to Kitchen'}
+              <span className="sm:hidden">{sending ? 'Sending…' : 'Send'}</span>
+              <span className="hidden sm:inline">{sending ? 'Sending…' : 'Send to Kitchen'}</span>
             </motion.button>
           )}
         </div>

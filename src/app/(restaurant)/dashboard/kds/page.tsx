@@ -214,7 +214,7 @@ function OrderCard({
   const currentStationId = order.items[0]?.station_id ?? null
 
   return (
-    <div className={cn('rounded-2xl border bg-white/4 backdrop-blur-sm overflow-hidden flex flex-col', borderColor)}>
+    <div className={cn('rounded-2xl border bg-white/4 backdrop-blur-sm overflow-hidden flex flex-col max-h-[calc(100vh-14rem)]', borderColor)}>
 
       {/* Header */}
       <div className={cn('bg-gradient-to-b px-4 py-3 flex items-center justify-between', headerBg)}>
@@ -270,7 +270,7 @@ function OrderCard({
       </div>
 
       {/* Items — sent first, then cooking, then ready; scrollable within the card */}
-      <div className="flex-1 overflow-y-auto px-3 py-3 space-y-1.5 max-h-[52vh]">
+      <div className="flex-1 min-h-0 overflow-y-auto px-3 py-3 space-y-1.5">
         {[...order.items]
           .sort((a, b) => {
             const rank: Record<string, number> = { sent: 0, cooking: 1, ready: 2 }
@@ -373,10 +373,10 @@ function KdsPage() {
   const stationsRef        = useRef<Station[]>([])
 
   const audioCtxRef      = useRef<AudioContext | null>(null)
-  const alertLoopRef     = useRef<ReturnType<typeof setInterval> | null>(null)
-  const newOrderLoopRef  = useRef<ReturnType<typeof setInterval> | null>(null)
+  const alertLoopRef    = useRef<ReturnType<typeof setInterval> | null>(null)
+  const lastSoundRef    = useRef<number>(0)   // timestamp of last new-order sound play
   // Tracks item IDs that have already triggered the new-order sound (prevents double-play)
-  const soundedItemsRef  = useRef<Set<string>>(new Set())
+  const soundedItemsRef = useRef<Set<string>>(new Set())
 
   // Keep activeStationId + stations accessible inside realtime closures
   useEffect(() => { activeStationIdRef.current = activeStationId }, [activeStationId])
@@ -468,43 +468,6 @@ function KdsPage() {
   // Descending = void alert, ascending = new order
   const playVoidAlert  = useCallback(() => playBeeps([880, 660, 440]), [playBeeps])
   const playNewOrder   = useCallback(() => playBeeps([440, 660, 880]), [playBeeps])
-
-  // Track whether there are unstarted 'sent' items — read by the repeat interval below
-  const hasSentRef = useRef(false)
-  useEffect(() => {
-    hasSentRef.current = allOrders.some(o => o.items.some(i => {
-      if (i.status !== 'sent') return false
-      if (!activeStationId) return true
-      if (i.station_id === activeStationId) return true
-      const stn = stations.find(s => s.id === activeStationId)
-      return !!stn && stn.category_ids.length === 0
-    }))
-  }, [allOrders, activeStationId, stations])
-
-  // Repeat alert every 15 s while unstarted items exist.
-  // Single stable interval — never cancelled by polling updates (allOrders changes every 4s).
-  useEffect(() => {
-    newOrderLoopRef.current = setInterval(() => {
-      if (!hasSentRef.current) return
-      const activeId = activeStationIdRef.current
-      const stnList  = stationsRef.current
-      const station  = stnList.find(s => s.id === activeId)
-      const hasSentNow = allOrdersRef.current.some(o => o.items.some(i => {
-        if (i.status !== 'sent') return false
-        if (!activeId) return true
-        if (i.station_id === activeId) return true
-        if (station && station.category_ids.length === 0) return true
-        return false
-      }))
-      if (hasSentNow) playNewOrder()
-    }, 15000)
-    return () => {
-      if (newOrderLoopRef.current) {
-        clearInterval(newOrderLoopRef.current)
-        newOrderLoopRef.current = null
-      }
-    }
-  }, [playNewOrder]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Mirror the same logic as visibleOrders:
   // – All tab  → show every alert
@@ -679,7 +642,7 @@ function KdsPage() {
               const belongs = !activeId
                            || item.station_id === activeId
                            || (!!station && station.category_ids.length === 0)
-              if (belongs) playNewOrder()
+              if (belongs) { lastSoundRef.current = Date.now(); playNewOrder() }
             }
           }
         }
@@ -712,6 +675,18 @@ function KdsPage() {
             }
           }
         }
+
+        // ── Repeat new-order sound every 15 s while unstarted items remain ──
+        const hasSentRepeat = allOrdersRef.current.some(o => o.items.some(i => {
+          if (i.status !== 'sent') return false
+          if (!activeId) return true
+          if (i.station_id === activeId) return true
+          return !!station && station.category_ids.length === 0
+        }))
+        if (hasSentRepeat && Date.now() - lastSoundRef.current >= 15000) {
+          lastSoundRef.current = Date.now()
+          playNewOrder()
+        }
       }, 4000)
 
       // ── Realtime subscription — instant updates when WAL replication is enabled
@@ -731,7 +706,7 @@ function KdsPage() {
               const belongs  = !activeId
                             || updated.station_id === activeId
                             || (!!station && station.category_ids.length === 0)
-              if (belongs) playNewOrder()
+              if (belongs) { lastSoundRef.current = Date.now(); playNewOrder() }
             }
 
             if (updated.status === 'void') {
@@ -759,7 +734,7 @@ function KdsPage() {
               const belongs  = !activeId
                             || newItem.station_id === activeId
                             || (!!station && station.category_ids.length === 0)
-              if (belongs) playNewOrder()
+              if (belongs) { lastSoundRef.current = Date.now(); playNewOrder() }
             }
             if (restIdRef.current) fetchOrders(restIdRef.current)
           })

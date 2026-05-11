@@ -12,6 +12,14 @@ const PAGE: Variants = {
   hidden: { opacity: 0, y: 20 },
   show:   { opacity: 1, y: 0, transition: { duration: 0.22, ease: 'circOut' as const } },
 }
+const FIELDS: Variants = {
+  hidden: {},
+  show:   { transition: { staggerChildren: 0.08 } },
+}
+const FIELD_ITEM: Variants = {
+  hidden: { opacity: 0, y: -10 },
+  show:   { opacity: 1, y: 0, transition: { duration: 0.4, ease: 'circOut' as const } },
+}
 import { logAudit } from '@/lib/logAudit'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import type { Reservation, Table, TableGroup, StatusFilter } from './types'
@@ -100,9 +108,10 @@ export default function ReservationPage() {
 
   return (
     <motion.div variants={PAGE} initial="hidden" animate="show" className="space-y-6">
+      <motion.div variants={FIELDS} initial="hidden" animate="show" className="space-y-6">
 
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <motion.div variants={FIELD_ITEM} className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-white">{t.rsv_title}</h1>
           <p className="text-xs text-white/35 mt-0.5">{t.rsv_subtitle}</p>
@@ -117,10 +126,10 @@ export default function ReservationPage() {
             <Plus className="w-4 h-4" />{t.rsv_add}
           </button>
         </div>
-      </div>
+      </motion.div>
 
       {/* Date picker + search + status filter */}
-      <div className="flex items-center gap-3 flex-wrap">
+      <motion.div variants={FIELD_ITEM} className="flex items-center gap-3 flex-wrap">
         <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 border border-white/10">
           <CalendarDays className="w-4 h-4 text-amber-400 shrink-0" />
           <input type="date" value={dateFilter} onChange={e => setDateFilter(e.target.value)}
@@ -142,10 +151,10 @@ export default function ReservationPage() {
             </button>
           ))}
         </div>
-      </div>
+      </motion.div>
 
       {/* KPI row */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <motion.div variants={FIELD_ITEM} className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
           { label: t.rsv_all,         value: total,       color: 'text-white',        bg: 'bg-white/5',        border: 'border-white/10' },
           { label: t.rsv_status,      value: pending,     color: 'text-yellow-400',   bg: 'bg-yellow-500/10',  border: 'border-yellow-500/20' },
@@ -157,15 +166,16 @@ export default function ReservationPage() {
             <p className={cn('text-2xl font-bold tabular-nums', k.color)}>{k.value}</p>
           </div>
         ))}
-      </div>
+      </motion.div>
 
       {err && (
-        <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm">
+        <motion.div variants={FIELD_ITEM} className="flex items-center gap-2 px-4 py-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm">
           <AlertCircle className="w-4 h-4 shrink-0" />{err}
-        </div>
+        </motion.div>
       )}
 
       {/* Reservation list */}
+      <motion.div variants={FIELD_ITEM}>
       {loading ? (
         <div className="space-y-2">
           {Array.from({ length: 4 }).map((_, i) => (
@@ -263,7 +273,9 @@ export default function ReservationPage() {
           })}
         </div>
       )}
+      </motion.div>
 
+      </motion.div>
       {showModal && restaurantId && (
         <ReservationModal
           reservation={editRsv}

@@ -100,92 +100,97 @@ export default function InvoiceModal({
 
   // ── Main render ───────────────────────────────────────────────
   return (
-    <div className="fixed inset-0 z-[60] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-      <div className="relative w-full max-w-sm">
+    <div className="fixed inset-0 z-[60] bg-black/70 backdrop-blur-sm flex flex-col overflow-hidden">
 
-        {/* Action bar */}
-        <div className="flex items-center justify-between mb-3 gap-2">
+      {/* ── Sticky action bar — always visible, never scrolls away ── */}
+      <div className="shrink-0 flex items-center justify-between px-4 py-3 gap-2 bg-[#080b14] border-b border-white/10">
+        <button
+          onClick={handlePrint}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold active:scale-95 transition-all shadow-lg shadow-amber-500/30"
+        >
+          <Printer className="w-4 h-4" />
+          Print
+        </button>
+
+        <div className="flex items-center gap-2">
           <button
-            onClick={handlePrint}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold active:scale-95 transition-all shadow-lg shadow-amber-500/30"
+            onClick={handleHardwarePrint}
+            disabled={printStatus === 'sending'}
+            title="ESC/POS direct print via WebUSB (Chrome/Edge)"
+            className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium transition-all active:scale-95 border disabled:opacity-50 ${
+              printStatus === 'ok'
+                ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400'
+                : printStatus === 'error'
+                ? 'bg-rose-500/15 border-rose-500/30 text-rose-400'
+                : 'bg-white/6 border-white/10 text-white/40 hover:bg-white/10 hover:text-white/60'
+            }`}
           >
-            <Printer className="w-4 h-4" />
-            Print
+            {printStatus === 'sending' ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              : printStatus === 'ok'    ? <CheckCircle2 className="w-3.5 h-3.5" />
+              : printStatus === 'error' ? <AlertCircle className="w-3.5 h-3.5" />
+              : <Printer className="w-3.5 h-3.5" />}
+            {printStatus === 'sending' ? 'Sending…'
+              : printStatus === 'ok'    ? 'Sent!'
+              : printStatus === 'error' ? 'ESC/POS failed'
+              : 'ESC/POS'}
           </button>
 
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleHardwarePrint}
-              disabled={printStatus === 'sending'}
-              title="ESC/POS direct print via WebUSB (Chrome/Edge)"
-              className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium transition-all active:scale-95 border disabled:opacity-50 ${
-                printStatus === 'ok'
-                  ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400'
-                  : printStatus === 'error'
-                  ? 'bg-rose-500/15 border-rose-500/30 text-rose-400'
-                  : 'bg-white/6 border-white/10 text-white/40 hover:bg-white/10 hover:text-white/60'
-              }`}
-            >
-              {printStatus === 'sending' ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                : printStatus === 'ok'    ? <CheckCircle2 className="w-3.5 h-3.5" />
-                : printStatus === 'error' ? <AlertCircle className="w-3.5 h-3.5" />
-                : <Printer className="w-3.5 h-3.5" />}
-              {printStatus === 'sending' ? 'Sending…'
-                : printStatus === 'ok'    ? 'Sent!'
-                : printStatus === 'error' ? 'ESC/POS failed'
-                : 'ESC/POS'}
-            </button>
+          <button
+            onClick={onClose}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/8 border border-white/12 text-white/60 text-sm font-bold active:scale-95 transition-all hover:bg-white/12"
+          >
+            <X className="w-4 h-4" />
+            Done
+          </button>
+        </div>
+      </div>
 
-            <button
-              onClick={onClose}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/8 border border-white/12 text-white/60 text-sm font-bold active:scale-95 transition-all hover:bg-white/12"
-            >
-              <X className="w-4 h-4" />
-              Done
-            </button>
+      {/* ESC/POS error hint */}
+      {printStatus === 'error' && printError && (
+        <div className="shrink-0 mx-4 mt-2 px-4 py-2.5 rounded-xl bg-rose-500/10 border border-rose-500/25 text-rose-400 text-xs space-y-1">
+          <p>{printError}</p>
+          <p className="text-white/40">
+            Use the{' '}
+            <button onClick={handlePrint} className="underline text-amber-400 hover:text-amber-300">
+              Print
+            </button>{' '}
+            button above — it sends through the normal Windows printer driver and works with any USB printer.
+          </p>
+        </div>
+      )}
+
+      {/* ── Scrollable receipt area ── */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="flex justify-center p-4 pb-8">
+          <div className="w-full max-w-sm">
+            <InvoicePrintTemplate
+              mode={mode}
+              rs={rs}
+              displayName={displayName}
+              dateStr={dateStr}
+              timeStr={timeStr}
+              cashier={cashier}
+              tableNum={tableNum}
+              guests={guests}
+              invoiceNum={invoiceNum}
+              orderNum={orderNum}
+              customerName={customerName}
+              customerPhone={customerPhone}
+              paymentMethod={paymentMethod}
+              items={items}
+              subtotal={subtotal}
+              discount={discount}
+              surcharge={surcharge}
+              total={total}
+              amountPaid={amountPaid}
+              changeAmount={changeAmount}
+              note={note}
+              formatPrice={formatPrice}
+            />
           </div>
         </div>
-
-        {/* ESC/POS error hint */}
-        {printStatus === 'error' && printError && (
-          <div className="mb-3 px-4 py-2.5 rounded-xl bg-rose-500/10 border border-rose-500/25 text-rose-400 text-xs space-y-1">
-            <p>{printError}</p>
-            <p className="text-white/40">
-              Use the{' '}
-              <button onClick={handlePrint} className="underline text-amber-400 hover:text-amber-300">
-                Print
-              </button>{' '}
-              button above — it sends through the normal Windows printer driver and works with any USB printer.
-            </p>
-          </div>
-        )}
-
-        {/* Receipt */}
-        <InvoicePrintTemplate
-          mode={mode}
-          rs={rs}
-          displayName={displayName}
-          dateStr={dateStr}
-          timeStr={timeStr}
-          cashier={cashier}
-          tableNum={tableNum}
-          guests={guests}
-          invoiceNum={invoiceNum}
-          orderNum={orderNum}
-          customerName={customerName}
-          customerPhone={customerPhone}
-          paymentMethod={paymentMethod}
-          items={items}
-          subtotal={subtotal}
-          discount={discount}
-          surcharge={surcharge}
-          total={total}
-          amountPaid={amountPaid}
-          changeAmount={changeAmount}
-          note={note}
-          formatPrice={formatPrice}
-        />
       </div>
+
     </div>
   )
 }

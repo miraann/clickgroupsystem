@@ -32,8 +32,8 @@ export async function printKitchenTicket(params: {
     </div>`).join('')
 
   const receiptItems = params.items.map(it =>
-    `<p><b>${String(it.qty).padStart(2)}x  ${it.name}</b></p>` +
-    (it.note ? `<p>      &gt;&gt; ${it.note}</p>` : '')
+    `<p>${String(it.qty).padStart(2)}x  ${it.name}</p>` +
+    (it.note ? `<p>   &gt;&gt; ${it.note}</p>` : '')
   ).join('')
 
   const orderRef = params.orderNum ? ` &nbsp;·&nbsp; ${params.orderNum}` : ''
@@ -63,7 +63,8 @@ export async function printKitchenTicket(params: {
 @media print{
   body{background:#fff;color:#000}
   .card{display:none!important}
-  #receipt{display:block!important;font-family:'Courier New',monospace;font-size:12px;width:${paperWidth}mm;padding:4px}
+  #receipt{display:block!important;font-family:'Courier New',monospace;font-size:48px;font-weight:bold;color:#000;width:${paperWidth}mm;padding:4px}
+  #receipt p{font-weight:bold;color:#000}
   @page{size:${paperWidth}mm auto;margin:2mm}
 }
 </style></head><body>
@@ -78,8 +79,8 @@ export async function printKitchenTicket(params: {
   <div class="foot">Select your kitchen printer in the dialog,<br>then click Print.</div>
 </div>
 <div id="receipt">
-  <p style="text-align:center;font-size:16px;font-weight:bold">KITCHEN ORDER</p>
-  <p style="text-align:center">Table ${params.tableNum}${params.orderNum ? '  ' + params.orderNum : ''}</p>
+  <p style="text-align:center;font-size:64px;font-weight:bold;color:#000">KITCHEN ORDER</p>
+  <p style="text-align:center;font-weight:bold;color:#000">Table ${params.tableNum}${params.orderNum ? '  ' + params.orderNum : ''}</p>
   <p>${line}</p>
   <p>${dateStr} &nbsp; ${timeStr}</p>
   <p>${line}</p>

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { AnimatePresence, motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import {
   Layers, LayoutGrid, Tag, UtensilsCrossed, Sliders, ChefHat,
@@ -86,24 +87,32 @@ export default function MenuSettingsPage() {
         </div>
       </div>
 
-      {/* Tab content — key forces remount on switch, re-triggering each page's entrance animation */}
-      <div
-        key={tab}
-        className="flex-1 px-6 md:px-12 2xl:px-24 3xl:px-44 py-6 2xl:py-8 3xl:py-12 animate-tab-fade"
-      >
-        {tab === 'table-group'    && <TableGroupPage />}
-        {tab === 'table'          && <TablePage />}
-        {tab === 'category'       && <CategoryPage />}
-        {tab === 'item'           && <ItemPage />}
-        {tab === 'modifier'       && <ModifierPage />}
-        {tab === 'kitchen-note'   && <KitchenNotePage />}
-        {tab === 'void-reason'    && <VoidReasonPage />}
-        {tab === 'event-offer'    && <EventOfferPage />}
-        {tab === 'discount'       && <DiscountPage />}
-        {tab === 'combo-discount' && <ComboDiscountPage />}
-        {tab === 'surcharge'      && <SurchargePage />}
-        {tab === 'payment-method' && <PaymentMethodPage />}
-        {tab === 'online-menu'    && <OnlineMenuPage />}
+      {/* Tab content */}
+      <div className="flex-1 relative overflow-hidden">
+        <AnimatePresence mode="popLayout" initial={false}>
+          <motion.div
+            key={tab}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            className="px-6 md:px-12 2xl:px-24 3xl:px-44 py-6 2xl:py-8 3xl:py-12"
+          >
+            {tab === 'table-group'    && <TableGroupPage />}
+            {tab === 'table'          && <TablePage />}
+            {tab === 'category'       && <CategoryPage />}
+            {tab === 'item'           && <ItemPage />}
+            {tab === 'modifier'       && <ModifierPage />}
+            {tab === 'kitchen-note'   && <KitchenNotePage />}
+            {tab === 'void-reason'    && <VoidReasonPage />}
+            {tab === 'event-offer'    && <EventOfferPage />}
+            {tab === 'discount'       && <DiscountPage />}
+            {tab === 'combo-discount' && <ComboDiscountPage />}
+            {tab === 'surcharge'      && <SurchargePage />}
+            {tab === 'payment-method' && <PaymentMethodPage />}
+            {tab === 'online-menu'    && <OnlineMenuPage />}
+          </motion.div>
+        </AnimatePresence>
       </div>
 
     </div>
