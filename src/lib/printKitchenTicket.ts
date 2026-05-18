@@ -19,8 +19,6 @@ export async function printKitchenTicket(params: {
     if (json.ok && json.paperWidth) paperWidth = json.paperWidth
   } catch { /* silent — popup still opens with default width */ }
 
-  const cols = paperWidth >= 80 ? 42 : paperWidth >= 58 ? 32 : 24
-  const line = '-'.repeat(cols)
 
   const screenItems = params.items.map(it => `
     <div class="item">
@@ -63,8 +61,9 @@ export async function printKitchenTicket(params: {
 @media print{
   body{background:#fff;color:#000}
   .card{display:none!important}
-  #receipt{display:block!important;font-family:'Courier New',monospace;font-size:48px;font-weight:bold;color:#000;width:${paperWidth}mm;padding:4px}
-  #receipt p{font-weight:bold;color:#000}
+  #receipt{display:block!important;font-family:'Courier New',monospace;font-size:28pt;font-weight:900;color:#000;width:${paperWidth}mm;padding:4px}
+  #receipt p{font-size:28pt;font-weight:900;color:#000;line-height:1.6;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  #receipt hr{border:none;border-top:3px solid #000;margin:6px 0}
   @page{size:${paperWidth}mm auto;margin:2mm}
 }
 </style></head><body>
@@ -79,13 +78,13 @@ export async function printKitchenTicket(params: {
   <div class="foot">Select your kitchen printer in the dialog,<br>then click Print.</div>
 </div>
 <div id="receipt">
-  <p style="text-align:center;font-size:64px;font-weight:bold;color:#000">KITCHEN ORDER</p>
-  <p style="text-align:center;font-weight:bold;color:#000">Table ${params.tableNum}${params.orderNum ? '  ' + params.orderNum : ''}</p>
-  <p>${line}</p>
+  <p style="text-align:center;font-size:44pt;font-weight:900;color:#000;letter-spacing:.05em">KITCHEN ORDER</p>
+  <p style="text-align:center;font-size:32pt;font-weight:900;color:#000">Table ${params.tableNum}${params.orderNum ? '  ' + params.orderNum : ''}</p>
+  <hr>
   <p>${dateStr} &nbsp; ${timeStr}</p>
-  <p>${line}</p>
+  <hr>
   ${receiptItems}
-  <p>${line}</p>
+  <hr>
 </div>
 </body></html>`
 

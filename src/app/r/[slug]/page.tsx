@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
+import { motion } from 'framer-motion'
 import { useParams } from 'next/navigation'
 import NextImage from 'next/image'
 import { Loader2, UtensilsCrossed, MapPin, X, ChevronLeft, ChevronRight, Calendar } from 'lucide-react'
@@ -140,6 +141,7 @@ export default function PublicMenuPage() {
   const [showPrices, setShowPrices] = useState(true)
   const [showDescs, setShowDescs]   = useState(true)
   const [welcomeText, setWelcomeText] = useState<string | null>(null)
+  const [menuEnabled, setMenuEnabled] = useState(true)
   const [loading, setLoading]       = useState(true)
 
   // ── SWR: cached menu data ──────────────────────────────────────
@@ -187,6 +189,7 @@ export default function PublicMenuPage() {
       setShowPrices(d.show_prices ?? true)
       setShowDescs(d.show_descriptions ?? true)
       setWelcomeText(d.welcome_text ?? null)
+      if (d.menu_enabled !== undefined) setMenuEnabled(d.menu_enabled)
     }
     setLoading(false)
   }, [menuData, menuLoading]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -199,6 +202,15 @@ export default function PublicMenuPage() {
   if (!restaurant) return (
     <div className="min-h-screen bg-white flex items-center justify-center">
       <UtensilsCrossed className="w-10 h-10 text-gray-200" />
+    </div>
+  )
+  if (!menuEnabled) return (
+    <div className={`min-h-screen ${tpl.pageBg} flex flex-col items-center justify-center gap-4 px-6 text-center`}>
+      <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ background: `${tpl.catAccent}20` }}>
+        <UtensilsCrossed className="w-8 h-8" style={{ color: tpl.catAccent }} />
+      </div>
+      <h2 className={`text-xl font-bold ${tpl.nameColor}`}>Menu Unavailable</h2>
+      <p className={`text-sm ${tpl.welcomeColor}`}>{restaurant.name} has temporarily taken their menu offline.</p>
     </div>
   )
 
@@ -224,7 +236,8 @@ export default function PublicMenuPage() {
       <style>{`.scroll-hide::-webkit-scrollbar{display:none}`}</style>
 
       {/* Logo */}
-      <div className="w-32 h-32 rounded-full overflow-hidden shadow-xl relative"
+      <motion.div initial={{ opacity: 0, y: 28 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+        className="w-32 h-32 rounded-full overflow-hidden shadow-xl relative"
         style={{ outline: `4px solid ${tpl.catAccent}`, outlineOffset: '4px', background: '#f3f4f6' }}>
         {restaurant.logo_url
           ? <NextImage src={restaurant.logo_url} alt={restaurant.name} fill className="object-cover" />
@@ -232,24 +245,24 @@ export default function PublicMenuPage() {
               <span className="text-white text-5xl font-bold">{restaurant.name.charAt(0).toUpperCase()}</span>
             </div>
         }
-      </div>
+      </motion.div>
 
       {/* Name */}
-      <h1 className={`mt-4 text-2xl font-bold tracking-tight px-6 ${tpl.nameColor}`}>{restaurant.name}</h1>
+      <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1], delay: 0.13 }} className={`mt-4 text-2xl font-bold tracking-tight px-6 ${tpl.nameColor}`}>{restaurant.name}</motion.h1>
 
       {/* Browse badge */}
-      <span className={`mt-2 inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold ${tpl.chipBg} ${tpl.chipText}`}>
+      <motion.span initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1], delay: 0.24 }} className={`mt-2 inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold ${tpl.chipBg} ${tpl.chipText}`}>
         Browse Menu
-      </span>
+      </motion.span>
 
       {/* Welcome */}
-      <p className={`mt-3 text-sm px-8 ${tpl.welcomeColor}`}>
+      <motion.p initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1], delay: 0.35 }} className={`mt-3 text-sm px-8 ${tpl.welcomeColor}`}>
         {welcomeText || 'Welcome! Browse our menu below.'}
-      </p>
+      </motion.p>
 
       {/* ── Category navigation ── */}
       {categories.length > 0 && !showItems && (
-        <div className="w-full mt-6 overflow-x-hidden">
+        <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1], delay: 0.46 }} className="w-full mt-6 overflow-x-hidden">
           {tpl.catLayout === 'circles' ? (
             <div className="scroll-hide flex gap-5 overflow-x-auto px-6 py-4"
               style={{ scrollbarWidth: 'none', overflowY: 'visible' } as React.CSSProperties}>
@@ -296,7 +309,7 @@ export default function PublicMenuPage() {
               })}
             </div>
           )}
-        </div>
+        </motion.div>
       )}
 
       {/* ── Category items view ── */}
@@ -366,19 +379,22 @@ export default function PublicMenuPage() {
       {!showItems && (
         <>
           {events.length > 0 && (
-            <div className="w-full mt-6 text-left">
+            <motion.div className="w-full mt-6 text-left"
+              initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1], delay: 0.62 }}>
               <h2 className={`text-lg font-bold mb-3 px-6 ${tpl.sectionTitle}`}>Event &amp; Offers</h2>
               <div className="scroll-hide flex gap-3 overflow-x-auto px-6 pb-2"
                 style={{ scrollbarWidth: 'none' } as React.CSSProperties}>
                 {events.map((ev, idx) => (
-                  <button key={ev.id} onClick={() => openStory(idx)}
+                  <motion.button key={ev.id} onClick={() => openStory(idx)}
+                    initial={{ opacity: 0, y: 32, scale: 0.92 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1], delay: 0.62 + idx * 0.12 }}
                     className="relative rounded-2xl overflow-hidden shadow-lg shrink-0 w-40 h-56 active:scale-95 transition-transform ring-2 ring-amber-400/60 ring-offset-2 ring-offset-transparent">
                     {ev.image_url
                       ? <NextImage src={ev.image_url} alt={ev.title} fill className="object-cover" />
                       : <div className="absolute inset-0 bg-gradient-to-br from-amber-400 to-orange-500" />
                     }
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                    {/* Story ring indicator */}
                     <div className="absolute top-2 left-2 right-2 h-0.5 bg-white/30 rounded-full">
                       <div className="h-full bg-white rounded-full w-1/3" />
                     </div>
@@ -386,28 +402,32 @@ export default function PublicMenuPage() {
                       <p className="text-white text-xs font-bold leading-snug line-clamp-2">{ev.title}</p>
                       {ev.date_label && <p className="text-white/70 text-[10px] mt-0.5">{ev.date_label}</p>}
                     </div>
-                  </button>
+                  </motion.button>
                 ))}
               </div>
-            </div>
+            </motion.div>
           )}
 
           {socialLinks.length > 0 && (
-            <div className="w-full mt-6 pb-4 text-left">
+            <motion.div className="w-full mt-6 pb-4 text-left"
+              initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1], delay: 0.86 }}>
               <div className="scroll-hide flex gap-3 overflow-x-auto px-6 py-2"
                 style={{ scrollbarWidth: 'none' } as React.CSSProperties}>
-                {socialLinks.map(s => (
-                  <a key={s.key} href={buildHref(s.key, s.value)} target="_blank" rel="noopener noreferrer"
+                {socialLinks.map((s, idx) => (
+                  <motion.a key={s.key} href={buildHref(s.key, s.value)} target="_blank" rel="noopener noreferrer"
+                    initial={{ opacity: 0, scale: 0.85 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1], delay: 0.91 + idx * 0.09 }}
                     className="shrink-0 flex items-center gap-2.5 px-4 py-3 rounded-full border bg-white shadow-sm active:scale-95 transition-all"
                     style={{ borderColor: s.borderColor }}>
                     <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: s.iconBg }}>
                       <span style={{ color: s.key === 'snapchat' ? '#111' : '#fff' }}>{s.icon}</span>
                     </div>
                     <span className="text-base font-semibold whitespace-nowrap" style={{ color: s.textColor }}>{s.label}</span>
-                  </a>
+                  </motion.a>
                 ))}
               </div>
-            </div>
+            </motion.div>
           )}
 
           {/* Powered by */}

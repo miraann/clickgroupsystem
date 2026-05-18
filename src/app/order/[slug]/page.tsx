@@ -1,10 +1,11 @@
 'use client'
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { motion } from 'framer-motion'
 import dynamic from 'next/dynamic'
 import { useParams } from 'next/navigation'
 import NextImage from 'next/image'
 import {
-  Loader2, UtensilsCrossed, MapPin, ShoppingCart, Plus, Minus, X,
+  Loader2, UtensilsCrossed, MapPin, ShoppingCart, Plus, Minus, X, Check,
   CheckCircle2, ChevronRight, User, Phone, AlertCircle,
   Truck, Clock, Package, Crosshair, Search, ChevronDown, ChevronUp,
 } from 'lucide-react'
@@ -144,16 +145,17 @@ function buildSocialHref(key: string, value: string) {
 
 // ── Delivery Info Modal ────────────────────────────────────────
 function DeliveryModal({
-  primaryColor, cartCount, cartTotal, formatPrice,
+  restaurantId, primaryColor, cartCount, cartTotal, formatPrice,
   onClose, onConfirm, placing, placeError,
   deliveryFee, estimatedTime, minOrder,
 }: {
+  restaurantId: string
   primaryColor: string
   cartCount: number
   cartTotal: number
   formatPrice: (n: number) => string
   onClose: () => void
-  onConfirm: (name: string, phone: string, lat: number | null, lng: number | null, address: string | null) => void
+  onConfirm: (name: string, phone: string, lat: number | null, lng: number | null, address: string | null, discountAmount: number, couponId: string | null) => void
   placing: boolean
   placeError: string | null
   deliveryFee: number
@@ -171,6 +173,10 @@ function DeliveryModal({
   const [gpsLoading, setGpsLoading] = useState(false)
   const [gpsError, setGpsError]   = useState('')
   const [errors, setErrors]       = useState<{ name?: string; phone?: string; loc?: string }>({})
+  const [couponCode, setCouponCode]       = useState('')
+  const [appliedCoupon, setAppliedCoupon] = useState<{ id: string; code: string; discount: number } | null>(null)
+  const [couponError, setCouponError]     = useState<string | null>(null)
+  const [couponLoading, setCouponLoading] = useState(false)
   const watchRef  = useRef<number | null>(null)
   const geocodeTO = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -257,12 +263,42 @@ function DeliveryModal({
     return Object.keys(e).length === 0
   }
 
-  const submit = () => {
-    if (!validate()) return
-    onConfirm(name.trim(), phone.trim(), lat, lng, address)
+  const applyCoupon = async () => {
+    if (!couponCode.trim() || !restaurantId) return
+    setCouponLoading(true); setCouponError(null)
+    const supabase = createClient()
+    const { data } = await supabase
+      .from('discount_codes')
+      .select('*')
+      .eq('restaurant_id', restaurantId)
+      .ilike('code', couponCode.trim())
+      .eq('active', true)
+      .single()
+    if (!data) { setCouponError('Invalid or inactive coupon code'); setCouponLoading(false); return }
+    if (data.expires_at && new Date(data.expires_at) < new Date()) {
+      setCouponError('This coupon has expired'); setCouponLoading(false); return
+    }
+    if (data.max_uses !== null && data.used_count >= data.max_uses) {
+      setCouponError('This coupon has reached its usage limit'); setCouponLoading(false); return
+    }
+    if (data.min_order_amount > 0 && cartTotal < data.min_order_amount) {
+      setCouponError(`Minimum order of ${formatPrice(data.min_order_amount)} required for this code`)
+      setCouponLoading(false); return
+    }
+    const disc = data.discount_type === 'percentage'
+      ? Math.min((cartTotal * data.discount_value) / 100, cartTotal)
+      : Math.min(data.discount_value, cartTotal)
+    setAppliedCoupon({ id: data.id, code: data.code, discount: disc })
+    setCouponLoading(false)
   }
 
-  const grandTotal = cartTotal + deliveryFee
+  const discountAmount = appliedCoupon?.discount ?? 0
+  const submit = () => {
+    if (!validate()) return
+    onConfirm(name.trim(), phone.trim(), lat, lng, address, discountAmount, appliedCoupon?.id ?? null)
+  }
+
+  const grandTotal = cartTotal + deliveryFee - discountAmount
 
   return (
     <div
@@ -463,6 +499,50 @@ function DeliveryModal({
             {errors.loc && (
               <p className="text-[11px] text-rose-400 mt-1 flex items-center gap-1">
                 <AlertCircle className="w-3 h-3" />{errors.loc}
+              </p>
+            )}
+          </div>
+
+          {/* Coupon Code */}
+          <div>
+            <label className="text-[11px] font-semibold text-white/50 uppercase tracking-wider mb-1.5 block">Coupon Code</label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={couponCode}
+                onChange={e => { setCouponCode(e.target.value.toUpperCase()); setAppliedCoupon(null); setCouponError(null) }}
+                placeholder="Enter code (optional)"
+                disabled={!!appliedCoupon}
+                className="flex-1 px-3 py-2.5 rounded-2xl text-sm text-white placeholder:text-white/25 font-mono uppercase outline-none transition-all disabled:opacity-50"
+                style={{ background: 'rgba(255,255,255,0.07)', border: `1px solid ${appliedCoupon ? 'rgba(16,185,129,0.35)' : 'rgba(255,255,255,0.12)'}` }}
+              />
+              <button
+                onClick={appliedCoupon ? () => { setAppliedCoupon(null); setCouponCode('') } : applyCoupon}
+                disabled={!appliedCoupon && (!couponCode.trim() || couponLoading)}
+                className="px-4 py-2.5 rounded-2xl text-sm font-semibold transition-all active:scale-95 disabled:opacity-50 flex items-center gap-1.5"
+                style={{
+                  background: appliedCoupon ? 'rgba(16,185,129,0.2)' : `${primaryColor}cc`,
+                  color: appliedCoupon ? '#34d399' : '#fff',
+                  border: appliedCoupon ? '1px solid rgba(16,185,129,0.3)' : 'none',
+                }}>
+                {couponLoading
+                  ? <Loader2 className="w-4 h-4 animate-spin" />
+                  : appliedCoupon
+                    ? <><Check className="w-3.5 h-3.5" /> Applied</>
+                    : 'Apply'}
+              </button>
+            </div>
+            {appliedCoupon && (
+              <div className="mt-1.5 flex items-center gap-1.5">
+                <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <span className="text-[11px] text-emerald-400 font-semibold">
+                  {appliedCoupon.code} — you save {formatPrice(appliedCoupon.discount)}
+                </span>
+              </div>
+            )}
+            {couponError && (
+              <p className="text-[11px] text-rose-400 mt-1 flex items-center gap-1">
+                <AlertCircle className="w-3 h-3" />{couponError}
               </p>
             )}
           </div>
@@ -849,6 +929,9 @@ export default function DeliveryOrderPage() {
   const [showDescs, setShowDescs]   = useState(true)
   const [welcomeText, setWelcomeText] = useState<string | null>(null)
 
+  // Online menu toggle
+  const [menuEnabled, setMenuEnabled] = useState(true)
+
   // Delivery config
   const [deliveryEnabled, setDeliveryEnabled] = useState(false)
   const [deliveryFee, setDeliveryFee]         = useState(0)
@@ -922,9 +1005,11 @@ export default function DeliveryOrderPage() {
     if (!menuData?.restaurant) { setLoading(false); return }
 
     setRestaurant(menuData.restaurant as unknown as Restaurant)
-    setCategories((menuData.categories) as unknown as Category[])
+    const deliveryItems = menuData.items.filter(i => i.available_delivery !== false)
+    const deliveryCatIds = new Set(deliveryItems.map(i => i.category_id).filter(Boolean))
+    setCategories(menuData.categories.filter(c => deliveryCatIds.has(c.id)) as unknown as Category[])
     setEvents((menuData.offers) as unknown as EventOffer[])
-    setMenuItems((menuData.items) as unknown as MenuItem[])
+    setMenuItems(deliveryItems as unknown as MenuItem[])
     setKitchenNotes((menuData.notes) as unknown as KitchenNote[])
 
     // Load template
@@ -939,6 +1024,7 @@ export default function DeliveryOrderPage() {
       if (d.show_prices       !== undefined) setShowPrices(d.show_prices)
       if (d.show_descriptions !== undefined) setShowDescs(d.show_descriptions)
       if (d.welcome_text)     setWelcomeText(d.welcome_text)
+      if (d.menu_enabled      !== undefined) setMenuEnabled(d.menu_enabled)
     }
 
     // Load delivery settings from restaurant.settings
@@ -980,7 +1066,7 @@ export default function DeliveryOrderPage() {
 
   const getQty = (id: string) => cart.get(id)?.qty ?? 0
 
-  const placeOrder = async (custName: string, custPhone: string, lat: number | null, lng: number | null, address: string | null) => {
+  const placeOrder = async (custName: string, custPhone: string, lat: number | null, lng: number | null, address: string | null, discountAmount = 0, couponId: string | null = null) => {
     if (!restaurant || cartItems.length === 0) return
     setPlacing(true); setPlaceError(null)
 
@@ -992,7 +1078,7 @@ export default function DeliveryOrderPage() {
         table_number:  0,
         status:        'active',
         source:        'delivery',
-        total:         cartTotal + deliveryFee,
+        total:         cartTotal + deliveryFee - discountAmount,
       })
       .select('id')
       .single()
@@ -1039,6 +1125,10 @@ export default function DeliveryOrderPage() {
     })
     if (delivErr) { setPlaceError(delivErr.message); setPlacing(false); return }
 
+    if (couponId) {
+      await supabase.rpc('increment_discount_code', { p_id: couponId })
+    }
+
     setCart(new Map())
     setShowModal(false)
     setShowCart(false)
@@ -1055,6 +1145,15 @@ export default function DeliveryOrderPage() {
   if (!restaurant) return (
     <div className="min-h-screen bg-white flex items-center justify-center">
       <UtensilsCrossed className="w-10 h-10 text-gray-200" />
+    </div>
+  )
+  if (!menuEnabled) return (
+    <div className={`min-h-screen ${tpl.pageBg} flex flex-col items-center justify-center gap-4 px-6 text-center`}>
+      <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ background: `${primaryColor}20` }}>
+        <UtensilsCrossed className="w-8 h-8" style={{ color: primaryColor }} />
+      </div>
+      <h2 className={`text-xl font-bold ${tpl.nameColor}`}>Menu Unavailable</h2>
+      <p className={`text-sm ${tpl.welcomeColor}`}>{restaurant.name} has temporarily taken their menu offline.</p>
     </div>
   )
   if (!deliveryEnabled) return (
@@ -1084,37 +1183,41 @@ export default function DeliveryOrderPage() {
       <style>{`.scroll-hide::-webkit-scrollbar{display:none}`}</style>
 
       {/* Logo */}
-      <div className="w-32 h-32 rounded-full overflow-hidden shadow-xl relative"
+      <motion.div initial={{ opacity: 0, y: 28 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+        className="w-32 h-32 rounded-full overflow-hidden shadow-xl relative"
         style={{ outline: `4px solid ${primaryColor}`, outlineOffset: '4px', background: '#f3f4f6' }}>
         {restaurant.logo_url
           ? <NextImage src={restaurant.logo_url} alt={restaurant.name} fill className="object-cover" />
           : <div className="w-full h-full flex items-center justify-center" style={{ background: primaryColor }}>
               <span className="text-white text-5xl font-bold">{restaurant.name.charAt(0).toUpperCase()}</span>
             </div>}
-      </div>
+      </motion.div>
 
       {/* Name */}
-      <h1 className={`mt-4 text-2xl font-bold tracking-tight px-6 ${tpl.nameColor}`}>{restaurant.name}</h1>
+      <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1], delay: 0.13 }} className={`mt-4 text-2xl font-bold tracking-tight px-6 ${tpl.nameColor}`}>{restaurant.name}</motion.h1>
 
       {/* Delivery badge */}
-      <span className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-semibold"
+      <motion.span initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1], delay: 0.24 }}
+        className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-semibold"
         style={{ background: `${primaryColor}18`, color: primaryColor }}>
         <Truck className="w-3.5 h-3.5" /> Delivery Order
-      </span>
+      </motion.span>
 
       {/* Delivery info strip */}
-      <div className="mt-3 flex items-center gap-4 text-xs"
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1], delay: 0.35 }}
+        className="mt-3 flex items-center gap-4 text-xs"
         style={{ color: tpl.isDark ? 'rgba(255,255,255,0.40)' : '#9ca3af' }}>
         <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> ~{estimatedTime} min</span>
         <span>·</span>
         <span className="flex items-center gap-1"><Package className="w-3.5 h-3.5" /> Fee: {formatPrice(deliveryFee)}</span>
         {minOrder > 0 && <><span>·</span><span>Min: {formatPrice(minOrder)}</span></>}
-      </div>
+      </motion.div>
 
       {/* Welcome */}
-      <p className={`mt-3 text-sm px-8 ${tpl.welcomeColor}`}>
+      <motion.p initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1], delay: 0.46 }}
+        className={`mt-3 text-sm px-8 ${tpl.welcomeColor}`}>
         {welcomeText ?? 'Browse our menu and place your delivery order below.'}
-      </p>
+      </motion.p>
 
       {/* Order placed banner */}
       {orderPlaced && (
@@ -1131,16 +1234,18 @@ export default function DeliveryOrderPage() {
       )}
 
       {/* ── Track Order ── */}
-      <TrackOrderSection
-        restaurantId={restaurantId ?? ''}
-        primaryColor={primaryColor}
-        isDark={tpl.isDark}
-        formatPrice={formatPrice}
-      />
+      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1], delay: 0.57 }} className="w-full flex flex-col items-center">
+        <TrackOrderSection
+          restaurantId={restaurantId ?? ''}
+          primaryColor={primaryColor}
+          isDark={tpl.isDark}
+          formatPrice={formatPrice}
+        />
+      </motion.div>
 
       {/* ── Category navigation ── */}
       {categories.length > 0 && (
-        <div className="w-full mt-6 overflow-x-hidden">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1], delay: 0.68 }} className="w-full mt-6 overflow-x-hidden">
           {categoryStyle === 'circles' ? (
             <div className="scroll-hide flex gap-5 overflow-x-auto px-6 py-4 justify-center"
               style={{ scrollbarWidth: 'none', overflowY: 'visible' } as React.CSSProperties}>
@@ -1246,7 +1351,7 @@ export default function DeliveryOrderPage() {
               })}
             </div>
           )}
-        </div>
+        </motion.div>
       )}
 
       {/* ── Items view ── */}
@@ -1393,12 +1498,16 @@ export default function DeliveryOrderPage() {
       {!showItems && (
         <>
           {events.length > 0 && (
-            <div className="w-full mt-6">
+            <motion.div className="w-full mt-6"
+              initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1], delay: 0.84 }}>
               <h2 className={`text-lg font-bold mb-3 px-6 text-center ${tpl.sectionTitle}`}>Event &amp; Offers</h2>
               <div className="scroll-hide flex gap-5 overflow-x-auto px-6 pb-4 pt-2 justify-center"
                 style={{ scrollbarWidth: 'none' } as React.CSSProperties}>
                 {events.map((ev, idx) => (
-                  <div key={ev.id} onClick={() => openStory(idx)}
+                  <motion.div key={ev.id} onClick={() => openStory(idx)}
+                    initial={{ opacity: 0, y: 32, scale: 0.92 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1], delay: 0.84 + idx * 0.12 }}
                     className="shrink-0 rounded-2xl p-[3px] shadow-lg cursor-pointer active:scale-95 transition-transform"
                     style={{ background: primaryColor, boxShadow: `0 4px 18px ${primaryColor}55` }}>
                     <div className="relative rounded-[14px] overflow-hidden w-40 h-56">
@@ -1411,20 +1520,24 @@ export default function DeliveryOrderPage() {
                         {ev.date_label && <p className="text-white/70 text-[10px] mt-0.5">{ev.date_label}</p>}
                       </div>
                     </div>
-                  </div>
+                  </motion.div>
                 ))}
               </div>
-            </div>
+            </motion.div>
           )}
 
           {socialLinks.length > 0 && (
-            <div className="w-full mt-4 pb-10">
+            <motion.div className="w-full mt-4 pb-10"
+              initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1], delay: 1.06 }}>
               <div className="scroll-hide flex gap-3 overflow-x-auto px-6 py-2 justify-center"
                 style={{ scrollbarWidth: 'none' } as React.CSSProperties}>
-                {socialLinks.map(s => {
+                {socialLinks.map((s, idx) => {
                   const href = buildSocialHref(s.key, s.value)
                   return (
-                    <a key={s.key} href={href === '#' ? undefined : href}
+                    <motion.a key={s.key} href={href === '#' ? undefined : href}
+                      initial={{ opacity: 0, scale: 0.85 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1], delay: 1.11 + idx * 0.09 }}
                       target="_blank" rel="noopener noreferrer"
                       className="shrink-0 flex items-center gap-2.5 px-4 py-3 rounded-full border bg-white shadow-sm active:scale-95 transition-all"
                       style={{ borderColor: s.borderColor }}>
@@ -1433,11 +1546,11 @@ export default function DeliveryOrderPage() {
                         <span style={{ color: s.key === 'snapchat' ? '#111' : '#fff' }}>{s.icon}</span>
                       </div>
                       <span className="text-base font-semibold whitespace-nowrap" style={{ color: s.textColor }}>{s.label}</span>
-                    </a>
+                    </motion.a>
                   )
                 })}
               </div>
-            </div>
+            </motion.div>
           )}
         </>
       )}
@@ -1582,6 +1695,7 @@ export default function DeliveryOrderPage() {
       {/* ── Delivery Modal ── */}
       {showModal && (
         <DeliveryModal
+          restaurantId={restaurant?.id ?? ''}
           primaryColor={primaryColor}
           cartCount={cartCount}
           cartTotal={cartTotal}

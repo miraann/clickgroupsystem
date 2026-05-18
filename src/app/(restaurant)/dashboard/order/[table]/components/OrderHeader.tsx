@@ -22,7 +22,7 @@ export function OrderHeader({
   const router = useRouter()
 
   return (
-    <header className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-white/8 bg-[#022658]/80 backdrop-blur-2xl">
+    <header className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-white/8 backdrop-blur-2xl" style={{ background: 'var(--app-anchor-80, rgba(2,38,88,0.8))' }}>
       <div className="flex items-center gap-3">
         <button
           onClick={() => router.back()}

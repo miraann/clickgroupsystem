@@ -20,7 +20,7 @@ export default function UnauthorizedPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#022658] flex items-center justify-center px-4">
+    <div className="min-h-screen flex items-center justify-center px-4" style={{ background: 'var(--app-bg, #022658)' }}>
       <div className="text-center max-w-sm">
         <div className="w-20 h-20 rounded-3xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center mx-auto mb-6">
           <ShieldOff className="w-10 h-10 text-rose-400" />

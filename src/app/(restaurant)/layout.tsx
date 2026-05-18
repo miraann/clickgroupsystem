@@ -5,18 +5,21 @@ import { PageTransition } from '@/components/restaurant/PageTransition'
 import { LanguageProvider } from '@/lib/i18n/LanguageContext'
 import { PermissionsProvider } from '@/lib/permissions/PermissionsContext'
 import AuthGuard from '@/components/restaurant/AuthGuard'
+import AppearanceBgProvider from '@/components/restaurant/AppearanceBgProvider'
 
 export default function RestaurantLayout({ children }: { children: React.ReactNode }) {
   return (
     <LanguageProvider>
       <PermissionsProvider>
         <AuthGuard>
-          <div className="min-h-screen bg-[#022658]">
-            <FaviconSync />
-            <WakeLock />
-            <PWARegister />
-            <PageTransition>{children}</PageTransition>
-          </div>
+          <AppearanceBgProvider>
+            <div className="min-h-screen" style={{ background: 'var(--app-bg, #022658)' }}>
+              <FaviconSync />
+              <WakeLock />
+              <PWARegister />
+              <PageTransition>{children}</PageTransition>
+            </div>
+          </AppearanceBgProvider>
         </AuthGuard>
       </PermissionsProvider>
     </LanguageProvider>

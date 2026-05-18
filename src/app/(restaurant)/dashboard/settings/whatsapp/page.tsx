@@ -8,13 +8,17 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
-import { motion, type Variants } from 'framer-motion'
-
-const PAGE: Variants = {
-  hidden: { opacity: 0, y: 20 },
-  show:   { opacity: 1, y: 0, transition: { duration: 0.22, ease: 'circOut' as const } },
-}
+import { motion, AnimatePresence, type Variants } from 'framer-motion'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
+
+const CONTAINER: Variants = {
+  hidden: {},
+  show:   { transition: { staggerChildren: 0.07 } },
+}
+const ITEM: Variants = {
+  hidden: { opacity: 0, y: 18 },
+  show:   { opacity: 1, y: 0, transition: { duration: 0.42, ease: 'circOut' as const } },
+}
 
 const WA_GREEN = '#25D366'
 
@@ -298,10 +302,15 @@ export default function WhatsAppPage() {
   })
 
   return (
-    <motion.div variants={PAGE} initial="hidden" animate="show" className="max-w-5xl">
+    <div className="max-w-5xl mx-auto">
 
       {/* Header */}
-      <div className="flex items-center gap-3 mb-5">
+      <motion.div
+        initial={{ opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.05, duration: 0.42, ease: 'circOut' }}
+        className="flex items-center gap-3 mb-5"
+      >
         <div className="w-10 h-10 rounded-2xl flex items-center justify-center" style={{ background: `${WA_GREEN}25` }}>
           <MessageCircle className="w-5 h-5" style={{ color: WA_GREEN }} />
         </div>
@@ -309,10 +318,15 @@ export default function WhatsAppPage() {
           <h1 className="text-lg font-bold text-white">{t.wa_title}</h1>
           <p className="text-xs text-white/40">{t.wa_subtitle}</p>
         </div>
-      </div>
+      </motion.div>
 
       {/* Tabs */}
-      <div className="flex gap-1 p-1 rounded-2xl bg-white/4 border border-white/8 mb-5 w-fit">
+      <motion.div
+        initial={{ opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.12, duration: 0.42, ease: 'circOut' }}
+        className="flex gap-1 p-1 rounded-2xl bg-white/4 border border-white/8 mb-5 w-fit max-w-full overflow-x-auto"
+      >
         {([ 'send', 'templates' ] as const).map(tab => (
           <button
             key={tab}
@@ -329,11 +343,19 @@ export default function WhatsAppPage() {
             {tab === 'send' ? t.wa_tab_send : t.wa_tab_templates}
           </button>
         ))}
-      </div>
+      </motion.div>
 
+      <AnimatePresence mode="wait">
       {/* ════════════════════ SEND TAB ════════════════════ */}
       {activeTab === 'send' && (
-        <div className={cn('flex gap-5 items-start', isRTL && 'flex-row-reverse')}>
+        <motion.div
+          key="send"
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 }}
+          transition={{ duration: 0.28 }}
+          className={cn('flex flex-col lg:flex-row lg:items-start gap-5', isRTL && 'lg:flex-row-reverse')}
+        >
 
           {/* ── Left column: Composer ───────────────────────── */}
           <div className="flex-1 min-w-0 space-y-4">
@@ -593,7 +615,7 @@ export default function WhatsAppPage() {
           </div>
 
           {/* ── Right column: Preview + Log ─────────────────── */}
-          <div className="w-72 shrink-0 space-y-4">
+          <div className="w-full lg:w-72 lg:shrink-0 space-y-4">
 
             {/* WhatsApp Chat Preview */}
             <div className="rounded-2xl border border-white/8 bg-white/3 overflow-hidden">
@@ -686,12 +708,19 @@ export default function WhatsAppPage() {
             </div>
           </div>
 
-        </div>
+        </motion.div>
       )}
 
       {/* ════════════════════ TEMPLATES TAB ════════════════════ */}
       {activeTab === 'templates' && (
-        <div className={cn('flex gap-5 items-start', isRTL && 'flex-row-reverse')}>
+        <motion.div
+          key="templates"
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 }}
+          transition={{ duration: 0.28 }}
+          className={cn('flex flex-col lg:flex-row lg:items-start gap-5', isRTL && 'lg:flex-row-reverse')}
+        >
 
           {/* ── Left: Template list ────────────────────────── */}
           <div className="flex-1 min-w-0 space-y-4">
@@ -778,8 +807,8 @@ export default function WhatsAppPage() {
           </div>
 
           {/* ── Right: Create / Edit form ──────────────────── */}
-          <div className="w-80 shrink-0">
-            <div className="rounded-2xl border border-white/8 bg-white/3 overflow-hidden sticky top-6">
+          <div className="w-full lg:w-80 lg:shrink-0">
+            <div className="rounded-2xl border border-white/8 bg-white/3 overflow-hidden lg:sticky lg:top-6">
               <div className="px-5 py-3 border-b border-white/6 flex items-center gap-2">
                 {editingTemplate ? (
                   <Pencil className="w-4 h-4 text-amber-400" />
@@ -820,19 +849,19 @@ export default function WhatsAppPage() {
                   />
                   <div className="flex gap-1.5 flex-wrap">
                     {[
-                      { label: '{{total}}',     title: 'Order total amount' },
-                      { label: '{{table}}',     title: 'Table number' },
-                      { label: '{{menu_link}}', title: 'Online menu URL' },
-                    ].map(({ label, title }) => (
+                      { label: '{{total}}',     display: 'Total Price',       title: 'Order total amount' },
+                      { label: '{{table}}',     display: 'Table Number',      title: 'Table number' },
+                      { label: '{{menu_link}}', display: 'Online Menu Link',  title: 'Online menu URL' },
+                    ].map(({ label, display, title }) => (
                       <button
                         key={label}
                         type="button"
-                        title={title}
+                        title={`Insert ${label}`}
                         onClick={() => insertVariable(label)}
-                        className="px-2.5 py-1 rounded-lg text-[11px] font-mono font-semibold transition-all active:scale-95"
+                        className="px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all active:scale-95"
                         style={{ background: `${WA_GREEN}18`, border: `1px solid ${WA_GREEN}35`, color: WA_GREEN }}
                       >
-                        {label}
+                        {display}
                       </button>
                     ))}
                     <span className="text-[10px] text-white/20 self-center ml-1">click to insert at cursor</span>
@@ -879,9 +908,10 @@ export default function WhatsAppPage() {
             </div>
           </div>
 
-        </div>
+        </motion.div>
       )}
+      </AnimatePresence>
 
-    </motion.div>
+    </div>
   )
 }

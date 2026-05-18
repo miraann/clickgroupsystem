@@ -13,11 +13,15 @@ import {
   Save, Check, ChevronRight, UserCircle, QrCode, Smartphone,
 } from 'lucide-react'
 import { AnimatedList, AnimatedItem } from '@/components/ui/AnimatedList'
-import { motion, type Variants } from 'framer-motion'
+import { motion, AnimatePresence, type Variants } from 'framer-motion'
 
-const PAGE: Variants = {
-  hidden: { opacity: 0, y: 20 },
-  show:   { opacity: 1, y: 0, transition: { duration: 0.22, ease: 'circOut' as const } },
+const CONTAINER: Variants = {
+  hidden: {},
+  show:   { transition: { staggerChildren: 0.07 } },
+}
+const ITEM: Variants = {
+  hidden: { opacity: 0, y: 18 },
+  show:   { opacity: 1, y: 0, transition: { duration: 0.42, ease: 'circOut' as const } },
 }
 
 // ─── Staff types ────────────────────────────────────────────
@@ -78,12 +82,13 @@ const PERMISSION_TREE: PermNode[] = [
       {
         key: 'dashboard.page_access', label: 'Page Access',
         children: [
-          { key: 'dine_in',  label: 'Dashboard (Dine In)' },
-          { key: 'delivery', label: 'Delivery Orders'      },
-          { key: 'takeout',  label: 'QR / Takeout Orders'  },
-          { key: 'kds',      label: 'KDS Monitor'          },
-          { key: 'guests',   label: 'Guests'               },
-          { key: 'cfd',      label: 'CFD Display'          },
+          { key: 'dine_in',       label: 'Dashboard (Dine In)' },
+          { key: 'delivery',      label: 'Delivery Orders'      },
+          { key: 'takeout',       label: 'QR / Takeout Orders'  },
+          { key: 'kds',           label: 'KDS Monitor'          },
+          { key: 'guests',        label: 'Guests'               },
+          { key: 'cfd',           label: 'CFD Display'          },
+          { key: 'driver_screen', label: 'Driver Screen'        },
         ],
       },
     ],
@@ -247,6 +252,7 @@ const PERM_MODULE_MAP: Record<string, string | null> = {
   'dashboard.page_access':     null,
   cfd: null,
   dine_in: 'dine_in',
+  driver_screen: 'delivery',
   delivery: 'delivery',
   takeout: 'takeout',
   kds: 'kds',
@@ -551,9 +557,14 @@ export default function UsersPage() {
   const selectedRole = roles.find(r => r.id === selectedRoleId)
 
   return (
-    <motion.div variants={PAGE} initial="hidden" animate="show" className="max-w-5xl">
+    <div className="max-w-5xl">
       {/* Page header */}
-      <div className="flex items-center gap-3 mb-5">
+      <motion.div
+        initial={{ opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.05, duration: 0.42, ease: 'circOut' }}
+        className="flex items-center gap-3 mb-5"
+      >
         <div className="w-10 h-10 rounded-2xl bg-amber-500/15 flex items-center justify-center">
           <Users className="w-5 h-5 text-amber-400" />
         </div>
@@ -561,10 +572,15 @@ export default function UsersPage() {
           <h1 className="text-lg font-bold text-white">Users</h1>
           <p className="text-xs text-white/40">Manage staff accounts and role permissions</p>
         </div>
-      </div>
+      </motion.div>
 
       {/* Page-level tabs */}
-      <div className="flex gap-1 mb-6 p-1 rounded-xl bg-white/4 border border-white/8 w-fit">
+      <motion.div
+        initial={{ opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.12, duration: 0.42, ease: 'circOut' }}
+        className="flex gap-1 mb-6 p-1 rounded-xl bg-white/4 border border-white/8 w-fit"
+      >
         {([['staff', 'Staff', Users], ['roles', 'Role Permissions', Shield]] as const).map(([tab, label, Icon]) => (
           <button key={tab} onClick={() => switchPageTab(tab)}
             className={cn('flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all',
@@ -572,11 +588,18 @@ export default function UsersPage() {
             <Icon className="w-4 h-4" />{label}
           </button>
         ))}
-      </div>
+      </motion.div>
 
       {/* ══ STAFF TAB ══════════════════════════════════════════════ */}
+      <AnimatePresence mode="wait">
       {pageTab === 'staff' && (
-        <>
+        <motion.div
+          key="staff"
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 }}
+          transition={{ duration: 0.28, ease: 'circOut' }}
+        >
           <div className="flex items-center justify-between mb-4">
             <span className="px-2 py-0.5 rounded-full bg-white/8 text-xs text-white/50">{users.length} staff</span>
             <div className="flex items-center gap-2">
@@ -606,13 +629,15 @@ export default function UsersPage() {
             </button>
           </div>
 
-          {loadingUsers ? (
-            <div className="space-y-2">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="h-[72px] rounded-2xl bg-white/5 border border-white/8 animate-pulse" />
-              ))}
-            </div>
-          ) : (
+          <AnimatePresence mode="wait">
+            {loadingUsers ? (
+              <motion.div key="skel-users" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }} className="space-y-2">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="h-[72px] rounded-2xl bg-white/5 border border-white/8 animate-pulse" />
+                ))}
+              </motion.div>
+            ) : (
+            <motion.div key="content-users" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }}>
             <AnimatedList className="space-y-2">
               {filtered.map(u => {
                 const customRole = (() => { const cr = roleStaff.find(s => s.id === u.id); return cr?.role_id ? roles.find(r => r.id === cr.role_id) : null })()
@@ -654,13 +679,22 @@ export default function UsersPage() {
               })}
               {filtered.length === 0 && <div className="text-center py-16 text-white/25 text-sm">{t.usr_no_data}</div>}
             </AnimatedList>
-          )}
-        </>
+            </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.div>
       )}
 
       {/* ══ ROLES TAB ══════════════════════════════════════════════ */}
       {pageTab === 'roles' && (
-        <div className="flex gap-5 items-start">
+        <motion.div
+          key="roles"
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 }}
+          transition={{ duration: 0.28, ease: 'circOut' }}
+          className="flex gap-5 items-start"
+        >
           {/* Left: role list */}
           <div className="w-52 shrink-0 space-y-2">
             <div className="rounded-2xl border border-white/8 bg-white/3 overflow-hidden">
@@ -815,8 +849,9 @@ export default function UsersPage() {
               </div>
             )}
           </div>
-        </div>
+        </motion.div>
       )}
+      </AnimatePresence>
 
       {/* ── ADD/EDIT STAFF MODAL ── */}
       {modal === 'add-edit' && (
@@ -1039,6 +1074,6 @@ export default function UsersPage() {
           </div>
         </div>
       )}
-    </motion.div>
+    </div>
   )
 }

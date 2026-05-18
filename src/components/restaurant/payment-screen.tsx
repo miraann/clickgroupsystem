@@ -11,6 +11,9 @@ import { ConfirmPayDialog } from './payment/ConfirmPayDialog'
 import { MemberPicker }     from './payment/MemberPicker'
 import { CustomerPicker }   from './payment/CustomerPicker'
 import type { Item, DbDiscount, DbSurcharge, DbPayMethod, ActionTab } from './payment/types'
+import { mutate as swrMutate } from 'swr'
+import { SWR_KEY } from '@/hooks/useDashboardTables'
+import type { DashboardFullData } from '@/hooks/useDashboardTables'
 
 interface Props {
   orderId:      string
@@ -260,6 +263,8 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
         customerPhone:   selectedMember?.phone ?? selectedCustomer?.phone ?? null,
         tableNum,
         guests,
+        staffId:         typeof window !== 'undefined' ? (localStorage.getItem('pos_staff_id') ?? null) : null,
+        isOwner:         typeof window !== 'undefined' ? localStorage.getItem('owner_session') === 'true' : false,
       }),
     })
 
@@ -354,6 +359,27 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
       }
     }
 
+    // Optimistically mark table as dirty in the dashboard SWR cache so it
+    // shows red immediately when the user navigates back — no hard refresh needed.
+    const tableSeq = parseInt(tableNum)
+    if (!isNaN(tableSeq)) {
+      swrMutate(
+        SWR_KEY(restaurantId),
+        (prev: DashboardFullData | undefined) => {
+          if (!prev) return prev
+          return {
+            ...prev,
+            tables: prev.tables.map(t =>
+              t.number === tableSeq
+                ? { id: t.id, number: t.number, label: t.label, capacity: t.capacity, shape: t.shape, group_id: t.group_id, status: 'dirty' as const }
+                : t
+            ),
+          }
+        },
+        false,
+      )
+    }
+
     setPaidAmount(paidAmt)
     setChangeAmt(serverChange)
     setPaid(true)
@@ -409,7 +435,7 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
 
   return (
     <>
-    <div className="fixed inset-0 z-50 bg-[#022658] flex flex-col overflow-hidden">
+    <div className="fixed inset-0 z-50 flex flex-col overflow-hidden" style={{ background: 'var(--app-bg, #022658)' }}>
 
       {/* ── Top action bar ── */}
       <div className="shrink-0 flex items-center border-b border-white/8 bg-[#080b14]">
@@ -769,7 +795,7 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
               <button
                 key={key}
                 onClick={() => press(key)}
-                className="bg-[#022658] hover:bg-white/5 active:bg-white/10 active:scale-95 text-xl font-semibold text-white/70 transition-all touch-manipulation flex items-center justify-center"
+                className="bg-transparent hover:bg-white/5 active:bg-white/10 active:scale-95 text-xl font-semibold text-white/70 transition-all touch-manipulation flex items-center justify-center"
               >
                 {key}
               </button>
@@ -781,7 +807,7 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
             <div className="shrink-0 flex gap-px h-20 bg-white/5">
               <button
                 onClick={() => setActiveTab(null)}
-                className="flex-1 bg-[#022658] hover:bg-white/5 active:bg-white/10 text-white/40 hover:text-white/60 text-xs font-medium transition-all touch-manipulation flex items-center justify-center"
+                className="flex-1 bg-transparent hover:bg-white/5 active:bg-white/10 text-white/40 hover:text-white/60 text-xs font-medium transition-all touch-manipulation flex items-center justify-center"
               >
                 Cancel
               </button>
@@ -809,7 +835,7 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
             <div className="shrink-0 flex gap-px h-20 bg-white/5">
               <button
                 onClick={() => press('⌫')}
-                className="flex-1 bg-[#022658] hover:bg-white/5 active:bg-white/10 text-white/40 hover:text-rose-400 transition-all touch-manipulation flex items-center justify-center"
+                className="flex-1 bg-transparent hover:bg-white/5 active:bg-white/10 text-white/40 hover:text-rose-400 transition-all touch-manipulation flex items-center justify-center"
               >
                 <Delete className="w-5 h-5" />
               </button>

@@ -1,8 +1,9 @@
 'use client'
+import { useState, useRef } from 'react'
 import { motion, AnimatePresence, type Variants } from 'framer-motion'
 import {
   SlidersHorizontal,
-  Volume2, VolumeX, Clock, Globe, Percent, BadgeDollarSign, Printer, Bell,
+  Volume2, VolumeX, Clock, Globe, Bell, Play, Bike, Hand,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
@@ -12,25 +13,31 @@ import { ToggleSwitch } from '@/components/ui/ToggleSwitch'
 import { SettingsSection } from '@/components/ui/SettingsSection'
 
 interface PrefSettings {
-  language:               string
-  date_format:            '12h' | '24h'
-  sounds_enabled:         boolean
-  alert_repeat_seconds:   number
-  default_tax_rate:       number
-  tip_enabled:            boolean
-  tip_percentages:        number[]
-  auto_print_receipt:     boolean
+  language:                      string
+  date_format:                   '12h' | '24h'
+  sounds_enabled:                boolean
+  alert_repeat_seconds:          number
+  alert_sound:                   'classic' | 'chime' | 'bell' | 'buzz'
+  online_sounds_enabled:         boolean
+  online_alert_sound:            'doorbell' | 'fanfare' | 'ping' | 'bubble'
+  online_alert_repeat_seconds:   number
+  waiter_sounds_enabled:         boolean
+  waiter_alert_sound:            'whistle' | 'tap' | 'horn' | 'xylophone'
+  waiter_alert_repeat_seconds:   number
 }
 
 const DEFAULTS: PrefSettings = {
-  language:             'en',
-  date_format:          '12h',
-  sounds_enabled:       true,
-  alert_repeat_seconds: 30,
-  default_tax_rate:     0,
-  tip_enabled:          false,
-  tip_percentages:      [10, 15, 20],
-  auto_print_receipt:   false,
+  language:                    'en',
+  date_format:                 '12h',
+  sounds_enabled:              true,
+  alert_repeat_seconds:        30,
+  alert_sound:                 'classic',
+  online_sounds_enabled:       true,
+  online_alert_sound:          'doorbell',
+  online_alert_repeat_seconds: 30,
+  waiter_sounds_enabled:       true,
+  waiter_alert_sound:          'whistle',
+  waiter_alert_repeat_seconds: 30,
 }
 
 const LANGUAGES = [
@@ -39,8 +46,179 @@ const LANGUAGES = [
   { code: 'ar', label: 'Arabic',  flag: '🇸🇦'  },
 ]
 
-const TIP_OPTIONS  = [5, 10, 15, 20, 25]
-const ACCENT       = 'bg-indigo-500'
+const ACCENT = 'bg-indigo-500'
+
+const SOUND_OPTIONS = [
+  { id: 'classic', label: 'Classic', desc: 'Three ascending beeps',      emoji: '🔔' },
+  { id: 'chime',   label: 'Chime',   desc: 'Soft four-note melody',       emoji: '🎵' },
+  { id: 'bell',    label: 'Bell',    desc: 'Deep resonant bell strike',   emoji: '🔕' },
+  { id: 'buzz',    label: 'Alert',   desc: 'Sharp urgent double ping',    emoji: '📢' },
+] as const
+
+function previewSound(id: string) {
+  let ctx: AudioContext
+  try { ctx = new AudioContext() } catch { return }
+  const go = () => {
+    if (id === 'classic') {
+      ;[520, 660, 800].forEach((freq, i) => {
+        const t = ctx.currentTime + i * 0.25
+        const o = ctx.createOscillator(); const g = ctx.createGain()
+        o.connect(g); g.connect(ctx.destination)
+        o.type = 'sine'; o.frequency.setValueAtTime(freq, t)
+        g.gain.setValueAtTime(0.5, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.22)
+        o.start(t); o.stop(t + 0.22)
+      })
+    } else if (id === 'chime') {
+      ;[440, 554, 659, 880].forEach((freq, i) => {
+        const t = ctx.currentTime + i * 0.18
+        const o = ctx.createOscillator(); const g = ctx.createGain()
+        o.connect(g); g.connect(ctx.destination)
+        o.type = 'sine'; o.frequency.setValueAtTime(freq, t)
+        g.gain.setValueAtTime(0.38, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.38)
+        o.start(t); o.stop(t + 0.38)
+      })
+    } else if (id === 'bell') {
+      ;[660, 880].forEach((freq, i) => {
+        const t = ctx.currentTime + i * 0.5
+        const o = ctx.createOscillator(); const g = ctx.createGain()
+        o.connect(g); g.connect(ctx.destination)
+        o.type = 'triangle'; o.frequency.setValueAtTime(freq, t)
+        g.gain.setValueAtTime(0.6, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.9)
+        o.start(t); o.stop(t + 0.9)
+      })
+    } else {
+      // buzz
+      ;[900, 900].forEach((freq, i) => {
+        const t = ctx.currentTime + i * 0.15
+        const o = ctx.createOscillator(); const g = ctx.createGain()
+        o.connect(g); g.connect(ctx.destination)
+        o.type = 'square'; o.frequency.setValueAtTime(freq, t)
+        g.gain.setValueAtTime(0.25, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.09)
+        o.start(t); o.stop(t + 0.09)
+      })
+    }
+  }
+  ctx.state === 'running' ? go() : ctx.resume().then(go).catch(() => {})
+}
+
+const ONLINE_SOUND_OPTIONS = [
+  { id: 'doorbell', label: 'Doorbell', desc: 'Classic two-tone ding-dong',    emoji: '🚪' },
+  { id: 'fanfare',  label: 'Fanfare',  desc: 'Short bright three-note rise',  emoji: '🎺' },
+  { id: 'ping',     label: 'Ping',     desc: 'Single clean high ping',        emoji: '✨' },
+  { id: 'bubble',   label: 'Bubble',   desc: 'Quick four-note ascending run', emoji: '🫧' },
+] as const
+
+function previewOnlineSound(id: string) {
+  let ctx: AudioContext
+  try { ctx = new AudioContext() } catch { return }
+  const go = () => {
+    if (id === 'doorbell') {
+      ;[{ freq: 784, t: 0 }, { freq: 523, t: 0.65 }].forEach(({ freq, t }) => {
+        const base = ctx.currentTime + t
+        const o = ctx.createOscillator(); const g = ctx.createGain()
+        o.connect(g); g.connect(ctx.destination)
+        o.type = 'triangle'; o.frequency.setValueAtTime(freq, base)
+        g.gain.setValueAtTime(0.5, base); g.gain.exponentialRampToValueAtTime(0.001, base + 0.55)
+        o.start(base); o.stop(base + 0.55)
+      })
+    } else if (id === 'fanfare') {
+      ;[523, 659, 784].forEach((freq, i) => {
+        const t = ctx.currentTime + i * 0.16
+        const o = ctx.createOscillator(); const g = ctx.createGain()
+        o.connect(g); g.connect(ctx.destination)
+        o.type = 'sine'; o.frequency.setValueAtTime(freq, t)
+        g.gain.setValueAtTime(0.45, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.20)
+        o.start(t); o.stop(t + 0.20)
+      })
+    } else if (id === 'ping') {
+      const t = ctx.currentTime
+      const o = ctx.createOscillator(); const g = ctx.createGain()
+      o.connect(g); g.connect(ctx.destination)
+      o.type = 'sine'; o.frequency.setValueAtTime(1047, t)
+      g.gain.setValueAtTime(0.55, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.35)
+      o.start(t); o.stop(t + 0.35)
+    } else {
+      // bubble
+      ;[659, 784, 880, 1047].forEach((freq, i) => {
+        const t = ctx.currentTime + i * 0.10
+        const o = ctx.createOscillator(); const g = ctx.createGain()
+        o.connect(g); g.connect(ctx.destination)
+        o.type = 'sine'; o.frequency.setValueAtTime(freq, t)
+        g.gain.setValueAtTime(0.35, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.12)
+        o.start(t); o.stop(t + 0.12)
+      })
+    }
+  }
+  ctx.state === 'running' ? go() : ctx.resume().then(go).catch(() => {})
+}
+
+const WAITER_SOUND_OPTIONS = [
+  { id: 'whistle',   label: 'Whistle',   desc: 'Descending whistle slide',      emoji: '🪈' },
+  { id: 'tap',       label: 'Tap',       desc: 'Three soft percussive taps',     emoji: '👆' },
+  { id: 'horn',      label: 'Horn',      desc: 'Short warm horn blast',          emoji: '🎺' },
+  { id: 'xylophone', label: 'Xylophone', desc: 'Bright two-note xylophone hit',  emoji: '🎼' },
+] as const
+
+function previewWaiterSound(id: string) {
+  let ctx: AudioContext
+  try { ctx = new AudioContext() } catch { return }
+  const go = () => {
+    if (id === 'whistle') {
+      // Two sharp referee-style whistle blasts at ~3200Hz
+      ;[0, 0.30].forEach(delay => {
+        const t = ctx.currentTime + delay
+        const o = ctx.createOscillator(); const g = ctx.createGain()
+        o.connect(g); g.connect(ctx.destination)
+        o.type = 'sine'
+        o.frequency.setValueAtTime(3200, t)
+        o.frequency.linearRampToValueAtTime(3500, t + 0.04)
+        o.frequency.linearRampToValueAtTime(3200, t + 0.18)
+        g.gain.setValueAtTime(0.38, t)
+        g.gain.setValueAtTime(0.38, t + 0.14)
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.22)
+        o.start(t); o.stop(t + 0.22)
+      })
+    } else if (id === 'tap') {
+      ;[0, 0.16, 0.32].forEach(delay => {
+        const t = ctx.currentTime + delay
+        const o = ctx.createOscillator(); const g = ctx.createGain()
+        o.connect(g); g.connect(ctx.destination)
+        o.type = 'sawtooth'; o.frequency.setValueAtTime(200, t)
+        g.gain.setValueAtTime(0.38, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.09)
+        o.start(t); o.stop(t + 0.09)
+      })
+    } else if (id === 'horn') {
+      // FM synthesis for a warm brass horn tone
+      const t = ctx.currentTime
+      const carrier = ctx.createOscillator()
+      const mod     = ctx.createOscillator()
+      const modGain = ctx.createGain()
+      const carGain = ctx.createGain()
+      mod.connect(modGain); modGain.connect(carrier.frequency)
+      carrier.connect(carGain); carGain.connect(ctx.destination)
+      carrier.type = 'sine'; carrier.frequency.setValueAtTime(220, t)
+      mod.type     = 'sine'; mod.frequency.setValueAtTime(220, t)
+      modGain.gain.setValueAtTime(180, t)
+      carGain.gain.setValueAtTime(0, t)
+      carGain.gain.linearRampToValueAtTime(0.4, t + 0.05)
+      carGain.gain.linearRampToValueAtTime(0.32, t + 0.3)
+      carGain.gain.exponentialRampToValueAtTime(0.001, t + 0.6)
+      carrier.start(t); carrier.stop(t + 0.6)
+      mod.start(t);     mod.stop(t + 0.6)
+    } else {
+      // xylophone
+      ;[880, 1047].forEach((freq, i) => {
+        const t = ctx.currentTime + i * 0.22
+        const o = ctx.createOscillator(); const g = ctx.createGain()
+        o.connect(g); g.connect(ctx.destination)
+        o.type = 'sine'; o.frequency.setValueAtTime(freq, t)
+        g.gain.setValueAtTime(0.6, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.28)
+        o.start(t); o.stop(t + 0.28)
+      })
+    }
+  }
+  ctx.state === 'running' ? go() : ctx.resume().then(go).catch(() => {})
+}
 
 // ── Animation variants ───────────────────────────────────────
 const PAGE: Variants = {
@@ -95,13 +273,14 @@ export default function PreferencePage() {
   const { settings: cfg, setSettings: setCfg, loading, saveState, save, autoSave } =
     useRestaurantSettings<PrefSettings>(DEFAULTS)
 
-  const toggleTipPercent = (pct: number) => {
-    setCfg(c => ({
-      ...c,
-      tip_percentages: c.tip_percentages.includes(pct)
-        ? c.tip_percentages.filter(p => p !== pct)
-        : [...c.tip_percentages, pct].sort((a, b) => a - b),
-    }))
+  const [previewingId, setPreviewingId] = useState<string | null>(null)
+  const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const handlePreview = (previewKey: string, play: () => void) => {
+    play()
+    if (previewTimerRef.current) clearTimeout(previewTimerRef.current)
+    setPreviewingId(previewKey)
+    previewTimerRef.current = setTimeout(() => setPreviewingId(null), 1400)
   }
 
   return (
@@ -222,6 +401,50 @@ export default function PreferencePage() {
                   {cfg.sounds_enabled && (
                     <>
                       <div className="border-t border-white/6" />
+
+                      {/* ── Sound Theme ── */}
+                      <div className="space-y-2">
+                        <label className="text-[11px] font-semibold text-white/40 uppercase tracking-wider">Sound Theme</label>
+                        <div className="grid grid-cols-2 gap-2">
+                          {SOUND_OPTIONS.map(({ id, label, desc, emoji }) => {
+                            const active = (cfg.alert_sound ?? 'classic') === id
+                            const playing = previewingId === id
+                            return (
+                              <button
+                                key={id}
+                                onClick={() => setCfg(c => ({ ...c, alert_sound: id }))}
+                                className={cn(
+                                  'relative flex items-center gap-3 px-3 py-3 rounded-xl border text-left transition-all active:scale-[0.98]',
+                                  active
+                                    ? 'bg-indigo-500/15 border-indigo-500/40'
+                                    : 'bg-white/4 border-white/8 hover:bg-white/7',
+                                )}
+                              >
+                                <span className="text-xl shrink-0">{emoji}</span>
+                                <div className="flex-1 min-w-0">
+                                  <p className={cn('text-sm font-semibold', active ? 'text-indigo-300' : 'text-white/80')}>{label}</p>
+                                  <p className="text-[10px] text-white/35 truncate">{desc}</p>
+                                </div>
+                                <div
+                                  role="button"
+                                  onClick={e => { e.stopPropagation(); handlePreview(id, () => previewSound(id)) }}
+                                  className={cn(
+                                    'shrink-0 w-7 h-7 rounded-lg flex items-center justify-center transition-all active:scale-90 cursor-pointer',
+                                    playing ? 'bg-indigo-500 text-white' : 'bg-white/8 text-white/40 hover:bg-white/15 hover:text-white/70',
+                                  )}
+                                >
+                                  <Play className={cn('w-3 h-3', playing && 'animate-pulse')} fill="currentColor" />
+                                </div>
+                                {active && <span className="absolute top-2 right-10 w-1.5 h-1.5 rounded-full bg-indigo-400" />}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="border-t border-white/6" />
+
+                      {/* ── Repeat Interval ── */}
                       <div className="space-y-1.5">
                         <label className="flex items-center gap-1.5 text-[11px] font-semibold text-white/40 uppercase tracking-wider">
                           <Clock className="w-3.5 h-3.5" />
@@ -252,67 +475,95 @@ export default function PreferencePage() {
               </SettingsSection>
             </motion.div>
 
-            {/* ── Tax ── */}
+            {/* ── Online Order Sounds ── */}
             <motion.div variants={FIELD_ITEM}>
-              <SettingsSection title={t.pref_tax} icon={<Percent className="w-4 h-4 text-indigo-400" />}>
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-semibold text-white/40 uppercase tracking-wider">
-                    {t.pref_tax_rate}
-                  </label>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="number" min={0} max={100} step={0.1}
-                      value={cfg.default_tax_rate}
-                      onChange={e => setCfg(c => ({ ...c, default_tax_rate: Number(e.target.value) }))}
-                      className="flex-1 px-4 py-3 rounded-2xl text-sm text-white bg-white/7 border border-white/10 focus:border-indigo-500/50 outline-none transition-all"
-                    />
-                    <span className="text-white/40 text-sm font-semibold">%</span>
-                  </div>
-                  <p className="text-[11px] text-white/30">{t.pref_tax_hint}</p>
-                </div>
-              </SettingsSection>
-            </motion.div>
-
-            {/* ── Tips ── */}
-            <motion.div variants={FIELD_ITEM}>
-              <SettingsSection title={t.pref_tips} icon={<BadgeDollarSign className="w-4 h-4 text-indigo-400" />}>
+              <SettingsSection title={t.pref_online_sounds} icon={<Bike className="w-4 h-4 text-indigo-400" />}>
                 <div className="space-y-5">
 
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
-                      <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center transition-colors', cfg.tip_enabled ? 'bg-indigo-500/20' : 'bg-white/5')}>
-                        <BadgeDollarSign className={cn('w-5 h-5', cfg.tip_enabled ? 'text-indigo-400' : 'text-white/30')} />
+                      <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center transition-colors', cfg.online_sounds_enabled ? 'bg-indigo-500/20' : 'bg-white/5')}>
+                        {cfg.online_sounds_enabled
+                          ? <Volume2 className="w-5 h-5 text-indigo-400" />
+                          : <VolumeX  className="w-5 h-5 text-white/30" />}
                       </div>
                       <div>
-                        <p className="text-sm font-semibold text-white">{t.pref_tips_enable}</p>
-                        <p className="text-xs text-white/40">{t.pref_tips_enable_d}</p>
+                        <p className="text-sm font-semibold text-white">{t.pref_online_alert}</p>
+                        <p className="text-xs text-white/40">{t.pref_online_alert_d}</p>
                       </div>
                     </div>
-                    <ToggleSwitch activeColor={ACCENT} on={cfg.tip_enabled} onChange={v => autoSave({ tip_enabled: v })} />
+                    <ToggleSwitch activeColor={ACCENT} on={cfg.online_sounds_enabled} onChange={v => autoSave({ online_sounds_enabled: v })} />
                   </div>
 
-                  {cfg.tip_enabled && (
+                  {cfg.online_sounds_enabled && (
                     <>
                       <div className="border-t border-white/6" />
+
+                      {/* ── Sound Theme ── */}
                       <div className="space-y-2">
-                        <label className="text-[11px] font-semibold text-white/40 uppercase tracking-wider">{t.pref_tip_pcts}</label>
-                        <div className="flex gap-2 flex-wrap">
-                          {TIP_OPTIONS.map(pct => (
+                        <label className="text-[11px] font-semibold text-white/40 uppercase tracking-wider">Sound Theme</label>
+                        <div className="grid grid-cols-2 gap-2">
+                          {ONLINE_SOUND_OPTIONS.map(({ id, label, desc, emoji }) => {
+                            const active = (cfg.online_alert_sound ?? 'doorbell') === id
+                            const playing = previewingId === `online-${id}`
+                            return (
+                              <button
+                                key={id}
+                                onClick={() => setCfg(c => ({ ...c, online_alert_sound: id }))}
+                                className={cn(
+                                  'relative flex items-center gap-3 px-3 py-3 rounded-xl border text-left transition-all active:scale-[0.98]',
+                                  active
+                                    ? 'bg-indigo-500/15 border-indigo-500/40'
+                                    : 'bg-white/4 border-white/8 hover:bg-white/7',
+                                )}
+                              >
+                                <span className="text-xl shrink-0">{emoji}</span>
+                                <div className="flex-1 min-w-0">
+                                  <p className={cn('text-sm font-semibold', active ? 'text-indigo-300' : 'text-white/80')}>{label}</p>
+                                  <p className="text-[10px] text-white/35 truncate">{desc}</p>
+                                </div>
+                                <div
+                                  role="button"
+                                  onClick={e => { e.stopPropagation(); handlePreview(`online-${id}`, () => previewOnlineSound(id)) }}
+                                  className={cn(
+                                    'shrink-0 w-7 h-7 rounded-lg flex items-center justify-center transition-all active:scale-90 cursor-pointer',
+                                    playing ? 'bg-indigo-500 text-white' : 'bg-white/8 text-white/40 hover:bg-white/15 hover:text-white/70',
+                                  )}
+                                >
+                                  <Play className={cn('w-3 h-3', playing && 'animate-pulse')} fill="currentColor" />
+                                </div>
+                                {active && <span className="absolute top-2 right-10 w-1.5 h-1.5 rounded-full bg-indigo-400" />}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="border-t border-white/6" />
+
+                      {/* ── Repeat Interval ── */}
+                      <div className="space-y-1.5">
+                        <label className="flex items-center gap-1.5 text-[11px] font-semibold text-white/40 uppercase tracking-wider">
+                          <Clock className="w-3.5 h-3.5" />
+                          {t.pref_repeat_alert}
+                        </label>
+                        <div className="flex gap-2">
+                          {[15, 30, 60, 120].map(sec => (
                             <button
-                              key={pct}
-                              onClick={() => toggleTipPercent(pct)}
+                              key={sec}
+                              onClick={() => setCfg(c => ({ ...c, online_alert_repeat_seconds: sec }))}
                               className={cn(
-                                'px-4 py-2 rounded-xl border text-sm font-bold transition-all active:scale-95',
-                                cfg.tip_percentages.includes(pct)
+                                'flex-1 py-2 rounded-xl border text-sm font-semibold transition-all active:scale-95',
+                                cfg.online_alert_repeat_seconds === sec
                                   ? 'bg-indigo-500/20 border-indigo-500/40 text-indigo-300'
-                                  : 'bg-white/4 border-white/8 text-white/40 hover:text-white/70',
+                                  : 'bg-white/4 border-white/8 text-white/50 hover:text-white/80',
                               )}
                             >
-                              {pct}%
+                              {sec}s
                             </button>
                           ))}
                         </div>
-                        <p className="text-[11px] text-white/30">{t.pref_tip_pcts_hint}</p>
+                        <p className="text-[11px] text-white/30">{t.pref_repeat_hint}</p>
                       </div>
                     </>
                   )}
@@ -321,20 +572,97 @@ export default function PreferencePage() {
               </SettingsSection>
             </motion.div>
 
-            {/* ── Receipt ── */}
+            {/* ── Waiter Call Sounds ── */}
             <motion.div variants={FIELD_ITEM}>
-              <SettingsSection title={t.pref_receipt} icon={<Printer className="w-4 h-4 text-indigo-400" />}>
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center transition-colors', cfg.auto_print_receipt ? 'bg-indigo-500/20' : 'bg-white/5')}>
-                      <Printer className={cn('w-5 h-5', cfg.auto_print_receipt ? 'text-indigo-400' : 'text-white/30')} />
+              <SettingsSection title={t.pref_waiter_sounds} icon={<Hand className="w-4 h-4 text-indigo-400" />}>
+                <div className="space-y-5">
+
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center transition-colors', cfg.waiter_sounds_enabled ? 'bg-indigo-500/20' : 'bg-white/5')}>
+                        {cfg.waiter_sounds_enabled
+                          ? <Volume2 className="w-5 h-5 text-indigo-400" />
+                          : <VolumeX  className="w-5 h-5 text-white/30" />}
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-white">{t.pref_waiter_alert}</p>
+                        <p className="text-xs text-white/40">{t.pref_waiter_alert_d}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm font-semibold text-white">{t.pref_auto_print}</p>
-                      <p className="text-xs text-white/40">{t.pref_auto_print_d}</p>
-                    </div>
+                    <ToggleSwitch activeColor={ACCENT} on={cfg.waiter_sounds_enabled} onChange={v => autoSave({ waiter_sounds_enabled: v })} />
                   </div>
-                  <ToggleSwitch activeColor={ACCENT} on={cfg.auto_print_receipt} onChange={v => autoSave({ auto_print_receipt: v })} />
+
+                  {cfg.waiter_sounds_enabled && (
+                    <>
+                      <div className="border-t border-white/6" />
+
+                      <div className="space-y-2">
+                        <label className="text-[11px] font-semibold text-white/40 uppercase tracking-wider">Sound Theme</label>
+                        <div className="grid grid-cols-2 gap-2">
+                          {WAITER_SOUND_OPTIONS.map(({ id, label, desc, emoji }) => {
+                            const active = (cfg.waiter_alert_sound ?? 'whistle') === id
+                            const playing = previewingId === `waiter-${id}`
+                            return (
+                              <button
+                                key={id}
+                                onClick={() => setCfg(c => ({ ...c, waiter_alert_sound: id }))}
+                                className={cn(
+                                  'relative flex items-center gap-3 px-3 py-3 rounded-xl border text-left transition-all active:scale-[0.98]',
+                                  active
+                                    ? 'bg-indigo-500/15 border-indigo-500/40'
+                                    : 'bg-white/4 border-white/8 hover:bg-white/7',
+                                )}
+                              >
+                                <span className="text-xl shrink-0">{emoji}</span>
+                                <div className="flex-1 min-w-0">
+                                  <p className={cn('text-sm font-semibold', active ? 'text-indigo-300' : 'text-white/80')}>{label}</p>
+                                  <p className="text-[10px] text-white/35 truncate">{desc}</p>
+                                </div>
+                                <div
+                                  role="button"
+                                  onClick={e => { e.stopPropagation(); handlePreview(`waiter-${id}`, () => previewWaiterSound(id)) }}
+                                  className={cn(
+                                    'shrink-0 w-7 h-7 rounded-lg flex items-center justify-center transition-all active:scale-90 cursor-pointer',
+                                    playing ? 'bg-indigo-500 text-white' : 'bg-white/8 text-white/40 hover:bg-white/15 hover:text-white/70',
+                                  )}
+                                >
+                                  <Play className={cn('w-3 h-3', playing && 'animate-pulse')} fill="currentColor" />
+                                </div>
+                                {active && <span className="absolute top-2 right-10 w-1.5 h-1.5 rounded-full bg-indigo-400" />}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="border-t border-white/6" />
+
+                      <div className="space-y-1.5">
+                        <label className="flex items-center gap-1.5 text-[11px] font-semibold text-white/40 uppercase tracking-wider">
+                          <Clock className="w-3.5 h-3.5" />
+                          {t.pref_repeat_alert}
+                        </label>
+                        <div className="flex gap-2">
+                          {[15, 30, 60, 120].map(sec => (
+                            <button
+                              key={sec}
+                              onClick={() => setCfg(c => ({ ...c, waiter_alert_repeat_seconds: sec }))}
+                              className={cn(
+                                'flex-1 py-2 rounded-xl border text-sm font-semibold transition-all active:scale-95',
+                                cfg.waiter_alert_repeat_seconds === sec
+                                  ? 'bg-indigo-500/20 border-indigo-500/40 text-indigo-300'
+                                  : 'bg-white/4 border-white/8 text-white/50 hover:text-white/80',
+                              )}
+                            >
+                              {sec}s
+                            </button>
+                          ))}
+                        </div>
+                        <p className="text-[11px] text-white/30">{t.pref_repeat_hint}</p>
+                      </div>
+                    </>
+                  )}
+
                 </div>
               </SettingsSection>
             </motion.div>

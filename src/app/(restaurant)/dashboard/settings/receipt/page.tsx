@@ -10,7 +10,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
-import { motion, type Variants } from 'framer-motion'
+import { motion, AnimatePresence, type Variants } from 'framer-motion'
 import { logAudit } from '@/lib/logAudit'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import InvoiceViewModal from '@/components/restaurant/invoice-view-modal'
@@ -20,6 +20,16 @@ import { ToggleSwitch } from '@/components/ui/ToggleSwitch'
 const PAGE: Variants = {
   hidden: { opacity: 0, y: 22 },
   show:   { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'circOut' as const } },
+}
+
+const CONTAINER: Variants = {
+  hidden: {},
+  show:   { transition: { staggerChildren: 0.07 } },
+}
+
+const ITEM: Variants = {
+  hidden: { opacity: 0, y: 18 },
+  show:   { opacity: 1, y: 0, transition: { duration: 0.42, ease: 'circOut' as const } },
 }
 
 interface RS {
@@ -276,8 +286,12 @@ function AllInvoices({ restaurantId }: { restaurantId: string }) {
   return (
     <div className="space-y-4 max-w-4xl">
 
-      {/* Search / Filter bar */}
-      <div className="flex flex-wrap gap-3 items-end">
+      {/* Search / Filter bar — animates once on mount */}
+      <motion.div
+        initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.42, ease: 'circOut' }}
+        className="flex flex-wrap gap-3 items-end"
+      >
         <div className="flex-1 min-w-[200px]">
           <label className="block text-xs text-white/40 mb-1.5">Invoice Number / Customer Name / Phone</label>
           <div className="relative">
@@ -319,32 +333,45 @@ function AllInvoices({ restaurantId }: { restaurantId: string }) {
             : <Search className="w-4 h-4" />}
           Search
         </button>
-      </div>
+      </motion.div>
 
       {/* Count */}
-      <p className="text-xs text-white/30">
+      <motion.p
+        initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.38, ease: 'circOut', delay: 0.07 }}
+        className="text-xs text-white/30"
+      >
         {invoices.length} invoice{invoices.length !== 1 ? 's' : ''} found
-      </p>
+      </motion.p>
 
-      {/* List */}
-      {loading ? (
-        <div className="space-y-2">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-[72px] rounded-2xl bg-white/5 border border-white/8 animate-pulse" />
-          ))}
-        </div>
-      ) : invoices.length === 0 ? (
-        <div className="text-center py-20 text-white/30">
-          <FileText className="w-10 h-10 mx-auto mb-3 opacity-30" />
-          <p className="text-sm">No invoices found</p>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {invoices.map(inv => {
-            const date = new Date(inv.created_at)
-            const isOpen = expanded === inv.id
-            return (
-              <div key={inv.id} className="rounded-2xl bg-white/4 border border-white/8 overflow-hidden">
+      {/* List — AnimatePresence ensures each state (loading/empty/data) gets its own entrance */}
+      <AnimatePresence mode="wait">
+        {loading ? (
+          <motion.div key="skeleton"
+            initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+            transition={{ duration: 0.3, ease: 'circOut' }}
+            className="space-y-2"
+          >
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="h-[72px] rounded-2xl bg-white/5 border border-white/8 animate-pulse" />
+            ))}
+          </motion.div>
+        ) : invoices.length === 0 ? (
+          <motion.div key="empty"
+            initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+            transition={{ duration: 0.3, ease: 'circOut' }}
+            className="text-center py-20 text-white/30"
+          >
+            <FileText className="w-10 h-10 mx-auto mb-3 opacity-30" />
+            <p className="text-sm">No invoices found</p>
+          </motion.div>
+        ) : (
+          <motion.div key="list" variants={CONTAINER} initial="hidden" animate="show" className="space-y-2">
+            {invoices.map(inv => {
+              const date = new Date(inv.created_at)
+              const isOpen = expanded === inv.id
+              return (
+                <motion.div variants={ITEM} key={inv.id} className="rounded-2xl bg-white/4 border border-white/8 overflow-hidden">
 
                 {/* Row */}
                 <div
@@ -471,11 +498,12 @@ function AllInvoices({ restaurantId }: { restaurantId: string }) {
                     </div>
                   </div>
                 )}
-              </div>
+              </motion.div>
             )
           })}
-        </div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Invoice view modal */}
       {viewInvoice && (
@@ -795,10 +823,10 @@ function RecoverTableTab({ restaurantId }: { restaurantId: string }) {
   }
 
   return (
-    <div className="max-w-2xl space-y-4">
+    <motion.div variants={CONTAINER} initial="hidden" animate="show" className="max-w-2xl space-y-4">
 
       {/* Header + button */}
-      <div className="flex items-center justify-between">
+      <motion.div variants={ITEM} className="flex items-center justify-between">
         <div>
           <h2 className="text-base font-semibold text-white">Recover Table</h2>
           <p className="text-xs text-white/40 mt-0.5">Reopen a table that was closed by mistake</p>
@@ -809,28 +837,28 @@ function RecoverTableTab({ restaurantId }: { restaurantId: string }) {
         >
           <RotateCcw className="w-4 h-4" /> Recover Table
         </button>
-      </div>
+      </motion.div>
 
       {recoverSuccess && (
-        <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+        <motion.div variants={ITEM} className="flex items-center gap-2 px-4 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
           <Check className="w-4 h-4 text-emerald-400 shrink-0" />
           <p className="text-sm text-emerald-400">{recoverSuccess}</p>
-        </div>
+        </motion.div>
       )}
 
       {/* Recovery log list */}
       {loading ? (
-        <div className="space-y-2">
+        <motion.div variants={ITEM} className="space-y-2">
           {Array.from({ length: 3 }).map((_, i) => (
             <div key={i} className="h-[64px] rounded-2xl bg-white/5 border border-white/8 animate-pulse" />
           ))}
-        </div>
+        </motion.div>
       ) : logs.length === 0 ? (
-        <div className="text-center py-14 text-white/25 text-sm">No recoveries yet</div>
+        <motion.div variants={ITEM} className="text-center py-14 text-white/25 text-sm">No recoveries yet</motion.div>
       ) : (
-        <div className="space-y-2">
+        <motion.div variants={CONTAINER} initial="hidden" animate="show" className="space-y-2">
           {logs.map(log => (
-            <div key={log.id} className="flex items-start gap-4 p-4 bg-white/4 border border-white/8 rounded-2xl">
+            <motion.div variants={ITEM} key={log.id} className="flex items-start gap-4 p-4 bg-white/4 border border-white/8 rounded-2xl">
               <div className="w-9 h-9 rounded-xl bg-amber-500/15 flex items-center justify-center shrink-0">
                 <RotateCcw className="w-4 h-4 text-amber-400" />
               </div>
@@ -846,9 +874,9 @@ function RecoverTableTab({ restaurantId }: { restaurantId: string }) {
                   <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{new Date(log.created_at).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}</span>
                 </div>
               </div>
-            </div>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       )}
 
       {/* Modal */}
@@ -906,7 +934,7 @@ function RecoverTableTab({ restaurantId }: { restaurantId: string }) {
           </div>
         </div>
       )}
-    </div>
+    </motion.div>
   )
 }
 
@@ -1087,6 +1115,16 @@ export default function ReceiptSettingsPage() {
           </button>
         ))}
       </motion.div>
+
+      {/* ── Tab content — AnimatePresence ensures re-animation on every tab switch ── */}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={tab}
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10, transition: { duration: 0.15 } }}
+          transition={{ duration: 0.38, ease: 'circOut' }}
+        >
 
       {/* ── Settings tab ── */}
       {tab === 'settings' && (
@@ -1300,13 +1338,18 @@ export default function ReceiptSettingsPage() {
           </div>
 
           {/* Right: Live Preview */}
-          <div className="shrink-0 sticky top-6">
+          <motion.div
+            className="shrink-0 sticky top-6"
+            initial={{ opacity: 0, x: 24 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5, ease: 'circOut', delay: 0.45 }}
+          >
             <div className="flex items-center gap-2 mb-3">
               <Eye className="w-4 h-4 text-white/30" />
               <p className="text-xs font-bold text-white/30 uppercase tracking-widest">{t.rec_preview}</p>
             </div>
             <InvoicePreview s={form} restaurantName={restaurantName} />
-          </div>
+          </motion.div>
 
         </div>
       )}
@@ -1330,6 +1373,9 @@ export default function ReceiptSettingsPage() {
       {tab === 'recover' && restaurantId && (
         <RecoverTableTab restaurantId={restaurantId} />
       )}
+
+        </motion.div>
+      </AnimatePresence>
 
     </motion.div>
   )

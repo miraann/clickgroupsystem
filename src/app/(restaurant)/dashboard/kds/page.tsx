@@ -376,7 +376,10 @@ function KdsPage() {
   const alertLoopRef    = useRef<ReturnType<typeof setInterval> | null>(null)
   const lastSoundRef    = useRef<number>(0)   // timestamp of last new-order sound play
   // Tracks item IDs that have already triggered the new-order sound (prevents double-play)
-  const soundedItemsRef = useRef<Set<string>>(new Set())
+  const soundedItemsRef  = useRef<Set<string>>(new Set())
+  // Preference settings — read once on mount, used inside realtime closures
+  const soundsEnabledRef  = useRef<boolean>(true)
+  const alertRepeatMsRef  = useRef<number>(30000)
 
   // Keep activeStationId + stations accessible inside realtime closures
   useEffect(() => { activeStationIdRef.current = activeStationId }, [activeStationId])
@@ -388,6 +391,18 @@ function KdsPage() {
       setStations(cachedStations as Station[])
     }
   }, [cachedStations]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load alert-sound preferences once on mount so realtime closures can read them
+  useEffect(() => {
+    const id = typeof window !== 'undefined' ? localStorage.getItem('restaurant_id') : null
+    if (!id) return
+    supabase.from('restaurants').select('settings').eq('id', id).maybeSingle()
+      .then(({ data }) => {
+        const s = (data?.settings ?? {}) as Record<string, unknown>
+        if (typeof s.sounds_enabled === 'boolean') soundsEnabledRef.current = s.sounds_enabled
+        if (typeof s.alert_repeat_seconds === 'number') alertRepeatMsRef.current = s.alert_repeat_seconds * 1000
+      })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const unlockAudio = useCallback(() => {
     if (!audioCtxRef.current) {
@@ -642,7 +657,7 @@ function KdsPage() {
               const belongs = !activeId
                            || item.station_id === activeId
                            || (!!station && station.category_ids.length === 0)
-              if (belongs) { lastSoundRef.current = Date.now(); playNewOrder() }
+              if (belongs && soundsEnabledRef.current) { lastSoundRef.current = Date.now(); playNewOrder() }
             }
           }
         }
@@ -676,14 +691,14 @@ function KdsPage() {
           }
         }
 
-        // ── Repeat new-order sound every 15 s while unstarted items remain ──
+        // ── Repeat new-order sound every N s (from preference) while unstarted items remain ──
         const hasSentRepeat = allOrdersRef.current.some(o => o.items.some(i => {
           if (i.status !== 'sent') return false
           if (!activeId) return true
           if (i.station_id === activeId) return true
           return !!station && station.category_ids.length === 0
         }))
-        if (hasSentRepeat && Date.now() - lastSoundRef.current >= 15000) {
+        if (hasSentRepeat && soundsEnabledRef.current && Date.now() - lastSoundRef.current >= alertRepeatMsRef.current) {
           lastSoundRef.current = Date.now()
           playNewOrder()
         }
@@ -706,7 +721,7 @@ function KdsPage() {
               const belongs  = !activeId
                             || updated.station_id === activeId
                             || (!!station && station.category_ids.length === 0)
-              if (belongs) { lastSoundRef.current = Date.now(); playNewOrder() }
+              if (belongs && soundsEnabledRef.current) { lastSoundRef.current = Date.now(); playNewOrder() }
             }
 
             if (updated.status === 'void') {
@@ -734,7 +749,7 @@ function KdsPage() {
               const belongs  = !activeId
                             || newItem.station_id === activeId
                             || (!!station && station.category_ids.length === 0)
-              if (belongs) { lastSoundRef.current = Date.now(); playNewOrder() }
+              if (belongs && soundsEnabledRef.current) { lastSoundRef.current = Date.now(); playNewOrder() }
             }
             if (restIdRef.current) fetchOrders(restIdRef.current)
           })

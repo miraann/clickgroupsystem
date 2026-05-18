@@ -13,10 +13,10 @@ function makeCurrency(symbol: string, decimalPlaces: number): DefaultCurrency {
     symbol,
     decimalPlaces,
     formatPrice: (amount: number) =>
-      symbol + amount.toLocaleString('en-US', {
+      amount.toLocaleString('en-US', {
         minimumFractionDigits: decimalPlaces,
         maximumFractionDigits: decimalPlaces,
-      }),
+      }) + ' ' + symbol,
   }
 }
 

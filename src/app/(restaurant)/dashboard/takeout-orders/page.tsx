@@ -197,10 +197,10 @@ export default function TakeoutOrdersPage() {
 
   return (
     <ModuleGate moduleKey="takeout">
-    <motion.div key="takeout-orders-page" variants={PAGE} initial="hidden" animate="show" className="min-h-screen bg-[#022658] text-white flex flex-col">
+    <motion.div key="takeout-orders-page" variants={PAGE} initial="hidden" animate="show" className="min-h-screen text-white flex flex-col" style={{ background: 'var(--app-bg, #022658)' }}>
 
       {/* ── Header ── */}
-      <header className="sticky top-0 z-20 bg-[#022658]/95 backdrop-blur-xl border-b border-white/8 px-4 py-3">
+      <header className="sticky top-0 z-20 backdrop-blur-xl border-b border-white/8 px-4 py-3" style={{ background: 'var(--app-anchor-95, rgba(2,38,88,0.95))' }}>
         <div className="flex items-center justify-between max-w-2xl mx-auto">
           <div className="flex items-center gap-3">
             <button

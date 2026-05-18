@@ -6,49 +6,16 @@ import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { motion, AnimatePresence, type Variants } from 'framer-motion'
 
-const PAGE: Variants = {
-  hidden: { opacity: 0, y: 20 },
-  show:   { opacity: 1, y: 0, transition: { duration: 0.22, ease: 'circOut' as const } },
-}
-const FIELDS: Variants = {
+const CONTAINER: Variants = {
   hidden: {},
-  show:   { transition: { staggerChildren: 0.28 } },
+  show:   { transition: { staggerChildren: 0.07 } },
 }
-const FIELD_ITEM: Variants = {
-  hidden: { opacity: 0, y: -10 },
-  show:   { opacity: 1, y: 0, transition: { duration: 0.55, ease: 'circOut' as const } },
+const ITEM: Variants = {
+  hidden: { opacity: 0, y: 18 },
+  show:   { opacity: 1, y: 0, transition: { duration: 0.42, ease: 'circOut' as const } },
 }
 function Skel({ className }: { className?: string }) {
   return <div className={cn('animate-pulse rounded-xl bg-white/8', className)} />
-}
-function SkelSection({ lines = 2 }: { lines?: number }) {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-white/3 overflow-hidden">
-      <div className="px-5 py-3.5 border-b border-white/8 bg-white/3">
-        <Skel className="h-3.5 w-36 rounded-md" />
-      </div>
-      <div className="p-5 space-y-3">
-        {Array.from({ length: lines }).map((_, i) => (
-          <Skel key={i} className={cn('h-11 rounded-xl', i === 1 ? 'w-3/4' : 'w-full')} />
-        ))}
-      </div>
-    </div>
-  )
-}
-function FadeSwitch({ id, children }: { id: string; children: React.ReactNode }) {
-  return (
-    <AnimatePresence mode="popLayout" initial={false}>
-      <motion.div
-        key={id}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.18 }}
-      >
-        {children}
-      </motion.div>
-    </AnimatePresence>
-  )
 }
 
 interface VoidItem {
@@ -141,9 +108,14 @@ export default function VoidItemsPage() {
   )
 
   return (
-    <motion.div variants={PAGE} initial="hidden" animate="show" className="max-w-3xl mx-auto">
+    <div className="max-w-3xl mx-auto">
       {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
+      <motion.div
+        initial={{ opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.05, duration: 0.42, ease: 'circOut' }}
+        className="flex items-center gap-3 mb-6"
+      >
         <div className="w-9 h-9 rounded-xl bg-rose-500/15 flex items-center justify-center">
           <Ban className="w-5 h-5 text-rose-400" />
         </div>
@@ -151,11 +123,15 @@ export default function VoidItemsPage() {
           <h1 className="text-lg font-semibold text-white">{t.vi_title}</h1>
           <p className="text-xs text-white/40">{t.vi_subtitle}</p>
         </div>
-      </div>
+      </motion.div>
 
       {/* Filters row */}
-      <div className="flex items-center gap-3 mb-5 flex-wrap">
-        {/* Date filter */}
+      <motion.div
+        initial={{ opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.12, duration: 0.42, ease: 'circOut' }}
+        className="flex items-center gap-3 mb-5 flex-wrap"
+      >
         <div className="flex rounded-xl bg-white/5 border border-white/8 p-0.5 gap-0.5">
           {DATE_OPTS.map(o => (
             <button key={o.value} onClick={() => setDateFilter(o.value)}
@@ -165,48 +141,81 @@ export default function VoidItemsPage() {
             </button>
           ))}
         </div>
-
-        {/* Search */}
         <div className="relative flex-1 min-w-40">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/25" />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder={`${t.search}…`}
             className="w-full bg-white/5 border border-white/8 rounded-xl pl-9 pr-3.5 py-2 text-sm text-white placeholder-white/25 focus:outline-none focus:border-rose-500/40 transition-colors" />
         </div>
-      </div>
+      </motion.div>
 
       {/* Summary strip + List */}
-      <motion.div variants={FIELD_ITEM}>
-        <FadeSwitch id={loading ? 'skel-list' : 'list'}>
-          {loading ? <SkelSection lines={4} /> : (
-            <>
-              {filtered.length > 0 && (
-                <div className="flex items-center justify-between px-4 py-3 rounded-2xl bg-rose-500/8 border border-rose-500/15 mb-4">
-                  <div className="flex items-center gap-4">
-                    <div>
-                      <p className="text-xs text-white/35">Voided items</p>
-                      <p className="text-lg font-bold text-white">{filtered.reduce((s, i) => s + i.qty, 0)}</p>
-                    </div>
-                    <div className="w-px h-8 bg-white/10" />
-                    <div>
-                      <p className="text-xs text-white/35">Value voided</p>
-                      <p className="text-lg font-bold text-rose-400">${totalLost.toFixed(2)}</p>
-                    </div>
+      <AnimatePresence mode="wait">
+        {loading ? (
+          <motion.div
+            key="skeleton"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            className="space-y-2"
+          >
+            {Array.from({ length: 4 }).map((_, i) => <Skel key={i} className="h-16 rounded-2xl" />)}
+          </motion.div>
+        ) : (
+          <motion.div
+            key="content"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+          >
+            {filtered.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 18 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.14, duration: 0.42, ease: 'circOut' }}
+                className="flex items-center justify-between px-4 py-3 rounded-2xl bg-rose-500/8 border border-rose-500/15 mb-4"
+              >
+                <div className="flex items-center gap-4">
+                  <div>
+                    <p className="text-xs text-white/35">Voided items</p>
+                    <p className="text-lg font-bold text-white">{filtered.reduce((s, i) => s + i.qty, 0)}</p>
                   </div>
-                  <span className="text-xs text-white/25">{filtered.length} records</span>
+                  <div className="w-px h-8 bg-white/10" />
+                  <div>
+                    <p className="text-xs text-white/35">Value voided</p>
+                    <p className="text-lg font-bold text-rose-400">${totalLost.toFixed(2)}</p>
+                  </div>
                 </div>
-              )}
+                <span className="text-xs text-white/25">{filtered.length} records</span>
+              </motion.div>
+            )}
 
+            <AnimatePresence mode="wait">
               {filtered.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-20 gap-3">
+                <motion.div
+                  key="empty"
+                  initial={{ opacity: 0, y: 18 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ delay: 0.21, duration: 0.42, ease: 'circOut' }}
+                  className="flex flex-col items-center justify-center py-20 gap-3"
+                >
                   <div className="w-14 h-14 rounded-2xl bg-white/4 border border-white/8 flex items-center justify-center">
                     <Ban className="w-6 h-6 text-white/15" />
                   </div>
                   <p className="text-sm text-white/25">{search ? 'No matching void items' : t.vi_no_data}</p>
-                </div>
+                </motion.div>
               ) : (
-                <div className="space-y-2">
+                <motion.div
+                  key="list"
+                  variants={CONTAINER}
+                  initial="hidden"
+                  animate="show"
+                  className="space-y-2"
+                >
                   {filtered.map(item => (
-                    <div key={item.id} className="flex items-start gap-4 px-4 py-3.5 bg-white/4 border border-white/8 rounded-2xl hover:border-white/12 transition-all">
+                    <motion.div key={item.id} variants={ITEM} className="flex items-start gap-4 px-4 py-3.5 bg-white/4 border border-white/8 rounded-2xl hover:border-white/12 transition-all">
                       <div className="mt-1.5 w-2 h-2 rounded-full bg-rose-500/60 shrink-0" />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
@@ -235,14 +244,14 @@ export default function VoidItemsPage() {
                         <p className="text-sm font-bold text-rose-400/80">${(item.item_price * item.qty).toFixed(2)}</p>
                         <p className="text-xs text-white/30">${item.item_price.toFixed(2)} each</p>
                       </div>
-                    </div>
+                    </motion.div>
                   ))}
-                </div>
+                </motion.div>
               )}
-            </>
-          )}
-        </FadeSwitch>
-      </motion.div>
-    </motion.div>
+            </AnimatePresence>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   )
 }

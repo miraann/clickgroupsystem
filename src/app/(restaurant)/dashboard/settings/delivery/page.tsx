@@ -12,11 +12,21 @@ import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { useDeliverySettings, type CachedDeliveryZone } from '@/hooks/useDeliverySettings'
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch'
-import { motion, type Variants } from 'framer-motion'
+import { motion, AnimatePresence, type Variants } from 'framer-motion'
 
 const PAGE: Variants = {
   hidden: { opacity: 0, y: 20 },
-  show:   { opacity: 1, y: 0, transition: { duration: 0.22, ease: 'circOut' as const } },
+  show:   { opacity: 1, y: 0, transition: { duration: 0.45, ease: 'circOut' as const } },
+}
+
+const CONTAINER: Variants = {
+  hidden: {},
+  show:   { transition: { staggerChildren: 0.06 } },
+}
+
+const ITEM: Variants = {
+  hidden: { opacity: 0, y: 16 },
+  show:   { opacity: 1, y: 0, transition: { duration: 0.4, ease: 'circOut' as const } },
 }
 import { SaveButton } from '@/components/ui/SaveButton'
 import type { SaveState } from '@/hooks/useRestaurantSettings'
@@ -254,19 +264,23 @@ function DeliveryHistoryTab({ restaurantId, formatPrice }: { restaurantId: strin
   }, {})
 
   return (
-    <motion.div variants={PAGE} initial="hidden" animate="show" className="space-y-4">
-      {/* Stats strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+    <div className="space-y-4">
+      {/* Stats strip — staggered cards */}
+      <motion.div variants={CONTAINER} initial="hidden" animate="show" className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         {DELIVERY_STATUSES.map(s => (
-          <div key={s.key} className={cn('rounded-xl border px-4 py-3', s.bg, s.border)}>
+          <motion.div variants={ITEM} key={s.key} className={cn('rounded-xl border px-4 py-3', s.bg, s.border)}>
             <p className={cn('text-xl font-extrabold tabular-nums', s.color)}>{counts[s.key] ?? 0}</p>
             <p className="text-[11px] text-white/40 mt-0.5">{s.label}</p>
-          </div>
+          </motion.div>
         ))}
-      </div>
+      </motion.div>
 
       {/* Filter tabs */}
-      <div className="flex items-center gap-2 flex-wrap">
+      <motion.div
+        initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.38, ease: 'circOut', delay: 0.18 }}
+        className="flex items-center gap-2 flex-wrap"
+      >
         <button
           onClick={() => setFilter('all')}
           className={cn('px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all', filterStatus === 'all' ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30' : 'bg-white/5 text-white/40 border-white/8 hover:text-white/60')}
@@ -282,10 +296,14 @@ function DeliveryHistoryTab({ restaurantId, formatPrice }: { restaurantId: strin
             {s.label} ({counts[s.key]})
           </button>
         ))}
-      </div>
+      </motion.div>
 
       {/* Date range + refresh */}
-      <div className="flex items-center gap-2 flex-wrap">
+      <motion.div
+        initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.38, ease: 'circOut', delay: 0.24 }}
+        className="flex items-center gap-2 flex-wrap"
+      >
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <div className="flex items-center gap-1.5 bg-white/5 border border-white/10 rounded-xl px-3 py-2 flex-1 min-w-0">
             <span className="text-[10px] font-semibold text-white/30 uppercase tracking-wider shrink-0">From</span>
@@ -323,24 +341,29 @@ function DeliveryHistoryTab({ restaurantId, formatPrice }: { restaurantId: strin
         >
           <RefreshCw className="w-3.5 h-3.5" />
         </button>
-      </div>
+      </motion.div>
 
-      {/* Orders list */}
-      {filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 gap-3">
-          <div className="w-14 h-14 rounded-2xl bg-white/5 flex items-center justify-center">
-            <Truck className="w-7 h-7 text-white/15" />
-          </div>
-          <p className="text-sm text-white/30">No delivery orders{filterStatus !== 'all' ? ` with status "${statusMeta(filterStatus).label}"` : ''}</p>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {filtered.map(order => {
-            const meta       = statusMeta(order.status)
-            const isExpanded = expanded === order.id
-            const date       = new Date(order.created_at)
-            return (
-              <div key={order.id} className="rounded-2xl border border-white/8 bg-white/3 overflow-hidden">
+      {/* Orders list — AnimatePresence so each state gets a fresh entrance */}
+      <AnimatePresence mode="wait">
+        {filtered.length === 0 ? (
+          <motion.div key="empty"
+            initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+            transition={{ duration: 0.3, ease: 'circOut' }}
+            className="flex flex-col items-center justify-center py-16 gap-3"
+          >
+            <div className="w-14 h-14 rounded-2xl bg-white/5 flex items-center justify-center">
+              <Truck className="w-7 h-7 text-white/15" />
+            </div>
+            <p className="text-sm text-white/30">No delivery orders{filterStatus !== 'all' ? ` with status "${statusMeta(filterStatus).label}"` : ''}</p>
+          </motion.div>
+        ) : (
+          <motion.div key="list" variants={CONTAINER} initial="hidden" animate="show" className="space-y-2">
+            {filtered.map(order => {
+              const meta       = statusMeta(order.status)
+              const isExpanded = expanded === order.id
+              const date       = new Date(order.created_at)
+              return (
+                <motion.div variants={ITEM} key={order.id} className="rounded-2xl border border-white/8 bg-white/3 overflow-hidden">
                 {/* Row header */}
                 <div className="flex items-center gap-3 px-4 py-3">
                   {/* Status dot */}
@@ -423,12 +446,13 @@ function DeliveryHistoryTab({ restaurantId, formatPrice }: { restaurantId: strin
                     )}
                   </div>
                 )}
-              </div>
+              </motion.div>
             )
           })}
-        </div>
-      )}
-    </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   )
 }
 
@@ -558,7 +582,11 @@ export default function DeliveryPage() {
     <motion.div variants={PAGE} initial="hidden" animate="show" className="max-w-3xl mx-auto space-y-6 pb-10">
 
       {/* ── Header ── */}
-      <div className="flex items-center justify-between">
+      <motion.div
+        className="flex items-center justify-between"
+        initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, ease: 'circOut', delay: 0.06 }}
+      >
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-indigo-500/15 flex items-center justify-center">
             <Truck className="w-5 h-5 text-indigo-400" />
@@ -571,10 +599,14 @@ export default function DeliveryPage() {
         {tab === 'settings' && (
           <SaveButton state={saveState} onClick={saveGeneral} />
         )}
-      </div>
+      </motion.div>
 
       {/* ── Tabs ── */}
-      <div className="flex gap-1 p-1 rounded-xl bg-white/5 border border-white/8 w-fit">
+      <motion.div
+        className="flex gap-1 p-1 rounded-xl bg-white/5 border border-white/8 w-fit"
+        initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, ease: 'circOut', delay: 0.12 }}
+      >
         <button
           onClick={() => setTab('history')}
           className={cn(
@@ -593,7 +625,17 @@ export default function DeliveryPage() {
         >
           <Settings2 className="w-4 h-4" /> Settings
         </button>
-      </div>
+      </motion.div>
+
+      {/* ── Tab content — AnimatePresence re-animates on every switch ── */}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={tab}
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10, transition: { duration: 0.15 } }}
+          transition={{ duration: 0.38, ease: 'circOut' }}
+        >
 
       {/* ── Delivery History Tab ── */}
       {tab === 'history' && restaurantId && (
@@ -602,15 +644,23 @@ export default function DeliveryPage() {
 
       {/* ── Settings Tab ── */}
       {tab === 'settings' && (
-        <>
+        <div className="space-y-6">
           {err && (
-            <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm">
+            <motion.div
+              initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.35, ease: 'circOut' }}
+              className="flex items-center gap-2 px-4 py-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm"
+            >
               <AlertCircle className="w-4 h-4 shrink-0" />{err}
-            </div>
+            </motion.div>
           )}
 
           {/* Delivery On/Off */}
-          <div className="rounded-2xl border border-white/8 bg-white/3 p-5 space-y-4">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.42, ease: 'circOut', delay: 0.05 }}
+            className="rounded-2xl border border-white/8 bg-white/3 p-5 space-y-4"
+          >
             {/* Accept online delivery orders */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -666,10 +716,14 @@ export default function DeliveryPage() {
                 }}
               />
             </div>
-          </div>
+          </motion.div>
 
           {/* General Settings */}
-          <div className="rounded-2xl border border-white/8 bg-white/3 p-5 space-y-5">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.42, ease: 'circOut', delay: 0.12 }}
+            className="rounded-2xl border border-white/8 bg-white/3 p-5 space-y-5"
+          >
             <h2 className="text-sm font-bold text-white/70 uppercase tracking-wider">{t.del_general}</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Field label={t.del_fee} icon={DollarSign}>
@@ -699,10 +753,14 @@ export default function DeliveryPage() {
                 rows={2} className={cn(inputCls, 'resize-none')}
                 placeholder="e.g. Please have your order ready at the door" />
             </Field>
-          </div>
+          </motion.div>
 
           {/* Delivery Zones */}
-          <div className="rounded-2xl border border-white/8 bg-white/3 p-5 space-y-4">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.42, ease: 'circOut', delay: 0.19 }}
+            className="rounded-2xl border border-white/8 bg-white/3 p-5 space-y-4"
+          >
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-bold text-white/70 uppercase tracking-wider">{t.del_zones}</h2>
               <button onClick={openAddZone}
@@ -722,9 +780,9 @@ export default function DeliveryPage() {
                 </button>
               </div>
             ) : (
-              <div className="space-y-2">
+              <motion.div variants={CONTAINER} initial="hidden" animate="show" className="space-y-2">
                 {zones.map(z => (
-                  <div key={z.id}
+                  <motion.div variants={ITEM} key={z.id}
                     className={cn('flex items-center gap-3 px-4 py-3 rounded-xl border transition-all',
                       z.active ? 'border-white/10 bg-white/3' : 'border-white/5 bg-white/[0.01] opacity-50')}>
                     <div className={cn('w-2 h-2 rounded-full shrink-0', z.active ? 'bg-emerald-400' : 'bg-white/20')} />
@@ -753,13 +811,16 @@ export default function DeliveryPage() {
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
-                  </div>
+                  </motion.div>
                 ))}
-              </div>
+              </motion.div>
             )}
-          </div>
-        </>
+          </motion.div>
+        </div>
       )}
+
+        </motion.div>
+      </AnimatePresence>
 
       {/* ── Zone Modal ── */}
       {zoneModal && (

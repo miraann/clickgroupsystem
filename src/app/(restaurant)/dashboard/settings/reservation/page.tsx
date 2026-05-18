@@ -6,18 +6,14 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
-import { motion, type Variants } from 'framer-motion'
+import { motion, AnimatePresence, type Variants } from 'framer-motion'
 
-const PAGE: Variants = {
-  hidden: { opacity: 0, y: 20 },
-  show:   { opacity: 1, y: 0, transition: { duration: 0.22, ease: 'circOut' as const } },
-}
-const FIELDS: Variants = {
+const CONTAINER: Variants = {
   hidden: {},
-  show:   { transition: { staggerChildren: 0.08 } },
+  show:   { transition: { staggerChildren: 0.06 } },
 }
-const FIELD_ITEM: Variants = {
-  hidden: { opacity: 0, y: -10 },
+const ITEM: Variants = {
+  hidden: { opacity: 0, y: 18 },
   show:   { opacity: 1, y: 0, transition: { duration: 0.4, ease: 'circOut' as const } },
 }
 import { logAudit } from '@/lib/logAudit'
@@ -107,11 +103,12 @@ export default function ReservationPage() {
   const totalGuests = reservations.filter(r => r.status !== 'cancelled' && r.status !== 'no_show').reduce((s, r) => s + r.party_size, 0)
 
   return (
-    <motion.div variants={PAGE} initial="hidden" animate="show" className="space-y-6">
-      <motion.div variants={FIELDS} initial="hidden" animate="show" className="space-y-6">
+    <div className="space-y-6">
 
       {/* Header */}
-      <motion.div variants={FIELD_ITEM} className="flex items-center justify-between">
+      <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.42, ease: 'circOut', delay: 0.05 }}
+        className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-white">{t.rsv_title}</h1>
           <p className="text-xs text-white/35 mt-0.5">{t.rsv_subtitle}</p>
@@ -129,7 +126,9 @@ export default function ReservationPage() {
       </motion.div>
 
       {/* Date picker + search + status filter */}
-      <motion.div variants={FIELD_ITEM} className="flex items-center gap-3 flex-wrap">
+      <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.42, ease: 'circOut', delay: 0.12 }}
+        className="flex items-center gap-3 flex-wrap">
         <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 border border-white/10">
           <CalendarDays className="w-4 h-4 text-amber-400 shrink-0" />
           <input type="date" value={dateFilter} onChange={e => setDateFilter(e.target.value)}
@@ -154,50 +153,55 @@ export default function ReservationPage() {
       </motion.div>
 
       {/* KPI row */}
-      <motion.div variants={FIELD_ITEM} className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <motion.div variants={CONTAINER} initial="hidden" animate="show"
+        className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
           { label: t.rsv_all,         value: total,       color: 'text-white',        bg: 'bg-white/5',        border: 'border-white/10' },
           { label: t.rsv_status,      value: pending,     color: 'text-yellow-400',   bg: 'bg-yellow-500/10',  border: 'border-yellow-500/20' },
           { label: t.rsv_confirmed,   value: confirmed,   color: 'text-emerald-400',  bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
           { label: t.rsv_party_size,  value: totalGuests, color: 'text-amber-400',    bg: 'bg-amber-500/10',   border: 'border-amber-500/20' },
         ].map(k => (
-          <div key={k.label} className={cn('rounded-2xl border p-4', k.bg, k.border)}>
+          <motion.div variants={ITEM} key={k.label} className={cn('rounded-2xl border p-4', k.bg, k.border)}>
             <p className="text-xs text-white/40 mb-1">{k.label}</p>
             <p className={cn('text-2xl font-bold tabular-nums', k.color)}>{k.value}</p>
-          </div>
+          </motion.div>
         ))}
       </motion.div>
 
       {err && (
-        <motion.div variants={FIELD_ITEM} className="flex items-center gap-2 px-4 py-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm">
+        <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, ease: 'circOut' }}
+          className="flex items-center gap-2 px-4 py-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm">
           <AlertCircle className="w-4 h-4 shrink-0" />{err}
         </motion.div>
       )}
 
       {/* Reservation list */}
-      <motion.div variants={FIELD_ITEM}>
+      <AnimatePresence mode="wait">
       {loading ? (
-        <div className="space-y-2">
+        <motion.div key="skeleton" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+          transition={{ duration: 0.3, ease: 'circOut' }} className="space-y-2">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="h-[100px] rounded-2xl bg-white/5 border border-white/8 animate-pulse" />
           ))}
-        </div>
+        </motion.div>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-16">
+        <motion.div key="empty" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+          transition={{ duration: 0.3, ease: 'circOut' }} className="text-center py-16">
           <CalendarDays className="w-10 h-10 text-white/15 mx-auto mb-3" />
           <p className="text-white/30 text-sm">{t.rsv_no_data}</p>
           <button onClick={() => { setEditRsv(null); setShowModal(true) }} className="mt-4 px-4 py-2 rounded-xl bg-amber-500/15 border border-amber-500/25 text-amber-400 text-sm font-semibold hover:bg-amber-500/25 transition-all">
             {t.rsv_add}
           </button>
-        </div>
+        </motion.div>
       ) : (
-        <div className="space-y-2">
+        <motion.div key="list" variants={CONTAINER} initial="hidden" animate="show" className="space-y-2">
           {filtered.map(r => {
             const sc = STATUS_CONFIG[r.status]
             const StatusIcon = sc.icon
             const table = tables.find(t => t.id === r.table_id)
             return (
-              <div key={r.id} className="rounded-2xl bg-white/3 border border-white/8 hover:border-white/12 transition-all">
+              <motion.div variants={ITEM} key={r.id} className="rounded-2xl bg-white/3 border border-white/8 hover:border-white/12 transition-all">
                 <div className="flex items-center gap-4 p-4">
 
                   <div className="w-16 shrink-0 text-center">
@@ -268,14 +272,13 @@ export default function ReservationPage() {
                     </button>
                   </div>
                 </div>
-              </div>
+              </motion.div>
             )
           })}
-        </div>
+        </motion.div>
       )}
-      </motion.div>
+      </AnimatePresence>
 
-      </motion.div>
       {showModal && restaurantId && (
         <ReservationModal
           reservation={editRsv}
@@ -302,6 +305,6 @@ export default function ReservationPage() {
           </div>
         </div>
       )}
-    </motion.div>
+    </div>
   )
 }

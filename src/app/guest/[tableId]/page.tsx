@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { motion } from 'framer-motion'
 import { useParams } from 'next/navigation'
 import NextImage from 'next/image'
 import {
@@ -343,9 +344,11 @@ export default function GuestPage() {
   useEffect(() => {
     if (!menuData || menuLoading) return
     if (menuData.restaurant) setRestaurant(menuData.restaurant as unknown as Restaurant)
-    setCategories(menuData.categories as unknown as Category[])
+    const guestItems = menuData.items.filter(i => i.available_guest !== false)
+    const guestCatIds = new Set(guestItems.map(i => i.category_id).filter(Boolean))
+    setCategories(menuData.categories.filter(c => guestCatIds.has(c.id)) as unknown as Category[])
     setEvents(menuData.offers as unknown as EventOffer[])
-    setMenuItems(menuData.items as unknown as MenuItem[])
+    setMenuItems(guestItems as unknown as MenuItem[])
     setKitchenNotes(menuData.notes as unknown as KitchenNote[])
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -545,7 +548,8 @@ export default function GuestPage() {
       <style>{`.cat-scroll::-webkit-scrollbar{display:none} .social-scroll::-webkit-scrollbar{display:none}`}</style>
 
       {/* Circle logo */}
-      <div className="w-36 h-36 rounded-full overflow-hidden shadow-xl relative"
+      <motion.div initial={{ opacity: 0, y: 28 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+        className="w-36 h-36 rounded-full overflow-hidden shadow-xl relative"
         style={{ outline: `4px solid ${tpl.logoRing}`, outlineOffset: '4px', background: '#f3f4f6' }}>
         {restaurant.logo_url
           ? <NextImage src={restaurant.logo_url} alt={restaurant.name} fill className="object-cover" />
@@ -553,22 +557,24 @@ export default function GuestPage() {
               <span className="text-white text-5xl font-bold">{restaurant.name.charAt(0).toUpperCase()}</span>
             </div>
         }
-      </div>
+      </motion.div>
 
       {/* Restaurant name */}
-      <h1 className={`mt-4 text-2xl font-bold tracking-tight px-6 ${tpl.nameColor}`}>{restaurant.name}</h1>
+      <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1], delay: 0.13 }} className={`mt-4 text-2xl font-bold tracking-tight px-6 ${tpl.nameColor}`}>{restaurant.name}</motion.h1>
 
       {/* Table number */}
       {tableLabel && (
-        <span className={`mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-semibold ${tpl.tableChipBg} ${tpl.tableChipText}`}>
+        <motion.span initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1], delay: 0.24 }}
+          className={`mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-semibold ${tpl.tableChipBg} ${tpl.tableChipText}`}>
           Table {tableLabel}
-        </span>
+        </motion.span>
       )}
 
       {/* Welcome message */}
-      <p className={`mt-4 text-sm px-6 ${tpl.welcomeColor}`}>
+      <motion.p initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1], delay: 0.35 }}
+        className={`mt-4 text-sm px-6 ${tpl.welcomeColor}`}>
         {welcomeText ?? 'Welcome! Browse our menu and order directly from your table.'}
-      </p>
+      </motion.p>
 
       {/* Dine-in note (from Dine In settings) */}
       {restaurant?.settings?.dine_in_note && (
@@ -620,7 +626,7 @@ export default function GuestPage() {
 
       {/* Category navigation */}
       {categories.length > 0 && (
-        <div className="w-full mt-6 overflow-x-hidden">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1], delay: 0.46 }} className="w-full mt-6 overflow-x-hidden">
           {categoryStyle === 'circles' ? (
             /* ── Circles ── */
             <div
@@ -765,7 +771,7 @@ export default function GuestPage() {
               })}
             </div>
           )}
-        </div>
+        </motion.div>
       )}
 
       {/* ── Category items view ── */}
@@ -951,7 +957,8 @@ export default function GuestPage() {
       {!showItems && (
         <>
           {events.length > 0 && (
-            <div className="w-full mt-6">
+            <motion.div className="w-full mt-6"
+              initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1], delay: 0.62 }}>
               <h2 className={`text-lg font-bold mb-3 px-6 text-center ${tpl.sectionTitleColor}`}>Event &amp; Offers</h2>
 
               {eventStyle === 'story' ? (
@@ -961,7 +968,10 @@ export default function GuestPage() {
                   style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
                 >
                   {events.map((ev, idx) => (
-                    <div key={ev.id} onClick={() => openStory(idx)} className="shrink-0 flex flex-col items-center gap-2 cursor-pointer active:scale-95 transition-transform">
+                    <motion.div key={ev.id} onClick={() => openStory(idx)}
+                      initial={{ opacity: 0, y: 32, scale: 0.92 }} animate={{ opacity: 1, y: 0, scale: 1 }}
+                      transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1], delay: 0.62 + idx * 0.12 }}
+                      className="shrink-0 flex flex-col items-center gap-2 cursor-pointer active:scale-95 transition-transform">
                       <div
                         className="rounded-full p-[3px] shadow-lg"
                         style={{ background: `linear-gradient(135deg, ${primaryColor}, #f97316)` }}
@@ -976,16 +986,18 @@ export default function GuestPage() {
                         </div>
                       </div>
                       <p className={`text-[10px] font-semibold w-14 text-center line-clamp-2 leading-tight ${tpl.sectionTitleColor}`}>{ev.title}</p>
-                    </div>
+                    </motion.div>
                   ))}
                 </div>
               ) : eventStyle === 'banner' ? (
                 /* ── Stacked banners ── */
                 <div className="flex flex-col gap-3 px-4 max-w-lg mx-auto w-full">
                   {events.map((ev, idx) => (
-                    <div
+                    <motion.div
                       key={ev.id}
                       onClick={() => openStory(idx)}
+                      initial={{ opacity: 0, y: 24, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }}
+                      transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1], delay: 0.62 + idx * 0.12 }}
                       className="relative rounded-2xl overflow-hidden h-32 shadow-md cursor-pointer active:scale-[0.98] transition-transform"
                       style={{ border: `2px solid ${primaryColor}44` }}
                     >
@@ -999,7 +1011,7 @@ export default function GuestPage() {
                         {ev.date_label && <p className="text-white/70 text-xs mt-1">{ev.date_label}</p>}
                         {ev.description && <p className="text-white/60 text-xs mt-1 line-clamp-1">{ev.description}</p>}
                       </div>
-                    </div>
+                    </motion.div>
                   ))}
                 </div>
               ) : (
@@ -1009,9 +1021,11 @@ export default function GuestPage() {
                   style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
                 >
                   {events.map((ev, idx) => (
-                    <div
+                    <motion.div
                       key={ev.id}
                       onClick={() => openStory(idx)}
+                      initial={{ opacity: 0, y: 32, scale: 0.92 }} animate={{ opacity: 1, y: 0, scale: 1 }}
+                      transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1], delay: 0.62 + idx * 0.12 }}
                       className="shrink-0 rounded-2xl p-[3px] shadow-lg cursor-pointer active:scale-95 transition-transform"
                       style={{ background: primaryColor, boxShadow: `0 4px 18px ${primaryColor}55` }}
                     >
@@ -1026,27 +1040,30 @@ export default function GuestPage() {
                           {ev.date_label && <p className="text-white/70 text-[10px] mt-0.5">{ev.date_label}</p>}
                         </div>
                       </div>
-                    </div>
+                    </motion.div>
                   ))}
                 </div>
               )}
-            </div>
+            </motion.div>
           )}
 
           {socialLinks.length > 0 && (
-            <div className="w-full mt-6 pb-10">
+            <motion.div className="w-full mt-6 pb-10"
+              initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1], delay: 0.86 }}>
               {socialStyle === 'grid' ? (
                 /* ── 2-col grid ── */
                 <div className="grid grid-cols-2 gap-2 px-4 max-w-sm mx-auto w-full">
-                  {socialLinks.map(s => {
+                  {socialLinks.map((s, idx) => {
                     const href = buildSocialHref(s.key, s.value)
                     const isDark = tpl.pageBg.includes('0a0a') || tpl.pageBg.includes('080c')
                     return (
-                      <a
+                      <motion.a
                         key={s.key}
                         href={href === '#' ? undefined : href}
                         target="_blank"
                         rel="noopener noreferrer"
+                        initial={{ opacity: 0, scale: 0.88 }} animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1], delay: 0.91 + idx * 0.08 }}
                         className="flex items-center gap-3 px-4 py-3 rounded-2xl border active:scale-95 transition-all"
                         style={{ borderColor: s.borderColor, background: isDark ? 'rgba(255,255,255,0.05)' : '#fff', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
                       >
@@ -1054,7 +1071,7 @@ export default function GuestPage() {
                           <span style={{ color: s.key === 'snapchat' ? '#111' : '#fff' }}>{s.icon}</span>
                         </div>
                         <span className="text-sm font-semibold whitespace-nowrap" style={{ color: s.textColor }}>{s.label}</span>
-                      </a>
+                      </motion.a>
                     )
                   })}
                 </div>
@@ -1064,21 +1081,23 @@ export default function GuestPage() {
                   className="social-scroll flex gap-4 overflow-x-auto px-6 py-2 justify-center"
                   style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
                 >
-                  {socialLinks.map(s => {
+                  {socialLinks.map((s, idx) => {
                     const href = buildSocialHref(s.key, s.value)
                     return (
-                      <a
+                      <motion.a
                         key={s.key}
                         href={href === '#' ? undefined : href}
                         target="_blank"
                         rel="noopener noreferrer"
+                        initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1], delay: 0.91 + idx * 0.09 }}
                         className="shrink-0 flex flex-col items-center gap-1.5 active:scale-90 transition-all"
                       >
                         <div className="w-12 h-12 rounded-full flex items-center justify-center shadow-md" style={{ backgroundColor: s.iconBg }}>
                           <span style={{ color: s.key === 'snapchat' ? '#111' : '#fff' }}>{s.icon}</span>
                         </div>
                         <span className="text-[10px] font-semibold" style={{ color: tpl.pageBg.includes('0a0a') || tpl.pageBg.includes('080c') ? '#9ca3af' : '#6b7280' }}>{s.label}</span>
-                      </a>
+                      </motion.a>
                     )
                   })}
                 </div>
@@ -1088,15 +1107,17 @@ export default function GuestPage() {
                   className="social-scroll flex gap-3 overflow-x-auto px-6 py-2 justify-center"
                   style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
                 >
-                  {socialLinks.map(s => {
+                  {socialLinks.map((s, idx) => {
                     const href = buildSocialHref(s.key, s.value)
                     const isDark = tpl.pageBg.includes('0a0a') || tpl.pageBg.includes('080c')
                     return (
-                      <a
+                      <motion.a
                         key={s.key}
                         href={href === '#' ? undefined : href}
                         target="_blank"
                         rel="noopener noreferrer"
+                        initial={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1], delay: 0.91 + idx * 0.09 }}
                         className="shrink-0 flex items-center gap-2.5 px-4 py-3 rounded-full border active:scale-95 transition-all"
                         style={{ borderColor: s.borderColor, background: isDark ? 'rgba(255,255,255,0.06)' : '#fff', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
                       >
@@ -1104,12 +1125,12 @@ export default function GuestPage() {
                           <span style={{ color: s.key === 'snapchat' ? '#111' : '#fff' }}>{s.icon}</span>
                         </div>
                         <span className="text-base font-semibold whitespace-nowrap" style={{ color: s.textColor }}>{s.label}</span>
-                      </a>
+                      </motion.a>
                     )
                   })}
                 </div>
               )}
-            </div>
+            </motion.div>
           )}
         </>
       )}

@@ -4,7 +4,17 @@ import { useRouter } from 'next/navigation'
 import { ArrowLeft, Search, Filter, RefreshCw, ChevronDown, ChevronUp, Clock, Shield } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
+import { motion, AnimatePresence, type Variants } from 'framer-motion'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
+
+const CONTAINER: Variants = {
+  hidden: {},
+  show:   { transition: { staggerChildren: 0.06 } },
+}
+const ITEM: Variants = {
+  hidden: { opacity: 0, y: 16 },
+  show:   { opacity: 1, y: 0, transition: { duration: 0.38, ease: 'circOut' as const } },
+}
 import { usePermissions } from '@/lib/permissions/PermissionsContext'
 import { getStaffHome } from '@/lib/permissions/staffHome'
 import type { AuditAction } from '@/lib/logAudit'
@@ -84,7 +94,8 @@ function LogRow({ log, formatPrice }: { log: AuditLog; formatPrice: (n: number) 
   const cfg = ACTION_CONFIG[log.action] ?? { label: log.action, color: 'text-white/50', bg: 'bg-white/5 border-white/10', dot: 'bg-white/40' }
 
   return (
-    <div
+    <motion.div
+      variants={ITEM}
       className={cn(
         'border border-white/8 rounded-2xl transition-all duration-200',
         expanded ? 'bg-white/4' : 'bg-white/[0.02] hover:bg-white/3',
@@ -148,7 +159,7 @@ function LogRow({ log, formatPrice }: { log: AuditLog; formatPrice: (n: number) 
           )}
         </div>
       )}
-    </div>
+    </motion.div>
   )
 }
 
@@ -368,38 +379,62 @@ export default function AuditLogPage() {
       </div>
 
       {/* Content */}
-      <div className="px-4 py-4 max-w-3xl mx-auto space-y-6">
-        {loading ? (
-          <div className="space-y-2.5">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="h-16 rounded-2xl bg-white/4 animate-pulse" style={{ opacity: 1 - i * 0.12 }} />
-            ))}
-          </div>
-        ) : logs.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-24 gap-3">
-            <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/8 flex items-center justify-center">
-              <Clock className="w-6 h-6 text-white/20" />
-            </div>
-            <p className="text-sm text-white/30">No activity found</p>
-            <p className="text-xs text-white/20">Try changing the filters</p>
-          </div>
-        ) : (
-          Object.entries(grouped).map(([day, dayLogs]) => (
-            <div key={day}>
-              <p className="text-[11px] font-semibold text-white/30 uppercase tracking-widest mb-2.5 px-1">{day}</p>
-              <div className="space-y-2">
-                {dayLogs.map(log => (
-                  <LogRow key={log.id} log={log} formatPrice={formatPrice} />
-                ))}
+      <div className="px-4 py-4 max-w-3xl mx-auto">
+        <AnimatePresence mode="wait">
+          {loading ? (
+            <motion.div
+              key="loading"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.18 }}
+              className="space-y-2.5"
+            >
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="h-16 rounded-2xl bg-white/4 animate-pulse" style={{ opacity: 1 - i * 0.12 }} />
+              ))}
+            </motion.div>
+          ) : logs.length === 0 ? (
+            <motion.div
+              key="empty"
+              initial={{ opacity: 0, y: 18 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ delay: 0.05, duration: 0.38, ease: 'circOut' }}
+              className="flex flex-col items-center justify-center py-24 gap-3"
+            >
+              <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/8 flex items-center justify-center">
+                <Clock className="w-6 h-6 text-white/20" />
               </div>
-            </div>
-          ))
-        )}
+              <p className="text-sm text-white/30">No activity found</p>
+              <p className="text-xs text-white/20">Try changing the filters</p>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="content"
+              variants={CONTAINER}
+              initial="hidden"
+              animate="show"
+              className="space-y-6"
+            >
+              {Object.entries(grouped).map(([day, dayLogs]) => (
+                <motion.div key={day} variants={ITEM}>
+                  <p className="text-[11px] font-semibold text-white/30 uppercase tracking-widest mb-2.5 px-1">{day}</p>
+                  <motion.div variants={CONTAINER} initial="hidden" animate="show" className="space-y-2">
+                    {dayLogs.map(log => (
+                      <LogRow key={log.id} log={log} formatPrice={formatPrice} />
+                    ))}
+                  </motion.div>
+                </motion.div>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Load more */}
         {!loading && hasMore && (
           <button onClick={loadMore} disabled={loadingMore}
-            className="w-full py-3 rounded-2xl bg-white/5 border border-white/8 text-sm text-white/40 hover:text-white/70 hover:bg-white/8 transition-all active:scale-95 disabled:opacity-40">
+            className="w-full py-3 mt-6 rounded-2xl bg-white/5 border border-white/8 text-sm text-white/40 hover:text-white/70 hover:bg-white/8 transition-all active:scale-95 disabled:opacity-40">
             {loadingMore ? 'Loading…' : 'Load more'}
           </button>
         )}

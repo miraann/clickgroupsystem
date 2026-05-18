@@ -10,11 +10,18 @@ import { createClient } from '@/lib/supabase/client'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import type { Customer } from './types'
 import { CustomerModal } from './CustomerModal'
-import { motion, type Variants } from 'framer-motion'
+import { motion, AnimatePresence, type Variants } from 'framer-motion'
 
-const PAGE: Variants = {
-  hidden: { opacity: 0, y: 20 },
-  show:   { opacity: 1, y: 0, transition: { duration: 0.22, ease: 'circOut' as const } },
+const CONTAINER: Variants = {
+  hidden: {},
+  show:   { transition: { staggerChildren: 0.07 } },
+}
+const ITEM: Variants = {
+  hidden: { opacity: 0, y: 18 },
+  show:   { opacity: 1, y: 0, transition: { duration: 0.42, ease: 'circOut' as const } },
+}
+function Skel({ className }: { className?: string }) {
+  return <div className={cn('animate-pulse rounded-xl bg-white/8', className)} />
 }
 
 export default function CustomerPage() {
@@ -109,10 +116,15 @@ export default function CustomerPage() {
   )
 
   return (
-    <motion.div variants={PAGE} initial="hidden" animate="show" className="max-w-4xl">
+    <div className="max-w-4xl">
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-5">
+      <motion.div
+        initial={{ opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.05, duration: 0.42, ease: 'circOut' }}
+        className="flex items-center justify-between mb-5"
+      >
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-violet-500/15 flex items-center justify-center">
             <UserCircle className="w-5 h-5 text-violet-400" />
@@ -126,30 +138,38 @@ export default function CustomerPage() {
         <button onClick={() => { setEditCustomer(null); setShowModal(true) }} className="flex items-center gap-2 px-4 py-2 bg-violet-500 hover:bg-violet-600 text-white text-sm font-medium rounded-xl active:scale-95 transition-all">
           <Plus className="w-4 h-4" /> {t.cust_add}
         </button>
-      </div>
+      </motion.div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
-        <div className="p-3 rounded-2xl bg-white/4 border border-white/8">
+      <motion.div
+        variants={CONTAINER} initial="hidden" animate="show"
+        className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5"
+      >
+        <motion.div variants={ITEM} className="p-3 rounded-2xl bg-white/4 border border-white/8">
           <p className="text-xs text-white/40">Total</p>
           <p className="text-xl font-bold text-white mt-0.5">{customers.length}</p>
-        </div>
-        <div className="p-3 rounded-2xl bg-white/4 border border-white/8">
+        </motion.div>
+        <motion.div variants={ITEM} className="p-3 rounded-2xl bg-white/4 border border-white/8">
           <p className="text-xs text-white/40">Active</p>
           <p className="text-xl font-bold text-emerald-400 mt-0.5">{customers.filter(c => c.status === 'active').length}</p>
-        </div>
-        <div className="p-3 rounded-2xl bg-white/4 border border-white/8">
+        </motion.div>
+        <motion.div variants={ITEM} className="p-3 rounded-2xl bg-white/4 border border-white/8">
           <p className="text-xs text-white/40">Total Visits</p>
           <p className="text-xl font-bold text-white mt-0.5">{customers.reduce((s, c) => s + c.visit_count, 0)}</p>
-        </div>
-        <div className="p-3 rounded-2xl bg-white/4 border border-white/8">
+        </motion.div>
+        <motion.div variants={ITEM} className="p-3 rounded-2xl bg-white/4 border border-white/8">
           <p className="text-xs text-white/40">Blacklisted</p>
           <p className="text-xl font-bold text-rose-400 mt-0.5">{blacklistedCount}</p>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-2 mb-4">
+      <motion.div
+        initial={{ opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.21, duration: 0.42, ease: 'circOut' }}
+        className="flex flex-wrap gap-2 mb-4"
+      >
         <div className="flex-1 min-w-48 relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/25" />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t.search}
@@ -173,76 +193,117 @@ export default function CustomerPage() {
             </button>
           )}
         </div>
-      </div>
+      </motion.div>
 
       {/* List */}
-      {filtered.length === 0 ? (
-        <div className="text-center py-16 text-white/25 text-sm">{t.cust_no_data}</div>
-      ) : (
-        <div className="rounded-2xl border border-white/8 overflow-hidden">
-          <div className="grid grid-cols-[1fr_auto_auto_auto_auto_auto_auto] gap-px bg-white/5 px-4 py-2.5 text-[11px] font-semibold text-white/30 uppercase tracking-wider">
-            <button onClick={() => toggleSort('name')} className="flex items-center gap-1 hover:text-white/60 transition-colors text-left">
-              {t.cust_name} <SortIcon col="name" />
-            </button>
-            <span className="text-center px-3">{t.cust_note}</span>
-            <button onClick={() => toggleSort('visit_count')} className="flex items-center gap-1 justify-end hover:text-white/60 transition-colors px-3">
-              {t.cust_total_orders} <SortIcon col="visit_count" />
-            </button>
-            <span className="text-center px-2">Block</span>
-            <span className="text-center px-2">Status</span>
-            <span></span>
-            <span></span>
-          </div>
-
-          <div className="divide-y divide-white/5">
-            {filtered.map(c => (
-              <div key={c.id} className={cn('grid grid-cols-[1fr_auto_auto_auto_auto_auto_auto] gap-px items-center px-4 py-3 hover:bg-white/5 transition-colors', c.blacklisted ? 'bg-rose-500/5' : 'bg-white/[0.02]')}>
-
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-semibold text-white truncate">{c.name}</p>
-                    {c.blacklisted && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-rose-500/20 text-rose-400 font-semibold shrink-0">Blocked</span>}
+      <AnimatePresence mode="wait">
+        {loading ? (
+          <motion.div
+            key="skeleton"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            className="space-y-2"
+          >
+            {Array.from({ length: 5 }).map((_, i) => <Skel key={i} className="h-14" />)}
+          </motion.div>
+        ) : (
+          <motion.div
+            key="content"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+          >
+            <AnimatePresence mode="wait">
+              {filtered.length === 0 ? (
+                <motion.div
+                  key="empty"
+                  initial={{ opacity: 0, y: 18 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ delay: 0.1, duration: 0.42, ease: 'circOut' }}
+                  className="text-center py-16 text-white/25 text-sm"
+                >
+                  {t.cust_no_data}
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="list"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.18 }}
+                  className="rounded-2xl border border-white/8 overflow-hidden"
+                >
+                  <div className="grid grid-cols-[1fr_auto_auto_auto_auto_auto_auto] gap-px bg-white/5 px-4 py-2.5 text-[11px] font-semibold text-white/30 uppercase tracking-wider">
+                    <button onClick={() => toggleSort('name')} className="flex items-center gap-1 hover:text-white/60 transition-colors text-left">
+                      {t.cust_name} <SortIcon col="name" />
+                    </button>
+                    <span className="text-center px-3">{t.cust_note}</span>
+                    <button onClick={() => toggleSort('visit_count')} className="flex items-center gap-1 justify-end hover:text-white/60 transition-colors px-3">
+                      {t.cust_total_orders} <SortIcon col="visit_count" />
+                    </button>
+                    <span className="text-center px-2">Block</span>
+                    <span className="text-center px-2">Status</span>
+                    <span></span>
+                    <span></span>
                   </div>
-                  <div className="flex items-center gap-3 mt-0.5">
-                    {c.phone && <span className="flex items-center gap-1 text-[11px] text-white/35"><Phone className="w-2.5 h-2.5" />{c.phone}</span>}
-                    {c.email && <span className="flex items-center gap-1 text-[11px] text-white/35"><Mail className="w-2.5 h-2.5" />{c.email}</span>}
-                  </div>
-                </div>
 
-                <div className="flex gap-1 flex-wrap mx-3 max-w-[140px]">
-                  {(c.tags ?? []).map(tag => (
-                    <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded-full bg-violet-500/15 text-violet-400 font-medium">{tag}</span>
-                  ))}
-                </div>
+                  <motion.div variants={CONTAINER} initial="hidden" animate="show" className="divide-y divide-white/5">
+                    {filtered.map(c => (
+                      <motion.div key={c.id} variants={ITEM} className={cn('grid grid-cols-[1fr_auto_auto_auto_auto_auto_auto] gap-px items-center px-4 py-3 hover:bg-white/5 transition-colors', c.blacklisted ? 'bg-rose-500/5' : 'bg-white/[0.02]')}>
 
-                <div className="text-center mx-3">
-                  <p className="text-sm font-bold text-white">{c.visit_count}</p>
-                  <p className="text-[10px] text-white/30">visits</p>
-                </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-semibold text-white truncate">{c.name}</p>
+                            {c.blacklisted && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-rose-500/20 text-rose-400 font-semibold shrink-0">Blocked</span>}
+                          </div>
+                          <div className="flex items-center gap-3 mt-0.5">
+                            {c.phone && <span className="flex items-center gap-1 text-[11px] text-white/35"><Phone className="w-2.5 h-2.5" />{c.phone}</span>}
+                            {c.email && <span className="flex items-center gap-1 text-[11px] text-white/35"><Mail className="w-2.5 h-2.5" />{c.email}</span>}
+                          </div>
+                        </div>
 
-                <button onClick={() => toggleBlacklist(c)} title={c.blacklisted ? 'Remove from blacklist' : 'Add to blacklist'}
-                  className={cn('w-8 h-8 rounded-lg flex items-center justify-center transition-all active:scale-95 mx-1', c.blacklisted ? 'bg-rose-500/20 text-rose-400' : 'bg-white/5 hover:bg-rose-500/10 text-white/30 hover:text-rose-400')}>
-                  <Ban className="w-3.5 h-3.5" />
-                </button>
+                        <div className="flex gap-1 flex-wrap mx-3 max-w-[140px]">
+                          {(c.tags ?? []).map(tag => (
+                            <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded-full bg-violet-500/15 text-violet-400 font-medium">{tag}</span>
+                          ))}
+                        </div>
 
-                <button onClick={() => toggleStatus(c)} className={cn('mx-1 transition-all active:scale-95', c.status === 'active' ? 'text-emerald-400' : 'text-white/25')}>
-                  {c.status === 'active' ? <ToggleRight className="w-6 h-6" /> : <ToggleLeft className="w-6 h-6" />}
-                </button>
+                        <div className="text-center mx-3">
+                          <p className="text-sm font-bold text-white">{c.visit_count}</p>
+                          <p className="text-[10px] text-white/30">visits</p>
+                        </div>
 
-                <button onClick={() => { setEditCustomer(c); setShowModal(true) }} className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/40 hover:text-white transition-all active:scale-95">
-                  <Pencil className="w-3.5 h-3.5" />
-                </button>
+                        <button onClick={() => toggleBlacklist(c)} title={c.blacklisted ? 'Remove from blacklist' : 'Add to blacklist'}
+                          className={cn('w-8 h-8 rounded-lg flex items-center justify-center transition-all active:scale-95 mx-1', c.blacklisted ? 'bg-rose-500/20 text-rose-400' : 'bg-white/5 hover:bg-rose-500/10 text-white/30 hover:text-rose-400')}>
+                          <Ban className="w-3.5 h-3.5" />
+                        </button>
 
-                <button onClick={() => handleDelete(c.id)}
-                  className={cn('h-8 rounded-lg flex items-center justify-center transition-all active:scale-95 text-xs font-medium',
-                    deleteId === c.id ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30 px-2' : 'w-8 bg-white/5 hover:bg-rose-500/10 text-white/40 hover:text-rose-400')}>
-                  {deleteId === c.id ? 'Confirm?' : <Trash2 className="w-3.5 h-3.5" />}
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+                        <button onClick={() => toggleStatus(c)} className={cn('mx-1 transition-all active:scale-95', c.status === 'active' ? 'text-emerald-400' : 'text-white/25')}>
+                          {c.status === 'active' ? <ToggleRight className="w-6 h-6" /> : <ToggleLeft className="w-6 h-6" />}
+                        </button>
+
+                        <button onClick={() => { setEditCustomer(c); setShowModal(true) }} className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/40 hover:text-white transition-all active:scale-95">
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+
+                        <button onClick={() => handleDelete(c.id)}
+                          className={cn('h-8 rounded-lg flex items-center justify-center transition-all active:scale-95 text-xs font-medium',
+                            deleteId === c.id ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30 px-2' : 'w-8 bg-white/5 hover:bg-rose-500/10 text-white/40 hover:text-rose-400')}>
+                          {deleteId === c.id ? 'Confirm?' : <Trash2 className="w-3.5 h-3.5" />}
+                        </button>
+                      </motion.div>
+                    ))}
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {showModal && restaurantId && (
         <CustomerModal
@@ -257,6 +318,6 @@ export default function CustomerPage() {
           }}
         />
       )}
-    </motion.div>
+    </div>
   )
 }

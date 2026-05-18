@@ -6,11 +6,15 @@ import { logAudit } from '@/lib/logAudit'
 import { useInventoryData, type CachedInvCategory, type CachedInvUnit, type CachedInvItem } from '@/hooks/useInventoryData'
 import { cn } from '@/lib/utils'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
-import { motion, type Variants } from 'framer-motion'
+import { motion, AnimatePresence, type Variants } from 'framer-motion'
 
-const PAGE: Variants = {
-  hidden: { opacity: 0, y: 20 },
-  show:   { opacity: 1, y: 0, transition: { duration: 0.22, ease: 'circOut' as const } },
+const CONTAINER: Variants = {
+  hidden: {},
+  show:   { transition: { staggerChildren: 0.07 } },
+}
+const ITEM: Variants = {
+  hidden: { opacity: 0, y: 18 },
+  show:   { opacity: 1, y: 0, transition: { duration: 0.42, ease: 'circOut' as const } },
 }
 import {
   Package, Plus, Pencil, Trash2, X, Loader2, Check,
@@ -253,10 +257,12 @@ export default function InventoryPage() {
   const okCount   = items.filter(i => i.current_stock > i.min_stock).length
 
   return (
-    <motion.div variants={PAGE} initial="hidden" animate="show" className="max-w-4xl mx-auto">
+    <div className="max-w-4xl mx-auto">
 
       {/* Page header */}
-      <div className="flex items-center justify-between mb-6">
+      <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.42, ease: 'circOut', delay: 0.05 }}
+        className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-emerald-500/15 flex items-center justify-center">
             <Package className="w-5 h-5 text-emerald-400" />
@@ -270,10 +276,12 @@ export default function InventoryPage() {
             {enabled ? 'Active' : 'Inactive'}
           </span>
         </div>
-      </div>
+      </motion.div>
 
       {/* Tab bar */}
-      <div className="flex gap-1 mb-6 p-1 rounded-2xl bg-white/4 border border-white/8 w-fit">
+      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.42, ease: 'circOut', delay: 0.12 }}
+        className="flex gap-1 mb-6 p-1 rounded-2xl bg-white/4 border border-white/8 w-fit">
         {([
           { key: 'settings',   label: 'Settings',   icon: <Settings   className="w-4 h-4" /> },
           { key: 'items',      label: 'Items',       icon: <Archive    className="w-4 h-4" /> },
@@ -289,311 +297,344 @@ export default function InventoryPage() {
             )}
           </button>
         ))}
-      </div>
+      </motion.div>
 
-      {/* ══ SETTINGS TAB ══ */}
-      {tab === 'settings' && (
-        <div className="space-y-5">
+      {/* Tab content */}
+      <AnimatePresence mode="wait">
+        {loading ? (
+          <motion.div key="loading" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+            transition={{ duration: 0.3, ease: 'circOut' }} className="space-y-3">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="h-[72px] rounded-2xl bg-white/5 border border-white/8 animate-pulse" />
+            ))}
+          </motion.div>
+        ) : (
+          <motion.div key={tab}
+            initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10, transition: { duration: 0.15 } }}
+            transition={{ duration: 0.38, ease: 'circOut' }}>
 
-          {/* Master toggle card */}
-          <div className={cn('p-5 rounded-2xl border transition-all', enabled
-            ? 'bg-emerald-500/8 border-emerald-500/25'
-            : 'bg-white/3 border-white/8')}>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center',
-                  enabled ? 'bg-emerald-500/20' : 'bg-white/8')}>
-                  <Package className={cn('w-5 h-5', enabled ? 'text-emerald-400' : 'text-white/30')} />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-white">Inventory Module</p>
-                  <p className="text-xs text-white/40">Enable stock tracking for ingredients and supplies</p>
-                </div>
-              </div>
-              <button onClick={() => setEnabled(e => !e)} className="active:scale-95 shrink-0">
-                {enabled ? <ToggleRight className="w-8 h-8 text-emerald-400" /> : <ToggleLeft className="w-8 h-8 text-white/25" />}
-              </button>
-            </div>
-          </div>
+            {/* ══ SETTINGS TAB ══ */}
+            {tab === 'settings' && (
+              <motion.div variants={CONTAINER} initial="hidden" animate="show" className="space-y-5">
 
-          {/* Sub-settings */}
-          <div className={cn('rounded-2xl border divide-y divide-white/5 overflow-hidden transition-all',
-            enabled ? 'bg-white/3 border-white/8' : 'bg-white/2 border-white/5 opacity-40 pointer-events-none')}>
-
-            {/* Show on dashboard */}
-            <div className="flex items-center justify-between px-5 py-4">
-              <div>
-                <p className="text-sm font-medium text-white">Show on Dashboard</p>
-                <p className="text-xs text-white/35 mt-0.5">Display Inventory shortcut in the dashboard bottom bar</p>
-              </div>
-              <button onClick={() => setShowOnDash(v => !v)} className="active:scale-95 shrink-0">
-                {showOnDash ? <ToggleRight className="w-6 h-6 text-emerald-400" /> : <ToggleLeft className="w-6 h-6 text-white/25" />}
-              </button>
-            </div>
-
-            {/* Auto deduct */}
-            <div className="flex items-center justify-between px-5 py-4">
-              <div>
-                <p className="text-sm font-medium text-white">Auto-Deduct on Sale</p>
-                <p className="text-xs text-white/35 mt-0.5">Automatically reduce stock when a menu item is sold</p>
-              </div>
-              <button onClick={() => setAutoDeduct(v => !v)} className="active:scale-95 shrink-0">
-                {autoDeduct ? <ToggleRight className="w-6 h-6 text-emerald-400" /> : <ToggleLeft className="w-6 h-6 text-white/25" />}
-              </button>
-            </div>
-
-            {/* Low stock threshold */}
-            <div className="flex items-center justify-between px-5 py-4">
-              <div>
-                <p className="text-sm font-medium text-white">Low Stock Alert Threshold</p>
-                <p className="text-xs text-white/35 mt-0.5">Warn when stock falls at or below this quantity</p>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <button onClick={() => setLowThreshold(v => Math.max(0, v - 1))}
-                  className="w-7 h-7 rounded-lg bg-white/8 hover:bg-white/12 text-white/60 flex items-center justify-center text-lg active:scale-95">−</button>
-                <span className="w-10 text-center text-sm font-bold text-white">{lowThreshold}</span>
-                <button onClick={() => setLowThreshold(v => v + 1)}
-                  className="w-7 h-7 rounded-lg bg-white/8 hover:bg-white/12 text-white/60 flex items-center justify-center text-lg active:scale-95">+</button>
-              </div>
-            </div>
-          </div>
-
-          {/* Stock summary */}
-          {enabled && items.length > 0 && (
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                { label: t.inv_in_stock,    count: okCount,  color: 'emerald', icon: <ShoppingCart className="w-4 h-4" /> },
-                { label: t.inv_low_stock,   count: lowCount, color: 'amber',   icon: <TrendingDown className="w-4 h-4" /> },
-                { label: t.inv_out_of_stock,count: outCount, color: 'rose',    icon: <AlertTriangle className="w-4 h-4" /> },
-              ].map(({ label, count, color, icon }) => (
-                <div key={label} className={`p-4 rounded-2xl border bg-${color}-500/8 border-${color}-500/20`}>
-                  <div className={`text-${color}-400 mb-2`}>{icon}</div>
-                  <p className="text-2xl font-black text-white">{count}</p>
-                  <p className="text-xs text-white/40 mt-0.5">{label}</p>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Save button */}
-          <button onClick={saveSettings} disabled={flagSaving}
-            className="flex items-center gap-2 px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-sm font-semibold rounded-xl active:scale-95 transition-all shadow-lg shadow-emerald-500/20">
-            {flagSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : flagSaved ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
-            {flagSaved ? 'Saved!' : 'Save Settings'}
-          </button>
-        </div>
-      )}
-
-      {/* ══ ITEMS TAB ══ */}
-      {tab === 'items' && (
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-emerald-500/15 flex items-center justify-center">
-                <Archive className="w-5 h-5 text-emerald-400" />
-              </div>
-              <div>
-                <h2 className="text-base font-semibold text-white">Inventory Items</h2>
-                <p className="text-xs text-white/40">Ingredients, supplies and stock items</p>
-              </div>
-              <span className="px-2 py-0.5 rounded-full bg-white/8 text-xs text-white/50">{items.length}</span>
-            </div>
-            <button onClick={openItemAdd}
-              className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-medium rounded-xl active:scale-95 transition-all">
-              <Plus className="w-4 h-4" /> Add Item
-            </button>
-          </div>
-
-          {/* Search */}
-          {items.length > 0 && (
-            <input value={itemSearch} onChange={e => setItemSearch(e.target.value)}
-              placeholder="Search by name or SKU…"
-              className="w-full mb-4 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-emerald-500/50 transition-colors" />
-          )}
-
-          {/* Items list */}
-          {filteredItems.length === 0 ? (
-            <div className="text-center py-20 text-white/25">
-              <Archive className="w-12 h-12 mx-auto mb-3 opacity-20" />
-              <p className="text-sm font-medium">{items.length === 0 ? 'No items yet' : 'No results'}</p>
-              <p className="text-xs mt-1">Add ingredients, supplies and stock items</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {filteredItems.map(it => {
-                const cat  = categories.find(c => c.id === it.category_id)
-                const unit = units.find(u => u.id === it.unit_id)
-                return (
-                  <div key={it.id} className={cn('flex items-center gap-4 p-4 rounded-2xl border transition-all',
-                    it.active ? 'bg-white/5 border-white/10' : 'bg-white/2 border-white/5 opacity-50')}>
-
-                    {/* Icon */}
-                    <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/20 flex items-center justify-center shrink-0">
-                      <Package className="w-4 h-4 text-emerald-400" />
-                    </div>
-
-                    {/* Info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="text-sm font-semibold text-white truncate">{it.name}</p>
-                        {it.sku && <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/8 text-white/35 font-mono">{it.sku}</span>}
-                        <StockBadge current={it.current_stock} min={it.min_stock} labels={{ outOfStock: t.inv_out_of_stock, lowStock: t.inv_low_stock, inStock: t.inv_in_stock }} />
+                {/* Master toggle card */}
+                <motion.div variants={ITEM} className={cn('p-5 rounded-2xl border transition-all', enabled
+                  ? 'bg-emerald-500/8 border-emerald-500/25'
+                  : 'bg-white/3 border-white/8')}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center',
+                        enabled ? 'bg-emerald-500/20' : 'bg-white/8')}>
+                        <Package className={cn('w-5 h-5', enabled ? 'text-emerald-400' : 'text-white/30')} />
                       </div>
-                      <div className="flex items-center gap-3 mt-1 flex-wrap">
-                        <span className="text-xs text-white/40">
-                          <span className="font-semibold text-white/70">{it.current_stock}</span>
-                          {unit ? ` ${unit.abbreviation}` : ''} in stock
-                        </span>
-                        <span className="text-xs text-white/25">min {it.min_stock}{unit ? ` ${unit.abbreviation}` : ''}</span>
-                        {cat && (
-                          <span className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-medium"
-                            style={{ backgroundColor: cat.color + '22', color: cat.color }}>
-                            <Tag className="w-2.5 h-2.5" />{cat.name}
-                          </span>
-                        )}
+                      <div>
+                        <p className="text-sm font-semibold text-white">Inventory Module</p>
+                        <p className="text-xs text-white/40">Enable stock tracking for ingredients and supplies</p>
                       </div>
                     </div>
-
-                    {/* Actions */}
-                    <button onClick={() => toggleItem(it)} className="active:scale-95 shrink-0">
-                      {it.active ? <ToggleRight className="w-6 h-6 text-emerald-400" /> : <ToggleLeft className="w-6 h-6 text-white/25" />}
-                    </button>
-                    <button onClick={() => openItemEdit(it)}
-                      className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/40 hover:text-white transition-all active:scale-95 shrink-0">
-                      <Pencil className="w-3.5 h-3.5" />
-                    </button>
-                    <button onClick={() => deleteItem(it.id)}
-                      className={cn('h-8 rounded-lg flex items-center justify-center transition-all active:scale-95 text-xs font-medium shrink-0',
-                        itemDelId === it.id ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30 px-2' : 'w-8 bg-white/5 hover:bg-rose-500/10 text-white/40 hover:text-rose-400')}>
-                      {itemDelId === it.id ? 'Confirm?' : <Trash2 className="w-3.5 h-3.5" />}
+                    <button onClick={() => setEnabled(e => !e)} className="active:scale-95 shrink-0">
+                      {enabled ? <ToggleRight className="w-8 h-8 text-emerald-400" /> : <ToggleLeft className="w-8 h-8 text-white/25" />}
                     </button>
                   </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
-      )}
+                </motion.div>
 
-      {/* ══ CATEGORIES TAB ══ */}
-      {tab === 'categories' && (
-        <div>
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-purple-500/15 flex items-center justify-center">
-                <Tag className="w-5 h-5 text-purple-400" />
-              </div>
-              <div>
-                <h2 className="text-base font-semibold text-white">Categories</h2>
-                <p className="text-xs text-white/40">Group inventory items by type</p>
-              </div>
-              <span className="px-2 py-0.5 rounded-full bg-white/8 text-xs text-white/50">{categories.length}</span>
-            </div>
-            <button onClick={openCatAdd}
-              className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-medium rounded-xl active:scale-95 transition-all">
-              <Plus className="w-4 h-4" /> Add Category
-            </button>
-          </div>
+                {/* Sub-settings */}
+                <motion.div variants={ITEM} className={cn('rounded-2xl border divide-y divide-white/5 overflow-hidden transition-all',
+                  enabled ? 'bg-white/3 border-white/8' : 'bg-white/2 border-white/5 opacity-40 pointer-events-none')}>
+                  <div className="flex items-center justify-between px-5 py-4">
+                    <div>
+                      <p className="text-sm font-medium text-white">Show on Dashboard</p>
+                      <p className="text-xs text-white/35 mt-0.5">Display Inventory shortcut in the dashboard bottom bar</p>
+                    </div>
+                    <button onClick={() => setShowOnDash(v => !v)} className="active:scale-95 shrink-0">
+                      {showOnDash ? <ToggleRight className="w-6 h-6 text-emerald-400" /> : <ToggleLeft className="w-6 h-6 text-white/25" />}
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between px-5 py-4">
+                    <div>
+                      <p className="text-sm font-medium text-white">Auto-Deduct on Sale</p>
+                      <p className="text-xs text-white/35 mt-0.5">Automatically reduce stock when a menu item is sold</p>
+                    </div>
+                    <button onClick={() => setAutoDeduct(v => !v)} className="active:scale-95 shrink-0">
+                      {autoDeduct ? <ToggleRight className="w-6 h-6 text-emerald-400" /> : <ToggleLeft className="w-6 h-6 text-white/25" />}
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between px-5 py-4">
+                    <div>
+                      <p className="text-sm font-medium text-white">Low Stock Alert Threshold</p>
+                      <p className="text-xs text-white/35 mt-0.5">Warn when stock falls at or below this quantity</p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button onClick={() => setLowThreshold(v => Math.max(0, v - 1))}
+                        className="w-7 h-7 rounded-lg bg-white/8 hover:bg-white/12 text-white/60 flex items-center justify-center text-lg active:scale-95">−</button>
+                      <span className="w-10 text-center text-sm font-bold text-white">{lowThreshold}</span>
+                      <button onClick={() => setLowThreshold(v => v + 1)}
+                        className="w-7 h-7 rounded-lg bg-white/8 hover:bg-white/12 text-white/60 flex items-center justify-center text-lg active:scale-95">+</button>
+                    </div>
+                  </div>
+                </motion.div>
 
-          {categories.length === 0 ? (
-            <div className="text-center py-20 text-white/25">
-              <Tag className="w-12 h-12 mx-auto mb-3 opacity-20" />
-              <p className="text-sm font-medium">No categories yet</p>
-              <p className="text-xs mt-1">Add categories like "Beverages", "Produce", "Dairy"…</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {categories.map(c => (
-                <div key={c.id} className="flex items-center gap-4 p-4 rounded-2xl bg-white/5 border border-white/10">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                    style={{ backgroundColor: c.color + '22', border: `1.5px solid ${c.color}55` }}>
-                    <Tag className="w-4 h-4" style={{ color: c.color }} />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold text-white">{c.name}</p>
-                    <p className="text-xs text-white/35 mt-0.5">
-                      {items.filter(i => i.category_id === c.id).length} items
-                    </p>
-                  </div>
-                  <div className="w-4 h-4 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
-                  <button onClick={() => openCatEdit(c)}
-                    className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/40 hover:text-white transition-all active:scale-95 shrink-0">
-                    <Pencil className="w-3.5 h-3.5" />
+                {/* Stock summary */}
+                {enabled && items.length > 0 && (
+                  <motion.div variants={ITEM} className="grid grid-cols-3 gap-3">
+                    {[
+                      { label: t.inv_in_stock,     count: okCount,  color: 'emerald', icon: <ShoppingCart className="w-4 h-4" /> },
+                      { label: t.inv_low_stock,    count: lowCount, color: 'amber',   icon: <TrendingDown className="w-4 h-4" /> },
+                      { label: t.inv_out_of_stock, count: outCount, color: 'rose',    icon: <AlertTriangle className="w-4 h-4" /> },
+                    ].map(({ label, count, color, icon }) => (
+                      <div key={label} className={`p-4 rounded-2xl border bg-${color}-500/8 border-${color}-500/20`}>
+                        <div className={`text-${color}-400 mb-2`}>{icon}</div>
+                        <p className="text-2xl font-black text-white">{count}</p>
+                        <p className="text-xs text-white/40 mt-0.5">{label}</p>
+                      </div>
+                    ))}
+                  </motion.div>
+                )}
+
+                {/* Save button */}
+                <motion.div variants={ITEM}>
+                  <button onClick={saveSettings} disabled={flagSaving}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-sm font-semibold rounded-xl active:scale-95 transition-all shadow-lg shadow-emerald-500/20">
+                    {flagSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : flagSaved ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
+                    {flagSaved ? 'Saved!' : 'Save Settings'}
                   </button>
-                  <button onClick={() => deleteCat(c.id)}
-                    className={cn('h-8 rounded-lg flex items-center justify-center transition-all active:scale-95 text-xs font-medium shrink-0',
-                      catDelId === c.id ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30 px-2' : 'w-8 bg-white/5 hover:bg-rose-500/10 text-white/40 hover:text-rose-400')}>
-                    {catDelId === c.id ? 'Confirm?' : <Trash2 className="w-3.5 h-3.5" />}
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+                </motion.div>
 
-      {/* ══ UNITS TAB ══ */}
-      {tab === 'units' && (
-        <div>
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-blue-500/15 flex items-center justify-center">
-                <Ruler className="w-5 h-5 text-blue-400" />
-              </div>
+              </motion.div>
+            )}
+
+            {/* ══ ITEMS TAB ══ */}
+            {tab === 'items' && (
               <div>
-                <h2 className="text-base font-semibold text-white">Units of Measurement</h2>
-                <p className="text-xs text-white/40">kg, g, L, mL, pieces…</p>
-              </div>
-              <span className="px-2 py-0.5 rounded-full bg-white/8 text-xs text-white/50">{units.length}</span>
-            </div>
-            <div className="flex gap-2">
-              {units.length === 0 && (
-                <button onClick={seedUnits}
-                  className="flex items-center gap-2 px-4 py-2 bg-white/8 hover:bg-white/12 text-white/70 text-sm font-medium rounded-xl active:scale-95 transition-all">
-                  Import Defaults
-                </button>
-              )}
-              <button onClick={openUnitAdd}
-                className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-medium rounded-xl active:scale-95 transition-all">
-                <Plus className="w-4 h-4" /> Add Unit
-              </button>
-            </div>
-          </div>
+                <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.42, ease: 'circOut' }}
+                  className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-emerald-500/15 flex items-center justify-center">
+                      <Archive className="w-5 h-5 text-emerald-400" />
+                    </div>
+                    <div>
+                      <h2 className="text-base font-semibold text-white">Inventory Items</h2>
+                      <p className="text-xs text-white/40">Ingredients, supplies and stock items</p>
+                    </div>
+                    <span className="px-2 py-0.5 rounded-full bg-white/8 text-xs text-white/50">{items.length}</span>
+                  </div>
+                  <button onClick={openItemAdd}
+                    className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-medium rounded-xl active:scale-95 transition-all">
+                    <Plus className="w-4 h-4" /> Add Item
+                  </button>
+                </motion.div>
 
-          {units.length === 0 ? (
-            <div className="text-center py-20 text-white/25">
-              <Ruler className="w-12 h-12 mx-auto mb-3 opacity-20" />
-              <p className="text-sm font-medium">No units yet</p>
-              <p className="text-xs mt-1">Click "Import Defaults" for kg, g, L, mL, pieces…</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {units.map(u => (
-                <div key={u.id} className="flex items-center gap-3 p-4 rounded-2xl bg-white/5 border border-white/10">
-                  <div className="w-10 h-10 rounded-xl bg-blue-500/15 border border-blue-500/20 flex items-center justify-center shrink-0">
-                    <span className="text-xs font-black text-blue-400">{u.abbreviation}</span>
+                {items.length > 0 && (
+                  <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.38, ease: 'circOut', delay: 0.07 }}>
+                    <input value={itemSearch} onChange={e => setItemSearch(e.target.value)}
+                      placeholder="Search by name or SKU…"
+                      className="w-full mb-4 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-emerald-500/50 transition-colors" />
+                  </motion.div>
+                )}
+
+                <AnimatePresence mode="wait">
+                  {filteredItems.length === 0 ? (
+                    <motion.div key="empty" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                      transition={{ duration: 0.3, ease: 'circOut' }}
+                      className="text-center py-20 text-white/25">
+                      <Archive className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                      <p className="text-sm font-medium">{items.length === 0 ? 'No items yet' : 'No results'}</p>
+                      <p className="text-xs mt-1">Add ingredients, supplies and stock items</p>
+                    </motion.div>
+                  ) : (
+                    <motion.div key="list" variants={CONTAINER} initial="hidden" animate="show" className="space-y-2">
+                      {filteredItems.map(it => {
+                        const cat  = categories.find(c => c.id === it.category_id)
+                        const unit = units.find(u => u.id === it.unit_id)
+                        return (
+                          <motion.div variants={ITEM} key={it.id}
+                            className={cn('flex items-center gap-4 p-4 rounded-2xl border transition-all',
+                              it.active ? 'bg-white/5 border-white/10' : 'bg-white/2 border-white/5 opacity-50')}>
+                            <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/20 flex items-center justify-center shrink-0">
+                              <Package className="w-4 h-4 text-emerald-400" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <p className="text-sm font-semibold text-white truncate">{it.name}</p>
+                                {it.sku && <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/8 text-white/35 font-mono">{it.sku}</span>}
+                                <StockBadge current={it.current_stock} min={it.min_stock} labels={{ outOfStock: t.inv_out_of_stock, lowStock: t.inv_low_stock, inStock: t.inv_in_stock }} />
+                              </div>
+                              <div className="flex items-center gap-3 mt-1 flex-wrap">
+                                <span className="text-xs text-white/40">
+                                  <span className="font-semibold text-white/70">{it.current_stock}</span>
+                                  {unit ? ` ${unit.abbreviation}` : ''} in stock
+                                </span>
+                                <span className="text-xs text-white/25">min {it.min_stock}{unit ? ` ${unit.abbreviation}` : ''}</span>
+                                {cat && (
+                                  <span className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-medium"
+                                    style={{ backgroundColor: cat.color + '22', color: cat.color }}>
+                                    <Tag className="w-2.5 h-2.5" />{cat.name}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <button onClick={() => toggleItem(it)} className="active:scale-95 shrink-0">
+                              {it.active ? <ToggleRight className="w-6 h-6 text-emerald-400" /> : <ToggleLeft className="w-6 h-6 text-white/25" />}
+                            </button>
+                            <button onClick={() => openItemEdit(it)}
+                              className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/40 hover:text-white transition-all active:scale-95 shrink-0">
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            <button onClick={() => deleteItem(it.id)}
+                              className={cn('h-8 rounded-lg flex items-center justify-center transition-all active:scale-95 text-xs font-medium shrink-0',
+                                itemDelId === it.id ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30 px-2' : 'w-8 bg-white/5 hover:bg-rose-500/10 text-white/40 hover:text-rose-400')}>
+                              {itemDelId === it.id ? 'Confirm?' : <Trash2 className="w-3.5 h-3.5" />}
+                            </button>
+                          </motion.div>
+                        )
+                      })}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            )}
+
+            {/* ══ CATEGORIES TAB ══ */}
+            {tab === 'categories' && (
+              <div>
+                <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.42, ease: 'circOut' }}
+                  className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-purple-500/15 flex items-center justify-center">
+                      <Tag className="w-5 h-5 text-purple-400" />
+                    </div>
+                    <div>
+                      <h2 className="text-base font-semibold text-white">Categories</h2>
+                      <p className="text-xs text-white/40">Group inventory items by type</p>
+                    </div>
+                    <span className="px-2 py-0.5 rounded-full bg-white/8 text-xs text-white/50">{categories.length}</span>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-white truncate">{u.name}</p>
-                    <p className="text-xs text-white/35">{u.abbreviation}</p>
+                  <button onClick={openCatAdd}
+                    className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-medium rounded-xl active:scale-95 transition-all">
+                    <Plus className="w-4 h-4" /> Add Category
+                  </button>
+                </motion.div>
+
+                <AnimatePresence mode="wait">
+                  {categories.length === 0 ? (
+                    <motion.div key="empty" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                      transition={{ duration: 0.3, ease: 'circOut' }}
+                      className="text-center py-20 text-white/25">
+                      <Tag className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                      <p className="text-sm font-medium">No categories yet</p>
+                      <p className="text-xs mt-1">Add categories like "Beverages", "Produce", "Dairy"…</p>
+                    </motion.div>
+                  ) : (
+                    <motion.div key="list" variants={CONTAINER} initial="hidden" animate="show" className="space-y-2">
+                      {categories.map(c => (
+                        <motion.div variants={ITEM} key={c.id}
+                          className="flex items-center gap-4 p-4 rounded-2xl bg-white/5 border border-white/10">
+                          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                            style={{ backgroundColor: c.color + '22', border: `1.5px solid ${c.color}55` }}>
+                            <Tag className="w-4 h-4" style={{ color: c.color }} />
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-sm font-semibold text-white">{c.name}</p>
+                            <p className="text-xs text-white/35 mt-0.5">
+                              {items.filter(i => i.category_id === c.id).length} items
+                            </p>
+                          </div>
+                          <div className="w-4 h-4 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
+                          <button onClick={() => openCatEdit(c)}
+                            className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/40 hover:text-white transition-all active:scale-95 shrink-0">
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button onClick={() => deleteCat(c.id)}
+                            className={cn('h-8 rounded-lg flex items-center justify-center transition-all active:scale-95 text-xs font-medium shrink-0',
+                              catDelId === c.id ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30 px-2' : 'w-8 bg-white/5 hover:bg-rose-500/10 text-white/40 hover:text-rose-400')}>
+                            {catDelId === c.id ? 'Confirm?' : <Trash2 className="w-3.5 h-3.5" />}
+                          </button>
+                        </motion.div>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            )}
+
+            {/* ══ UNITS TAB ══ */}
+            {tab === 'units' && (
+              <div>
+                <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.42, ease: 'circOut' }}
+                  className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-blue-500/15 flex items-center justify-center">
+                      <Ruler className="w-5 h-5 text-blue-400" />
+                    </div>
+                    <div>
+                      <h2 className="text-base font-semibold text-white">Units of Measurement</h2>
+                      <p className="text-xs text-white/40">kg, g, L, mL, pieces…</p>
+                    </div>
+                    <span className="px-2 py-0.5 rounded-full bg-white/8 text-xs text-white/50">{units.length}</span>
                   </div>
-                  <div className="flex gap-1 shrink-0">
-                    <button onClick={() => openUnitEdit(u)}
-                      className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/40 hover:text-white transition-all active:scale-95">
-                      <Pencil className="w-3 h-3" />
+                  <div className="flex gap-2">
+                    {units.length === 0 && (
+                      <button onClick={seedUnits}
+                        className="flex items-center gap-2 px-4 py-2 bg-white/8 hover:bg-white/12 text-white/70 text-sm font-medium rounded-xl active:scale-95 transition-all">
+                        Import Defaults
+                      </button>
+                    )}
+                    <button onClick={openUnitAdd}
+                      className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-medium rounded-xl active:scale-95 transition-all">
+                      <Plus className="w-4 h-4" /> Add Unit
                     </button>
-                    <button onClick={() => deleteUnit(u.id)}
-                      className={cn('h-7 rounded-lg flex items-center justify-center transition-all active:scale-95 text-[10px] font-medium',
-                        unitDelId === u.id ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30 px-1.5' : 'w-7 bg-white/5 hover:bg-rose-500/10 text-white/40 hover:text-rose-400')}>
-                      {unitDelId === u.id ? 'Del?' : <Trash2 className="w-3 h-3" />}
-                    </button>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+                </motion.div>
+
+                <AnimatePresence mode="wait">
+                  {units.length === 0 ? (
+                    <motion.div key="empty" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                      transition={{ duration: 0.3, ease: 'circOut' }}
+                      className="text-center py-20 text-white/25">
+                      <Ruler className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                      <p className="text-sm font-medium">No units yet</p>
+                      <p className="text-xs mt-1">Click "Import Defaults" for kg, g, L, mL, pieces…</p>
+                    </motion.div>
+                  ) : (
+                    <motion.div key="list" variants={CONTAINER} initial="hidden" animate="show"
+                      className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                      {units.map(u => (
+                        <motion.div variants={ITEM} key={u.id}
+                          className="flex items-center gap-3 p-4 rounded-2xl bg-white/5 border border-white/10">
+                          <div className="w-10 h-10 rounded-xl bg-blue-500/15 border border-blue-500/20 flex items-center justify-center shrink-0">
+                            <span className="text-xs font-black text-blue-400">{u.abbreviation}</span>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-white truncate">{u.name}</p>
+                            <p className="text-xs text-white/35">{u.abbreviation}</p>
+                          </div>
+                          <div className="flex gap-1 shrink-0">
+                            <button onClick={() => openUnitEdit(u)}
+                              className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/40 hover:text-white transition-all active:scale-95">
+                              <Pencil className="w-3 h-3" />
+                            </button>
+                            <button onClick={() => deleteUnit(u.id)}
+                              className={cn('h-7 rounded-lg flex items-center justify-center transition-all active:scale-95 text-[10px] font-medium',
+                                unitDelId === u.id ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30 px-1.5' : 'w-7 bg-white/5 hover:bg-rose-500/10 text-white/40 hover:text-rose-400')}>
+                              {unitDelId === u.id ? 'Del?' : <Trash2 className="w-3 h-3" />}
+                            </button>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            )}
+
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ══ CATEGORY MODAL ══ */}
       {catModal && (
@@ -764,6 +805,6 @@ export default function InventoryPage() {
         </div>
       )}
 
-    </motion.div>
+    </div>
   )
 }

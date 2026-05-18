@@ -1,4 +1,5 @@
-import useSWR from 'swr'
+import { useEffect } from 'react'
+import useSWR, { mutate as swrMutate } from 'swr'
 import { createClient } from '@/lib/supabase/client'
 
 type DeliveryStatus = 'pending' | 'confirmed' | 'preparing' | 'out_for_delivery' | 'delivered' | 'cancelled'
@@ -26,6 +27,8 @@ export interface CachedDeliveryOrder {
   created_at: string
   order_total: number
   order_num: string | null
+  driver_id: string | null
+  driver_name: string | null
   items: CachedDeliveryItem[]
 }
 
@@ -37,7 +40,7 @@ async function fetchDeliveryOrders(restaurantId: string): Promise<CachedDelivery
       .from('orders')
       .select(`
         id, total, order_num, created_at,
-        delivery_orders ( id, customer_name, customer_phone, latitude, longitude, address_text, delivery_fee, status ),
+        delivery_orders ( id, customer_name, customer_phone, latitude, longitude, address_text, delivery_fee, status, driver_id, driver_name ),
         order_items ( id, item_name, item_price, qty, note, status )
       `)
       .eq('restaurant_id', restaurantId)
@@ -67,6 +70,8 @@ async function fetchDeliveryOrders(restaurantId: string): Promise<CachedDelivery
       created_at:     row.created_at,
       order_total:    row.total ?? 0,
       order_num:      row.order_num ?? null,
+      driver_id:      di.driver_id ?? null,
+      driver_name:    di.driver_name ?? null,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       items: (row.order_items ?? [])
         .filter((i: any) => di.status === 'cancelled' ? true : i.status !== 'void')
@@ -77,13 +82,31 @@ async function fetchDeliveryOrders(restaurantId: string): Promise<CachedDelivery
 }
 
 export function useDeliveryOrders(restaurantId: string | null) {
-  return useSWR<CachedDeliveryOrder[]>(
-    restaurantId ? `delivery-orders-${restaurantId}` : null,
+  const swrKey = restaurantId ? `delivery-orders-${restaurantId}` : null
+
+  const result = useSWR<CachedDeliveryOrder[]>(
+    swrKey,
     () => fetchDeliveryOrders(restaurantId!),
     {
-      revalidateOnFocus: true,    // refresh when tab regains focus
-      dedupingInterval: 8_000,    // max one fetch per 8 seconds
-      keepPreviousData: true,     // show last known orders instantly on re-mount
+      revalidateOnFocus: true,
+      dedupingInterval: 8_000,
+      keepPreviousData: true,
     }
   )
+
+  // Realtime: revalidate on any order or delivery_orders change for this restaurant
+  useEffect(() => {
+    if (!restaurantId) return
+    const supabase = createClient()
+    const revalidate = () => swrMutate(`delivery-orders-${restaurantId}`)
+    const channel = supabase
+      .channel(`delivery-orders-hook-rt-${restaurantId}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders',          filter: `restaurant_id=eq.${restaurantId}` }, revalidate)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'delivery_orders'                                              }, revalidate)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'delivery_orders'                                              }, revalidate)
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [restaurantId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  return result
 }

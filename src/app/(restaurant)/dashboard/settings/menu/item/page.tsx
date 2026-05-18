@@ -40,11 +40,13 @@ interface Item {
   cost: number
   image_url: string | null
   available: boolean
+  available_delivery: boolean
+  available_guest: boolean
   has_modifiers: boolean
   sort_order: number
 }
 
-const EMPTY_FORM = { name: '', category_id: '', price: 0, cost: 0, description: '', image_url: '', available: true, has_modifiers: false }
+const EMPTY_FORM = { name: '', category_id: '', price: 0, cost: 0, description: '', image_url: '', available: true, available_delivery: true, available_guest: true, has_modifiers: false }
 
 const PAGE: Variants = {
   hidden: { opacity: 0, y: 20 },
@@ -112,7 +114,7 @@ export default function ItemPage() {
 
   const openEdit = async (item: Item) => {
     setEditId(item.id)
-    setForm({ name: item.name, category_id: item.category_id ?? '', price: item.price, cost: item.cost ?? 0, description: item.description ?? '', image_url: item.image_url ?? '', available: item.available, has_modifiers: item.has_modifiers })
+    setForm({ name: item.name, category_id: item.category_id ?? '', price: item.price, cost: item.cost ?? 0, description: item.description ?? '', image_url: item.image_url ?? '', available: item.available, available_delivery: item.available_delivery ?? true, available_guest: item.available_guest ?? true, has_modifiers: item.has_modifiers })
     setSelectedModIds(itemModMap.get(item.id) ?? [])
     setAddIngId('')
     setSaveError(null)
@@ -160,15 +162,17 @@ export default function ItemPage() {
 
     const hasModifiers = selectedModIds.length > 0
     const payload = {
-      name:          form.name,
-      category_id:   form.category_id || null,
-      price:         form.price,
-      cost:          form.cost,
-      description:   form.description,
-      image_url:     (form.image_url && !form.image_url.startsWith('blob:')) ? form.image_url : null,
-      available:     form.available,
-      has_modifiers: hasModifiers,
-      updated_at:    new Date().toISOString(),
+      name:               form.name,
+      category_id:        form.category_id || null,
+      price:              form.price,
+      cost:               form.cost,
+      description:        form.description,
+      image_url:          (form.image_url && !form.image_url.startsWith('blob:')) ? form.image_url : null,
+      available:          form.available,
+      available_delivery: form.available_delivery,
+      available_guest:    form.available_guest,
+      has_modifiers:      hasModifiers,
+      updated_at:         new Date().toISOString(),
     }
 
     let itemId = editId
@@ -429,11 +433,21 @@ export default function ItemPage() {
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500/50 transition-colors resize-none" />
               </div>
 
-              {/* Available */}
-              <button onClick={() => setForm(f => ({ ...f, available: !f.available }))} className="flex items-center gap-2 text-sm">
-                {form.available ? <ToggleRight className="w-6 h-6 text-amber-400" /> : <ToggleLeft className="w-6 h-6 text-white/25" />}
-                <span className={form.available ? 'text-white' : 'text-white/40'}>Available</span>
-              </button>
+              {/* Availability toggles */}
+              <div className="space-y-2">
+                <button onClick={() => setForm(f => ({ ...f, available: !f.available }))} className="flex items-center gap-2 text-sm w-full">
+                  {form.available ? <ToggleRight className="w-6 h-6 text-amber-400" /> : <ToggleLeft className="w-6 h-6 text-white/25" />}
+                  <span className={form.available ? 'text-white' : 'text-white/40'}>Available (in-house)</span>
+                </button>
+                <button onClick={() => setForm(f => ({ ...f, available_delivery: !f.available_delivery }))} className="flex items-center gap-2 text-sm w-full">
+                  {form.available_delivery ? <ToggleRight className="w-6 h-6 text-sky-400" /> : <ToggleLeft className="w-6 h-6 text-white/25" />}
+                  <span className={form.available_delivery ? 'text-white' : 'text-white/40'}>Available on Delivery Menu</span>
+                </button>
+                <button onClick={() => setForm(f => ({ ...f, available_guest: !f.available_guest }))} className="flex items-center gap-2 text-sm w-full">
+                  {form.available_guest ? <ToggleRight className="w-6 h-6 text-violet-400" /> : <ToggleLeft className="w-6 h-6 text-white/25" />}
+                  <span className={form.available_guest ? 'text-white' : 'text-white/40'}>Available on Guest QR Menu</span>
+                </button>
+              </div>
 
               {/* Modifiers */}
               {modifiers.length > 0 && (

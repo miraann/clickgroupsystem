@@ -62,11 +62,11 @@ export default function MenuSettingsPage() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen -m-6">
+    <div className="flex flex-col h-full -m-6">
 
       {/* Tab bar */}
-      <div className="shrink-0 sticky top-0 z-20 bg-[#022658]/90 backdrop-blur-xl border-b border-white/8 w-full">
-        <div className="overflow-x-auto scrollbar-none">
+      <div className="shrink-0 sticky top-0 z-20 backdrop-blur-xl border-b border-white/8 w-full" style={{ background: 'var(--app-anchor-90, rgba(2,38,88,0.9))' }}>
+        <div className="overflow-x-auto scrollbar-touch">
           <div className="flex gap-1 px-6 md:px-12 2xl:px-24 3xl:px-44 pt-4 pb-0 min-w-max">
             {TABS.map(({ key, label, icon: Icon }) => (
               <button
@@ -88,7 +88,7 @@ export default function MenuSettingsPage() {
       </div>
 
       {/* Tab content */}
-      <div className="flex-1 relative overflow-hidden">
+      <div className="flex-1 relative overflow-y-auto">
         <AnimatePresence mode="popLayout" initial={false}>
           <motion.div
             key={tab}
@@ -96,7 +96,7 @@ export default function MenuSettingsPage() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.18 }}
-            className="px-6 md:px-12 2xl:px-24 3xl:px-44 py-6 2xl:py-8 3xl:py-12"
+            className="px-6 md:px-12 2xl:px-24 3xl:px-44 pb-10 2xl:pb-12 3xl:pb-16" style={{ paddingTop: '70px' }}
           >
             {tab === 'table-group'    && <TableGroupPage />}
             {tab === 'table'          && <TablePage />}

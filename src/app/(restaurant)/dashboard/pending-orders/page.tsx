@@ -240,7 +240,7 @@ export default function PendingOrdersPage() {
   }
 
   if (error) return (
-    <div className="min-h-screen bg-[#022658] flex items-center justify-center p-6">
+    <div className="min-h-screen flex items-center justify-center p-6" style={{ background: 'var(--app-bg, #022658)' }}>
       <div className="flex items-start gap-3 p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 max-w-sm">
         <AlertCircle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
         <div>
@@ -254,10 +254,10 @@ export default function PendingOrdersPage() {
 
   return (
     <ModuleGate moduleKey="dine_in">
-    <motion.div key="pending-orders-page" variants={PAGE} initial="hidden" animate="show" className="min-h-screen bg-[#022658] flex flex-col">
+    <motion.div key="pending-orders-page" variants={PAGE} initial="hidden" animate="show" className="min-h-screen flex flex-col" style={{ background: 'var(--app-bg, #022658)' }}>
 
       {/* Header */}
-      <header className="sticky top-0 z-30 border-b border-white/8 bg-[#022658]/80 backdrop-blur-2xl">
+      <header className="sticky top-0 z-30 border-b border-white/8 backdrop-blur-2xl" style={{ background: 'var(--app-anchor-80, rgba(2,38,88,0.8))' }}>
         <div className="flex items-center justify-between px-5 py-4 max-w-2xl mx-auto w-full">
           <div className="flex items-center gap-3">
             <button

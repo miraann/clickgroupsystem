@@ -11,11 +11,24 @@ import {
   Truck, Phone, MapPin, Clock, Check, X, Loader2,
   RefreshCw, Package,
   CheckCircle2, XCircle, AlertCircle,
-  Navigation, UtensilsCrossed, FileText, Home,
+  Navigation, UtensilsCrossed, FileText, Home, MonitorSmartphone, UserRound,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
+import { motion, AnimatePresence, type Variants } from 'framer-motion'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
+
+const CONTAINER: Variants = {
+  hidden: {},
+  show:   { transition: { staggerChildren: 0.07 } },
+}
+const ITEM: Variants = {
+  hidden: { opacity: 0, y: 18 },
+  show:   { opacity: 1, y: 0, transition: { duration: 0.42, ease: 'circOut' as const } },
+}
+function Skel({ className }: { className?: string }) {
+  return <div className={cn('animate-pulse rounded-2xl bg-white/8', className)} />
+}
 import InvoiceViewModal from '@/components/restaurant/invoice-view-modal'
 
 // ── Types ──────────────────────────────────────────────────────
@@ -44,6 +57,14 @@ interface DeliveryOrder {
   order_total: number
   items: DeliveryItem[]
   order_num: string | null
+  driver_id: string | null
+  driver_name: string | null
+}
+
+interface Driver {
+  id: string
+  name: string
+  phone: string | null
 }
 
 const STATUS_CFG: Record<DeliveryStatus, { label: string; color: string; bg: string; border: string; icon: React.ElementType }> = {
@@ -106,6 +127,8 @@ export default function DeliveryOrdersPage() {
   const [processing, setProcessing] = useState<Set<string>>(new Set())
   const [lastRefresh, setLastRefresh] = useState(new Date())
   const [cancelTarget, setCancelTarget] = useState<{ deliveryId: string; orderId: string; name: string } | null>(null)
+  const [drivers, setDrivers]     = useState<Driver[]>([])
+  const [driverPick, setDriverPick] = useState<Record<string, string>>({})
   // eslint-disable-next-line @typescript-eslint/no-empty-function
   const loadRef = useRef<() => void>(() => {})
 
@@ -144,6 +167,21 @@ export default function DeliveryOrdersPage() {
       .subscribe()
     return () => { supabase.removeChannel(channel) }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fetch all active staff as assignable drivers
+  useEffect(() => {
+    if (!restaurantId) return
+    async function fetchDrivers() {
+      const { data } = await supabase
+        .from('staff')
+        .select('id, name, phone')
+        .eq('restaurant_id', restaurantId!)
+        .eq('status', 'active')
+        .order('name', { ascending: true })
+      setDrivers((data ?? []).map(s => ({ id: s.id, name: s.name, phone: s.phone ?? null })))
+    }
+    fetchDrivers()
+  }, [restaurantId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const setProc = (k: string, v: boolean) =>
     setProcessing(p => { const s = new Set(p); v ? s.add(k) : s.delete(k); return s })
@@ -235,13 +273,21 @@ export default function DeliveryOrdersPage() {
     if (data) setViewInvoice(data)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const updateStatus = async (deliveryId: string, orderId: string, newStatus: DeliveryStatus) => {
+  const updateStatus = async (
+    deliveryId: string,
+    orderId: string,
+    newStatus: DeliveryStatus,
+    extra?: { driver_id: string; driver_name: string },
+  ) => {
     const k = `${deliveryId}-${newStatus}`
     setProc(k, true)
 
+    const updateData: Record<string, unknown> = { status: newStatus }
+    if (extra) { updateData.driver_id = extra.driver_id; updateData.driver_name = extra.driver_name }
+
     const { error: err } = await supabase
       .from('delivery_orders')
-      .update({ status: newStatus })
+      .update(updateData)
       .eq('id', deliveryId)
 
     if (err) { alert(err.message); setProc(k, false); return }
@@ -275,12 +321,12 @@ export default function DeliveryOrdersPage() {
 
     // Optimistic local state update
     setOrders(prev => prev.map(o =>
-      o.delivery_id === deliveryId ? { ...o, status: newStatus } : o
+      o.delivery_id === deliveryId ? { ...o, status: newStatus, ...(extra ?? {}) } : o
     ))
     // Also update SWR cache so next re-mount shows the correct status instantly
     if (restaurantId) {
       swrMutate(`delivery-orders-${restaurantId}`, (prev: DeliveryOrder[] | undefined) =>
-        (prev ?? []).map(o => o.delivery_id === deliveryId ? { ...o, status: newStatus } : o),
+        (prev ?? []).map(o => o.delivery_id === deliveryId ? { ...o, status: newStatus, ...(extra ?? {}) } : o),
         false
       )
     }
@@ -300,17 +346,21 @@ export default function DeliveryOrdersPage() {
     `https://www.google.com/maps?q=${lat},${lng}`
 
   if (loading) return (
-    <div className="flex items-center justify-center h-64">
-      <Loader2 className="w-6 h-6 text-indigo-400 animate-spin" />
-    </div>
+    <ModuleGate moduleKey="delivery">
+      <div className="min-h-screen text-white" style={{ background: 'var(--app-bg, #022658)' }}>
+        <div className="px-4 pt-8 pb-4 max-w-2xl mx-auto space-y-3">
+          {Array.from({ length: 4 }).map((_, i) => <Skel key={i} className="h-44" />)}
+        </div>
+      </div>
+    </ModuleGate>
   )
 
   return (
     <ModuleGate moduleKey="delivery">
-    <div className="min-h-screen bg-[#022658] text-white flex flex-col">
+    <div className="min-h-screen text-white flex flex-col" style={{ background: 'var(--app-bg, #022658)' }}>
 
       {/* ── Header ── */}
-      <header className="sticky top-0 z-20 bg-[#022658]/95 backdrop-blur-xl border-b border-white/8 px-4 py-3">
+      <header className="sticky top-0 z-20 backdrop-blur-xl border-b border-white/8 px-4 py-3" style={{ background: 'var(--app-anchor-95, rgba(2,38,88,0.95))' }}>
         <div className="flex items-center justify-between max-w-2xl mx-auto">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-indigo-500/20 flex items-center justify-center">
@@ -325,16 +375,23 @@ export default function DeliveryOrdersPage() {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => router.push('/dashboard')}
-              className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 transition-all active:scale-95"
+              onClick={() => router.push('/dashboard/driver')}
+              className="flex items-center gap-2 px-5 h-12 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/25 transition-all active:scale-95 text-sm font-semibold"
             >
-              <Home className="w-4 h-4" />
+              <MonitorSmartphone className="w-5 h-5" />
+              Driver
+            </button>
+            <button
+              onClick={() => router.push('/dashboard')}
+              className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 transition-all active:scale-95"
+            >
+              <Home className="w-5 h-5" />
             </button>
             <button
               onClick={() => { setLoading(true); load() }}
-              className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 transition-all active:scale-95"
+              className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 transition-all active:scale-95"
             >
-              <RefreshCw className="w-4 h-4" />
+              <RefreshCw className="w-5 h-5" />
             </button>
           </div>
         </div>
@@ -448,23 +505,37 @@ export default function DeliveryOrdersPage() {
       </header>
 
       {/* ── Content ── */}
-      <div className="flex-1 px-4 py-4 max-w-2xl mx-auto w-full space-y-3">
+      <div className="flex-1 px-4 py-4 max-w-2xl mx-auto w-full">
 
         {error && (
-          <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm">
+          <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm mb-3">
             <AlertCircle className="w-4 h-4 shrink-0" />{error}
           </div>
         )}
 
-        {filtered.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-20 gap-3">
-            <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center">
-              <Truck className="w-8 h-8 text-white/15" />
-            </div>
-            <p className="text-white/30 text-sm">No {filter === 'all' ? '' : filter} delivery orders</p>
-          </div>
-        )}
-
+        <AnimatePresence mode="wait">
+          {filtered.length === 0 ? (
+            <motion.div
+              key={`empty-${filter}`}
+              initial={{ opacity: 0, y: 18 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ delay: 0.05, duration: 0.38, ease: 'circOut' }}
+              className="flex flex-col items-center justify-center py-20 gap-3"
+            >
+              <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center">
+                <Truck className="w-8 h-8 text-white/15" />
+              </div>
+              <p className="text-white/30 text-sm">No {filter === 'all' ? '' : filter} delivery orders</p>
+            </motion.div>
+          ) : (
+            <motion.div
+              key={`list-${filter}`}
+              variants={CONTAINER}
+              initial="hidden"
+              animate="show"
+              className="space-y-3"
+            >
         {filtered.map(order => {
           const cfg = STATUS_CFG[order.status]
           const StatusIcon = cfg.icon
@@ -476,8 +547,9 @@ export default function DeliveryOrdersPage() {
           const canCancel  = order.status !== 'delivered' && order.status !== 'cancelled'
 
           return (
-            <div
+            <motion.div
               key={order.delivery_id}
+              variants={ITEM}
               className={cn(
                 'rounded-2xl border overflow-hidden transition-all',
                 order.status === 'pending' ? 'border-amber-500/40 bg-amber-500/5' :
@@ -530,14 +602,14 @@ export default function DeliveryOrdersPage() {
                         target="_blank"
                         rel="noopener noreferrer"
                         title={order.address_text ?? 'Open in Google Maps'}
-                        className="flex items-center gap-1 px-2 py-1 rounded-lg bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/25 transition-all active:scale-95 text-[10px] font-semibold"
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/25 transition-all active:scale-95 text-sm font-semibold"
                       >
-                        <Navigation className="w-3 h-3" />
+                        <Navigation className="w-5 h-5" />
                         Map
                       </a>
                     ) : (
-                      <span className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white/5 border border-white/10 text-white/20 text-[10px]">
-                        <MapPin className="w-3 h-3" />
+                      <span className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white/20 text-sm">
+                        <MapPin className="w-5 h-5" />
                         No GPS
                       </span>
                     )}
@@ -590,6 +662,45 @@ export default function DeliveryOrdersPage() {
                 </div>
               </div>
 
+              {/* ── Driver picker (preparing only) ── */}
+              {order.status === 'preparing' && (
+                <div className="border-t border-white/6 px-4 py-3">
+                  <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <UserRound className="w-3 h-3" />
+                    Assign Driver
+                  </p>
+                  {drivers.length === 0 ? (
+                    <p className="text-xs text-amber-400/70 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">No active staff found — add staff in Settings → Users</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {drivers.map(d => (
+                        <button
+                          key={d.id}
+                          onClick={() => setDriverPick(p => ({ ...p, [order.delivery_id]: d.id }))}
+                          className={cn(
+                            'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all active:scale-95',
+                            driverPick[order.delivery_id] === d.id
+                              ? 'bg-amber-500/20 border-amber-500/40 text-amber-300'
+                              : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10 hover:text-white/80'
+                          )}
+                        >
+                          <Truck className="w-3.5 h-3.5" />
+                          {d.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Driver badge (out_for_delivery / delivered) */}
+              {(order.status === 'out_for_delivery' || order.status === 'delivered') && order.driver_name && (
+                <div className="border-t border-white/6 px-4 py-2 flex items-center gap-1.5 text-xs text-indigo-300">
+                  <Truck className="w-3.5 h-3.5 shrink-0" />
+                  <span>Driver: <strong>{order.driver_name}</strong></span>
+                </div>
+              )}
+
               {/* ── Actions ── */}
               {(canAdvance || canCancel) && order.status !== 'cancelled' && (
                 <div className="flex gap-2 px-4 pb-4 pt-2">
@@ -620,8 +731,20 @@ export default function DeliveryOrdersPage() {
 
                   {canAdvance && nextStatus && (
                     <button
-                      onClick={() => updateStatus(order.delivery_id, order.order_id, nextStatus)}
-                      disabled={processing.has(`${order.delivery_id}-${nextStatus}`)}
+                      onClick={() => {
+                        if (order.status === 'preparing') {
+                          const selId = driverPick[order.delivery_id]
+                          const driver = drivers.find(d => d.id === selId)
+                          updateStatus(order.delivery_id, order.order_id, nextStatus,
+                            driver ? { driver_id: driver.id, driver_name: driver.name } : undefined)
+                        } else {
+                          updateStatus(order.delivery_id, order.order_id, nextStatus)
+                        }
+                      }}
+                      disabled={
+                        processing.has(`${order.delivery_id}-${nextStatus}`) ||
+                        (order.status === 'preparing' && drivers.length > 0 && !driverPick[order.delivery_id])
+                      }
                       className={cn(
                         'flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 disabled:opacity-50',
                         order.status === 'pending'
@@ -660,9 +783,12 @@ export default function DeliveryOrdersPage() {
                   </button>
                 </div>
               )}
-            </div>
+            </motion.div>
           )
         })}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* ── Cancel Confirm Modal ── */}

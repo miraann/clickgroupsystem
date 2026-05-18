@@ -34,6 +34,8 @@ const SECTIONS: Section[] = [
     items: [
       { id: 'restaurant_info', labelKey: 'si_restaurant_info', icon: 'home',    href: '/dashboard/settings/restaurant-info',
         subtitles: { en: 'Name, logo, contact',         ku: 'ناو، لۆگۆ، پەیوەندی',          ar: 'الاسم والشعار والتواصل' } },
+      { id: 'appearance',       labelKey: 'si_appearance',       icon: 'palette', href: '/dashboard/settings/appearance',
+        subtitles: { en: 'Colors, style & table shapes',  ku: 'ڕەنگ، شێواز و مێز',             ar: 'الألوان والنمط وشكل الطاولات' } },
       { id: 'preference',      labelKey: 'si_preference',      icon: 'sliders', href: '/dashboard/settings/preference',
         subtitles: { en: 'Theme, language, regional',   ku: 'ڕووکار، زمان',                  ar: 'المظهر واللغة' } },
       { id: 'device',          labelKey: 'si_device',          icon: 'monitor', href: '/dashboard/settings/device',
@@ -176,7 +178,7 @@ function Tile({ item, label, sub, onClick }: TileProps) {
 
       <SettingsBadge
         icon={SettingsIcons[item.icon]}
-        size={item.span === 2 ? 56 : 48}
+        size={item.span === 2 ? 84 : 72}
       />
       <div className="relative text-center px-1">
         <div className="text-[13px] font-semibold text-white leading-tight">{label}</div>
@@ -198,17 +200,6 @@ export default function SettingsHomePage() {
       <Backdrop />
 
       <div className="relative z-10 px-5 md:px-10 py-8 max-w-[1400px] mx-auto">
-
-        {/* Header */}
-        <motion.div
-          className="text-center mb-8"
-          initial={{ opacity: 0, y: 22 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: 'circOut' }}
-        >
-          <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-white">{t.nav_settings}</h1>
-          <p className="text-sm text-white/45 mt-1.5 max-w-lg mx-auto">{t.sh_subtitle}</p>
-        </motion.div>
 
         {/* Search */}
         <motion.div

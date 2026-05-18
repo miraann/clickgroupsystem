@@ -12,11 +12,18 @@ import type { Member } from './types'
 import { TIERS, TIER_COLORS } from './types'
 import { MemberModal }  from './MemberModal'
 import { PointsModal }  from './PointsModal'
-import { motion, type Variants } from 'framer-motion'
+import { motion, AnimatePresence, type Variants } from 'framer-motion'
 
-const PAGE: Variants = {
-  hidden: { opacity: 0, y: 20 },
-  show:   { opacity: 1, y: 0, transition: { duration: 0.22, ease: 'circOut' as const } },
+const CONTAINER: Variants = {
+  hidden: {},
+  show:   { transition: { staggerChildren: 0.07 } },
+}
+const ITEM: Variants = {
+  hidden: { opacity: 0, y: 18 },
+  show:   { opacity: 1, y: 0, transition: { duration: 0.42, ease: 'circOut' as const } },
+}
+function Skel({ className }: { className?: string }) {
+  return <div className={cn('animate-pulse rounded-xl bg-white/8', className)} />
 }
 
 export default function MemberPage() {
@@ -101,10 +108,15 @@ export default function MemberPage() {
   )
 
   return (
-    <motion.div variants={PAGE} initial="hidden" animate="show" className="max-w-4xl">
+    <div className="max-w-4xl">
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-5">
+      <motion.div
+        initial={{ opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.05, duration: 0.42, ease: 'circOut' }}
+        className="flex items-center justify-between mb-5"
+      >
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-amber-500/15 flex items-center justify-center">
             <Star className="w-5 h-5 text-amber-400" />
@@ -118,23 +130,31 @@ export default function MemberPage() {
         <button onClick={() => { setEditMember(null); setShowModal(true) }} className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-xl active:scale-95 transition-all">
           <Plus className="w-4 h-4" /> {t.mem_add}
         </button>
-      </div>
+      </motion.div>
 
       {/* Stats row */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+      <motion.div
+        variants={CONTAINER} initial="hidden" animate="show"
+        className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5"
+      >
         {TIERS.map(tier => {
           const count = members.filter(m => m.tier === tier).length
           return (
-            <div key={tier} className="p-3 rounded-2xl bg-white/4 border border-white/8">
+            <motion.div key={tier} variants={ITEM} className="p-3 rounded-2xl bg-white/4 border border-white/8">
               <p className="text-xs text-white/40">{tier}</p>
               <p className="text-xl font-bold text-white mt-0.5">{count}</p>
-            </div>
+            </motion.div>
           )
         })}
-      </div>
+      </motion.div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-2 mb-4">
+      <motion.div
+        initial={{ opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.21, duration: 0.42, ease: 'circOut' }}
+        className="flex flex-wrap gap-2 mb-4"
+      >
         <div className="flex-1 min-w-48 relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/25" />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t.search}
@@ -149,65 +169,106 @@ export default function MemberPage() {
             </button>
           ))}
         </div>
-      </div>
+      </motion.div>
 
       {/* Table */}
-      {filtered.length === 0 ? (
-        <div className="text-center py-16 text-white/25 text-sm">{t.mem_no_data}</div>
-      ) : (
-        <div className="rounded-2xl border border-white/8 overflow-hidden">
-          <div className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-px bg-white/5 px-4 py-2.5 text-[11px] font-semibold text-white/30 uppercase tracking-wider">
-            <button onClick={() => toggleSort('name')} className="flex items-center gap-1 text-left hover:text-white/60 transition-colors">
-              {t.mem_name} <SortIcon col="name" />
-            </button>
-            <span className="text-center">{t.mem_tier}</span>
-            <button onClick={() => toggleSort('points')} className="flex items-center gap-1 justify-end hover:text-white/60 transition-colors">
-              {t.mem_points} <SortIcon col="points" />
-            </button>
-            <span className="text-center">Status</span>
-            <span></span>
-            <span></span>
-          </div>
-
-          <div className="divide-y divide-white/5">
-            {filtered.map(m => (
-              <div key={m.id} className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-px items-center px-4 py-3 bg-white/[0.02] hover:bg-white/5 transition-colors">
-
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-white truncate">{m.name}</p>
-                  <div className="flex items-center gap-3 mt-0.5">
-                    {m.phone && <span className="flex items-center gap-1 text-[11px] text-white/35"><Phone className="w-2.5 h-2.5" />{m.phone}</span>}
-                    {m.email && <span className="flex items-center gap-1 text-[11px] text-white/35"><Mail className="w-2.5 h-2.5" />{m.email}</span>}
+      <AnimatePresence mode="wait">
+        {loading ? (
+          <motion.div
+            key="skeleton"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            className="space-y-2"
+          >
+            {Array.from({ length: 5 }).map((_, i) => <Skel key={i} className="h-14" />)}
+          </motion.div>
+        ) : (
+          <motion.div
+            key="content"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+          >
+            <AnimatePresence mode="wait">
+              {filtered.length === 0 ? (
+                <motion.div
+                  key="empty"
+                  initial={{ opacity: 0, y: 18 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ delay: 0.1, duration: 0.42, ease: 'circOut' }}
+                  className="text-center py-16 text-white/25 text-sm"
+                >
+                  {t.mem_no_data}
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="list"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.18 }}
+                  className="rounded-2xl border border-white/8 overflow-hidden"
+                >
+                  <div className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-px bg-white/5 px-4 py-2.5 text-[11px] font-semibold text-white/30 uppercase tracking-wider">
+                    <button onClick={() => toggleSort('name')} className="flex items-center gap-1 text-left hover:text-white/60 transition-colors">
+                      {t.mem_name} <SortIcon col="name" />
+                    </button>
+                    <span className="text-center">{t.mem_tier}</span>
+                    <button onClick={() => toggleSort('points')} className="flex items-center gap-1 justify-end hover:text-white/60 transition-colors">
+                      {t.mem_points} <SortIcon col="points" />
+                    </button>
+                    <span className="text-center">Status</span>
+                    <span></span>
+                    <span></span>
                   </div>
-                </div>
 
-                <span className={cn('px-2 py-0.5 rounded-full text-[11px] font-semibold mx-4', TIER_COLORS[m.tier] ?? TIER_COLORS.Standard)}>
-                  {m.tier}
-                </span>
+                  <motion.div variants={CONTAINER} initial="hidden" animate="show" className="divide-y divide-white/5">
+                    {filtered.map(m => (
+                      <motion.div key={m.id} variants={ITEM} className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-px items-center px-4 py-3 bg-white/[0.02] hover:bg-white/5 transition-colors">
 
-                <button onClick={() => setPointsMember(m)}
-                  className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-sm font-bold transition-all active:scale-95 mx-2">
-                  <Star className="w-3 h-3" />{m.points.toLocaleString()}
-                </button>
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-white truncate">{m.name}</p>
+                          <div className="flex items-center gap-3 mt-0.5">
+                            {m.phone && <span className="flex items-center gap-1 text-[11px] text-white/35"><Phone className="w-2.5 h-2.5" />{m.phone}</span>}
+                            {m.email && <span className="flex items-center gap-1 text-[11px] text-white/35"><Mail className="w-2.5 h-2.5" />{m.email}</span>}
+                          </div>
+                        </div>
 
-                <button onClick={() => toggleStatus(m)} className={cn('mx-2 transition-all active:scale-95', m.status === 'active' ? 'text-emerald-400' : 'text-white/25')}>
-                  {m.status === 'active' ? <ToggleRight className="w-6 h-6" /> : <ToggleLeft className="w-6 h-6" />}
-                </button>
+                        <span className={cn('px-2 py-0.5 rounded-full text-[11px] font-semibold mx-4', TIER_COLORS[m.tier] ?? TIER_COLORS.Standard)}>
+                          {m.tier}
+                        </span>
 
-                <button onClick={() => { setEditMember(m); setShowModal(true) }} className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/40 hover:text-white transition-all active:scale-95">
-                  <Pencil className="w-3.5 h-3.5" />
-                </button>
+                        <button onClick={() => setPointsMember(m)}
+                          className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-sm font-bold transition-all active:scale-95 mx-2">
+                          <Star className="w-3 h-3" />{m.points.toLocaleString()}
+                        </button>
 
-                <button onClick={() => handleDelete(m.id)}
-                  className={cn('h-8 rounded-lg flex items-center justify-center transition-all active:scale-95 text-xs font-medium',
-                    deleteId === m.id ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30 px-2' : 'w-8 bg-white/5 hover:bg-rose-500/10 text-white/40 hover:text-rose-400')}>
-                  {deleteId === m.id ? 'Confirm?' : <Trash2 className="w-3.5 h-3.5" />}
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+                        <button onClick={() => toggleStatus(m)} className={cn('mx-2 transition-all active:scale-95', m.status === 'active' ? 'text-emerald-400' : 'text-white/25')}>
+                          {m.status === 'active' ? <ToggleRight className="w-6 h-6" /> : <ToggleLeft className="w-6 h-6" />}
+                        </button>
+
+                        <button onClick={() => { setEditMember(m); setShowModal(true) }} className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/40 hover:text-white transition-all active:scale-95">
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+
+                        <button onClick={() => handleDelete(m.id)}
+                          className={cn('h-8 rounded-lg flex items-center justify-center transition-all active:scale-95 text-xs font-medium',
+                            deleteId === m.id ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30 px-2' : 'w-8 bg-white/5 hover:bg-rose-500/10 text-white/40 hover:text-rose-400')}>
+                          {deleteId === m.id ? 'Confirm?' : <Trash2 className="w-3.5 h-3.5" />}
+                        </button>
+                      </motion.div>
+                    ))}
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {showModal && restaurantId && (
         <MemberModal
@@ -233,6 +294,6 @@ export default function MemberPage() {
           }}
         />
       )}
-    </motion.div>
+    </div>
   )
 }

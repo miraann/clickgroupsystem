@@ -1,4 +1,5 @@
-import useSWR from 'swr'
+import { useEffect } from 'react'
+import useSWR, { mutate as swrMutate } from 'swr'
 import { createClient } from '@/lib/supabase/client'
 
 // ── Types ────────────────────────────────────────────────────────
@@ -33,6 +34,8 @@ export interface MenuItem {
   price: number
   image_url: string | null
   category_id: string | null
+  available_delivery: boolean
+  available_guest: boolean
 }
 
 export interface KitchenNote {
@@ -58,7 +61,7 @@ async function fetchRestaurantMenu(restaurantId: string): Promise<RestaurantMenu
     supabase.from('restaurants').select('id, name, logo_url, settings').eq('id', restaurantId).maybeSingle(),
     supabase.from('menu_categories').select('id, name, color, icon, sort_order').eq('restaurant_id', restaurantId).eq('active', true).order('sort_order'),
     supabase.from('events_offers').select('id, title, description, date_label, image_url').eq('restaurant_id', restaurantId).eq('active', true).order('sort_order'),
-    supabase.from('menu_items').select('id, name, description, price, image_url, category_id').eq('restaurant_id', restaurantId).eq('available', true).order('sort_order'),
+    supabase.from('menu_items').select('id, name, description, price, image_url, category_id, available_delivery, available_guest').eq('restaurant_id', restaurantId).eq('available', true).order('sort_order'),
     supabase.from('kitchen_notes').select('id, text').eq('restaurant_id', restaurantId).eq('active', true).order('sort_order'),
     supabase.from('menu_template_settings').select('*').eq('restaurant_id', restaurantId).maybeSingle(),
   ])
@@ -75,14 +78,33 @@ async function fetchRestaurantMenu(restaurantId: string): Promise<RestaurantMenu
 
 // ── Hook ─────────────────────────────────────────────────────────
 export function useRestaurantMenu(restaurantId: string | null) {
-  return useSWR<RestaurantMenuData>(
-    restaurantId ? `restaurant-menu-${restaurantId}` : null,
+  const swrKey = restaurantId ? `restaurant-menu-${restaurantId}` : null
+
+  const result = useSWR<RestaurantMenuData>(
+    swrKey,
     () => fetchRestaurantMenu(restaurantId!),
     {
-      revalidateOnFocus: false,       // don't re-fetch when tab regains focus
-      dedupingInterval: 60_000,       // one fetch per minute max per restaurantId
-      revalidateOnReconnect: true,    // re-fetch if internet was lost
-      keepPreviousData: true,         // show stale data while revalidating
+      revalidateOnFocus: false,
+      dedupingInterval: 60_000,
+      revalidateOnReconnect: true,
+      keepPreviousData: true,
     }
   )
+
+  // Realtime: revalidate whenever any menu_item row for this restaurant changes
+  useEffect(() => {
+    if (!restaurantId) return
+    const supabase = createClient()
+    const channel = supabase
+      .channel(`menu-items-rt-${restaurantId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'menu_items', filter: `restaurant_id=eq.${restaurantId}` },
+        () => { swrMutate(`restaurant-menu-${restaurantId}`) },
+      )
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [restaurantId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  return result
 }

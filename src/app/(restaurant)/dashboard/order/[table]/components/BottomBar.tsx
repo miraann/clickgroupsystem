@@ -53,7 +53,7 @@ export function BottomBar({
   }
 
   return (
-    <div className="shrink-0 border-t border-white/8 bg-[#022658]/90 backdrop-blur-2xl px-4 py-3">
+    <div className="shrink-0 border-t border-white/8 backdrop-blur-2xl px-4 py-3" style={{ background: 'var(--app-anchor-90, rgba(2,38,88,0.9))' }}>
       {/* Mobile panel toggle */}
       <div className="sm:hidden flex gap-1.5 mb-3">
         <button

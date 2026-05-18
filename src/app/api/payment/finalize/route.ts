@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireRestaurantAccess } from '@/lib/supabase/api-guard'
+import { createClient } from '@/lib/supabase/server'
 import { rateLimit } from '@/lib/rate-limit'
 
 export const runtime = 'nodejs'
@@ -22,10 +22,39 @@ export async function POST(req: NextRequest) {
       customerPhone?:  string | null
       tableNum:        string   // display only (e.g. "5" or "Takeout")
       guests:          number
+      staffId?:        string | null  // PIN staff auth
+      isOwner?:        boolean        // owner session auth
     }
 
-    const { error: authError, supabase } = await requireRestaurantAccess(body.restaurantId)
-    if (authError || !supabase) return authError!
+    const supabase = await createClient()
+    let pinStaffName: string | null = null
+    let authorized = false
+
+    // Owner session (localStorage owner_session flag) — verify restaurant exists
+    if (body.isOwner) {
+      const { data: rest } = await supabase
+        .from('restaurants').select('id')
+        .eq('id', body.restaurantId).maybeSingle()
+      if (rest) authorized = true
+    }
+
+    // PIN staff — verify active staff belongs to this restaurant
+    if (!authorized && body.staffId) {
+      const { data: staffRecord } = await supabase
+        .from('staff').select('id, name')
+        .eq('id', body.staffId)
+        .eq('restaurant_id', body.restaurantId)
+        .eq('status', 'active')
+        .maybeSingle()
+      if (staffRecord) {
+        authorized = true
+        pinStaffName = staffRecord.name
+      }
+    }
+
+    if (!authorized) {
+      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 })
+    }
 
     // 1. Real subtotal from DB — never trust client-supplied prices
     const { data: orderItems, error: itemsErr } = await supabase
@@ -104,9 +133,8 @@ export async function POST(req: NextRequest) {
     const changeAmount = Math.max(0, amountPaid - finalTotal)
     const now          = new Date().toISOString()
 
-    // 6. Resolve cashier name from session
-    const { data: { user } } = await supabase.auth.getUser()
-    const cashier = user?.user_metadata?.full_name ?? user?.email ?? 'Staff'
+    // 6. Resolve cashier name
+    const cashier = pinStaffName ?? (body.isOwner ? 'Owner' : 'Staff')
 
     // 7. Fetch order_num for the invoice
     const { data: order } = await supabase
@@ -132,6 +160,16 @@ export async function POST(req: NextRequest) {
 
     if (orderErr) {
       return NextResponse.json({ ok: false, error: `Order update failed: ${orderErr.message}` }, { status: 500 })
+    }
+
+    // Mark table as dirty (needs cleaning) — skip for takeout/delivery
+    const tableSeq = parseInt(body.tableNum)
+    if (!isNaN(tableSeq)) {
+      await supabase
+        .from('tables')
+        .update({ status: 'dirty', updated_at: now })
+        .eq('restaurant_id', body.restaurantId)
+        .eq('seq', tableSeq)
     }
 
     // 9. Generate invoice number atomically

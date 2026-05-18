@@ -59,7 +59,7 @@ function OrderPage() {
   if (order.loading) return null
 
   if (order.initError) return (
-    <div className="flex items-center justify-center h-screen bg-[#022658] p-6">
+    <div className="flex items-center justify-center h-screen p-6" style={{ background: 'var(--app-bg, #022658)' }}>
       <div className="max-w-sm w-full p-5 rounded-2xl bg-rose-500/10 border border-rose-500/25 flex flex-col items-center gap-3 text-center">
         <AlertCircle className="w-8 h-8 text-rose-400" />
         <p className="text-sm text-rose-400 font-semibold">Failed to open order</p>
@@ -71,8 +71,8 @@ function OrderPage() {
 
   return (
     <div
-      className="flex flex-col h-screen bg-[#022658] overflow-hidden transition-all duration-300"
-      style={{ opacity: mounted ? 1 : 0, transform: mounted ? 'none' : 'translateY(6px)' }}
+      className="flex flex-col h-screen overflow-hidden transition-all duration-300"
+      style={{ background: 'var(--app-bg, #022658)', opacity: mounted ? 1 : 0, transform: mounted ? 'none' : 'translateY(6px)' }}
     >
 
       <OrderHeader

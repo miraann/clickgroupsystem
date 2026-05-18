@@ -1,7 +1,8 @@
 ﻿'use client'
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
-import { Globe, Copy, Check, Loader2, Save, ExternalLink, UtensilsCrossed, Plus } from 'lucide-react'
+import { Globe, Copy, Check, Loader2, Save, ExternalLink, UtensilsCrossed, Plus, Palette, LayoutGrid, SlidersHorizontal, Link2, Ticket } from 'lucide-react'
+import DiscountCodePage from '../discount-code/page'
 import { motion, AnimatePresence, type Variants } from 'framer-motion'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { createClient } from '@/lib/supabase/client'
@@ -29,16 +30,17 @@ type EventStyle    = 'cards' | 'banner' | 'story'
 type SocialStyle   = 'pills' | 'grid' | 'icons'
 
 interface MenuSettings {
-  template:        TemplateId
-  primary_color:   string
-  surface_style:   SurfaceStyle
-  category_style:  CategoryStyle
-  item_style:      ItemStyle
-  event_style:     EventStyle
-  social_style:    SocialStyle
-  show_prices:     boolean
-  show_descriptions: boolean
-  welcome_text:    string | null
+  template:           TemplateId
+  primary_color:      string
+  surface_style:      SurfaceStyle
+  category_style:     CategoryStyle
+  item_style:         ItemStyle
+  event_style:        EventStyle
+  social_style:       SocialStyle
+  show_prices:        boolean
+  show_descriptions:  boolean
+  welcome_text:       string | null
+  menu_enabled:       boolean
 }
 
 interface PreviewData {
@@ -54,6 +56,7 @@ const DEFAULT: MenuSettings = {
   surface_style: 'solid', category_style: 'circles',
   item_style: 'grid', event_style: 'cards', social_style: 'pills',
   show_prices: true, show_descriptions: true, welcome_text: null,
+  menu_enabled: true,
 }
 
 // ── Preset quick-starts ────────────────────────────────────────
@@ -605,6 +608,15 @@ export default function OnlineMenuTemplatePage() {
   const [saved,    setSaved]    = useState(false)
   const [copied,   setCopied]   = useState(false)
   const [error,    setError]    = useState<string | null>(null)
+  const [subTab,   setSubTab]   = useState<'links' | 'design' | 'layout' | 'display' | 'coupons'>('links')
+
+  const SUB_TABS = [
+    { key: 'links'   as const, label: 'Links',   icon: Link2 },
+    { key: 'design'  as const, label: 'Design',  icon: Palette },
+    { key: 'layout'  as const, label: 'Layout',  icon: LayoutGrid },
+    { key: 'display' as const, label: 'Display', icon: SlidersHorizontal },
+    { key: 'coupons' as const, label: 'Coupons', icon: Ticket },
+  ]
 
   // Initialise settings once when SWR data first arrives
   useEffect(() => {
@@ -621,6 +633,7 @@ export default function OnlineMenuTemplatePage() {
       show_prices:       d.show_prices        ?? true,
       show_descriptions: d.show_descriptions  ?? true,
       welcome_text:      d.welcome_text       ?? null,
+      menu_enabled:      d.menu_enabled       ?? true,
     })
   }, [swrData])
 
@@ -687,215 +700,268 @@ export default function OnlineMenuTemplatePage() {
               saved ? 'bg-emerald-500/20 border border-emerald-500/30 text-emerald-400'
                     : 'bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/25')}>
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : saved ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
-            {saved ? t.saved_ : saving ? t.save_changes : t.save_changes}
+            {saved ? t.saved_ : t.save_changes}
           </button>
         </motion.div>
 
         {error && <div className="rounded-xl bg-rose-500/10 border border-rose-500/20 px-4 py-3 text-sm text-rose-400">{error}</div>}
 
-        {/* Menu links */}
-        <motion.div variants={ITEM_VAR} className="rounded-2xl bg-white/4 border border-white/10 p-4 space-y-3">
-          {/* Browse-only link */}
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-white/30 mb-1.5 flex items-center gap-1.5">
-              <Globe className="w-3 h-3" /> {t.om_link}
-            </p>
-            <div className="flex items-center gap-2">
-              <div className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded-xl px-3 py-2 flex items-center gap-2 overflow-hidden">
-                <span className="text-xs text-white/50 truncate font-mono">{publicUrl || 'Loading…'}</span>
-              </div>
-              <button onClick={copyLink}
-                className={cn('shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition-all active:scale-95 border',
-                  copied ? 'bg-emerald-500/15 border-emerald-500/25 text-emerald-400' : 'bg-white/8 border-white/12 text-white/60 hover:text-white')}>
-                {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                {copied ? t.om_copied : t.om_copy}
-              </button>
-              {publicUrl && (
-                <a href={publicUrl} target="_blank" rel="noopener noreferrer"
-                  className="shrink-0 w-8 h-8 flex items-center justify-center rounded-xl bg-white/5 border border-white/10 text-white/40 hover:text-white/70 transition-all">
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </a>
+        {/* Sub-tab bar */}
+        <motion.div variants={ITEM_VAR} className="flex gap-1 p-1 rounded-2xl bg-white/4 border border-white/8">
+          {SUB_TABS.map(({ key, label, icon: Icon }) => (
+            <button
+              key={key}
+              onClick={() => setSubTab(key)}
+              className={cn(
+                'flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 active:scale-95',
+                subTab === key
+                  ? 'bg-amber-500/15 text-amber-400 shadow-inner'
+                  : 'text-white/40 hover:text-white/70 hover:bg-white/5'
               )}
-            </div>
-          </div>
-
-          <div className="border-t border-white/8" />
-
-          {/* Delivery ordering link */}
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-white/30 mb-1.5 flex items-center gap-1.5">
-              <ExternalLink className="w-3 h-3" /> Delivery Order Menu
-            </p>
-            <div className="flex items-center gap-2">
-              <div className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded-xl px-3 py-2 flex items-center gap-2 overflow-hidden">
-                <span className="text-xs text-white/50 truncate font-mono">
-                  {restaurantSlug && typeof window !== 'undefined' ? `${window.location.origin}/order/${restaurantSlug}` : 'Loading…'}
-                </span>
-              </div>
-              <button
-                onClick={() => {
-                  const url = restaurantSlug && typeof window !== 'undefined' ? `${window.location.origin}/order/${restaurantSlug}` : ''
-                  if (url) { navigator.clipboard.writeText(url) }
-                }}
-                className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition-all active:scale-95 border bg-white/8 border-white/12 text-white/60 hover:text-white">
-                <Copy className="w-3.5 h-3.5" /> {t.om_copy}
-              </button>
-              {restaurantSlug && typeof window !== 'undefined' && (
-                <a href={`${window.location.origin}/order/${restaurantSlug}`} target="_blank" rel="noopener noreferrer"
-                  className="shrink-0 w-8 h-8 flex items-center justify-center rounded-xl bg-white/5 border border-white/10 text-white/40 hover:text-white/70 transition-all">
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </a>
-              )}
-            </div>
-          </div>
-        </motion.div>
-
-        {/* 1. Quick presets */}
-        <motion.div variants={ITEM_VAR} className="rounded-2xl bg-white/4 border border-white/10 p-4">
-          <p className="text-sm font-semibold text-white mb-1">Quick Start Presets</p>
-          <p className="text-xs text-white/30 mb-3">Pick a preset then fine-tune below</p>
-          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-            {PRESETS.map(p => (
-              <button key={p.id} onClick={() => applyPreset(p)}
-                className={cn('relative rounded-xl border p-2 flex flex-col items-center gap-1.5 transition-all active:scale-95',
-                  settings.template === p.id && JSON.stringify(settings.primary_color) === JSON.stringify(p.settings.primary_color)
-                    ? 'border-amber-500/70 bg-amber-500/8' : 'border-white/10 bg-white/3 hover:border-white/20')}>
-                <div className="w-8 h-8 rounded-full border-2" style={{ background: p.bg, borderColor: p.dot + '80' }}>
-                  <div className="w-full h-full rounded-full flex items-center justify-center">
-                    <div className="w-3 h-3 rounded-full" style={{ background: p.dot }} />
-                  </div>
-                </div>
-                <p className="text-[9px] font-semibold text-white/60">{p.label}</p>
-              </button>
-            ))}
-          </div>
-        </motion.div>
-
-        {/* 2. Theme color */}
-        <motion.div variants={ITEM_VAR} className="rounded-2xl bg-white/4 border border-white/10 p-4 space-y-4">
-          <div>
-            <p className="text-sm font-semibold text-white">Theme Color</p>
-            <p className="text-xs text-white/30">Primary accent for buttons, rings, prices</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {COLOR_PRESETS.map(c => (
-              <button key={c.value} onClick={() => set('primary_color', c.value)} title={c.label}
-                className={cn('w-8 h-8 rounded-xl border-2 transition-all active:scale-90',
-                  settings.primary_color === c.value ? 'border-white scale-110 shadow-lg' : 'border-transparent hover:scale-105')}
-                style={{ background: c.value }} />
-            ))}
-            <label className="relative w-8 h-8 rounded-xl border-2 border-white/20 overflow-hidden cursor-pointer hover:border-white/40 transition-all flex items-center justify-center" title="Custom">
-              <span className="text-white/40 text-xs">+</span>
-              <input type="color" value={settings.primary_color} onChange={e => set('primary_color', e.target.value)}
-                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
-            </label>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded-lg border border-white/20" style={{ background: settings.primary_color }} />
-            <span className="text-xs text-white/40 font-mono">{settings.primary_color}</span>
-          </div>
-
-          {/* Surface style */}
-          <div>
-            <p className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">Surface Style</p>
-            <div className="grid grid-cols-3 gap-2">
-              {SURFACE_PREVIEWS.map(s => (
-                <button key={s.id} onClick={() => set('surface_style', s.id)}
-                  className={cn('rounded-xl border p-3 text-left transition-all active:scale-95',
-                    settings.surface_style === s.id ? 'border-amber-500/70 bg-amber-500/8' : 'border-white/10 bg-white/3 hover:border-white/20')}>
-                  <p className={cn('text-xs font-bold', settings.surface_style === s.id ? 'text-amber-400' : 'text-white/70')}>{s.label}</p>
-                  <p className="text-[9px] text-white/30 mt-0.5">{s.desc}</p>
-                </button>
-              ))}
-            </div>
-          </div>
-        </motion.div>
-
-        {/* 3. Category style */}
-        <motion.div variants={ITEM_VAR} className="rounded-2xl bg-white/4 border border-white/10 p-4">
-          <p className="text-sm font-semibold text-white mb-1">Category Style</p>
-          <p className="text-xs text-white/30 mb-3">How menu categories are displayed</p>
-          <div className="grid grid-cols-2 gap-3">
-            {CAT_PREVIEWS.map(c => (
-              <StyleCard key={c.id} label={c.label} desc={c.desc}
-                active={settings.category_style === c.id}
-                onClick={() => set('category_style', c.id)}
-                preview={<div className="rounded-lg bg-white/5 border border-white/8 overflow-hidden">{c.preview}</div>} />
-            ))}
-          </div>
-        </motion.div>
-
-        {/* 4. Item card style */}
-        <motion.div variants={ITEM_VAR} className="rounded-2xl bg-white/4 border border-white/10 p-4">
-          <p className="text-sm font-semibold text-white mb-1">Item Card Style</p>
-          <p className="text-xs text-white/30 mb-3">How menu items appear inside a category</p>
-          <div className="grid grid-cols-3 gap-3">
-            {ITEM_PREVIEWS.map(c => (
-              <StyleCard key={c.id} label={c.label} desc={c.desc}
-                active={settings.item_style === c.id}
-                onClick={() => set('item_style', c.id)}
-                preview={<div className="rounded-lg bg-white/5 border border-white/8 overflow-hidden">{c.preview}</div>} />
-            ))}
-          </div>
-        </motion.div>
-
-        {/* 5. Events style */}
-        <motion.div variants={ITEM_VAR} className="rounded-2xl bg-white/4 border border-white/10 p-4">
-          <p className="text-sm font-semibold text-white mb-1">Events &amp; Offers Style</p>
-          <p className="text-xs text-white/30 mb-3">How promotions and events are showcased</p>
-          <div className="grid grid-cols-3 gap-3">
-            {EVENT_PREVIEWS.map(c => (
-              <StyleCard key={c.id} label={c.label} desc={c.desc}
-                active={settings.event_style === c.id}
-                onClick={() => set('event_style', c.id)}
-                preview={<div className="rounded-lg bg-white/5 border border-white/8 overflow-hidden">{c.preview}</div>} />
-            ))}
-          </div>
-        </motion.div>
-
-        {/* 6. Social style */}
-        <motion.div variants={ITEM_VAR} className="rounded-2xl bg-white/4 border border-white/10 p-4">
-          <p className="text-sm font-semibold text-white mb-1">Social Media Style</p>
-          <p className="text-xs text-white/30 mb-3">How social links appear at the bottom</p>
-          <div className="grid grid-cols-3 gap-3">
-            {SOCIAL_PREVIEWS.map(c => (
-              <StyleCard key={c.id} label={c.label} desc={c.desc}
-                active={settings.social_style === c.id}
-                onClick={() => set('social_style', c.id)}
-                preview={<div className="rounded-lg bg-white/5 border border-white/8 overflow-hidden">{c.preview}</div>} />
-            ))}
-          </div>
-        </motion.div>
-
-        {/* 7. Display options */}
-        <motion.div variants={ITEM_VAR} className="rounded-2xl bg-white/4 border border-white/10 p-4 space-y-3">
-          <p className="text-sm font-semibold text-white">Display Options</p>
-          {[
-            { k: 'show_prices'       as const, label: 'Show Prices',       desc: 'Display item prices to guests' },
-            { k: 'show_descriptions' as const, label: 'Show Descriptions', desc: 'Show item descriptions below name' },
-          ].map(opt => (
-            <div key={opt.k} className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-white/80 font-medium">{opt.label}</p>
-                <p className="text-xs text-white/30">{opt.desc}</p>
-              </div>
-              <button onClick={() => set(opt.k, !settings[opt.k])}
-                className={cn('relative w-11 h-6 rounded-full border transition-all duration-200 shrink-0',
-                  settings[opt.k] ? 'bg-amber-500 border-amber-500' : 'bg-white/8 border-white/15')}>
-                <span className={cn('absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all duration-200',
-                  settings[opt.k] ? 'left-[22px]' : 'left-0.5')} />
-              </button>
-            </div>
+            >
+              <Icon size={15} />
+              <span className="hidden sm:inline">{label}</span>
+            </button>
           ))}
-          <div>
-            <label className="block text-xs font-semibold text-white/40 uppercase tracking-wider mb-1.5">Welcome Message</label>
-            <input type="text" value={settings.welcome_text ?? ''}
-              onChange={e => set('welcome_text', e.target.value || null)}
-              placeholder="Welcome! Browse our menu and order from your table."
-              maxLength={120}
-              className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-amber-500/50 transition-all" />
-          </div>
         </motion.div>
+
+        {/* Tab: Links */}
+        <AnimatePresence mode="popLayout" initial={false}>
+        {subTab === 'links' && (
+          <motion.div key="links" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.18 }}
+            className="space-y-5">
+            <div className="rounded-2xl bg-white/4 border border-white/10 p-4 space-y-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-white/30 mb-1.5 flex items-center gap-1.5">
+                  <Globe className="w-3 h-3" /> {t.om_link}
+                </p>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded-xl px-3 py-2 flex items-center gap-2 overflow-hidden">
+                    <span className="text-xs text-white/50 truncate font-mono">{publicUrl || 'Loading…'}</span>
+                  </div>
+                  <button onClick={copyLink}
+                    className={cn('shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition-all active:scale-95 border',
+                      copied ? 'bg-emerald-500/15 border-emerald-500/25 text-emerald-400' : 'bg-white/8 border-white/12 text-white/60 hover:text-white')}>
+                    {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                    {copied ? t.om_copied : t.om_copy}
+                  </button>
+                  {publicUrl && (
+                    <a href={publicUrl} target="_blank" rel="noopener noreferrer"
+                      className="shrink-0 w-8 h-8 flex items-center justify-center rounded-xl bg-white/5 border border-white/10 text-white/40 hover:text-white/70 transition-all">
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                  )}
+                </div>
+              </div>
+              <div className="border-t border-white/8" />
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-white/30 mb-1.5 flex items-center gap-1.5">
+                  <ExternalLink className="w-3 h-3" /> Delivery Order Menu
+                </p>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded-xl px-3 py-2 flex items-center gap-2 overflow-hidden">
+                    <span className="text-xs text-white/50 truncate font-mono">
+                      {restaurantSlug && typeof window !== 'undefined' ? `${window.location.origin}/order/${restaurantSlug}` : 'Loading…'}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      const url = restaurantSlug && typeof window !== 'undefined' ? `${window.location.origin}/order/${restaurantSlug}` : ''
+                      if (url) { navigator.clipboard.writeText(url) }
+                    }}
+                    className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition-all active:scale-95 border bg-white/8 border-white/12 text-white/60 hover:text-white">
+                    <Copy className="w-3.5 h-3.5" /> {t.om_copy}
+                  </button>
+                  {restaurantSlug && typeof window !== 'undefined' && (
+                    <a href={`${window.location.origin}/order/${restaurantSlug}`} target="_blank" rel="noopener noreferrer"
+                      className="shrink-0 w-8 h-8 flex items-center justify-center rounded-xl bg-white/5 border border-white/10 text-white/40 hover:text-white/70 transition-all">
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Enable Online Menu toggle */}
+            <div className="rounded-2xl bg-white/4 border border-white/10 p-4">
+              <p className="text-sm font-semibold text-white mb-3">Online Menu Settings</p>
+              <div className="flex items-center justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="text-sm text-white/80 font-medium">Enable Online Menu</p>
+                  <p className="text-xs text-white/30 mt-0.5">Make the public QR menu accessible to guests</p>
+                </div>
+                <button onClick={() => set('menu_enabled', !settings.menu_enabled)}
+                  className={cn('relative w-11 h-6 rounded-full border transition-all duration-200 shrink-0',
+                    settings.menu_enabled ? 'bg-amber-500 border-amber-500' : 'bg-white/8 border-white/15')}>
+                  <span className={cn('absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all duration-200',
+                    settings.menu_enabled ? 'left-[22px]' : 'left-0.5')} />
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Tab: Design */}
+        {subTab === 'design' && (
+          <motion.div key="design" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.18 }}
+            className="space-y-5">
+            {/* Quick presets */}
+            <div className="rounded-2xl bg-white/4 border border-white/10 p-4">
+              <p className="text-sm font-semibold text-white mb-1">Quick Start Presets</p>
+              <p className="text-xs text-white/30 mb-3">Pick a preset then fine-tune below</p>
+              <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                {PRESETS.map(p => (
+                  <button key={p.id} onClick={() => applyPreset(p)}
+                    className={cn('relative rounded-xl border p-2 flex flex-col items-center gap-1.5 transition-all active:scale-95',
+                      settings.template === p.id && JSON.stringify(settings.primary_color) === JSON.stringify(p.settings.primary_color)
+                        ? 'border-amber-500/70 bg-amber-500/8' : 'border-white/10 bg-white/3 hover:border-white/20')}>
+                    <div className="w-8 h-8 rounded-full border-2" style={{ background: p.bg, borderColor: p.dot + '80' }}>
+                      <div className="w-full h-full rounded-full flex items-center justify-center">
+                        <div className="w-3 h-3 rounded-full" style={{ background: p.dot }} />
+                      </div>
+                    </div>
+                    <p className="text-[9px] font-semibold text-white/60">{p.label}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Theme color + surface */}
+            <div className="rounded-2xl bg-white/4 border border-white/10 p-4 space-y-4">
+              <div>
+                <p className="text-sm font-semibold text-white">Theme Color</p>
+                <p className="text-xs text-white/30">Primary accent for buttons, rings, prices</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {COLOR_PRESETS.map(c => (
+                  <button key={c.value} onClick={() => set('primary_color', c.value)} title={c.label}
+                    className={cn('w-8 h-8 rounded-xl border-2 transition-all active:scale-90',
+                      settings.primary_color === c.value ? 'border-white scale-110 shadow-lg' : 'border-transparent hover:scale-105')}
+                    style={{ background: c.value }} />
+                ))}
+                <label className="relative w-8 h-8 rounded-xl border-2 border-white/20 overflow-hidden cursor-pointer hover:border-white/40 transition-all flex items-center justify-center" title="Custom">
+                  <span className="text-white/40 text-xs">+</span>
+                  <input type="color" value={settings.primary_color} onChange={e => set('primary_color', e.target.value)}
+                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
+                </label>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-5 h-5 rounded-lg border border-white/20" style={{ background: settings.primary_color }} />
+                <span className="text-xs text-white/40 font-mono">{settings.primary_color}</span>
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">Surface Style</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {SURFACE_PREVIEWS.map(s => (
+                    <button key={s.id} onClick={() => set('surface_style', s.id)}
+                      className={cn('rounded-xl border p-3 text-left transition-all active:scale-95',
+                        settings.surface_style === s.id ? 'border-amber-500/70 bg-amber-500/8' : 'border-white/10 bg-white/3 hover:border-white/20')}>
+                      <p className={cn('text-xs font-bold', settings.surface_style === s.id ? 'text-amber-400' : 'text-white/70')}>{s.label}</p>
+                      <p className="text-[9px] text-white/30 mt-0.5">{s.desc}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Tab: Layout */}
+        {subTab === 'layout' && (
+          <motion.div key="layout" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.18 }}
+            className="space-y-5">
+            <div className="rounded-2xl bg-white/4 border border-white/10 p-4">
+              <p className="text-sm font-semibold text-white mb-1">Category Style</p>
+              <p className="text-xs text-white/30 mb-3">How menu categories are displayed</p>
+              <div className="grid grid-cols-2 gap-3">
+                {CAT_PREVIEWS.map(c => (
+                  <StyleCard key={c.id} label={c.label} desc={c.desc}
+                    active={settings.category_style === c.id}
+                    onClick={() => set('category_style', c.id)}
+                    preview={<div className="rounded-lg bg-white/5 border border-white/8 overflow-hidden">{c.preview}</div>} />
+                ))}
+              </div>
+            </div>
+            <div className="rounded-2xl bg-white/4 border border-white/10 p-4">
+              <p className="text-sm font-semibold text-white mb-1">Item Card Style</p>
+              <p className="text-xs text-white/30 mb-3">How menu items appear inside a category</p>
+              <div className="grid grid-cols-3 gap-3">
+                {ITEM_PREVIEWS.map(c => (
+                  <StyleCard key={c.id} label={c.label} desc={c.desc}
+                    active={settings.item_style === c.id}
+                    onClick={() => set('item_style', c.id)}
+                    preview={<div className="rounded-lg bg-white/5 border border-white/8 overflow-hidden">{c.preview}</div>} />
+                ))}
+              </div>
+            </div>
+            <div className="rounded-2xl bg-white/4 border border-white/10 p-4">
+              <p className="text-sm font-semibold text-white mb-1">Events &amp; Offers Style</p>
+              <p className="text-xs text-white/30 mb-3">How promotions and events are showcased</p>
+              <div className="grid grid-cols-3 gap-3">
+                {EVENT_PREVIEWS.map(c => (
+                  <StyleCard key={c.id} label={c.label} desc={c.desc}
+                    active={settings.event_style === c.id}
+                    onClick={() => set('event_style', c.id)}
+                    preview={<div className="rounded-lg bg-white/5 border border-white/8 overflow-hidden">{c.preview}</div>} />
+                ))}
+              </div>
+            </div>
+            <div className="rounded-2xl bg-white/4 border border-white/10 p-4">
+              <p className="text-sm font-semibold text-white mb-1">Social Media Style</p>
+              <p className="text-xs text-white/30 mb-3">How social links appear at the bottom</p>
+              <div className="grid grid-cols-3 gap-3">
+                {SOCIAL_PREVIEWS.map(c => (
+                  <StyleCard key={c.id} label={c.label} desc={c.desc}
+                    active={settings.social_style === c.id}
+                    onClick={() => set('social_style', c.id)}
+                    preview={<div className="rounded-lg bg-white/5 border border-white/8 overflow-hidden">{c.preview}</div>} />
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Tab: Display */}
+        {subTab === 'display' && (
+          <motion.div key="display" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.18 }}
+            className="space-y-5">
+            <div className="rounded-2xl bg-white/4 border border-white/10 p-4 space-y-3">
+              <p className="text-sm font-semibold text-white">Display Options</p>
+              {[
+                { k: 'show_prices'       as const, label: 'Show Prices',       desc: 'Display item prices to guests' },
+                { k: 'show_descriptions' as const, label: 'Show Descriptions', desc: 'Show item descriptions below name' },
+              ].map(opt => (
+                <div key={opt.k} className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-white/80 font-medium">{opt.label}</p>
+                    <p className="text-xs text-white/30">{opt.desc}</p>
+                  </div>
+                  <button onClick={() => set(opt.k, !settings[opt.k])}
+                    className={cn('relative w-11 h-6 rounded-full border transition-all duration-200 shrink-0',
+                      settings[opt.k] ? 'bg-amber-500 border-amber-500' : 'bg-white/8 border-white/15')}>
+                    <span className={cn('absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all duration-200',
+                      settings[opt.k] ? 'left-[22px]' : 'left-0.5')} />
+                  </button>
+                </div>
+              ))}
+              <div>
+                <label className="block text-xs font-semibold text-white/40 uppercase tracking-wider mb-1.5">Welcome Message</label>
+                <input type="text" value={settings.welcome_text ?? ''}
+                  onChange={e => set('welcome_text', e.target.value || null)}
+                  placeholder="Welcome! Browse our menu and order from your table."
+                  maxLength={120}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-amber-500/50 transition-all" />
+              </div>
+            </div>
+          </motion.div>
+        )}
+        {/* Tab: Coupons */}
+        {subTab === 'coupons' && (
+          <motion.div key="coupons" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.18 }}>
+            <DiscountCodePage />
+          </motion.div>
+        )}
+        </AnimatePresence>
 
       </motion.div>
 

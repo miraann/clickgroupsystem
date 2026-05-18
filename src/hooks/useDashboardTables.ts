@@ -41,7 +41,7 @@ async function fetchDashboardData(restaurantId: string): Promise<DashboardFullDa
       .select('name, logo_url, settings, menu_slug')
       .eq('id', restaurantId).maybeSingle(),
     supabase.from('tables')
-      .select('id, seq, table_number, capacity, shape, group_id')
+      .select('id, seq, table_number, capacity, shape, group_id, status')
       .eq('restaurant_id', restaurantId).eq('active', true).order('table_number'),
     supabase.from('orders')
       .select('id, table_number, guests, total, created_at')
@@ -86,6 +86,7 @@ async function fetchDashboardData(restaurantId: string): Promise<DashboardFullDa
     const order = orderMap.get(base.number)
     if (order) return { ...base, status: 'occupied' as const, guests: order.guests, orderTotal: order.total, openedAt: order.openedAt, orderId: order.orderId }
     if (reservedIds.has(base.id)) return { ...base, status: 'reserved' as const }
+    if ((t as Record<string, unknown>).status === 'dirty') return { ...base, status: 'dirty' as const }
     return { ...base, status: 'available' as const }
   })
 

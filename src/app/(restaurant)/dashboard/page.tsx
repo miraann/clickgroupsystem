@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useCallback, useRef, memo } from 'react'
+import React, { useState, useEffect, useCallback, useRef, memo } from 'react'
 import { mutate as swrMutate } from 'swr'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -8,7 +8,7 @@ import {
   LogOut, Bell, Settings, DollarSign,
   Utensils, Coffee, ChevronRight, Delete,
   CalendarDays, Phone, Check, AlertCircle, Loader2,
-  ArrowRightLeft, Merge, Receipt, Printer, X as XIcon, Truck, BellRing, Globe, Monitor, Shield,
+  ArrowRightLeft, Merge, Receipt, Printer, X as XIcon, Truck, BellRing, Globe, Monitor, Shield, BarChart2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
@@ -21,6 +21,7 @@ import { useDashboardTables, SWR_KEY, type DashboardFullData } from '@/hooks/use
 import { usePermissions } from '@/lib/permissions/PermissionsContext'
 import { getStaffHome } from '@/lib/permissions/staffHome'
 import InvoiceModal from '@/components/restaurant/invoice-modal'
+import { DailySalesModal } from '@/components/restaurant/daily-sales-modal'
 import { logAudit } from '@/lib/logAudit'
 
 type TableStatus = 'available' | 'occupied' | 'reserved' | 'dirty' | 'bill_requested'
@@ -215,11 +216,9 @@ function QuickMenu({ table, onClose, onQuickPay, onPrintBill, router }: {
 }) {
   const isOccupied = table.status === 'occupied' || table.status === 'bill_requested'
   const actions = [
-    { icon: ArrowRightLeft, label: 'Move Table',   color: 'text-blue-400',    onClick: () => { onClose() } },
-    { icon: Merge,          label: 'Merge Tables',  color: 'text-violet-400',  onClick: () => { onClose() } },
-    { icon: Receipt,        label: 'Quick Pay',     color: 'text-amber-400',   onClick: () => { onClose(); onQuickPay(table) }, disabled: !isOccupied },
-    { icon: Printer,        label: 'Print Bill',    color: 'text-emerald-400', onClick: () => { onClose(); onPrintBill(table) }, disabled: !isOccupied },
-    { icon: XIcon,          label: 'Cancel',        color: 'text-white/40',    onClick: onClose, disabled: false },
+    { icon: ArrowRightLeft, label: 'Move Table',   color: 'text-blue-400',   onClick: () => { onClose() } },
+    { icon: Merge,          label: 'Merge Tables', color: 'text-violet-400', onClick: () => { onClose() } },
+    { icon: XIcon,          label: 'Cancel',       color: 'text-white/40',   onClick: onClose, disabled: false },
   ]
   return (
     <AnimatePresence>
@@ -263,14 +262,130 @@ function QuickMenu({ table, onClose, onQuickPay, onPrintBill, router }: {
   )
 }
 
+// ── Glow Design: Top-Down Table SVG Illustration ──────────────
+function GlowTableSvg({ shape, color }: { shape: 'round' | 'square' | 'rect', color: string }) {
+  const seat:  React.CSSProperties = { fill: color, opacity: 0.55 }
+  const back:  React.CSSProperties = { fill: color, opacity: 0.85 }
+  const table: React.CSSProperties = { fill: color, fillOpacity: 0.18, stroke: color, strokeWidth: 2.5, strokeOpacity: 0.95 }
+
+  // 4 realistic chairs: backrest (thin outer strip) + seat body
+  // Layout for square/round (viewBox 100×100), table occupies x/y 22–78
+  const chairs4 = (
+    <>
+      {/* top */}
+      <rect x={40} y={1}  width={20} height={6}  rx={3} style={back} />
+      <rect x={38} y={7}  width={24} height={13} rx={4} style={seat} />
+      {/* bottom */}
+      <rect x={38} y={80} width={24} height={13} rx={4} style={seat} />
+      <rect x={40} y={93} width={20} height={6}  rx={3} style={back} />
+      {/* left */}
+      <rect x={1}  y={40} width={6}  height={20} rx={3} style={back} />
+      <rect x={7}  y={38} width={13} height={24} rx={4} style={seat} />
+      {/* right */}
+      <rect x={80} y={38} width={13} height={24} rx={4} style={seat} />
+      <rect x={93} y={40} width={6}  height={20} rx={3} style={back} />
+    </>
+  )
+
+  if (shape === 'round') {
+    return (
+      <svg viewBox="0 0 100 100" style={{ width: '100%', height: 'auto' }}>
+        {chairs4}
+        <circle cx={50} cy={50} r={26} style={table} />
+      </svg>
+    )
+  }
+
+  if (shape === 'rect') {
+    // viewBox 160×100, table x=22–138, y=22–78, center x=80
+    return (
+      <svg viewBox="0 0 160 100" style={{ width: '100%', height: 'auto' }}>
+        {/* top */}
+        <rect x={70} y={1}   width={20} height={6}  rx={3} style={back} />
+        <rect x={68} y={7}   width={24} height={13} rx={4} style={seat} />
+        {/* bottom */}
+        <rect x={68} y={80}  width={24} height={13} rx={4} style={seat} />
+        <rect x={70} y={93}  width={20} height={6}  rx={3} style={back} />
+        {/* left */}
+        <rect x={1}   y={40} width={6}  height={20} rx={3} style={back} />
+        <rect x={7}   y={38} width={13} height={24} rx={4} style={seat} />
+        {/* right */}
+        <rect x={140} y={38} width={13} height={24} rx={4} style={seat} />
+        <rect x={153} y={40} width={6}  height={20} rx={3} style={back} />
+        <rect x={22}  y={22} width={116} height={56} rx={8} style={table} />
+      </svg>
+    )
+  }
+
+  // square
+  return (
+    <svg viewBox="0 0 100 100" style={{ width: '100%', height: 'auto' }}>
+      {chairs4}
+      <rect x={22} y={22} width={56} height={56} rx={7} style={table} />
+    </svg>
+  )
+}
+
+function hexAlpha(hex: string, a: number): string {
+  const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16)
+  return `rgba(${r},${g},${b},${a})`
+}
+
 // ── Enhanced Table Card ────────────────────────────────────────
-const TableCard = memo(function TableCard({ table, onSelect, onLongPress, formatPrice, hasWaiterCall }: {
+type TableDesign = 'glass' | 'vibrant' | 'glow' | 'minimal'
+
+// Status colors used by non-glass designs (using CSS var for occupied so primary color applies)
+const VIBRANT_BG: Record<TableStatus, string> = {
+  available:      '#059669',
+  occupied:       'var(--app-primary, #d97706)',
+  reserved:       '#4338ca',
+  dirty:          '#9f1239',
+  bill_requested: '#b91c1c',
+}
+const GLOW_COLOR: Record<TableStatus, string> = {
+  available:      '#10b981',
+  occupied:       'var(--app-primary, #f59e0b)',
+  reserved:       '#818cf8',
+  dirty:          '#fb7185',
+  bill_requested: '#f87171',
+}
+const MINIMAL_BORDER: Record<TableStatus, string> = {
+  available:      'rgba(16,185,129,0.90)',
+  occupied:       'rgba(245,158,11,0.90)',
+  reserved:       'rgba(129,140,248,0.90)',
+  dirty:          'rgba(251,113,133,0.70)',
+  bill_requested: 'rgba(248,113,113,0.92)',
+}
+const NEON_GLOW: Record<TableStatus, string> = {
+  available:      '0 0 12px rgba(16,185,129,0.40)',
+  occupied:       '0 0 12px rgba(245,158,11,0.40)',
+  reserved:       '0 0 12px rgba(129,140,248,0.40)',
+  dirty:          '0 0 10px rgba(251,113,133,0.25)',
+  bill_requested: '0 0 14px rgba(248,113,113,0.50)',
+}
+const NEON_TINT: Record<TableStatus, string> = {
+  available:      'rgba(16,185,129,0.06)',
+  occupied:       'rgba(245,158,11,0.06)',
+  reserved:       'rgba(129,140,248,0.06)',
+  dirty:          'rgba(251,113,133,0.05)',
+  bill_requested: 'rgba(248,113,113,0.08)',
+}
+const MINIMAL_ACCENT: Record<TableStatus, string> = {
+  available:      '#34d399',
+  occupied:       'var(--app-primary, #f59e0b)',
+  reserved:       '#818cf8',
+  dirty:          '#fb7185',
+  bill_requested: '#f87171',
+}
+
+const TableCard = memo(function TableCard({ table, onSelect, onLongPress, formatPrice, hasWaiterCall, design = 'glass' }: {
   table: Table
   onSelect: (t: Table) => void
   onLongPress: (t: Table) => void
   cur: string
   formatPrice: (n: number) => string
   hasWaiterCall?: boolean
+  design?: TableDesign
 }) {
   const { t: tr } = useLanguage()
   const STATUS_LABELS: Record<TableStatus, string> = {
@@ -280,46 +395,259 @@ const TableCard = memo(function TableCard({ table, onSelect, onLongPress, format
     dirty:          tr.table_dirty,
     bill_requested: tr.table_bill,
   }
-  const cfg = STATUS_CONFIG[table.status]
-  const isRound = table.shape === 'round'
-  const isRect  = table.shape === 'rect'
+  const cfg       = STATUS_CONFIG[table.status]
   const isBillReq = table.status === 'bill_requested'
+  const isOccupied = table.status === 'occupied' || isBillReq
 
-  // Long-press detection
-  const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const pressTimer   = useRef<ReturnType<typeof setTimeout> | null>(null)
   const didLongPress = useRef(false)
-
   const startPress = () => {
     didLongPress.current = false
-    pressTimer.current = setTimeout(() => {
-      didLongPress.current = true
-      onLongPress(table)
-    }, 600)
+    pressTimer.current = setTimeout(() => { didLongPress.current = true; onLongPress(table) }, 600)
   }
-  const endPress = () => {
-    if (pressTimer.current) clearTimeout(pressTimer.current)
-  }
-  const handleClick = () => {
-    if (!didLongPress.current) onSelect(table)
+  const endPress   = () => { if (pressTimer.current) clearTimeout(pressTimer.current) }
+  const handleClick = () => { if (!didLongPress.current) onSelect(table) }
+
+  // ── Shape & sizing ─────────────────────────────────────────────
+  const isRound = table.shape === 'round'
+  const isRect  = table.shape === 'rect'
+  const shapeRadius = isRound ? '50%' : '16px'
+
+  let cardW: string, cardH: string
+  if (design === 'glass') {
+    const w = isRound ? (isOccupied ? 110 : 90) : isRect ? (isOccupied ? 190 : 175) : (isOccupied ? 110 : 90)
+    const h = isOccupied ? 110 : 90
+    cardW   = isRound ? `min(${w}px, 26vw)` : `min(${w}px, 44vw)`
+    cardH   = isRound ? `min(${h}px, 26vw)` : `min(${h}px, 25vw)`
+  } else if (design === 'vibrant') {
+    if (isRect) {
+      cardW = isOccupied ? 'min(190px, 46vw)' : 'min(175px, 42vw)'
+      cardH = isOccupied ? 'min(120px, 28vw)' : 'min(105px, 26vw)'
+    } else {
+      cardW = isOccupied ? 'min(120px, 28vw)' : 'min(105px, 26vw)'
+      cardH = cardW
+    }
+  } else if (design === 'glow') {
+    if (isRect) {
+      cardW = 'min(200px, 48vw)'
+      cardH = isOccupied ? 'min(165px, 40vw)' : 'min(148px, 36vw)'
+    } else {
+      // round & square: portrait to fit SVG illustration + info strip
+      cardW = 'min(120px, 29vw)'
+      cardH = isOccupied ? 'min(165px, 40vw)' : 'min(148px, 36vw)'
+    }
+  } else { // minimal
+    if (isRect) {
+      cardW = isOccupied ? 'min(190px, 46vw)' : 'min(175px, 42vw)'
+      cardH = isOccupied ? 'min(110px, 27vw)' : 'min(92px, 23vw)'
+    } else {
+      cardW = isOccupied ? 'min(110px, 27vw)' : 'min(92px, 23vw)'
+      cardH = cardW
+    }
   }
 
-  const isOccupied = table.status === 'occupied' || isBillReq
-  const w = isRound ? (isOccupied ? 110 : 90) : isRect ? (isOccupied ? 190 : 175) : (isOccupied ? 110 : 90)
-  const h = isOccupied ? 110 : 90
-  const cardW = isRound ? `min(${w}px, 26vw)` : `min(${w}px, 44vw)`
-  const cardH = isRound ? `min(${h}px, 26vw)` : `min(${h}px, 25vw)`
+  // ── Shared motion props ──────────────────────────────────────────
+  const motionBase = {
+    initial: { opacity: 0 } as const,
+    animate: { opacity: 1 } as const,
+    exit:    { opacity: 0 } as const,
+    transition: { duration: 0.15 },
+    onPointerDown: startPress,
+    onPointerUp:   endPress,
+    onPointerLeave: endPress,
+    onClick: handleClick,
+  }
 
+  // ════════════════════════════════════════════════════════════════
+  // DESIGN: VIBRANT — solid vivid color fill
+  // ════════════════════════════════════════════════════════════════
+  if (design === 'vibrant') {
+    return (
+      <motion.button
+        {...motionBase}
+        whileTap={{ scale: 0.92 }}
+        style={{ width: cardW, height: cardH, borderRadius: shapeRadius, background: VIBRANT_BG[table.status], boxShadow: '0 6px 24px rgba(0,0,0,0.35)' }}
+        className={cn('relative p-3 text-left shrink-0 touch-manipulation flex flex-col overflow-hidden', isRound && 'items-center justify-center text-center', isBillReq && 'animate-pulse')}
+      >
+        <div className="absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-black/20 pointer-events-none rounded-2xl" />
+        {isBillReq && <div className="absolute inset-0 rounded-2xl bg-white/10 animate-ping pointer-events-none" />}
+        {hasWaiterCall && (
+          <div className="absolute -top-1.5 -right-1.5 z-10 w-5 h-5 rounded-full bg-white flex items-center justify-center shadow-lg animate-bounce">
+            <BellRing className="w-2.5 h-2.5 text-violet-600" />
+          </div>
+        )}
+        {/* Label + dot */}
+        <div className="relative flex items-center justify-between mb-auto">
+          <span className="text-[11px] font-black text-white drop-shadow-sm">{table.label}</span>
+          <motion.div animate={{ scale: [1,1.5,1], opacity:[1,.5,1] }} transition={{ repeat: Infinity, duration: isBillReq ? 0.8 : 2.2 }}
+            className="w-2 h-2 rounded-full bg-white/70" />
+        </div>
+        {/* Status */}
+        <p className="relative text-[8px] font-bold uppercase tracking-widest text-white/75 leading-none mb-1">
+          {STATUS_LABELS[table.status]}
+        </p>
+        {/* Occupied info */}
+        {isOccupied && (
+          <div className="relative space-y-0.5">
+            <div className="flex items-center gap-1">
+              <Clock className="w-2.5 h-2.5 text-white/70" />
+              <span className="text-[10px] text-white/80 font-semibold tabular-nums"><TableTimer openedAt={table.openedAt!} /></span>
+            </div>
+            {table.orderTotal != null && (
+              <p className="text-sm font-black text-white tabular-nums leading-none">{formatPrice(table.orderTotal)}</p>
+            )}
+          </div>
+        )}
+        {table.status === 'available' && (
+          <div className="relative flex items-center gap-1">
+            <Users className="w-2.5 h-2.5 text-white/60" />
+            <span className="text-[10px] text-white/75">{table.capacity}</span>
+          </div>
+        )}
+      </motion.button>
+    )
+  }
+
+  // ════════════════════════════════════════════════════════════════
+  // DESIGN: GLOW — real top-down table illustration with neon glow
+  // ════════════════════════════════════════════════════════════════
+  if (design === 'glow') {
+    const gc = GLOW_COLOR[table.status]
+    return (
+      <motion.button
+        {...motionBase}
+        whileTap={{ scale: 0.96 }}
+        style={{
+          width: cardW, height: cardH, borderRadius: '12px',
+          background: 'transparent',
+        }}
+        className={cn('relative p-2.5 shrink-0 touch-manipulation flex flex-col backdrop-blur-xl overflow-hidden', isBillReq && 'animate-pulse')}
+      >
+        {isBillReq && <div className="absolute inset-0 bg-red-500/5 animate-ping pointer-events-none rounded-xl" />}
+        {hasWaiterCall && (
+          <div className="absolute -top-1.5 -right-1.5 z-10 w-5 h-5 rounded-full bg-violet-500 border-2 border-black flex items-center justify-center shadow-lg animate-bounce">
+            <BellRing className="w-2.5 h-2.5 text-white" />
+          </div>
+        )}
+        {/* Real table top-down illustration */}
+        <div className="flex-1 w-full flex items-center justify-center min-h-0 overflow-hidden">
+          <GlowTableSvg shape={table.shape} color={gc} />
+        </div>
+        {/* Info strip */}
+        <div className="shrink-0 pt-1.5 border-t border-white/8">
+          <div className="flex items-center justify-between gap-1">
+            <span className="text-[10px] font-black leading-none" style={{ color: gc }}>{table.label}</span>
+            <div className="flex items-center gap-1 min-w-0">
+              <span className="text-[7px] font-bold uppercase tracking-widest truncate" style={{ color: gc }}>{STATUS_LABELS[table.status]}</span>
+              <motion.div animate={{ scale:[1,1.4,1], opacity:[1,.4,1] }} transition={{ repeat: Infinity, duration: isBillReq ? 0.8 : 2.5 }}
+                className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: gc }} />
+            </div>
+          </div>
+          {isOccupied && (
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-[8px] text-white/40 tabular-nums flex items-center gap-0.5">
+                <Clock className="w-2 h-2 shrink-0" /><TableTimer openedAt={table.openedAt!} />
+              </span>
+              {table.orderTotal != null && (
+                <span className="text-[10px] font-bold tabular-nums leading-none" style={{ color: gc }}>{formatPrice(table.orderTotal)}</span>
+              )}
+            </div>
+          )}
+          {table.status === 'available' && (
+            <div className="flex items-center gap-0.5 mt-0.5">
+              <Users className="w-2 h-2 text-white/30" />
+              <span className="text-[8px] text-white/30">{table.capacity}</span>
+            </div>
+          )}
+        </div>
+      </motion.button>
+    )
+  }
+
+  // ════════════════════════════════════════════════════════════════
+  // DESIGN: NEON — glowing accent borders with deep dark fill
+  // ════════════════════════════════════════════════════════════════
+  if (design === 'minimal') {
+    return (
+      <div
+        className="relative shrink-0"
+        style={{ width: cardW, height: cardH, borderRadius: shapeRadius, padding: '1.5px', overflow: 'hidden' }}
+      >
+        {/* Spinning border light sweep */}
+        <div
+          className="pointer-events-none"
+          style={{
+            position: 'absolute', top: '50%', left: '50%',
+            width: '200%', height: '200%',
+            background: `conic-gradient(from 0deg, transparent 0%, ${MINIMAL_BORDER[table.status]} 18%, transparent 36%)`,
+            animation: 'neon-border-spin 2.5s linear infinite',
+          }}
+        />
+        <motion.button
+          {...motionBase}
+          whileTap={{ scale: 0.94 }}
+          style={{
+            width: '100%', height: '100%', borderRadius: shapeRadius,
+            background: 'rgba(0,0,0,0.30)',
+            boxShadow: NEON_GLOW[table.status],
+            position: 'relative', zIndex: 1,
+          }}
+          className={cn('p-3 text-left touch-manipulation flex flex-col backdrop-blur-xl overflow-hidden', isRound && 'items-center justify-center text-center', isBillReq && 'animate-pulse')}
+        >
+          {/* Inner status tint */}
+          <div className="absolute inset-0 pointer-events-none" style={{ background: NEON_TINT[table.status] }} />
+          {/* Top shine */}
+          <div className="absolute inset-x-0 top-0 h-1/2 pointer-events-none" style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.06) 0%, transparent 100%)' }} />
+          {hasWaiterCall && (
+            <div className="absolute -top-1.5 -right-1.5 z-10 w-5 h-5 rounded-full bg-violet-500/90 flex items-center justify-center shadow-lg animate-bounce">
+              <BellRing className="w-2.5 h-2.5 text-white" />
+            </div>
+          )}
+          {/* Label row */}
+          <div className="relative flex items-center justify-between mb-auto">
+            <span className="text-[11px] font-bold" style={{ color: MINIMAL_ACCENT[table.status] }}>{table.label}</span>
+            <motion.div
+              animate={{ scale:[1,1.4,1], opacity:[0.7,1,0.7] }}
+              transition={{ repeat: Infinity, duration: isBillReq ? 0.8 : 2.5 }}
+              className="w-1.5 h-1.5 rounded-full"
+              style={{ background: MINIMAL_ACCENT[table.status], boxShadow: `0 0 4px ${MINIMAL_ACCENT[table.status]}` }}
+            />
+          </div>
+          {/* Center status */}
+          <p className="relative text-[8px] font-semibold uppercase tracking-widest text-white/50 leading-none mb-1.5">
+            {STATUS_LABELS[table.status]}
+          </p>
+          {/* Occupied info */}
+          {isOccupied && (
+            <div className="relative space-y-0.5">
+              <span className="text-[9px] text-white/35 tabular-nums flex items-center gap-1">
+                <Clock className="w-2.5 h-2.5" /><TableTimer openedAt={table.openedAt!} />
+              </span>
+              {table.orderTotal != null && (
+                <p className="text-[13px] font-bold tabular-nums" style={{ color: MINIMAL_ACCENT[table.status] }}>
+                  {formatPrice(table.orderTotal)}
+                </p>
+              )}
+            </div>
+          )}
+          {table.status === 'available' && (
+            <div className="relative flex items-center gap-1">
+              <Users className="w-2.5 h-2.5 text-white/25" />
+              <span className="text-[10px] text-white/30">{table.capacity}</span>
+            </div>
+          )}
+        </motion.button>
+      </div>
+    )
+  }
+
+  // ════════════════════════════════════════════════════════════════
+  // DESIGN: GLASS (default) — glassmorphism with status borders
+  // ════════════════════════════════════════════════════════════════
   return (
     <motion.button
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
+      {...motionBase}
       whileTap={{ scale: 0.93 }}
-      transition={{ duration: 0.15 }}
-      onPointerDown={startPress}
-      onPointerUp={endPress}
-      onPointerLeave={endPress}
-      onClick={handleClick}
       style={{ width: cardW, height: cardH }}
       className={cn(
         'relative border-[3px] backdrop-blur-xl p-2 sm:p-3 text-left shrink-0 touch-manipulation shadow-lg flex flex-col',
@@ -328,51 +656,34 @@ const TableCard = memo(function TableCard({ table, onSelect, onLongPress, format
         isBillReq && 'animate-pulse',
       )}
     >
-      {/* Glow overlay for bill_requested */}
-      {isBillReq && (
-        <div className="absolute inset-0 rounded-2xl bg-red-500/10 animate-ping pointer-events-none" />
-      )}
-
-      {/* Waiter call badge */}
+      {isBillReq && <div className="absolute inset-0 rounded-2xl bg-red-500/10 animate-ping pointer-events-none" />}
       {hasWaiterCall && (
-        <div className="absolute -top-2 -right-2 z-10 flex items-center justify-center w-6 h-6 rounded-full bg-violet-500 border-2 border-[#022658] shadow-lg shadow-violet-500/50 animate-bounce">
+        <div className="absolute -top-2 -right-2 z-10 flex items-center justify-center w-6 h-6 rounded-full bg-violet-500 border-2 border-black/40 shadow-lg shadow-violet-500/50 animate-bounce">
           <BellRing className="w-3 h-3 text-white" />
         </div>
       )}
-
       {isRound ? (
         <div className="flex flex-col items-center justify-center gap-0.5 w-full h-full">
           <span className={cn('text-sm font-bold', cfg.text)}>{table.label}</span>
           <span className={cn('text-[9px] font-bold uppercase tracking-wider', cfg.text)}>{STATUS_LABELS[table.status]}</span>
-          {(table.status === 'occupied' || isBillReq) && (
+          {isOccupied && (
             <>
               <span className="text-[10px] text-white/60 tabular-nums font-semibold">{table.orderTotal != null ? formatPrice(table.orderTotal) : ''}</span>
               <span className="text-[9px] text-white/35"><TableTimer openedAt={table.openedAt!} /></span>
             </>
           )}
           {table.status === 'available' && <span className="text-[9px] text-white/30">{table.capacity} seats</span>}
-          <motion.div animate={{ scale: [1, 1.4, 1] }} transition={{ repeat: Infinity, duration: 2 }}
-            className={cn('w-1.5 h-1.5 rounded-full mt-0.5', cfg.dot)} />
+          <motion.div animate={{ scale:[1,1.4,1] }} transition={{ repeat: Infinity, duration: 2 }} className={cn('w-1.5 h-1.5 rounded-full mt-0.5', cfg.dot)} />
         </div>
       ) : (
         <>
-          {/* Header row */}
           <div className="flex items-center justify-between mb-1.5">
-            <div className={cn('px-2 py-0.5 rounded-lg border text-xs font-bold', cfg.bg, cfg.border, cfg.text)}>
-              {table.label}
-            </div>
-            <motion.div animate={{ scale: [1, 1.5, 1], opacity: [1, 0.5, 1] }}
-              transition={{ repeat: Infinity, duration: isBillReq ? 0.8 : 2.5 }}
+            <div className={cn('px-2 py-0.5 rounded-lg border text-xs font-bold', cfg.bg, cfg.border, cfg.text)}>{table.label}</div>
+            <motion.div animate={{ scale:[1,1.5,1], opacity:[1,.5,1] }} transition={{ repeat: Infinity, duration: isBillReq ? 0.8 : 2.5 }}
               className={cn('w-2 h-2 rounded-full', cfg.dot)} />
           </div>
-
-          {/* Status label */}
-          <p className={cn('text-[9px] font-bold uppercase tracking-widest mb-auto', cfg.text)}>
-            {STATUS_LABELS[table.status]}
-          </p>
-
-          {/* Occupied / Bill Requested info */}
-          {(table.status === 'occupied' || isBillReq) && (
+          <p className={cn('text-[9px] font-bold uppercase tracking-widest mb-auto', cfg.text)}>{STATUS_LABELS[table.status]}</p>
+          {isOccupied && (
             <div className="space-y-0.5">
               <div className="flex items-center justify-between gap-1">
                 <div className="flex items-center gap-1">
@@ -386,25 +697,19 @@ const TableCard = memo(function TableCard({ table, onSelect, onLongPress, format
               </p>
             </div>
           )}
-
-          {/* Available */}
           {table.status === 'available' && (
             <div className="flex items-center gap-1">
               <Users className="w-3 h-3 text-white/20" />
               <span className="text-xs text-white/30">{table.capacity}</span>
             </div>
           )}
-
-          {/* Reserved */}
           {table.status === 'reserved' && <p className="text-[10px] text-indigo-300/60 font-medium">{tr.table_reserved}</p>}
-
-          {/* Dirty */}
-          {table.status === 'dirty' && <p className="text-[10px] text-rose-300/50 font-medium">{tr.table_dirty}</p>}
         </>
       )}
     </motion.button>
   )
 })
+
 
 export default function TablesPage() {
   const router = useRouter()
@@ -439,11 +744,13 @@ export default function TablesPage() {
   const [waiterCalls, setWaiterCalls]           = useState<WaiterCall[]>([])
   const [showWaiterPanel, setShowWaiterPanel]   = useState(false)
   const [showLangPicker, setShowLangPicker]     = useState(false)
+  const [showDailySales, setShowDailySales]     = useState(false)
   const { lang, setLang, t: tr } = useLanguage()
   const alertIntervalRef       = useRef<ReturnType<typeof setInterval> | null>(null)
   const waiterAlertIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const soundsEnabledRef  = useRef(true)
   const alertRepeatMsRef  = useRef(30000)
+  const alertSoundRef     = useRef('classic')
 
   const audioCtxRef = useRef<AudioContext | null>(null)
 
@@ -452,6 +759,28 @@ export default function TablesPage() {
   const groups           = (swrData?.groups ?? []) as TableGroup[]
   const showDeliveryButton = swrData?.restaurant?.settings?.show_delivery_button !== false
   const showTakeoutButton  = swrData?.restaurant?.settings?.show_takeout_button  !== false
+  const tableDesign        = ((swrData?.restaurant?.settings as Record<string,unknown>)?.table_design       as TableDesign) || 'glass'
+  const navButtonStyle     = ((swrData?.restaurant?.settings as Record<string,unknown>)?.nav_button_style   as string)      || 'glass'
+  const primaryColorHex    = ((swrData?.restaurant?.settings as Record<string,unknown>)?.primary_color      as string)      || '#f59e0b'
+  const VIBRANT_BTN: Record<string, string> = {
+    reports: '#f59e0b', audit: '#6366f1', staff: '#10b981',
+    kds: '#f97316', guests: '#8b5cf6', language: '#06b6d4',
+  }
+  const navBtnBase: React.CSSProperties = navButtonStyle === 'neon'
+    ? { background: 'rgba(0,0,0,0.40)', border: `1px solid ${hexAlpha(primaryColorHex, 0.68)}`, color: primaryColorHex, boxShadow: `0 0 10px ${hexAlpha(primaryColorHex, 0.26)}` }
+    : navButtonStyle === 'crystal'
+    ? { background: 'linear-gradient(135deg,rgba(255,255,255,0.13) 0%,rgba(255,255,255,0.05) 100%)', border: '1px solid rgba(255,255,255,0.22)', color: 'rgba(255,255,255,0.75)' }
+    : {}
+  const navBtn = (key: string): React.CSSProperties => {
+    if (navButtonStyle === 'vibrant') {
+      const c = VIBRANT_BTN[key] || '#f59e0b'
+      return { background: c, border: `1px solid ${c}`, color: 'white', boxShadow: `0 4px 14px ${hexAlpha(c, 0.40)}` }
+    }
+    return navBtnBase
+  }
+  const navBtnCn = navButtonStyle === 'glass'
+    ? 'bg-white/5 border border-white/10 text-white/40 hover:text-white/70 hover:bg-white/10'
+    : 'hover:brightness-110'
 
   // Set group filter to first group on initial SWR data arrival
   useEffect(() => {
@@ -464,6 +793,7 @@ export default function TablesPage() {
     const rs = swrData.restaurant.settings
     soundsEnabledRef.current = rs.sounds_enabled !== false
     alertRepeatMsRef.current = Number(rs.alert_repeat_seconds ?? 30) * 1000
+    alertSoundRef.current    = (rs.alert_sound as string) || 'classic'
   }, [swrData?.restaurant?.settings]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Unlock AudioContext on first user interaction (browser autoplay policy)
@@ -489,18 +819,45 @@ export default function TablesPage() {
     }
     const ctx = audioCtxRef.current
     const play = () => {
-      // Three ascending beeps — distinct from KDS sound
-      [520, 660, 800].forEach((freq, i) => {
-        const t    = ctx.currentTime + i * 0.25
-        const osc  = ctx.createOscillator()
-        const gain = ctx.createGain()
-        osc.connect(gain); gain.connect(ctx.destination)
-        osc.type = 'sine'
-        osc.frequency.setValueAtTime(freq, t)
-        gain.gain.setValueAtTime(0.5, t)
-        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.22)
-        osc.start(t); osc.stop(t + 0.22)
-      })
+      const s = alertSoundRef.current
+      if (s === 'chime') {
+        ;[440, 554, 659, 880].forEach((freq, i) => {
+          const t = ctx.currentTime + i * 0.18
+          const o = ctx.createOscillator(); const g = ctx.createGain()
+          o.connect(g); g.connect(ctx.destination)
+          o.type = 'sine'; o.frequency.setValueAtTime(freq, t)
+          g.gain.setValueAtTime(0.38, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.38)
+          o.start(t); o.stop(t + 0.38)
+        })
+      } else if (s === 'bell') {
+        ;[660, 880].forEach((freq, i) => {
+          const t = ctx.currentTime + i * 0.5
+          const o = ctx.createOscillator(); const g = ctx.createGain()
+          o.connect(g); g.connect(ctx.destination)
+          o.type = 'triangle'; o.frequency.setValueAtTime(freq, t)
+          g.gain.setValueAtTime(0.6, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.9)
+          o.start(t); o.stop(t + 0.9)
+        })
+      } else if (s === 'buzz') {
+        ;[900, 900, 900].forEach((freq, i) => {
+          const t = ctx.currentTime + i * 0.14
+          const o = ctx.createOscillator(); const g = ctx.createGain()
+          o.connect(g); g.connect(ctx.destination)
+          o.type = 'square'; o.frequency.setValueAtTime(freq, t)
+          g.gain.setValueAtTime(0.25, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.09)
+          o.start(t); o.stop(t + 0.09)
+        })
+      } else {
+        // classic — three ascending beeps
+        ;[520, 660, 800].forEach((freq, i) => {
+          const t = ctx.currentTime + i * 0.25
+          const o = ctx.createOscillator(); const g = ctx.createGain()
+          o.connect(g); g.connect(ctx.destination)
+          o.type = 'sine'; o.frequency.setValueAtTime(freq, t)
+          g.gain.setValueAtTime(0.5, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.22)
+          o.start(t); o.stop(t + 0.22)
+        })
+      }
     }
     ctx.state === 'running' ? play() : ctx.resume().then(play).catch(() => {})
   }, [])
@@ -512,18 +869,43 @@ export default function TablesPage() {
     }
     const ctx = audioCtxRef.current
     const play = () => {
-      // Two descending chimes — distinct from order alert
-      [880, 660].forEach((freq, i) => {
-        const t    = ctx.currentTime + i * 0.3
-        const osc  = ctx.createOscillator()
-        const gain = ctx.createGain()
-        osc.connect(gain); gain.connect(ctx.destination)
-        osc.type = 'triangle'
-        osc.frequency.setValueAtTime(freq, t)
-        gain.gain.setValueAtTime(0.45, t)
-        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4)
-        osc.start(t); osc.stop(t + 0.4)
-      })
+      const s = alertSoundRef.current
+      if (s === 'chime') {
+        ;[659, 880, 659].forEach((freq, i) => {
+          const t = ctx.currentTime + i * 0.2
+          const o = ctx.createOscillator(); const g = ctx.createGain()
+          o.connect(g); g.connect(ctx.destination)
+          o.type = 'sine'; o.frequency.setValueAtTime(freq, t)
+          g.gain.setValueAtTime(0.35, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.32)
+          o.start(t); o.stop(t + 0.32)
+        })
+      } else if (s === 'bell') {
+        const t = ctx.currentTime
+        const o = ctx.createOscillator(); const g = ctx.createGain()
+        o.connect(g); g.connect(ctx.destination)
+        o.type = 'triangle'; o.frequency.setValueAtTime(440, t)
+        g.gain.setValueAtTime(0.65, t); g.gain.exponentialRampToValueAtTime(0.001, t + 1.0)
+        o.start(t); o.stop(t + 1.0)
+      } else if (s === 'buzz') {
+        ;[1000, 1000, 1000, 1000].forEach((freq, i) => {
+          const t = ctx.currentTime + i * 0.12
+          const o = ctx.createOscillator(); const g = ctx.createGain()
+          o.connect(g); g.connect(ctx.destination)
+          o.type = 'square'; o.frequency.setValueAtTime(freq, t)
+          g.gain.setValueAtTime(0.28, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.08)
+          o.start(t); o.stop(t + 0.08)
+        })
+      } else {
+        // classic — two descending chimes
+        ;[880, 660].forEach((freq, i) => {
+          const t = ctx.currentTime + i * 0.3
+          const o = ctx.createOscillator(); const g = ctx.createGain()
+          o.connect(g); g.connect(ctx.destination)
+          o.type = 'triangle'; o.frequency.setValueAtTime(freq, t)
+          g.gain.setValueAtTime(0.45, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.4)
+          o.start(t); o.stop(t + 0.4)
+        })
+      }
     }
     ctx.state === 'running' ? play() : ctx.resume().then(play).catch(() => {})
   }, [])
@@ -741,10 +1123,10 @@ export default function TablesPage() {
   const handleLongPress = useCallback((t: Table) => setQuickMenuTable(t), [setQuickMenuTable])
 
   return (
-    <div className="min-h-screen bg-[#022658] flex flex-col">
+    <div className="min-h-screen flex flex-col" style={{ background: 'var(--app-bg, #022658)' }}>
 
       {/* Fixed top bar */}
-      <header className="sticky top-0 z-30 border-b border-white/8 bg-[#022658]/80 backdrop-blur-2xl">
+      <header className="sticky top-0 z-30 border-b border-white/8 backdrop-blur-2xl" style={{ background: 'var(--app-anchor-80, rgba(2,38,88,0.8))' }}>
         <div className="flex items-center justify-between px-5 py-3">
           {/* Left: restaurant + user */}
           <div className="flex items-center gap-3">
@@ -782,17 +1164,17 @@ export default function TablesPage() {
               </div>
             )}
             {can('dashboard.btn_reports') && (
-              <Link href="/dashboard/reports" className="hidden sm:flex w-14 h-14 rounded-xl bg-white/5 border border-white/10 items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 transition-all active:scale-95">
+              <Link href="/dashboard/reports" className={cn('hidden sm:flex w-14 h-14 rounded-xl items-center justify-center transition-all active:scale-95', navBtnCn)} style={navBtn('reports')}>
                 <DollarSign size={26} />
               </Link>
             )}
             {(isOwner || can('dashboard.btn_audit_log')) && (
-              <Link href="/dashboard/audit-log" title="Audit Log" className="hidden sm:flex w-14 h-14 rounded-xl bg-white/5 border border-white/10 items-center justify-center text-white/40 hover:text-indigo-400 hover:bg-indigo-500/10 hover:border-indigo-500/30 transition-all active:scale-95">
+              <Link href="/dashboard/audit-log" title="Audit Log" className={cn('hidden sm:flex w-14 h-14 rounded-xl items-center justify-center transition-all active:scale-95', navBtnCn)} style={navBtn('audit')}>
                 <Shield size={26} />
               </Link>
             )}
             {can('dashboard.btn_staff') && (
-              <Link href="/dashboard/staff" className="hidden sm:flex w-14 h-14 rounded-xl bg-white/5 border border-white/10 items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 transition-all active:scale-95">
+              <Link href="/dashboard/staff" className={cn('hidden sm:flex w-14 h-14 rounded-xl items-center justify-center transition-all active:scale-95', navBtnCn)} style={navBtn('staff')}>
                 <Users size={26} />
               </Link>
             )}
@@ -816,7 +1198,7 @@ export default function TablesPage() {
               </button>
             )}
             {can('dashboard.btn_kds') && (
-              <Link href="/dashboard/kds" className="hidden sm:flex w-14 h-14 rounded-xl bg-white/5 border border-white/10 items-center justify-center text-white/40 hover:text-amber-400 hover:bg-amber-500/10 hover:border-amber-500/30 transition-all active:scale-95" title="Kitchen Display">
+              <Link href="/dashboard/kds" className={cn('hidden sm:flex w-14 h-14 rounded-xl items-center justify-center transition-all active:scale-95', navBtnCn)} style={navBtn('kds')} title="Kitchen Display">
                 <ChefHat size={26} />
               </Link>
             )}
@@ -830,7 +1212,7 @@ export default function TablesPage() {
               </button>
             )}
             {can('dashboard.btn_guests') && (
-              <Link href="/dashboard/guests" className="hidden sm:flex w-14 h-14 rounded-xl bg-white/5 border border-white/10 items-center justify-center text-white/40 hover:text-amber-400 hover:bg-amber-500/10 hover:border-amber-500/30 transition-all active:scale-95" title="Guest Tracking">
+              <Link href="/dashboard/guests" className={cn('hidden sm:flex w-14 h-14 rounded-xl items-center justify-center transition-all active:scale-95', navBtnCn)} style={navBtn('guests')} title="Guest Tracking">
                 <Users size={26} />
               </Link>
             )}
@@ -839,7 +1221,8 @@ export default function TablesPage() {
               <div className="relative">
                 <button
                   onClick={() => setShowLangPicker(v => !v)}
-                  className="w-14 h-14 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 transition-all active:scale-95"
+                  className={cn('w-14 h-14 rounded-xl flex items-center justify-center transition-all active:scale-95', navBtnCn)}
+                  style={navBtn('language')}
                   title="Language"
                 >
                   <Globe size={26} />
@@ -868,6 +1251,17 @@ export default function TablesPage() {
                   </div>
                 )}
               </div>
+            )}
+
+            {can('dashboard.btn_reports') && (
+              <button
+                onClick={() => setShowDailySales(true)}
+                className={cn('w-14 h-14 rounded-xl flex items-center justify-center transition-all active:scale-95', navBtnCn)}
+                style={navBtn('reports')}
+                title="Daily Sales"
+              >
+                <BarChart2 size={26} />
+              </button>
             )}
 
             <button
@@ -985,7 +1379,7 @@ export default function TablesPage() {
                 key={table.id}
                 variants={{ hidden: { opacity: 0, y: 8 }, visible: { opacity: 1, y: 0, transition: { duration: 0.18, ease: 'easeOut' } } }}
               >
-                <TableCard table={table} hasWaiterCall={waiterCalls.some(c => c.table_number === table.label)} onSelect={handleSelect} onLongPress={handleLongPress} cur={cur} formatPrice={formatPrice} />
+                <TableCard table={table} hasWaiterCall={waiterCalls.some(c => c.table_number === table.label)} onSelect={handleSelect} onLongPress={handleLongPress} cur={cur} formatPrice={formatPrice} design={tableDesign} />
               </motion.div>
             ))}
           </motion.div>
@@ -993,7 +1387,7 @@ export default function TablesPage() {
       </div>
 
       {/* Bottom action bar */}
-      <div className="sticky bottom-0 z-30 border-t border-white/8 bg-[#022658]/90 backdrop-blur-2xl px-4 py-3">
+      <div className="sticky bottom-0 z-30 border-t border-white/8 backdrop-blur-2xl px-4 py-3" style={{ background: 'var(--app-anchor-90, rgba(2,38,88,0.9))' }}>
         <div className={cn(
           'grid gap-2 max-w-2xl mx-auto',
           (showDeliveryButton && showTakeoutButton) ? 'grid-cols-2 sm:grid-cols-4' : (showDeliveryButton || showTakeoutButton) ? 'grid-cols-2 sm:grid-cols-3' : 'grid-cols-2 sm:grid-cols-2'
@@ -1386,7 +1780,30 @@ export default function TablesPage() {
 
               {selectedTable.status === 'dirty' && (
                 <>
-                  <button className="col-span-2 h-14 rounded-2xl bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white font-semibold flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-500/20 touch-manipulation">
+                  <button
+                    onClick={async () => {
+                      const supabase = createClient()
+                      const storedId = localStorage.getItem('restaurant_id')
+                      await supabase
+                        .from('tables')
+                        .update({ status: 'available', updated_at: new Date().toISOString() })
+                        .eq('id', selectedTable.id)
+                      swrMutate(
+                        SWR_KEY(storedId!),
+                        (prev: DashboardFullData | undefined) => {
+                          if (!prev) return prev
+                          return {
+                            ...prev,
+                            tables: prev.tables.map(t =>
+                              t.id === selectedTable.id ? { ...t, status: 'available' as const } : t
+                            ),
+                          }
+                        },
+                        false,
+                      )
+                      setSelectedTable(null)
+                    }}
+                    className="col-span-2 h-14 rounded-2xl bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white font-semibold flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-500/20 touch-manipulation">
                     <RefreshCw className="w-5 h-5" />
                     Mark as Clean
                   </button>
@@ -1401,6 +1818,16 @@ export default function TablesPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Daily Sales Report */}
+      {showDailySales && cachedRestaurantId && (
+        <DailySalesModal
+          restaurantId={cachedRestaurantId}
+          restaurantName={restaurant?.name ?? undefined}
+          formatPrice={formatPrice}
+          onClose={() => setShowDailySales(false)}
+        />
       )}
     </div>
   )

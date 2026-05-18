@@ -4,19 +4,15 @@ import { createClient } from '@/lib/supabase/client'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { ActivitySquare, Search, Clock, Flame, CheckCheck, Loader2, ChevronDown, ChevronUp, X, Eye, User, QrCode, Calendar, Hash, UtensilsCrossed } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { motion, type Variants } from 'framer-motion'
+import { motion, AnimatePresence, type Variants } from 'framer-motion'
 
-const PAGE: Variants = {
-  hidden: { opacity: 0, y: 20 },
-  show:   { opacity: 1, y: 0, transition: { duration: 0.22, ease: 'circOut' as const } },
-}
-const FIELDS: Variants = {
+const CONTAINER: Variants = {
   hidden: {},
-  show:   { transition: { staggerChildren: 0.08 } },
+  show:   { transition: { staggerChildren: 0.07 } },
 }
-const FIELD_ITEM: Variants = {
-  hidden: { opacity: 0, y: -10 },
-  show:   { opacity: 1, y: 0, transition: { duration: 0.4, ease: 'circOut' as const } },
+const ITEM: Variants = {
+  hidden: { opacity: 0, y: 18 },
+  show:   { opacity: 1, y: 0, transition: { duration: 0.42, ease: 'circOut' as const } },
 }
 
 interface KdsItemRecord {
@@ -455,10 +451,12 @@ export default function KdsMonitorPage() {
   }, [search, records])
 
   return (
-    <motion.div variants={PAGE} initial="hidden" animate="show" className="space-y-6">
+    <div className="space-y-6">
 
       {/* Header */}
-      <motion.div variants={FIELD_ITEM} className="flex items-center gap-3">
+      <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.42, ease: 'circOut', delay: 0.05 }}
+        className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/20 flex items-center justify-center">
           <ActivitySquare className="w-5 h-5 text-amber-400" />
         </div>
@@ -468,93 +466,117 @@ export default function KdsMonitorPage() {
         </div>
       </motion.div>
 
-      {loading ? (
-        <motion.div variants={FIELD_ITEM} className="space-y-2">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="h-[80px] rounded-2xl bg-white/5 border border-white/8 animate-pulse" />
-          ))}
-        </motion.div>
-      ) : (
-        <motion.div variants={FIELDS} initial="hidden" animate="show" className="space-y-6">
-
-          {/* Stats */}
-          <motion.div variants={FIELD_ITEM} className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <StatCard
-              label={t.kds_pending}
-              value={avgPending !== null ? fmtSecs(avgPending) : '—'}
-              sub="Sent to kitchen → chef started"
-              color="border-amber-500/20 bg-amber-500/5"
-            />
-            <StatCard
-              label={t.kds_cooking}
-              value={avgCook !== null ? fmtSecs(avgCook) : '—'}
-              sub="Start cooking → ready"
-              color="border-blue-500/20 bg-blue-500/5"
-            />
-            <StatCard
-              label="Max Wait (Pending)"
-              value={maxPending !== null ? fmtSecs(maxPending) : '—'}
-              sub="Longest queue wait"
-              color="border-rose-500/20 bg-rose-500/5"
-            />
-            <StatCard
-              label="Max Cook Time"
-              value={maxCook !== null ? fmtSecs(maxCook) : '—'}
-              sub="Slowest dish"
-              color="border-purple-500/20 bg-purple-500/5"
-            />
+      <AnimatePresence mode="wait">
+        {loading ? (
+          <motion.div key="skeleton" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+            transition={{ duration: 0.3, ease: 'circOut' }} className="space-y-2">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="h-[80px] rounded-2xl bg-white/5 border border-white/8 animate-pulse" />
+            ))}
           </motion.div>
+        ) : (
+          <motion.div key="content" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+            transition={{ duration: 0.1 }} className="space-y-6">
 
-          {/* Search */}
-          <motion.div variants={FIELD_ITEM} className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
-            <input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder={`${t.search}…`}
-              className="w-full pl-9 pr-9 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-amber-500/50 focus:bg-white/7"
-            />
-            {search && (
-              <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60">
-                <X className="w-4 h-4" />
-              </button>
-            )}
+            {/* Stats */}
+            <motion.div variants={CONTAINER} initial="hidden" animate="show"
+              className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <motion.div variants={ITEM}>
+                <StatCard
+                  label={t.kds_pending}
+                  value={avgPending !== null ? fmtSecs(avgPending) : '—'}
+                  sub="Sent to kitchen → chef started"
+                  color="border-amber-500/20 bg-amber-500/5"
+                />
+              </motion.div>
+              <motion.div variants={ITEM}>
+                <StatCard
+                  label={t.kds_cooking}
+                  value={avgCook !== null ? fmtSecs(avgCook) : '—'}
+                  sub="Start cooking → ready"
+                  color="border-blue-500/20 bg-blue-500/5"
+                />
+              </motion.div>
+              <motion.div variants={ITEM}>
+                <StatCard
+                  label="Max Wait (Pending)"
+                  value={maxPending !== null ? fmtSecs(maxPending) : '—'}
+                  sub="Longest queue wait"
+                  color="border-rose-500/20 bg-rose-500/5"
+                />
+              </motion.div>
+              <motion.div variants={ITEM}>
+                <StatCard
+                  label="Max Cook Time"
+                  value={maxCook !== null ? fmtSecs(maxCook) : '—'}
+                  sub="Slowest dish"
+                  color="border-purple-500/20 bg-purple-500/5"
+                />
+              </motion.div>
+            </motion.div>
+
+            {/* Search */}
+            <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.42, ease: 'circOut', delay: 0.24 }}
+              className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+              <input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder={`${t.search}…`}
+                className="w-full pl-9 pr-9 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-amber-500/50 focus:bg-white/7"
+              />
+              {search && (
+                <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60">
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </motion.div>
+
+            {/* Legend */}
+            <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.38, ease: 'circOut', delay: 0.30 }}
+              className="flex flex-wrap items-center gap-4 text-xs text-white/30">
+              <div className="flex items-center gap-1.5"><Clock className="w-3 h-3 text-amber-400" /> Wait time = sent to kitchen → chef started cooking</div>
+              <div className="flex items-center gap-1.5"><Flame className="w-3 h-3 text-blue-400" /> Cook time = start cooking → ready</div>
+              <div className="ml-auto">{filtered.length} order{filtered.length !== 1 ? 's' : ''} · {allItems.length} items</div>
+            </motion.div>
+
+            {/* Records */}
+            <AnimatePresence mode="wait">
+              {filtered.length === 0 ? (
+                <motion.div key="empty" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                  transition={{ duration: 0.3, ease: 'circOut' }}
+                  className="flex flex-col items-center justify-center py-20 gap-3">
+                  <ActivitySquare className="w-10 h-10 text-white/10" />
+                  <p className="text-white/30 text-sm">{search ? 'No results found' : t.kds_no_orders}</p>
+                </motion.div>
+              ) : (
+                <motion.div key="list" className="space-y-2">
+                  <div className="grid grid-cols-12 gap-2 px-4 text-[10px] font-bold text-white/20 uppercase tracking-wider">
+                    <div className="col-span-1">{t.kds_order}</div>
+                    <div className="col-span-1">{t.kds_table}</div>
+                    <div className="col-span-3">{t.kds_time}</div>
+                    <div className="col-span-2">{t.kds_items}</div>
+                    <div className="col-span-2 text-center">{t.kds_pending}</div>
+                    <div className="col-span-2 text-center">{t.kds_cooking}</div>
+                    <div className="col-span-1" />
+                  </div>
+                  <motion.div variants={CONTAINER} initial="hidden" animate="show" className="space-y-2">
+                    {filtered.map(record => (
+                      <motion.div variants={ITEM} key={record.order_id}>
+                        <OrderRow record={record} />
+                      </motion.div>
+                    ))}
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
           </motion.div>
+        )}
+      </AnimatePresence>
 
-          {/* Legend */}
-          <motion.div variants={FIELD_ITEM} className="flex flex-wrap items-center gap-4 text-xs text-white/30">
-            <div className="flex items-center gap-1.5"><Clock className="w-3 h-3 text-amber-400" /> Wait time = sent to kitchen → chef started cooking</div>
-            <div className="flex items-center gap-1.5"><Flame className="w-3 h-3 text-blue-400" /> Cook time = start cooking → ready</div>
-            <div className="ml-auto">{filtered.length} order{filtered.length !== 1 ? 's' : ''} · {allItems.length} items</div>
-          </motion.div>
-
-          {/* Records */}
-          <motion.div variants={FIELD_ITEM}>
-            {filtered.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 gap-3">
-                <ActivitySquare className="w-10 h-10 text-white/10" />
-                <p className="text-white/30 text-sm">{search ? 'No results found' : t.kds_no_orders}</p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <div className="grid grid-cols-12 gap-2 px-4 text-[10px] font-bold text-white/20 uppercase tracking-wider">
-                  <div className="col-span-1">{t.kds_order}</div>
-                  <div className="col-span-1">{t.kds_table}</div>
-                  <div className="col-span-3">{t.kds_time}</div>
-                  <div className="col-span-2">{t.kds_items}</div>
-                  <div className="col-span-2 text-center">{t.kds_pending}</div>
-                  <div className="col-span-2 text-center">{t.kds_cooking}</div>
-                  <div className="col-span-1" />
-                </div>
-                {filtered.map(record => (
-                  <OrderRow key={record.order_id} record={record} />
-                ))}
-              </div>
-            )}
-          </motion.div>
-
-        </motion.div>
-      )}
-    </motion.div>
+    </div>
   )
 }

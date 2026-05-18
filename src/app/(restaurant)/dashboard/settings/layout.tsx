@@ -7,7 +7,7 @@ import {
   Store, UtensilsCrossed, Coffee, Truck, ShoppingBag,
   Wine, CalendarDays, Monitor, SlidersHorizontal, Settings2,
   Receipt, BarChart3, Database, Users, UserCircle,
-  CreditCard, ChefHat, ArrowLeft, ChevronRight,
+  CreditCard, ArrowLeft, ChevronRight, Home, Palette,
   DollarSign, Star, Ban, ActivitySquare, Package, MessageCircle,
 } from 'lucide-react'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
@@ -28,6 +28,7 @@ const NAV_GROUPS: NavGroup[] = [
     labelKey: 'sg_general',
     items: [
       { labelKey: 'si_restaurant_info', href: '/dashboard/settings/restaurant-info', icon: Store,             permKey: 'settings.restaurant_info' },
+      { labelKey: 'si_appearance',      href: '/dashboard/settings/appearance',      icon: Palette,           permKey: 'settings.appearance' },
       { labelKey: 'si_preference',      href: '/dashboard/settings/preference',      icon: SlidersHorizontal, permKey: 'settings.preference' },
       { labelKey: 'si_device',          href: '/dashboard/settings/device',          icon: Monitor,           permKey: 'settings.device' },
     ],
@@ -85,12 +86,12 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
   const supabase = createClient()
 
   const isHome      = pathname === '/dashboard/settings'
+  const isWidePage  = pathname === '/dashboard/settings/whatsapp' || pathname === '/dashboard/settings/appearance'
   const currentItem = NAV_GROUPS.flatMap(g => g.items).find(i => i.href === pathname || pathname.startsWith(i.href + '/'))
 
 
 const [moduleEnabled,  setModuleEnabled]  = useState<boolean | null>(null)
   const [activeModuleKey, setActiveModuleKey] = useState<string | null>(null)
-
   useEffect(() => {
     const key = getSettingsModuleKey(pathname)
     setActiveModuleKey(key)
@@ -116,22 +117,25 @@ const [moduleEnabled,  setModuleEnabled]  = useState<boolean | null>(null)
   }, [pathname]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div className="min-h-screen bg-[#022658] flex flex-col">
+    <div className="h-screen flex flex-col overflow-hidden" style={{ background: 'var(--app-bg, #022658)' }}>
 
       {/* Top bar */}
-      <header className="sticky top-0 z-30 border-b border-white/8 bg-[#022658]/80 backdrop-blur-2xl">
+      <header className="sticky top-0 z-30 border-b border-white/8 backdrop-blur-2xl" style={{ background: 'var(--app-anchor-80, rgba(2,38,88,0.8))' }}>
         <div className={cn('flex items-center gap-3 px-5 py-4', isRTL && 'flex-row-reverse')}>
           {/* Back: home → dashboard, sub-page → settings home */}
           <button
             onClick={() => router.push(isHome ? '/dashboard' : '/dashboard/settings')}
-            className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
+            className="w-[54px] h-[54px] rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
           >
-            <ArrowLeft className={cn('w-4 h-4', isRTL && 'rotate-180')} />
+            <ArrowLeft className={cn('w-6 h-6', isRTL && 'rotate-180')} />
           </button>
 
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/30">
-            <ChefHat className="w-4 h-4 text-white" />
-          </div>
+          <button
+            onClick={() => router.push('/dashboard')}
+            className="w-[54px] h-[54px] rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
+          >
+            <Home className="w-6 h-6" />
+          </button>
 
           <div className="flex-1 min-w-0">
             <div className={cn('flex items-center gap-1.5 text-xs', isRTL && 'flex-row-reverse')}>
@@ -164,17 +168,17 @@ const [moduleEnabled,  setModuleEnabled]  = useState<boolean | null>(null)
           children
         ) : pathname === '/dashboard/settings/menu' || pathname.startsWith('/dashboard/settings/menu/') ? (
           /* Menu sub-pages — menu layout owns all spacing via its own -m-6 + fluid px */
-          <div className="min-h-[calc(100vh-120px)]">
+          <div className="h-full">
             {moduleEnabled === false && activeModuleKey
               ? <div className="p-6 max-w-2xl mx-auto"><UpgradeWall moduleName={moduleLabel(activeModuleKey)} /></div>
               : children}
           </div>
         ) : (
-          <div className="p-4 sm:p-6 min-h-[calc(100vh-120px)]">
+          <div className="p-4 sm:p-6">
             <AnimatePresence mode="popLayout" initial={false}>
               <motion.div
                 key={pathname}
-                className="max-w-2xl mx-auto"
+                className={isWidePage ? 'w-full' : 'max-w-2xl mx-auto'}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10, scale: 0.98 }}

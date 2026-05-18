@@ -198,4 +198,17 @@ export const SettingsIcons: Record<string, ReactNode> = {
       <path d="M22 22 c-2 1-2 4-1 6 c2 4 6 8 10 10 c2 1 5 1 6-1 l1-2 c0-1-1-1-2-2 l-3-1 c-1 0-2 1-3 0 c-1 0-3-2-4-3 c-1-1-2-3-2-4 c0-1 1-1 1-2 c1-1 0-2 0-3 l-1-2 c-1-1-2-1-2 0 Z" fill="#fff"/>
     </svg>
   ),
+  palette: (
+    <svg viewBox="0 0 64 64" width="100%" height="100%">
+      <path d="M32 8 C17 8 6 19 6 32 C6 45 16 54 28 55.5 C31 56 33 54 33 51 C33 49 32 47.5 32 47.5 C32 46.5 33 45.5 35 45.5 L44 45.5 C50 45.5 58 40 58 32 C58 19 47 8 32 8 Z" fill="#ddd6fe"/>
+      <path d="M32 8 C17 8 6 19 6 32 C6 45 16 54 28 55.5 C31 56 33 54 33 51 C33 49 32 47.5 32 47.5 C32 46.5 33 45.5 35 45.5 L44 45.5 C50 45.5 58 40 58 32 C58 19 47 8 32 8 Z" fill="none" stroke="#7c3aed" strokeWidth="2.5"/>
+      <circle cx="20" cy="24" r="5" fill="#f87171"/>
+      <circle cx="30" cy="17" r="5" fill="#fb923c"/>
+      <circle cx="42" cy="20" r="5" fill="#facc15"/>
+      <circle cx="48" cy="32" r="5" fill="#4ade80"/>
+      <circle cx="20" cy="38" r="5" fill="#60a5fa"/>
+      <circle cx="37" cy="50" r="6" fill="#1e1b4b"/>
+      <circle cx="37" cy="50" r="3" fill="#c4b5fd"/>
+    </svg>
+  ),
 }

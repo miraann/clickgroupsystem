@@ -13,6 +13,7 @@ export interface OnlineMenuSettings {
   show_prices:       boolean
   show_descriptions: boolean
   welcome_text:      string | null
+  menu_enabled:      boolean
 }
 
 export interface OnlineMenuPreview {
