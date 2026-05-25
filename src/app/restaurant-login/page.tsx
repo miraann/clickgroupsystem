@@ -45,6 +45,10 @@ export default function RestaurantLoginPage() {
       return
     }
 
+    // Clear any stale POS staff session before starting owner session
+    const posKeys = ['pos_staff_id', 'pos_staff_name', 'pos_staff_role', 'pos_staff_color', 'pos_role_permissions', 'pos_role_name']
+    posKeys.forEach(k => localStorage.removeItem(k))
+
     // Store logged-in restaurant in localStorage so the dashboard can use it
     localStorage.setItem('restaurant_id',   restaurant.id)
     localStorage.setItem('restaurant_name', restaurant.name)

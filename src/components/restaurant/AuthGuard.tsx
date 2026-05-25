@@ -35,18 +35,17 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
       if (user) {
         setReady(true)
       } else {
-        const rid = localStorage.getItem('restaurant_id')
         localStorage.removeItem('restaurant_id')
-        router.replace(rid ? `/pos/${rid}/login` : '/restaurant-login')
+        router.replace('/restaurant-login')
       }
     })
   }, [router])
 
   const logout = useCallback(() => {
-    const rid = localStorage.getItem('restaurant_id')
+    const slug = localStorage.getItem('restaurant_slug')
     localStorage.removeItem('pos_staff_id')
     localStorage.removeItem('owner_session')
-    router.replace(rid ? `/pos/${rid}/login` : '/restaurant-login')
+    router.replace(slug ? `/pos/${slug}/login` : '/restaurant-login')
   }, [router])
 
   useInactivityLogout(EIGHT_HOURS, logout, ready)
