@@ -106,3 +106,34 @@ self.addEventListener('fetch', e => {
 
   // 4. Everything else (Supabase API, realtime) — network only
 })
+
+// ── Push notifications ────────────────────────────────────────────
+self.addEventListener('push', e => {
+  if (!e.data) return
+  let payload
+  try { payload = e.data.json() } catch { payload = { title: 'ClickGroup POS', body: e.data.text() } }
+
+  const { title = 'ClickGroup POS', body = '', icon, badge, data } = payload
+  e.waitUntil(
+    self.registration.showNotification(title, {
+      body,
+      icon:  icon  ?? '/logo/android/launchericon-192x192.png',
+      badge: badge ?? '/logo/android/launchericon-96x96.png',
+      data,
+      vibrate: [200, 100, 200],
+      requireInteraction: true,
+    })
+  )
+})
+
+self.addEventListener('notificationclick', e => {
+  e.notification.close()
+  const url = '/dashboard'
+  e.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clients => {
+      const existing = clients.find(c => c.url.includes('/dashboard'))
+      if (existing) { existing.focus(); return }
+      self.clients.openWindow(url)
+    })
+  )
+})

@@ -9,6 +9,7 @@ import {
 import { cn } from '@/lib/utils'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { useRestaurantSettings } from '@/hooks/useRestaurantSettings'
+import { useWebPush } from '@/hooks/useWebPush'
 import { SaveButton } from '@/components/ui/SaveButton'
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch'
 import { SettingsSection } from '@/components/ui/SettingsSection'
@@ -49,38 +50,6 @@ const DEFAULTS: PrefSettings = {
   push_notif_guest:            true,
 }
 
-type PermStatus = 'unknown' | 'granted' | 'denied' | 'prompt'
-
-function usePushPermission() {
-  const [permStatus, setPermStatus] = useState<PermStatus>('unknown')
-  const [isNative, setIsNative]     = useState(false)
-  const [requesting, setRequesting] = useState(false)
-
-  useEffect(() => {
-    import('@capacitor/core').then(({ Capacitor }) => {
-      const native = Capacitor.isNativePlatform()
-      setIsNative(native)
-      if (!native) return
-      import('@capacitor/push-notifications').then(({ PushNotifications }) => {
-        PushNotifications.checkPermissions().then(s => setPermStatus(s.receive as PermStatus)).catch(() => {})
-      }).catch(() => {})
-    }).catch(() => {})
-  }, [])
-
-  const requestPermission = useCallback(async () => {
-    if (!isNative) return
-    setRequesting(true)
-    try {
-      const { PushNotifications } = await import('@capacitor/push-notifications')
-      const result = await PushNotifications.requestPermissions()
-      setPermStatus(result.receive as PermStatus)
-      if (result.receive === 'granted') await PushNotifications.register()
-    } catch {}
-    setRequesting(false)
-  }, [isNative])
-
-  return { permStatus, isNative, requesting, requestPermission }
-}
 
 const LANGUAGES = [
   { code: 'en', label: 'English', flag: '🇬🇧' },
@@ -324,7 +293,9 @@ export default function PreferencePage() {
 
   const [previewingId, setPreviewingId] = useState<string | null>(null)
   const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const { permStatus, isNative, requesting, requestPermission } = usePushPermission()
+
+  const restaurantId = typeof window !== 'undefined' ? localStorage.getItem('restaurant_id') : null
+  const { status: pushStatus, busy: pushBusy, subscribe, unsubscribe } = useWebPush(restaurantId)
 
   const handlePreview = (previewKey: string, play: () => void) => {
     play()
@@ -726,30 +697,38 @@ export default function PreferencePage() {
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
                       <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center',
-                        permStatus === 'granted' ? 'bg-emerald-500/20' : 'bg-white/5')}>
-                        {permStatus === 'granted'
+                        pushStatus === 'subscribed' ? 'bg-emerald-500/20'
+                        : pushStatus === 'denied'   ? 'bg-rose-500/20'
+                        : 'bg-white/5')}>
+                        {pushStatus === 'subscribed'
                           ? <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-                          : permStatus === 'denied'
+                          : pushStatus === 'denied'
                           ? <XCircle className="w-5 h-5 text-rose-400" />
+                          : pushStatus === 'unsupported'
+                          ? <AlertCircle className="w-5 h-5 text-white/30" />
                           : <AlertCircle className="w-5 h-5 text-amber-400" />}
                       </div>
                       <div>
-                        <p className="text-sm font-semibold text-white">Android Push Notifications</p>
+                        <p className="text-sm font-semibold text-white">Push Notifications</p>
                         <p className="text-xs text-white/40">
-                          {permStatus === 'granted' ? 'Permission granted — notifications active'
-                           : permStatus === 'denied'  ? 'Permission denied — check device settings'
-                           : isNative                 ? 'Permission not yet requested'
-                           :                            'Only available in the Android app'}
+                          {pushStatus === 'subscribed'   ? 'Active — this device will receive alerts'
+                           : pushStatus === 'denied'     ? 'Blocked — allow notifications in browser settings'
+                           : pushStatus === 'unsupported'? 'Not supported in this browser'
+                           : pushStatus === 'loading'    ? 'Checking…'
+                           :                              'Not enabled on this device yet'}
                         </p>
                       </div>
                     </div>
-                    {isNative && permStatus !== 'granted' && permStatus !== 'denied' && (
-                      <button
-                        onClick={requestPermission}
-                        disabled={requesting}
-                        className="shrink-0 px-4 py-2 rounded-xl bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 text-white text-xs font-semibold transition-all active:scale-95"
-                      >
-                        {requesting ? 'Requesting…' : 'Enable'}
+                    {pushStatus === 'unsubscribed' && (
+                      <button onClick={subscribe} disabled={pushBusy}
+                        className="shrink-0 px-4 py-2 rounded-xl bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 text-white text-xs font-semibold transition-all active:scale-95">
+                        {pushBusy ? 'Enabling…' : 'Enable'}
+                      </button>
+                    )}
+                    {pushStatus === 'subscribed' && (
+                      <button onClick={unsubscribe} disabled={pushBusy}
+                        className="shrink-0 px-4 py-2 rounded-xl bg-white/8 hover:bg-rose-500/20 border border-white/10 hover:border-rose-500/30 disabled:opacity-50 text-white/60 hover:text-rose-400 text-xs font-semibold transition-all active:scale-95">
+                        {pushBusy ? 'Disabling…' : 'Disable'}
                       </button>
                     )}
                   </div>
@@ -785,9 +764,9 @@ export default function PreferencePage() {
                     </div>
                   </div>
 
-                  {!isNative && (
+                  {pushStatus === 'unsupported' && (
                     <p className="text-[11px] text-white/25 bg-white/3 border border-white/8 rounded-xl px-4 py-2.5">
-                      Push notifications are delivered through the Android app. Install the APK to receive real-time alerts on your device.
+                      Open this page in Chrome or the Android app to enable push notifications.
                     </p>
                   )}
 
