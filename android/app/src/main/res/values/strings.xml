@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">ClickGroup POS</string>
+    <string name="title_activity_main">ClickGroup POS</string>
+    <string name="package_name">com.clickgroup.pos</string>
+    <string name="custom_url_scheme">com.clickgroup.pos</string>
+</resources>
