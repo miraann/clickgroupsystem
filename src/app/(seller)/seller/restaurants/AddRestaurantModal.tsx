@@ -2,9 +2,11 @@
 import { useState } from 'react'
 import { X, Store, Loader2, Eye, EyeOff } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { PLAN_OPTIONS, EMPTY_FORM } from './types'
+import { EMPTY_FORM } from './types'
+import type { Plan } from '../plans/PlanModal'
 
 interface Props {
+  plans:   Plan[]
   onClose: () => void
   onSaved: () => void
 }
@@ -16,18 +18,25 @@ const FIELDS = [
   { label: 'Phone Number',      key: 'phone',     placeholder: '+964 XXX XXX XXXX',         type: 'tel'   },
 ] as const
 
-export function AddRestaurantModal({ onClose, onSaved }: Props) {
+export function AddRestaurantModal({ plans, onClose, onSaved }: Props) {
   const supabase = createClient()
 
-  const [form, setForm]             = useState(EMPTY_FORM)
+  const defaultPlan = plans[0]?.slug ?? ''
+  const [form, setForm]                 = useState({ ...EMPTY_FORM, plan: defaultPlan })
   const [showPassword, setShowPassword] = useState(false)
-  const [saving, setSaving]         = useState(false)
-  const [saveError, setSaveError]   = useState<string | null>(null)
+  const [saving, setSaving]             = useState(false)
+  const [saveError, setSaveError]       = useState<string | null>(null)
 
   const set = (k: string, v: string) => setForm(p => ({ ...p, [k]: v }))
 
   const handleSave = async () => {
     if (!form.name.trim()) return
+    if (form.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+      setSaveError('Invalid email address.'); return
+    }
+    if (form.phone.trim() && form.phone.replace(/[\s\-+()]/g, '').length < 7) {
+      setSaveError('Phone number is too short.'); return
+    }
     if (form.password.length > 0 && form.password.length < 8) {
       setSaveError('Password must be at least 8 characters.'); return
     }
@@ -35,12 +44,17 @@ export function AddRestaurantModal({ onClose, onSaved }: Props) {
     const settings: Record<string, unknown> = {}
     if (form.ownerName.trim()) settings.owner_name = form.ownerName.trim()
     if (form.password.trim())  settings.password   = form.password.trim()
+
+    // Apply selected plan's module permissions
+    const selectedPlan = plans.find(p => p.slug === form.plan)
+    if (selectedPlan) settings.modules = selectedPlan.modules
+
     const { error } = await supabase.from('restaurants').insert({
       name:   form.name.trim(),
       email:  form.email.trim() || null,
       phone:  form.phone.trim() || null,
       plan:   form.plan,
-      status: 'trial',
+      status: 'active',
       settings,
     })
     setSaving(false)
@@ -89,10 +103,20 @@ export function AddRestaurantModal({ onClose, onSaved }: Props) {
 
           <div>
             <label className="block text-xs font-medium text-white/50 mb-1.5">Subscription Plan</label>
-            <select value={form.plan} onChange={e => set('plan', e.target.value)}
-              className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm text-white focus:outline-none focus:border-indigo-500/50 transition-all appearance-none">
-              {PLAN_OPTIONS.map(o => <option key={o.value} value={o.value} className="bg-[#0d1526]">{o.label}</option>)}
-            </select>
+            {plans.length === 0 ? (
+              <p className="text-xs text-amber-400/80 bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-2.5">
+                No plans available — create plans first at /seller/plans
+              </p>
+            ) : (
+              <select value={form.plan} onChange={e => set('plan', e.target.value)}
+                className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm text-white focus:outline-none focus:border-indigo-500/50 transition-all appearance-none">
+                {plans.map(p => (
+                  <option key={p.slug} value={p.slug} className="bg-[#0d1526]">
+                    {p.name} — ${p.price}/{p.billing_period === 'monthly' ? 'mo' : 'yr'}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
           {saveError && (

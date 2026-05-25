@@ -6,12 +6,19 @@ import { createClient } from '@/lib/supabase/client'
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch'
 import { MODULES, MODULE_CATEGORIES } from '@/lib/modules'
 import type { Restaurant } from './types'
-import { PLAN_OPTIONS } from './types'
+import type { Plan } from '../plans/PlanModal'
 
 interface Props {
+  plans:      Plan[]
   restaurant: Restaurant
   onClose:    () => void
   onSaved:    () => void
+}
+
+function modulesFromPlan(plan: Plan): Record<string, boolean> {
+  const out: Record<string, boolean> = {}
+  for (const m of MODULES) out[m.key] = plan.modules[m.key] !== false
+  return out
 }
 
 const FIELDS = [
@@ -21,7 +28,7 @@ const FIELDS = [
   { label: 'Phone Number',      key: 'phone',     placeholder: '+964 XXX XXX XXXX',    type: 'tel'   },
 ] as const
 
-export function EditRestaurantModal({ restaurant, onClose, onSaved }: Props) {
+export function EditRestaurantModal({ plans, restaurant, onClose, onSaved }: Props) {
   const supabase = createClient()
 
   const s = restaurant.settings as Record<string, unknown>
@@ -45,8 +52,20 @@ export function EditRestaurantModal({ restaurant, onClose, onSaved }: Props) {
   const isOn = (key: string) => modules[key] !== false
   const toggleModule = (key: string) => setModules(prev => ({ ...prev, [key]: !isOn(key) }))
 
+  const handlePlanChange = (slug: string) => {
+    set('plan', slug)
+    const plan = plans.find(p => p.slug === slug)
+    if (plan) setModules(modulesFromPlan(plan))
+  }
+
   const handleSave = async () => {
     if (!form.name.trim()) return
+    if (form.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+      setSaveError('Invalid email address.'); return
+    }
+    if (form.phone.trim() && form.phone.replace(/[\s\-+()]/g, '').length < 7) {
+      setSaveError('Phone number is too short.'); return
+    }
     if (form.password.length > 0 && form.password.length < 8) {
       setSaveError('Password must be at least 8 characters.'); return
     }
@@ -124,11 +143,28 @@ export function EditRestaurantModal({ restaurant, onClose, onSaved }: Props) {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-white/50 mb-1.5">Subscription Plan</label>
-                <select value={form.plan} onChange={e => set('plan', e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm text-white focus:outline-none focus:border-indigo-500/50 transition-all appearance-none">
-                  {PLAN_OPTIONS.map(o => <option key={o.value} value={o.value} className="bg-[#0d1526]">{o.label}</option>)}
-                </select>
+                <label className="block text-xs font-medium text-white/50 mb-1.5">
+                  Subscription Plan
+                  <span className="ml-1.5 text-white/25 font-normal">(changing plan updates module access)</span>
+                </label>
+                {plans.length === 0 ? (
+                  <p className="text-xs text-amber-400/80 bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-2.5">
+                    No plans available — create plans first at /seller/plans
+                  </p>
+                ) : (
+                  <select value={form.plan} onChange={e => handlePlanChange(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm text-white focus:outline-none focus:border-indigo-500/50 transition-all appearance-none">
+                    {/* Keep current value even if plan was deleted */}
+                    {!plans.find(p => p.slug === form.plan) && (
+                      <option value={form.plan} className="bg-[#0d1526]">{form.plan} (custom)</option>
+                    )}
+                    {plans.map(p => (
+                      <option key={p.slug} value={p.slug} className="bg-[#0d1526]">
+                        {p.name} — ${p.price}/{p.billing_period === 'monthly' ? 'mo' : 'yr'}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
             </>
           ) : (

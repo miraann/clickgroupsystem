@@ -1,6 +1,6 @@
 'use client'
 import { motion } from 'framer-motion'
-import { Send, CreditCard, Loader2, Monitor } from 'lucide-react'
+import { Send, CreditCard, Loader2, Monitor, WifiOff } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 
@@ -22,6 +22,7 @@ interface Props {
   canCfd:         boolean
   canPay:         boolean
   canSend:        boolean
+  isOnline:       boolean
   onSend:         () => void
   onPay:          () => void
 }
@@ -30,7 +31,7 @@ export function BottomBar({
   table, isTakeout, guestCount,
   grandTotal, sentTotal, draftSize, sentCount,
   sending, sendError, mobilePanel, setMobilePanel,
-  restaurantId, supabase, formatPrice, canCfd, canPay, canSend,
+  restaurantId, supabase, formatPrice, canCfd, canPay, canSend, isOnline,
   onSend, onPay,
 }: Props) {
   const openCfd = () => {
@@ -112,12 +113,22 @@ export function BottomBar({
               whileTap={draftSize > 0 && !sending ? { scale: 0.95 } : {}}
               transition={{ duration: 0.1 }}
               className={cn('flex items-center gap-2 px-3 sm:px-6 h-12 rounded-xl text-sm font-bold transition-colors touch-manipulation',
-                draftSize > 0 && !sending
+                draftSize > 0 && !sending && isOnline
                   ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/30'
+                  : draftSize > 0 && !sending && !isOnline
+                  ? 'bg-amber-500/40 border border-amber-500/40 text-white/80'
                   : 'bg-white/5 border border-white/8 text-white/20 cursor-not-allowed')}>
-              {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              <span className="sm:hidden">{sending ? 'Sending…' : 'Send'}</span>
-              <span className="hidden sm:inline">{sending ? 'Sending…' : 'Send to Kitchen'}</span>
+              {sending
+                ? <Loader2 className="w-4 h-4 animate-spin" />
+                : !isOnline && draftSize > 0
+                ? <WifiOff className="w-4 h-4" />
+                : <Send className="w-4 h-4" />}
+              <span className="sm:hidden">
+                {sending ? 'Sending…' : !isOnline && draftSize > 0 ? 'Queue' : 'Send'}
+              </span>
+              <span className="hidden sm:inline">
+                {sending ? 'Sending…' : !isOnline && draftSize > 0 ? 'Queue Order' : 'Send to Kitchen'}
+              </span>
             </motion.button>
           )}
         </div>

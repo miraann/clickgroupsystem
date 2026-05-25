@@ -6,7 +6,7 @@ import { useParams } from 'next/navigation'
 import NextImage from 'next/image'
 import {
   Loader2, UtensilsCrossed, MapPin, ShoppingCart, Plus, Minus, X, Check,
-  CheckCircle2, ChevronRight, User, Phone, AlertCircle,
+  CheckCircle2, ChevronLeft, ChevronRight, User, Phone, AlertCircle,
   Truck, Clock, Package, Crosshair, Search, ChevronDown, ChevronUp,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -563,6 +563,30 @@ function DeliveryModal({
               <p className="text-[11px] text-rose-400">{placeError}</p>
             </div>
           )}
+
+          {/* Order total breakdown */}
+          <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.10)', background: 'rgba(255,255,255,0.04)' }}>
+            <div className="flex justify-between items-center px-4 py-2.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+              <span className="text-xs text-white/45">Subtotal</span>
+              <span className="text-xs text-white/70">{formatPrice(cartTotal)}</span>
+            </div>
+            <div className="flex justify-between items-center px-4 py-2.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+              <span className="text-xs text-white/45">Delivery Fee</span>
+              <span className={`text-xs font-medium ${deliveryFee === 0 ? 'text-emerald-400' : 'text-white/70'}`}>
+                {deliveryFee === 0 ? 'Free' : formatPrice(deliveryFee)}
+              </span>
+            </div>
+            {discountAmount > 0 && (
+              <div className="flex justify-between items-center px-4 py-2.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+                <span className="text-xs text-emerald-400">Discount</span>
+                <span className="text-xs font-medium text-emerald-400">−{formatPrice(discountAmount)}</span>
+              </div>
+            )}
+            <div className="flex justify-between items-center px-4 py-3" style={{ background: 'rgba(255,255,255,0.05)' }}>
+              <span className="text-sm font-bold text-white">Total to Pay</span>
+              <span className="text-base font-extrabold" style={{ color: primaryColor }}>{formatPrice(grandTotal)}</span>
+            </div>
+          </div>
         </div>
 
         {/* Submit */}
@@ -861,33 +885,63 @@ function TrackOrderSection({
                     )}
 
                     {/* Items */}
-                    {order.items.length > 0 && (
-                      <div className="rounded-xl overflow-hidden"
-                        style={{ border: `1px solid ${cardBorder}` }}>
-                        {order.items.map((item, idx) => (
-                          <div key={idx}
-                            className="flex items-center justify-between px-3 py-2"
-                            style={{
-                              borderBottom: idx < order.items.length - 1 ? `1px solid ${cardBorder}` : 'none',
-                              background: isDark ? 'rgba(255,255,255,0.03)' : '#fafafa',
-                            }}>
-                            <span className="text-xs font-semibold" style={{ color: bodyText }}>
-                              {item.qty}× {item.item_name}
-                            </span>
-                            <span className="text-xs font-bold" style={{ color: primaryColor }}>
-                              {formatPrice(item.item_price * item.qty)}
+                    {order.items.length > 0 && (() => {
+                      const subtotal    = order.items.reduce((s, i) => s + i.item_price * i.qty, 0)
+                      const delivFee    = order.delivery_fee ?? 0
+                      const computed    = subtotal + delivFee
+                      const discount    = order.total > 0 && order.total < computed ? computed - order.total : 0
+                      const grandTotal  = discount > 0 ? order.total : computed
+                      return (
+                        <div className="rounded-xl overflow-hidden"
+                          style={{ border: `1px solid ${cardBorder}` }}>
+                          {order.items.map((item, idx) => (
+                            <div key={idx}
+                              className="flex items-center justify-between px-3 py-2"
+                              style={{
+                                borderBottom: `1px solid ${cardBorder}`,
+                                background: isDark ? 'rgba(255,255,255,0.03)' : '#fafafa',
+                              }}>
+                              <span className="text-xs font-semibold" style={{ color: bodyText }}>
+                                {item.qty}× {item.item_name}
+                              </span>
+                              <span className="text-xs font-bold" style={{ color: primaryColor }}>
+                                {formatPrice(item.item_price * item.qty)}
+                              </span>
+                            </div>
+                          ))}
+                          {/* Subtotal */}
+                          <div className="flex items-center justify-between px-3 py-1.5"
+                            style={{ background: isDark ? 'rgba(255,255,255,0.03)' : '#fafafa', borderTop: `1px solid ${cardBorder}` }}>
+                            <span className="text-xs" style={{ color: isDark ? 'rgba(255,255,255,0.45)' : '#6b7280' }}>Subtotal</span>
+                            <span className="text-xs" style={{ color: isDark ? 'rgba(255,255,255,0.45)' : '#6b7280' }}>{formatPrice(subtotal)}</span>
+                          </div>
+                          {/* Delivery fee */}
+                          <div className="flex items-center justify-between px-3 py-1.5"
+                            style={{ background: isDark ? 'rgba(255,255,255,0.03)' : '#fafafa' }}>
+                            <span className="text-xs" style={{ color: isDark ? 'rgba(255,255,255,0.45)' : '#6b7280' }}>Delivery Fee</span>
+                            <span className="text-xs" style={{ color: isDark ? 'rgba(255,255,255,0.45)' : '#6b7280' }}>
+                              {delivFee === 0 ? 'Free' : formatPrice(delivFee)}
                             </span>
                           </div>
-                        ))}
-                        <div className="flex items-center justify-between px-3 py-2"
-                          style={{ background: isDark ? 'rgba(255,255,255,0.05)' : '#f3f4f6' }}>
-                          <span className="text-xs font-bold" style={{ color: bodyText }}>Total</span>
-                          <span className="text-sm font-extrabold" style={{ color: primaryColor }}>
-                            {formatPrice(order.total)}
-                          </span>
+                          {/* Discount */}
+                          {discount > 0 && (
+                            <div className="flex items-center justify-between px-3 py-1.5"
+                              style={{ background: isDark ? 'rgba(255,255,255,0.03)' : '#fafafa' }}>
+                              <span className="text-xs text-emerald-500">Discount</span>
+                              <span className="text-xs text-emerald-500">-{formatPrice(discount)}</span>
+                            </div>
+                          )}
+                          {/* Grand total */}
+                          <div className="flex items-center justify-between px-3 py-2.5"
+                            style={{ background: isDark ? 'rgba(255,255,255,0.05)' : '#f3f4f6', borderTop: `1px solid ${cardBorder}` }}>
+                            <span className="text-xs font-bold" style={{ color: bodyText }}>Total</span>
+                            <span className="text-sm font-extrabold" style={{ color: primaryColor }}>
+                              {formatPrice(grandTotal)}
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )
+                    })()}
                   </div>
                 )}
               </div>
@@ -933,10 +987,12 @@ export default function DeliveryOrderPage() {
   const [menuEnabled, setMenuEnabled] = useState(true)
 
   // Delivery config
-  const [deliveryEnabled, setDeliveryEnabled] = useState(false)
-  const [deliveryFee, setDeliveryFee]         = useState(0)
-  const [minOrder, setMinOrder]               = useState(0)
-  const [estimatedTime, setEstimatedTime]     = useState(30)
+  const [deliveryEnabled, setDeliveryEnabled]         = useState(false)
+  const [deliveryFee, setDeliveryFee]                 = useState(0)
+  const [minOrder, setMinOrder]                       = useState(0)
+  const [estimatedTime, setEstimatedTime]             = useState(30)
+  const [freeDeliveryAbove, setFreeDeliveryAbove]     = useState<number | null>(null)
+  const [deliveryNote, setDeliveryNote]               = useState('')
 
   // Story viewer
   const [storyIdx, setStoryIdx]     = useState<number | null>(null)
@@ -988,6 +1044,8 @@ export default function DeliveryOrderPage() {
     return result
   }, [cart, menuItems])
 
+  const effectiveDeliveryFee = freeDeliveryAbove !== null && cartTotal >= freeDeliveryAbove ? 0 : deliveryFee
+
   useEffect(() => {
     if (storyIdx === null) return
     storyTimer.current = setTimeout(() => {
@@ -1034,6 +1092,8 @@ export default function DeliveryOrderPage() {
     setDeliveryFee(Number(rs.default_delivery_fee ?? 0))
     setMinOrder(Number(rs.min_order_amount ?? 0))
     setEstimatedTime(Number(rs.estimated_delivery_time ?? 30))
+    setFreeDeliveryAbove(rs.free_delivery_above != null ? Number(rs.free_delivery_above) : null)
+    setDeliveryNote(typeof rs.delivery_note === 'string' ? rs.delivery_note : '')
 
     setLoading(false)
   }, [menuData, menuLoading]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -1078,7 +1138,7 @@ export default function DeliveryOrderPage() {
         table_number:  0,
         status:        'active',
         source:        'delivery',
-        total:         cartTotal + deliveryFee - discountAmount,
+        total:         cartTotal + effectiveDeliveryFee - discountAmount,
       })
       .select('id')
       .single()
@@ -1099,13 +1159,14 @@ export default function DeliveryOrderPage() {
         entry.customNote.trim(),
       ].filter(Boolean)
       return {
-        order_id:   newOrder.id,
-        item_name:  item.name,
-        item_price: item.price + modPrice,
-        qty:        entry.qty,
-        status:     'pending',
-        note:       noteParts.length > 0 ? noteParts.join(', ') : null,
-        station_id: null,
+        order_id:     newOrder.id,
+        menu_item_id: item.id,
+        item_name:    item.name,
+        item_price:   item.price + modPrice,
+        qty:          entry.qty,
+        status:       'pending',
+        note:         noteParts.length > 0 ? noteParts.join(', ') : null,
+        station_id:   null,
       }
     })
     const { error: itemsErr } = await supabase.from('order_items').insert(rows)
@@ -1120,7 +1181,7 @@ export default function DeliveryOrderPage() {
       latitude:      lat,
       longitude:     lng,
       address_text:  address,
-      delivery_fee:  deliveryFee,
+      delivery_fee:  effectiveDeliveryFee,
       status:        'pending',
     })
     if (delivErr) { setPlaceError(delivErr.message); setPlacing(false); return }
@@ -1205,13 +1266,31 @@ export default function DeliveryOrderPage() {
 
       {/* Delivery info strip */}
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1], delay: 0.35 }}
-        className="mt-3 flex items-center gap-4 text-xs"
+        className="mt-3 flex items-center gap-3 text-xs flex-wrap justify-center"
         style={{ color: tpl.isDark ? 'rgba(255,255,255,0.40)' : '#9ca3af' }}>
         <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> ~{estimatedTime} min</span>
         <span>·</span>
-        <span className="flex items-center gap-1"><Package className="w-3.5 h-3.5" /> Fee: {formatPrice(deliveryFee)}</span>
+        <span className="flex items-center gap-1">
+          <Package className="w-3.5 h-3.5" />
+          {effectiveDeliveryFee === 0 && deliveryFee > 0
+            ? <span className="text-emerald-500 font-semibold">Free Delivery!</span>
+            : `Fee: ${formatPrice(deliveryFee)}`}
+        </span>
         {minOrder > 0 && <><span>·</span><span>Min: {formatPrice(minOrder)}</span></>}
+        {freeDeliveryAbove !== null && effectiveDeliveryFee > 0 && (
+          <><span>·</span><span className="text-emerald-500">Free above {formatPrice(freeDeliveryAbove)}</span></>
+        )}
       </motion.div>
+
+      {/* Delivery note */}
+      {deliveryNote && (
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1], delay: 0.42 }}
+          className="mt-2 flex items-start gap-1.5 text-xs max-w-xs text-center"
+          style={{ color: tpl.isDark ? 'rgba(255,255,255,0.40)' : '#9ca3af' }}>
+          <MapPin className="w-3 h-3 shrink-0 mt-0.5" />
+          <span>{deliveryNote}</span>
+        </motion.div>
+      )}
 
       {/* Welcome */}
       <motion.p initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1], delay: 0.46 }}
@@ -1643,16 +1722,39 @@ export default function DeliveryOrderPage() {
               })}
             </div>
 
+            {/* Free delivery progress */}
+            {freeDeliveryAbove !== null && effectiveDeliveryFee > 0 && (
+              <div className="px-5 pt-3 pb-1">
+                <div className="flex justify-between text-xs text-gray-500 mb-1">
+                  <span>Add {formatPrice(freeDeliveryAbove - cartTotal)} more for free delivery</span>
+                  <span className="text-emerald-500 font-semibold">Free above {formatPrice(freeDeliveryAbove)}</span>
+                </div>
+                <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                  <div className="h-full rounded-full bg-emerald-400 transition-all duration-300"
+                    style={{ width: `${Math.min((cartTotal / freeDeliveryAbove) * 100, 100)}%` }} />
+                </div>
+              </div>
+            )}
+            {freeDeliveryAbove !== null && effectiveDeliveryFee === 0 && (
+              <div className="mx-5 mt-3 flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-100">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                <p className="text-xs text-emerald-600 font-medium">You unlocked free delivery!</p>
+              </div>
+            )}
+
             {/* Totals */}
-            <div className="px-5 pt-3 pb-2 border-t border-gray-100 space-y-2">
+            <div className="px-5 pt-3 pb-2 border-t border-gray-100 space-y-2 mt-2">
               <div className="flex justify-between text-sm text-gray-500">
                 <span>Subtotal</span><span>{formatPrice(cartTotal)}</span>
               </div>
               <div className="flex justify-between text-sm text-gray-500">
-                <span>Delivery fee</span><span>{formatPrice(deliveryFee)}</span>
+                <span>Delivery fee</span>
+                <span className={effectiveDeliveryFee === 0 && deliveryFee > 0 ? 'text-emerald-500 font-semibold' : ''}>
+                  {effectiveDeliveryFee === 0 && deliveryFee > 0 ? 'Free' : formatPrice(effectiveDeliveryFee)}
+                </span>
               </div>
               <div className="flex justify-between text-base font-extrabold text-gray-900 pt-1 border-t border-gray-100">
-                <span>Total</span><span style={{ color: primaryColor }}>{formatPrice(cartTotal + deliveryFee)}</span>
+                <span>Total</span><span style={{ color: primaryColor }}>{formatPrice(cartTotal + effectiveDeliveryFee)}</span>
               </div>
             </div>
 
@@ -1667,7 +1769,7 @@ export default function DeliveryOrderPage() {
                 disabled={minOrder > 0 && cartTotal < minOrder}
                 className="w-full py-4 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-40"
                 style={{ background: primaryColor, color: primaryColor === '#39ff14' ? '#000' : '#fff', boxShadow: `0 6px 24px ${primaryColor}40` }}>
-                <Truck className="w-4 h-4" /> Place Order · {formatPrice(cartTotal + deliveryFee)}
+                <Truck className="w-4 h-4" /> Place Order · {formatPrice(cartTotal + effectiveDeliveryFee)}
               </button>
             </div>
           </div>
@@ -1704,7 +1806,7 @@ export default function DeliveryOrderPage() {
           onConfirm={placeOrder}
           placing={placing}
           placeError={placeError}
-          deliveryFee={deliveryFee}
+          deliveryFee={effectiveDeliveryFee}
           estimatedTime={estimatedTime}
           minOrder={minOrder}
         />
@@ -1714,7 +1816,7 @@ export default function DeliveryOrderPage() {
       {storyIdx !== null && events[storyIdx] && (() => {
         const ev = events[storyIdx]
         return (
-          <div className="fixed inset-0 z-[200] bg-black flex items-center justify-center"
+          <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black sm:bg-black/85 sm:backdrop-blur-lg"
             style={{ animation: 'story-fadein 0.25s ease forwards' }}>
 
             <style>{`
@@ -1725,68 +1827,44 @@ export default function DeliveryOrderPage() {
               @keyframes story-desc     { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
             `}</style>
 
-            {/* Desktop arrows */}
-            {storyIdx > 0 && (
-              <button onClick={goPrev}
-                className="absolute left-4 top-1/2 -translate-y-1/2 z-30 w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm hidden sm:flex items-center justify-center active:scale-90 transition-transform">
-                <ChevronRight className="w-5 h-5 text-white rotate-180" />
-              </button>
-            )}
-            {storyIdx < events.length - 1 && (
-              <button onClick={goNext}
-                className="absolute right-4 top-1/2 -translate-y-1/2 z-30 w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm hidden sm:flex items-center justify-center active:scale-90 transition-transform">
-                <ChevronRight className="w-5 h-5 text-white" />
-              </button>
-            )}
+            {/* Backdrop click to close — desktop only */}
+            <div className="absolute inset-0 hidden sm:block" onClick={closeStory} />
 
-            {/* 9:16 canvas */}
-            <div className="relative overflow-hidden"
-              style={{ height: '100dvh', width: 'calc(100dvh * 9 / 16)', maxWidth: '100vw', maxHeight: '1920px' }}>
+            {/* Prev arrow */}
+            <button onClick={goPrev}
+              className={`hidden sm:flex relative z-20 w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm items-center justify-center active:scale-90 transition-transform mr-3 ${storyIdx === 0 ? 'invisible pointer-events-none' : ''}`}>
+              <ChevronLeft className="w-5 h-5 text-white" />
+            </button>
 
-              {/* Background */}
-              <div className="absolute inset-0">
-                {ev.image_url
-                  ? <NextImage src={ev.image_url} alt={ev.title} fill className="object-cover" />
-                  : <div className="w-full h-full bg-gradient-to-br from-amber-400 via-orange-500 to-rose-500" />
-                }
-                <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-transparent via-40% to-black/85" />
-                <div className="absolute inset-0 bg-black/15" />
-              </div>
+            {/* Story card — full screen mobile, portrait 9:16 desktop */}
+            <div className="relative w-full h-full sm:h-[90vh] sm:w-auto sm:aspect-[9/16] sm:rounded-2xl sm:shadow-2xl overflow-hidden bg-black z-10 flex-shrink-0"
+              style={ev.image_url ? { backgroundImage: `url("${ev.image_url}")`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}>
 
-              {/* Progress bars */}
-              <div className="absolute top-0 left-0 right-0 flex gap-1.5 px-4 pt-4 z-10">
-                {events.map((_, i) => (
-                  <div key={i} className="flex-1 h-[3px] rounded-full bg-white/30 overflow-hidden">
-                    {i === storyIdx && (
-                      <div key={storyKey} className="h-full bg-white rounded-full origin-left"
-                        style={{ animation: 'story-progress 10s linear forwards' }} />
-                    )}
-                    {i < storyIdx && <div className="h-full bg-white rounded-full w-full" />}
-                  </div>
-                ))}
-              </div>
+              {!ev.image_url && <div className="absolute inset-0 bg-gradient-to-br from-amber-400 via-orange-500 to-rose-500" />}
+              <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-transparent via-40% to-black/85" />
+              <div className="absolute inset-0 bg-black/10" />
 
-              {/* Header */}
-              <div className="absolute top-10 left-0 right-0 flex items-center justify-between px-5 z-10">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-full border-2 border-white/40 overflow-hidden bg-amber-400 flex items-center justify-center text-black font-black text-sm shrink-0">
-                    {restaurant?.logo_url
-                      ? <NextImage src={restaurant.logo_url} alt="" fill className="object-cover" />
-                      : (restaurant?.name?.[0] ?? 'R')}
-                  </div>
-                  <div>
-                    <p className="text-white text-sm font-bold leading-tight">{restaurant?.name}</p>
-                    <p className="text-white/55 text-[11px]">Event &amp; Offers</p>
-                  </div>
+              {/* Progress bars + close */}
+              <div className="absolute top-0 left-0 right-0 flex items-center gap-2 px-4 pt-4 z-10">
+                <div className="flex flex-1 gap-1.5">
+                  {events.map((_, i) => (
+                    <div key={i} className="flex-1 h-[3px] rounded-full bg-white/30 overflow-hidden">
+                      {i === storyIdx && (
+                        <div key={storyKey} className="h-full bg-white rounded-full origin-left"
+                          style={{ animation: 'story-progress 10s linear forwards' }} />
+                      )}
+                      {i < storyIdx && <div className="h-full bg-white rounded-full w-full" />}
+                    </div>
+                  ))}
                 </div>
                 <button onClick={closeStory}
-                  className="w-9 h-9 rounded-full bg-white/15 backdrop-blur-sm flex items-center justify-center active:scale-90 transition-transform">
-                  <X className="w-4 h-4 text-white" />
+                  className="w-7 h-7 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center active:scale-90 transition-transform shrink-0">
+                  <X className="w-3.5 h-3.5 text-white" />
                 </button>
               </div>
 
               {/* Bottom content */}
-              <div className="absolute bottom-0 left-0 right-0 px-6 pb-14 z-10 space-y-4">
+              <div className="absolute bottom-0 left-0 right-0 px-6 pb-10 z-10 space-y-3">
                 {ev.date_label && (
                   <div key={`badge-${storyKey}`}
                     className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-400 text-black text-sm font-bold shadow-lg shadow-amber-400/30"
@@ -1795,12 +1873,12 @@ export default function DeliveryOrderPage() {
                   </div>
                 )}
                 <h2 key={`title-${storyKey}`} className="text-white font-black leading-[1.1]"
-                  style={{ fontSize: 'clamp(1.75rem, 7vw, 3rem)', textShadow: '0 2px 24px rgba(0,0,0,0.65)', animation: 'story-slideup 0.55s cubic-bezier(0.22,1,0.36,1) 0.22s both' }}>
+                  style={{ fontSize: 'clamp(1.75rem, 5vw, 2.5rem)', textShadow: '0 2px 24px rgba(0,0,0,0.65)', animation: 'story-slideup 0.55s cubic-bezier(0.22,1,0.36,1) 0.22s both' }}>
                   {ev.title}
                 </h2>
                 {ev.description && (
                   <p key={`desc-${storyKey}`} className="text-white/90 leading-relaxed"
-                    style={{ fontSize: 'clamp(0.9rem, 2.5vw, 1.15rem)', textShadow: '0 1px 12px rgba(0,0,0,0.7)', animation: 'story-desc 0.6s ease 0.45s both' }}>
+                    style={{ fontSize: 'clamp(0.875rem, 2vw, 1rem)', textShadow: '0 1px 12px rgba(0,0,0,0.7)', animation: 'story-desc 0.6s ease 0.45s both' }}>
                     {ev.description}
                   </p>
                 )}
@@ -1813,6 +1891,12 @@ export default function DeliveryOrderPage() {
                 <div className="w-2/3 h-full cursor-pointer" onClick={goNext} />
               </div>
             </div>
+
+            {/* Next arrow */}
+            <button onClick={goNext}
+              className={`hidden sm:flex relative z-20 w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm items-center justify-center active:scale-90 transition-transform ml-3 ${storyIdx >= events.length - 1 ? 'invisible pointer-events-none' : ''}`}>
+              <ChevronRight className="w-5 h-5 text-white" />
+            </button>
           </div>
         )
       })()}

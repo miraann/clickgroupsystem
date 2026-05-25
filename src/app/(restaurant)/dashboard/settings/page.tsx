@@ -92,10 +92,12 @@ const SECTIONS: Section[] = [
   {
     groupKey: 'sg_system',
     items: [
-      { id: 'advanced', labelKey: 'si_advanced', icon: 'cog', href: '/dashboard/settings/advanced', span: 2,
+      { id: 'advanced',  labelKey: 'si_advanced',  icon: 'cog',   href: '/dashboard/settings/advanced',  span: 2,
         subtitles: { en: 'Power-user tools',    ku: 'ئامرازی پسپۆڕان',      ar: 'أدوات متقدمة' } },
-      { id: 'database', labelKey: 'si_database', icon: 'db',  href: '/dashboard/settings/database', span: 2,
+      { id: 'database',  labelKey: 'si_database',  icon: 'db',    href: '/dashboard/settings/database',  span: 2,
         subtitles: { en: 'Backups & sync',      ku: 'پاشەکەوت و هاودەنگی',  ar: 'النسخ الاحتياطي' } },
+      { id: 'audit_log', labelKey: 'si_audit_log', icon: 'audit', href: '/dashboard/settings/audit-log', span: 2,
+        subtitles: { en: 'Staff activity trail', ku: 'چاودێری چالاکی ستاف',  ar: 'سجل نشاط الموظفين' } },
     ],
   },
   {

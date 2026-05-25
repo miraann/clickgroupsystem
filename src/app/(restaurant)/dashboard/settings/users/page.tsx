@@ -484,7 +484,7 @@ export default function UsersPage() {
     setSaving(false); setModal(null)
   }
   async function savePin() {
-    if (newPin.length !== 4 || !selectedUser) return
+    if (newPin.length !== 6 || !selectedUser) return
     setSaving(true)
     await supabase.from('staff').update({ pin: newPin, updated_at: new Date().toISOString() }).eq('id', selectedUser.id)
     setUsers(us => us.map(u => u.id === selectedUser.id ? { ...u, pin: newPin } : u))
@@ -908,10 +908,10 @@ export default function UsersPage() {
                 )}
               </div>
               <div>
-                <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.usr_pin} <span className="text-white/25">(4 digits)</span></label>
+                <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.usr_pin} <span className="text-white/25">{t.usr_4_digits}</span></label>
                 <div className="relative">
                   <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/25" />
-                  <input type="password" maxLength={4} value={form.pin} onChange={e => set('pin', e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder="4-digit PIN"
+                  <input type="password" maxLength={6} value={form.pin} onChange={e => set('pin', e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder={t.usr_pin_ph}
                     className="w-full pl-8 pr-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/20 focus:outline-none focus:border-amber-500/50 transition-colors font-mono tracking-widest" />
                 </div>
               </div>
@@ -1000,7 +1000,7 @@ export default function UsersPage() {
             </div>
             <div className="flex gap-3 p-5 border-t border-white/8">
               <button onClick={() => setModal(null)} className="flex-1 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 text-sm font-medium transition-all active:scale-95">{t.cancel}</button>
-              <button onClick={savePin} disabled={newPin.length !== 4 || saving}
+              <button onClick={savePin} disabled={newPin.length !== 6 || saving}
                 className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white text-sm font-medium transition-all active:scale-95 flex items-center justify-center gap-2">
                 {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}{t.save_changes}
               </button>

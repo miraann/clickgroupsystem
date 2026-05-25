@@ -1,7 +1,10 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { useInactivityLogout } from '@/hooks/useInactivityLogout'
+
+const EIGHT_HOURS = 8 * 60 * 60 * 1000
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter()
@@ -38,6 +41,15 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
       }
     })
   }, [router])
+
+  const logout = useCallback(() => {
+    const rid = localStorage.getItem('restaurant_id')
+    localStorage.removeItem('pos_staff_id')
+    localStorage.removeItem('owner_session')
+    router.replace(rid ? `/pos/${rid}/login` : '/restaurant-login')
+  }, [router])
+
+  useInactivityLogout(EIGHT_HOURS, logout, ready)
 
   if (!ready) return null
   return <>{children}</>

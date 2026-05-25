@@ -1,6 +1,6 @@
 'use client'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import {
   LayoutDashboard,
@@ -12,19 +12,27 @@ import {
   LogOut,
   Zap,
   ChevronRight,
+  Package2,
 } from 'lucide-react'
 
 const navItems = [
-  { label: 'Dashboard', icon: LayoutDashboard, href: '/seller' },
-  { label: 'Restaurants', icon: Store, href: '/seller/restaurants' },
-  { label: 'Subscriptions', icon: CreditCard, href: '/seller/subscriptions' },
-  { label: 'Analytics', icon: BarChart3, href: '/seller/analytics' },
-  { label: 'Users', icon: Users, href: '/seller/users' },
-  { label: 'Settings', icon: Settings, href: '/seller/settings' },
+  { label: 'Dashboard',     icon: LayoutDashboard, href: '/seller' },
+  { label: 'Restaurants',   icon: Store,           href: '/seller/restaurants' },
+  { label: 'Plans',         icon: Package2,        href: '/seller/plans' },
+  { label: 'Subscriptions', icon: CreditCard,      href: '/seller/subscriptions' },
+  { label: 'Analytics',     icon: BarChart3,       href: '/seller/analytics' },
+  { label: 'Users',         icon: Users,           href: '/seller/users' },
+  { label: 'Settings',      icon: Settings,        href: '/seller/settings' },
 ]
 
 export function SellerSidebar() {
   const pathname = usePathname()
+  const router   = useRouter()
+
+  function handleLogout() {
+    localStorage.removeItem('seller_session')
+    router.replace('/seller-login')
+  }
 
   return (
     <aside className="fixed left-0 top-0 h-screen w-64 z-50 flex flex-col">
@@ -71,16 +79,19 @@ export function SellerSidebar() {
 
         {/* Bottom user info */}
         <div className="border-t border-white/10 pt-4 mt-4">
-          <div className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-white/5 cursor-pointer transition-colors group">
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-rose-500/10 cursor-pointer transition-colors group"
+          >
             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-400 to-violet-500 flex items-center justify-center text-xs font-bold text-white">
               S
             </div>
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 text-left">
               <p className="text-xs font-semibold text-white truncate">Seller Admin</p>
               <p className="text-xs text-white/40 truncate">System Owner</p>
             </div>
             <LogOut className="w-4 h-4 text-white/30 group-hover:text-rose-400 transition-colors" />
-          </div>
+          </button>
         </div>
       </div>
     </aside>

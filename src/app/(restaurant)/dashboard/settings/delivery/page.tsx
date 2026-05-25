@@ -1,16 +1,16 @@
 'use client'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import {
-  Truck, Plus, X, Loader2, Save, AlertCircle,
-  Check, Pencil, Trash2, ToggleLeft, ToggleRight,
-  MapPin, Clock, DollarSign, ShoppingCart, Package,
+  Truck, X, Loader2, Save, AlertCircle,
+  Check, Clock, DollarSign, ShoppingCart, Package,
   User, Phone, ChevronDown, RefreshCw, History, Settings2,
+  ToggleLeft, ToggleRight, MapPin,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
-import { useDeliverySettings, type CachedDeliveryZone } from '@/hooks/useDeliverySettings'
+import { useDeliverySettings } from '@/hooks/useDeliverySettings'
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch'
 import { motion, AnimatePresence, type Variants } from 'framer-motion'
 
@@ -32,18 +32,6 @@ import { SaveButton } from '@/components/ui/SaveButton'
 import type { SaveState } from '@/hooks/useRestaurantSettings'
 
 // ── Types ──────────────────────────────────────────────────────
-interface DeliveryZone {
-  id: string
-  restaurant_id: string
-  name: string
-  area: string | null
-  delivery_fee: number
-  min_order: number
-  estimated_time: number
-  active: boolean
-  sort_order: number
-}
-
 interface GeneralSettings {
   delivery_enabled: boolean
   show_delivery_button: boolean
@@ -76,15 +64,6 @@ const GENERAL_DEFAULTS: GeneralSettings = {
   estimated_delivery_time: 30,
   free_delivery_above: null,
   delivery_note: '',
-}
-
-const ZONE_EMPTY = {
-  name: '',
-  area: '',
-  delivery_fee: 0,
-  min_order: 0,
-  estimated_time: 30,
-  active: true,
 }
 
 const DELIVERY_STATUSES = [
@@ -465,6 +444,7 @@ export default function DeliveryPage() {
   const [tab, setTab]                   = useState<'history' | 'settings'>('history')
   const [restaurantId, setRestaurantId] = useState<string | null>(null)
   const [mounted, setMounted]           = useState(false)
+  const [synced,  setSynced]            = useState(false)
 
   useEffect(() => {
     setRestaurantId(localStorage.getItem('restaurant_id'))
@@ -472,26 +452,17 @@ export default function DeliveryPage() {
   }, [])
 
   const { data: swrData, isLoading: swrLoading, mutate } = useDeliverySettings(restaurantId)
-  const loading = !mounted || swrLoading
+  const loading = !mounted || swrLoading || !synced
 
   const [general, setGeneral] = useState<GeneralSettings>(GENERAL_DEFAULTS)
-  const [zones, setZones]     = useState<DeliveryZone[]>([])
   const [saveState, setSaveState] = useState<SaveState>('idle')
   const [err, setErr]             = useState<string | null>(null)
-
-  // Zone modal
-  const [zoneModal, setZoneModal]   = useState(false)
-  const [editZone, setEditZone]     = useState<DeliveryZone | null>(null)
-  const [zoneForm, setZoneForm]     = useState(ZONE_EMPTY)
-  const [zoneSaving, setZoneSaving] = useState(false)
-  const [zoneErr, setZoneErr]       = useState<string | null>(null)
-  const [deleteId, setDeleteId]     = useState<string | null>(null)
 
   // Sync local state from SWR cache
   useEffect(() => {
     if (!swrData) return
     setGeneral(swrData.general)
-    setZones(swrData.zones as DeliveryZone[])
+    setSynced(true)
   }, [swrData])
 
   const saveGeneral = async () => {
@@ -514,69 +485,11 @@ export default function DeliveryPage() {
 
     const { error } = await supabase.from('restaurants').update({ settings: merged }).eq('id', restaurantId)
     if (error) { setSaveState('idle'); setErr(error.message); return }
-    mutate(prev => prev ? { ...prev, general } : prev, false)
+    await mutate()
     setSaveState('saved')
     setTimeout(() => setSaveState('idle'), 2500)
   }
 
-  const openAddZone = () => { setEditZone(null); setZoneForm(ZONE_EMPTY); setZoneErr(null); setZoneModal(true) }
-
-  const openEditZone = (z: DeliveryZone) => {
-    setEditZone(z)
-    setZoneForm({ name: z.name, area: z.area ?? '', delivery_fee: z.delivery_fee, min_order: z.min_order, estimated_time: z.estimated_time, active: z.active })
-    setZoneErr(null)
-    setZoneModal(true)
-  }
-
-  const saveZone = async () => {
-    if (!restaurantId || !zoneForm.name.trim()) { setZoneErr('Zone name is required'); return }
-    setZoneSaving(true); setZoneErr(null)
-
-    if (editZone) {
-      const { error } = await supabase.from('delivery_zones').update({
-        name:           zoneForm.name.trim(),
-        area:           zoneForm.area?.trim() || null,
-        delivery_fee:   Number(zoneForm.delivery_fee),
-        min_order:      Number(zoneForm.min_order),
-        estimated_time: Number(zoneForm.estimated_time),
-        active:         zoneForm.active,
-      }).eq('id', editZone.id)
-      if (error) { setZoneErr(error.message); setZoneSaving(false); return }
-    } else {
-      const nextOrder = zones.length > 0 ? Math.max(...zones.map(z => z.sort_order)) + 1 : 0
-      const { error } = await supabase.from('delivery_zones').insert({
-        restaurant_id: restaurantId,
-        name:          zoneForm.name.trim(),
-        area:          zoneForm.area?.trim() || null,
-        delivery_fee:  Number(zoneForm.delivery_fee),
-        min_order:     Number(zoneForm.min_order),
-        estimated_time: Number(zoneForm.estimated_time),
-        active:        zoneForm.active,
-        sort_order:    nextOrder,
-      })
-      if (error) { setZoneErr(error.message); setZoneSaving(false); return }
-    }
-
-    setZoneSaving(false); setZoneModal(false)
-    mutate()
-  }
-
-  const deleteZone = async (id: string) => {
-    await supabase.from('delivery_zones').delete().eq('id', id)
-    setDeleteId(null)
-    const updated = zones.filter(z => z.id !== id)
-    setZones(updated)
-    mutate(prev => prev ? { ...prev, zones: updated as CachedDeliveryZone[] } : prev, false)
-  }
-
-  const toggleZoneActive = async (z: DeliveryZone) => {
-    const updated = zones.map(x => x.id === z.id ? { ...x, active: !x.active } : x)
-    setZones(updated)
-    mutate(prev => prev ? { ...prev, zones: updated as CachedDeliveryZone[] } : prev, false)
-    await supabase.from('delivery_zones').update({ active: !z.active }).eq('id', z.id)
-  }
-
-  const activeZones = zones.filter(z => z.active).length
 
   return (
     <motion.div variants={PAGE} initial="hidden" animate="show" className="max-w-3xl mx-auto space-y-6 pb-10">
@@ -593,7 +506,6 @@ export default function DeliveryPage() {
           </div>
           <div>
             <h1 className="text-lg font-bold text-white">{t.del_title}</h1>
-            <p className="text-xs text-white/40">{activeZones} active zone{activeZones !== 1 ? 's' : ''}</p>
           </div>
         </div>
         {tab === 'settings' && (
@@ -683,7 +595,9 @@ export default function DeliveryPage() {
                   const { data: rest } = await supabase.from('restaurants').select('settings').eq('id', restaurantId).maybeSingle()
                   // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   const existing = (rest?.settings ?? {}) as any
-                  await supabase.from('restaurants').update({ settings: { ...existing, delivery_enabled: v } }).eq('id', restaurantId)
+                  const { error } = await supabase.from('restaurants').update({ settings: { ...existing, delivery_enabled: v } }).eq('id', restaurantId)
+                  if (error) { setGeneral(g => ({ ...g, delivery_enabled: !v })); setErr(error.message); return }
+                  await mutate()
                 }}
               />
             </div>
@@ -712,7 +626,9 @@ export default function DeliveryPage() {
                   const { data: rest } = await supabase.from('restaurants').select('settings').eq('id', restaurantId).maybeSingle()
                   // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   const existing = (rest?.settings ?? {}) as any
-                  await supabase.from('restaurants').update({ settings: { ...existing, show_delivery_button: v } }).eq('id', restaurantId)
+                  const { error } = await supabase.from('restaurants').update({ settings: { ...existing, show_delivery_button: v } }).eq('id', restaurantId)
+                  if (error) { setGeneral(g => ({ ...g, show_delivery_button: !v })); setErr(error.message); return }
+                  await mutate()
                 }}
               />
             </div>
@@ -755,161 +671,11 @@ export default function DeliveryPage() {
             </Field>
           </motion.div>
 
-          {/* Delivery Zones */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.42, ease: 'circOut', delay: 0.19 }}
-            className="rounded-2xl border border-white/8 bg-white/3 p-5 space-y-4"
-          >
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-bold text-white/70 uppercase tracking-wider">{t.del_zones}</h2>
-              <button onClick={openAddZone}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-500/15 text-indigo-400 border border-indigo-500/25 text-xs font-semibold hover:bg-indigo-500/25 transition-all">
-                <Plus className="w-3.5 h-3.5" /> {t.del_add_zone}
-              </button>
-            </div>
-
-            {zones.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 gap-3">
-                <div className="w-14 h-14 rounded-2xl bg-white/5 flex items-center justify-center">
-                  <MapPin className="w-7 h-7 text-white/15" />
-                </div>
-                <p className="text-sm text-white/30">{t.del_no_zones}</p>
-                <button onClick={openAddZone} className="text-xs text-indigo-400 hover:text-indigo-300 font-semibold transition-colors">
-                  + Add your first zone
-                </button>
-              </div>
-            ) : (
-              <motion.div variants={CONTAINER} initial="hidden" animate="show" className="space-y-2">
-                {zones.map(z => (
-                  <motion.div variants={ITEM} key={z.id}
-                    className={cn('flex items-center gap-3 px-4 py-3 rounded-xl border transition-all',
-                      z.active ? 'border-white/10 bg-white/3' : 'border-white/5 bg-white/[0.01] opacity-50')}>
-                    <div className={cn('w-2 h-2 rounded-full shrink-0', z.active ? 'bg-emerald-400' : 'bg-white/20')} />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="text-sm font-semibold text-white truncate">{z.name}</p>
-                        {z.area && <span className="text-[11px] text-white/40 truncate">{z.area}</span>}
-                      </div>
-                      <div className="flex items-center gap-3 mt-0.5 flex-wrap">
-                        <span className="text-[11px] text-indigo-300">Fee: {formatPrice(z.delivery_fee)}</span>
-                        {z.min_order > 0 && <span className="text-[11px] text-white/40">Min: {formatPrice(z.min_order)}</span>}
-                        <span className="text-[11px] text-white/40 flex items-center gap-0.5"><Clock className="w-3 h-3" /> {z.estimated_time} min</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <button onClick={() => toggleZoneActive(z)} title={z.active ? 'Deactivate' : 'Activate'}
-                        className="w-7 h-7 rounded-lg flex items-center justify-center text-white/30 hover:text-white/60 hover:bg-white/5 transition-all">
-                        {z.active ? <ToggleRight className="w-4 h-4 text-emerald-400" /> : <ToggleLeft className="w-4 h-4" />}
-                      </button>
-                      <button onClick={() => openEditZone(z)}
-                        className="w-7 h-7 rounded-lg flex items-center justify-center text-white/30 hover:text-indigo-400 hover:bg-indigo-500/10 transition-all">
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
-                      <button onClick={() => setDeleteId(z.id)}
-                        className="w-7 h-7 rounded-lg flex items-center justify-center text-white/30 hover:text-rose-400 hover:bg-rose-500/10 transition-all">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </motion.div>
-                ))}
-              </motion.div>
-            )}
-          </motion.div>
         </div>
       )}
 
         </motion.div>
       </AnimatePresence>
-
-      {/* ── Zone Modal ── */}
-      {zoneModal && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm px-4" onClick={() => setZoneModal(false)}>
-          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0e1120] shadow-2xl p-5 space-y-4" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-white">{editZone ? t.edit : t.del_add_zone}</h3>
-              <button onClick={() => setZoneModal(false)} className="w-7 h-7 rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:bg-white/8 transition-all">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            {zoneErr && (
-              <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs">
-                <AlertCircle className="w-3.5 h-3.5 shrink-0" />{zoneErr}
-              </div>
-            )}
-            <div className="space-y-3">
-              <Field label={t.del_zone_name} icon={MapPin}>
-                <input type="text" value={zoneForm.name} onChange={e => setZoneForm(f => ({ ...f, name: e.target.value }))}
-                  className={inputCls} placeholder="e.g. City Center, North Side" autoFocus />
-              </Field>
-              <Field label={t.del_zone_area}>
-                <input type="text" value={zoneForm.area} onChange={e => setZoneForm(f => ({ ...f, area: e.target.value }))}
-                  className={inputCls} placeholder="e.g. Within 5km radius" />
-              </Field>
-              <div className="grid grid-cols-3 gap-3">
-                <Field label={t.del_fee} icon={DollarSign}>
-                  <input type="number" min="0" step="0.01" value={zoneForm.delivery_fee}
-                    onChange={e => setZoneForm(f => ({ ...f, delivery_fee: parseFloat(e.target.value) || 0 }))}
-                    className={inputCls} placeholder="0.00" />
-                </Field>
-                <Field label={t.del_min_order} icon={ShoppingCart}>
-                  <input type="number" min="0" step="0.01" value={zoneForm.min_order}
-                    onChange={e => setZoneForm(f => ({ ...f, min_order: parseFloat(e.target.value) || 0 }))}
-                    className={inputCls} placeholder="0.00" />
-                </Field>
-                <Field label={t.del_est_time} icon={Clock}>
-                  <input type="number" min="1" value={zoneForm.estimated_time}
-                    onChange={e => setZoneForm(f => ({ ...f, estimated_time: parseInt(e.target.value) || 30 }))}
-                    className={inputCls} placeholder="30" />
-                </Field>
-              </div>
-              <div className="flex items-center justify-between px-1">
-                <div>
-                  <p className="text-sm font-semibold text-white">Active</p>
-                  <p className="text-xs text-white/40">Zone accepts orders</p>
-                </div>
-                <ToggleSwitch on={zoneForm.active} activeColor="bg-indigo-500" onChange={v => setZoneForm(f => ({ ...f, active: v }))} />
-              </div>
-            </div>
-            <div className="flex gap-2 pt-1">
-              <button onClick={() => setZoneModal(false)}
-                className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white/40 hover:text-white/60 border border-white/8 hover:bg-white/5 transition-all">
-                {t.cancel}
-              </button>
-              <button onClick={saveZone} disabled={zoneSaving}
-                className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 hover:bg-indigo-500/30 transition-all flex items-center justify-center gap-2 disabled:opacity-50">
-                {zoneSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                {editZone ? t.save_changes : t.del_add_zone}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Delete Confirm ── */}
-      {deleteId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4" onClick={() => setDeleteId(null)}>
-          <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-[#0e1120] shadow-2xl p-5 space-y-4" onClick={e => e.stopPropagation()}>
-            <div className="flex flex-col items-center gap-3 text-center">
-              <div className="w-12 h-12 rounded-2xl bg-rose-500/15 flex items-center justify-center">
-                <Trash2 className="w-6 h-6 text-rose-400" />
-              </div>
-              <div>
-                <p className="text-base font-bold text-white">Delete Zone?</p>
-                <p className="text-sm text-white/40 mt-1">This cannot be undone.</p>
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <button onClick={() => setDeleteId(null)} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white/40 border border-white/8 hover:bg-white/5 transition-all">
-                {t.cancel}
-              </button>
-              <button onClick={() => deleteZone(deleteId)} className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-rose-500/20 text-rose-400 border border-rose-500/30 hover:bg-rose-500/30 transition-all">
-                {t.delete}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </motion.div>
   )
 }

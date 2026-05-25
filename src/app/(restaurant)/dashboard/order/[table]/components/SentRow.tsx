@@ -14,6 +14,8 @@ export function SentRow({ item, onAction, formatPrice }: Props) {
     ? { bg: 'bg-emerald-500/8',  border: 'border-emerald-500/25', badge: 'bg-emerald-500/20 text-emerald-400', label: 'Ready'   }
     : item.status === 'cooking'
     ? { bg: 'bg-blue-500/8',     border: 'border-blue-500/20',    badge: 'bg-blue-500/20 text-blue-400',       label: 'Cooking' }
+    : item.status === 'queued'
+    ? { bg: 'bg-amber-500/6',    border: 'border-amber-500/20',   badge: 'bg-amber-500/20 text-amber-400',     label: 'Queued'  }
     : { bg: 'bg-white/4',        border: 'border-white/8',        badge: 'bg-white/8 text-white/35',           label: 'Sent'    }
 
   return (

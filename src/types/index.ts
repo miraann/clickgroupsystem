@@ -1,6 +1,6 @@
 export type SystemRole = 'seller' | 'owner' | 'manager' | 'cashier' | 'waiter'
 
-export type RestaurantStatus = 'active' | 'suspended' | 'trial' | 'expired'
+export type RestaurantStatus = 'active' | 'suspended' | 'expired'
 
 export interface Restaurant {
   id: string

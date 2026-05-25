@@ -205,6 +205,27 @@ export default function RestaurantInfoPage() {
       }
     }
 
+    // Read existing settings first so we don't overwrite password/modules/inventory/etc.
+    const { data: existing } = await supabase
+      .from('restaurants')
+      .select('settings')
+      .eq('id', restaurantId)
+      .maybeSingle()
+
+    const mergedSettings = {
+      ...((existing?.settings ?? {}) as Record<string, unknown>),
+      phone2:    form.phone2,
+      website:   form.website,
+      instagram: form.instagram,
+      facebook:  form.facebook,
+      twitter:   form.twitter,
+      whatsapp:  form.whatsapp,
+      tiktok:    form.tiktok,
+      youtube:   form.youtube,
+      snapchat:  form.snapchat,
+      maps_url:  form.maps_url,
+    }
+
     const { error } = await supabase
       .from('restaurants')
       .update({
@@ -213,18 +234,7 @@ export default function RestaurantInfoPage() {
         phone:    form.phone,
         address:  form.location,
         ...(logo_url ? { logo_url } : {}),
-        settings: {
-          phone2:    form.phone2,
-          website:   form.website,
-          instagram: form.instagram,
-          facebook:  form.facebook,
-          twitter:   form.twitter,
-          whatsapp:  form.whatsapp,
-          tiktok:    form.tiktok,
-          youtube:   form.youtube,
-          snapchat:  form.snapchat,
-          maps_url:  form.maps_url,
-        },
+        settings: mergedSettings,
         updated_at: new Date().toISOString(),
       })
       .eq('id', restaurantId)

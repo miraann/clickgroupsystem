@@ -207,18 +207,158 @@ function PrintBillFetcher({ table, restaurantId, cashier, onClose }: {
   )
 }
 
+// ── Move Table Modal ──────────────────────────────────────────
+function MoveTableModal({ sourceTable, allTables, onClose, onMoved }: {
+  sourceTable: Table; allTables: Table[]
+  onClose: () => void; onMoved: () => void
+}) {
+  const supabase = createClient()
+  const [moving, setMoving] = useState<string | null>(null)
+  const available = allTables.filter(t => t.id !== sourceTable.id && t.status === 'available')
+
+  const handleMove = async (target: Table) => {
+    if (!sourceTable.orderId) return
+    setMoving(target.id)
+    const { error } = await supabase.from('orders').update({ table_number: target.number }).eq('id', sourceTable.orderId)
+    setMoving(null)
+    if (!error) { onMoved(); onClose() }
+  }
+
+  return (
+    <AnimatePresence>
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        className="fixed inset-0 z-[60] flex items-center justify-center" onClick={onClose}>
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+        <motion.div initial={{ scale: 0.85, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.85, opacity: 0 }} transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+          className="relative bg-[#0d1220]/95 border border-white/15 rounded-3xl shadow-2xl backdrop-blur-2xl overflow-hidden w-80 max-h-[70vh] flex flex-col"
+          onClick={e => e.stopPropagation()}>
+          <div className="px-5 py-4 border-b border-white/8 flex items-center gap-3">
+            <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold border',
+              STATUS_CONFIG[sourceTable.status].bg, STATUS_CONFIG[sourceTable.status].border, STATUS_CONFIG[sourceTable.status].text)}>
+              {sourceTable.label}
+            </div>
+            <div>
+              <p className="text-sm font-bold text-white">Move Table {sourceTable.label}</p>
+              <p className="text-xs text-white/35">Select destination (available tables)</p>
+            </div>
+          </div>
+          {available.length === 0 ? (
+            <div className="px-5 py-8 text-center">
+              <p className="text-sm text-white/30">No available tables to move to</p>
+            </div>
+          ) : (
+            <div className="overflow-y-auto p-3 grid grid-cols-4 gap-2 flex-1">
+              {available.map(t => (
+                <button key={t.id} onClick={() => handleMove(t)} disabled={!!moving}
+                  className="aspect-square rounded-2xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 font-bold text-sm flex items-center justify-center hover:bg-emerald-500/20 active:scale-95 transition-all disabled:opacity-50">
+                  {moving === t.id ? <Loader2 className="w-4 h-4 animate-spin" /> : t.label}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="p-3 border-t border-white/8">
+            <button onClick={onClose} className="w-full py-2.5 rounded-xl text-sm text-white/40 hover:text-white/60 transition-colors">Cancel</button>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  )
+}
+
+// ── Merge Tables Modal ────────────────────────────────────────
+function MergeTablesModal({ sourceTable, allTables, onClose, onMerged }: {
+  sourceTable: Table; allTables: Table[]
+  onClose: () => void; onMerged: () => void
+}) {
+  const supabase = createClient()
+  const [merging, setMerging] = useState<string | null>(null)
+  const occupied = allTables.filter(t =>
+    t.id !== sourceTable.id &&
+    (t.status === 'occupied' || t.status === 'bill_requested') &&
+    t.orderId
+  )
+
+  const handleMerge = async (target: Table) => {
+    if (!sourceTable.orderId || !target.orderId) return
+    setMerging(target.id)
+    // Move all non-void items to target order
+    await supabase.from('order_items').update({ order_id: target.orderId })
+      .eq('order_id', sourceTable.orderId).neq('status', 'void')
+    // Recalculate target total
+    const { data: items } = await supabase.from('order_items')
+      .select('item_price, qty').eq('order_id', target.orderId).neq('status', 'void')
+    const newTotal = (items ?? []).reduce((s: number, i: { item_price: number; qty: number }) => s + i.item_price * i.qty, 0)
+    await supabase.from('orders').update({ total: newTotal }).eq('id', target.orderId)
+    // Cancel source order
+    await supabase.from('orders').update({ status: 'cancelled' }).eq('id', sourceTable.orderId)
+    setMerging(null)
+    onMerged()
+    onClose()
+  }
+
+  return (
+    <AnimatePresence>
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        className="fixed inset-0 z-[60] flex items-center justify-center" onClick={onClose}>
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+        <motion.div initial={{ scale: 0.85, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.85, opacity: 0 }} transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+          className="relative bg-[#0d1220]/95 border border-white/15 rounded-3xl shadow-2xl backdrop-blur-2xl overflow-hidden w-80 max-h-[70vh] flex flex-col"
+          onClick={e => e.stopPropagation()}>
+          <div className="px-5 py-4 border-b border-white/8 flex items-center gap-3">
+            <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold border',
+              STATUS_CONFIG[sourceTable.status].bg, STATUS_CONFIG[sourceTable.status].border, STATUS_CONFIG[sourceTable.status].text)}>
+              {sourceTable.label}
+            </div>
+            <div>
+              <p className="text-sm font-bold text-white">Merge Table {sourceTable.label}</p>
+              <p className="text-xs text-white/35">Items move to the selected table</p>
+            </div>
+          </div>
+          {occupied.length === 0 ? (
+            <div className="px-5 py-8 text-center">
+              <p className="text-sm text-white/30">No other occupied tables to merge with</p>
+            </div>
+          ) : (
+            <div className="overflow-y-auto p-3 grid grid-cols-4 gap-2 flex-1">
+              {occupied.map(t => (
+                <button key={t.id} onClick={() => handleMerge(t)} disabled={!!merging}
+                  className="aspect-square rounded-2xl bg-violet-500/10 border border-violet-500/25 text-violet-400 font-bold text-sm flex flex-col items-center justify-center gap-0.5 hover:bg-violet-500/20 active:scale-95 transition-all disabled:opacity-50 p-1">
+                  {merging === t.id ? <Loader2 className="w-4 h-4 animate-spin" /> : (
+                    <>
+                      <span className="text-xs">{t.label}</span>
+                      {t.orderTotal != null && <span className="text-[9px] font-normal opacity-60">{t.orderTotal}</span>}
+                    </>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="p-3 border-t border-white/8">
+            <p className="text-[10px] text-white/25 text-center mb-2">All items from {sourceTable.label} will move to the target table</p>
+            <button onClick={onClose} className="w-full py-2.5 rounded-xl text-sm text-white/40 hover:text-white/60 transition-colors">Cancel</button>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  )
+}
+
 // ── Quick Action Menu ─────────────────────────────────────────
-function QuickMenu({ table, onClose, onQuickPay, onPrintBill, router }: {
+function QuickMenu({ table, onClose, onQuickPay, onPrintBill, onMove, onMerge, router }: {
   table: Table; onClose: () => void
   onQuickPay: (t: Table) => void
   onPrintBill: (t: Table) => void
+  onMove: () => void
+  onMerge: () => void
   router: ReturnType<typeof import('next/navigation').useRouter>
 }) {
   const isOccupied = table.status === 'occupied' || table.status === 'bill_requested'
   const actions = [
-    { icon: ArrowRightLeft, label: 'Move Table',   color: 'text-blue-400',   onClick: () => { onClose() } },
-    { icon: Merge,          label: 'Merge Tables', color: 'text-violet-400', onClick: () => { onClose() } },
-    { icon: XIcon,          label: 'Cancel',       color: 'text-white/40',   onClick: onClose, disabled: false },
+    { icon: ArrowRightLeft, label: 'Move Table',   color: isOccupied ? 'text-blue-400'   : 'text-white/20', disabled: !isOccupied, onClick: () => { onClose(); onMove() } },
+    { icon: Merge,          label: 'Merge Tables', color: isOccupied ? 'text-violet-400' : 'text-white/20', disabled: !isOccupied, onClick: () => { onClose(); onMerge() } },
+    { icon: XIcon,          label: 'Cancel',       color: 'text-white/40',   disabled: false, onClick: onClose },
   ]
   return (
     <AnimatePresence>
@@ -735,7 +875,9 @@ export default function TablesPage() {
   const [selectedTable, setSelectedTable] = useState<Table | null>(null)
   const [guestTable, setGuestTable] = useState<Table | null>(null)
   const [reservationDetail, setReservationDetail] = useState<{ id: string; guest_name: string; guest_phone: string | null; party_size: number; date: string; time: string; note: string | null; status: string } | null>(null)
-  const [quickMenuTable, setQuickMenuTable] = useState<Table | null>(null)
+  const [quickMenuTable, setQuickMenuTable]     = useState<Table | null>(null)
+  const [moveTableSource, setMoveTableSource]   = useState<Table | null>(null)
+  const [mergeTableSource, setMergeTableSource] = useState<Table | null>(null)
   const [printBillTable, setPrintBillTable] = useState<Table | null>(null)
   const [time, setTime] = useState(new Date())
   const [pendingCount, setPendingCount]           = useState(0)
@@ -950,12 +1092,15 @@ export default function TablesPage() {
     const map = new Map<number, { guests: number; total: number; openedAt: string }>()
     const orderIds = (orders ?? []).map(o => o.id)
     if (orderIds.length > 0) {
-      const { data: activeItems } = await supabase
-        .from('order_items').select('order_id').in('order_id', orderIds).neq('status', 'void')
-      const activeOrderIds = new Set((activeItems ?? []).map(i => i.order_id))
+      const { data: allItemsData } = await supabase
+        .from('order_items').select('order_id, status').in('order_id', orderIds)
+      const activeOrderIds = new Set((allItemsData ?? []).filter(i => i.status !== 'void').map(i => i.order_id))
+      const ordersWithItems = new Set((allItemsData ?? []).map(i => i.order_id))
 
-      // Auto-close orders that have no non-void items left
-      const staleIds = orderIds.filter(id => !activeOrderIds.has(id))
+      // Auto-close only orders that HAD items but all are now void.
+      // Skip zero-item orders — they may be brand-new guest/delivery orders where
+      // items haven't been inserted yet (race condition with realtime trigger).
+      const staleIds = orderIds.filter(id => ordersWithItems.has(id) && !activeOrderIds.has(id))
       if (staleIds.length > 0) {
         await supabase.from('orders')
           .update({ status: 'closed', updated_at: new Date().toISOString() })
@@ -1558,7 +1703,27 @@ export default function TablesPage() {
           onClose={() => setQuickMenuTable(null)}
           onQuickPay={t => { setQuickMenuTable(null); openOrder(t) }}
           onPrintBill={t => { setQuickMenuTable(null); setPrintBillTable(t) }}
+          onMove={() => { setMoveTableSource(quickMenuTable); setQuickMenuTable(null) }}
+          onMerge={() => { setMergeTableSource(quickMenuTable); setQuickMenuTable(null) }}
           router={router}
+        />
+      )}
+
+      {moveTableSource && (
+        <MoveTableModal
+          sourceTable={moveTableSource}
+          allTables={tables}
+          onClose={() => setMoveTableSource(null)}
+          onMoved={() => { swrMutate(SWR_KEY(cachedRestaurantId!)) }}
+        />
+      )}
+
+      {mergeTableSource && (
+        <MergeTablesModal
+          sourceTable={mergeTableSource}
+          allTables={tables}
+          onClose={() => setMergeTableSource(null)}
+          onMerged={() => { swrMutate(SWR_KEY(cachedRestaurantId!)) }}
         />
       )}
 

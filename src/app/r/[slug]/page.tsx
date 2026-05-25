@@ -439,7 +439,7 @@ export default function PublicMenuPage() {
       {storyIdx !== null && events[storyIdx] && (() => {
         const ev = events[storyIdx]
         return (
-          <div className="fixed inset-0 z-[200] bg-black flex items-center justify-center"
+          <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black sm:bg-black/85 sm:backdrop-blur-lg"
             style={{ animation: 'story-fadein 0.25s ease forwards' }}>
 
             <style>{`
@@ -451,75 +451,44 @@ export default function PublicMenuPage() {
               @keyframes story-count     { from{opacity:0} to{opacity:1} }
             `}</style>
 
-            {/* Desktop nav arrows — outside canvas so they're always reachable */}
-            {storyIdx > 0 && (
-              <button onClick={goPrev}
-                className="absolute left-4 top-1/2 -translate-y-1/2 z-30 w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm items-center justify-center active:scale-90 transition-transform hidden sm:flex">
-                <ChevronLeft className="w-5 h-5 text-white" />
-              </button>
-            )}
-            {storyIdx < events.length - 1 && (
-              <button onClick={goNext}
-                className="absolute right-4 top-1/2 -translate-y-1/2 z-30 w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm items-center justify-center active:scale-90 transition-transform hidden sm:flex">
-                <ChevronRight className="w-5 h-5 text-white" />
-              </button>
-            )}
+            {/* Backdrop click to close — desktop only */}
+            <div className="absolute inset-0 hidden sm:block" onClick={closeStory} />
 
-            {/* ── 1080 × 1920 canvas (9:16) ── */}
-            <div className="relative overflow-hidden"
-              style={{
-                /* Fill height first, cap at 1920px; width follows 9:16 ratio */
-                height: '100dvh',
-                width: 'calc(100dvh * 9 / 16)',
-                maxWidth: '100vw',
-                maxHeight: '1920px',
-                /* On very wide screens where height hits 1920px, cap width at 1080px */
-              }}>
+            {/* Prev arrow */}
+            <button onClick={goPrev}
+              className={`hidden sm:flex relative z-20 w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm items-center justify-center active:scale-90 transition-transform mr-3 ${storyIdx === 0 ? 'invisible pointer-events-none' : ''}`}>
+              <ChevronLeft className="w-5 h-5 text-white" />
+            </button>
 
-              {/* Background */}
-              <div className="absolute inset-0">
-                {ev.image_url
-                  ? <NextImage src={ev.image_url} alt={ev.title} fill className="object-cover" />
-                  : <div className="w-full h-full bg-gradient-to-br from-amber-400 via-orange-500 to-rose-500" />
-                }
-                <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-transparent via-40% to-black/85" />
-                <div className="absolute inset-0 bg-black/15" />
-              </div>
+            {/* Story card — full screen mobile, portrait 9:16 desktop */}
+            <div className="relative w-full h-full sm:h-[90vh] sm:w-auto sm:aspect-[9/16] sm:rounded-2xl sm:shadow-2xl overflow-hidden bg-black z-10 flex-shrink-0"
+              style={ev.image_url ? { backgroundImage: `url("${ev.image_url}")`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}>
 
-              {/* Progress bars */}
-              <div className="absolute top-0 left-0 right-0 flex gap-1.5 px-4 pt-4 z-10">
-                {events.map((_, i) => (
-                  <div key={i} className="flex-1 h-[3px] rounded-full bg-white/30 overflow-hidden">
-                    {i === storyIdx && (
-                      <div key={storyKey} className="h-full bg-white rounded-full origin-left"
-                        style={{ animation: 'story-progress 10s linear forwards' }} />
-                    )}
-                    {i < storyIdx && <div className="h-full bg-white rounded-full w-full" />}
-                  </div>
-                ))}
-              </div>
+              {!ev.image_url && <div className="absolute inset-0 bg-gradient-to-br from-amber-400 via-orange-500 to-rose-500" />}
+              <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-transparent via-40% to-black/85" />
+              <div className="absolute inset-0 bg-black/10" />
 
-              {/* Header */}
-              <div className="absolute top-10 left-0 right-0 flex items-center justify-between px-5 z-10">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-full border-2 border-white/40 overflow-hidden bg-amber-400 flex items-center justify-center text-black font-black text-sm shrink-0">
-                    {restaurant?.logo_url
-                      ? <NextImage src={restaurant.logo_url} alt="" fill className="object-cover" />
-                      : (restaurant?.name?.[0] ?? 'R')}
-                  </div>
-                  <div>
-                    <p className="text-white text-sm font-bold leading-tight">{restaurant?.name}</p>
-                    <p className="text-white/55 text-[11px]">Event &amp; Offers</p>
-                  </div>
+              {/* Progress bars + close */}
+              <div className="absolute top-0 left-0 right-0 flex items-center gap-2 px-4 pt-4 z-10">
+                <div className="flex flex-1 gap-1.5">
+                  {events.map((_, i) => (
+                    <div key={i} className="flex-1 h-[3px] rounded-full bg-white/30 overflow-hidden">
+                      {i === storyIdx && (
+                        <div key={storyKey} className="h-full bg-white rounded-full origin-left"
+                          style={{ animation: 'story-progress 10s linear forwards' }} />
+                      )}
+                      {i < storyIdx && <div className="h-full bg-white rounded-full w-full" />}
+                    </div>
+                  ))}
                 </div>
                 <button onClick={closeStory}
-                  className="w-9 h-9 rounded-full bg-white/15 backdrop-blur-sm flex items-center justify-center active:scale-90 transition-transform">
-                  <X className="w-4 h-4 text-white" />
+                  className="w-7 h-7 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center active:scale-90 transition-transform shrink-0">
+                  <X className="w-3.5 h-3.5 text-white" />
                 </button>
               </div>
 
               {/* Bottom content */}
-              <div className="absolute bottom-0 left-0 right-0 px-6 pb-14 z-10 space-y-4">
+              <div className="absolute bottom-0 left-0 right-0 px-6 pb-10 z-10 space-y-3">
                 {ev.date_label && (
                   <div key={`badge-${storyKey}`}
                     className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-400 text-black text-sm font-bold shadow-lg shadow-amber-400/30"
@@ -528,28 +497,16 @@ export default function PublicMenuPage() {
                     {ev.date_label}
                   </div>
                 )}
-
                 <h2 key={`title-${storyKey}`} className="text-white font-black leading-[1.1]"
-                  style={{
-                    fontSize: 'clamp(1.75rem, 7vw, 3rem)',
-                    textShadow: '0 2px 24px rgba(0,0,0,0.65)',
-                    animation: 'story-slideup 0.55s cubic-bezier(0.22,1,0.36,1) 0.22s both',
-                  }}>
+                  style={{ fontSize: 'clamp(1.75rem, 5vw, 2.5rem)', textShadow: '0 2px 24px rgba(0,0,0,0.65)', animation: 'story-slideup 0.55s cubic-bezier(0.22,1,0.36,1) 0.22s both' }}>
                   {ev.title}
                 </h2>
-
                 {ev.description && (
-                  <p key={`desc-${storyKey}`}
-                    className="text-white/90 leading-relaxed"
-                    style={{
-                      fontSize: 'clamp(0.9rem, 2.5vw, 1.15rem)',
-                      textShadow: '0 1px 12px rgba(0,0,0,0.7)',
-                      animation: 'story-desc 0.6s ease 0.45s both',
-                    }}>
+                  <p key={`desc-${storyKey}`} className="text-white/90 leading-relaxed"
+                    style={{ fontSize: 'clamp(0.875rem, 2vw, 1rem)', textShadow: '0 1px 12px rgba(0,0,0,0.7)', animation: 'story-desc 0.6s ease 0.45s both' }}>
                     {ev.description}
                   </p>
                 )}
-
                 <p key={`count-${storyKey}`} className="text-white/40 text-xs font-medium"
                   style={{ animation: 'story-count 0.5s ease 0.65s both' }}>
                   {storyIdx + 1} / {events.length}
@@ -562,6 +519,12 @@ export default function PublicMenuPage() {
                 <div className="w-2/3 h-full cursor-pointer" onClick={goNext} />
               </div>
             </div>
+
+            {/* Next arrow */}
+            <button onClick={goNext}
+              className={`hidden sm:flex relative z-20 w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm items-center justify-center active:scale-90 transition-transform ml-3 ${storyIdx >= events.length - 1 ? 'invisible pointer-events-none' : ''}`}>
+              <ChevronRight className="w-5 h-5 text-white" />
+            </button>
           </div>
         )
       })()}

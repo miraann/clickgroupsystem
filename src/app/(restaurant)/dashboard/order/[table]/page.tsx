@@ -1,7 +1,8 @@
 'use client'
 import { useState, useEffect, Suspense } from 'react'
 import { useParams, useSearchParams, useRouter } from 'next/navigation'
-import { AlertCircle } from 'lucide-react'
+import { AlertCircle, WifiOff, RefreshCw, Loader2 } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import dynamic from 'next/dynamic'
 
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
@@ -117,6 +118,31 @@ function OrderPage() {
         />
       </div>
 
+      {/* Offline / queue status banner */}
+      {(!order.isOnline || order.queueCount > 0) && (
+        <div className={cn(
+          'shrink-0 px-4 py-2 flex items-center gap-2 text-xs border-t',
+          order.queueCount > 0
+            ? 'bg-amber-500/8 border-amber-500/15 text-amber-400'
+            : 'bg-rose-500/8 border-rose-500/15 text-rose-400'
+        )}>
+          <WifiOff className="w-3.5 h-3.5 shrink-0" />
+          {order.queueCount > 0
+            ? <span>{order.queueCount} order{order.queueCount > 1 ? 's' : ''} queued — will sync when online</span>
+            : <span>Offline — orders will be queued until connection returns</span>}
+          {order.isOnline && order.queueCount > 0 && (
+            <button
+              onClick={order.syncQueuedOrders}
+              disabled={order.syncing}
+              className="ml-auto flex items-center gap-1 font-semibold hover:text-amber-300 disabled:opacity-50"
+            >
+              {order.syncing ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+              {order.syncing ? 'Syncing…' : 'Sync Now'}
+            </button>
+          )}
+        </div>
+      )}
+
       <BottomBar
         table={table}
         isTakeout={isTakeout}
@@ -135,6 +161,7 @@ function OrderPage() {
         canCfd={!!order.restaurantId && p('dashboard.cfd_order')}
         canPay={p('dashboard.pay')}
         canSend={p('dashboard.order.send_kitchen')}
+        isOnline={order.isOnline}
         onSend={order.handleSend}
         onPay={() => {
           const url = new URL(window.location.href)

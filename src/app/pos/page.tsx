@@ -65,10 +65,10 @@ export default function POSEntry() {
       setPin(p => p.slice(0, -1)); setError(false)
     } else if (key === 'clear') {
       setPin(''); setError(false)
-    } else if (pin.length < 4) {
+    } else if (pin.length < 6) {
       const next = pin + key
       setPin(next)
-      if (next.length === 4) {
+      if (next.length === 6) {
         if (next === selectedStaff?.pin) {
           setSuccess(true)
           localStorage.setItem('pos_staff', JSON.stringify({
@@ -181,7 +181,7 @@ export default function POSEntry() {
           </div>
 
           <div className={cn('flex justify-center gap-4 mb-8', shake && 'animate-[wiggle_0.4s_ease-in-out]')}>
-            {[0, 1, 2, 3].map(i => (
+            {[0, 1, 2, 3, 4, 5].map(i => (
               <div key={i} className={cn(
                 'w-4 h-4 rounded-full border-2 transition-all duration-150',
                 success ? 'bg-emerald-400 border-emerald-400 scale-110'
@@ -195,7 +195,7 @@ export default function POSEntry() {
           <div className="text-center h-5 mb-6">
             {success && <p className="text-sm text-emerald-400 font-medium">Welcome back! Opening POS...</p>}
             {error   && <p className="text-sm text-rose-400 font-medium">Incorrect PIN. Try again.</p>}
-            {!success && !error && pin.length === 0 && <p className="text-sm text-white/25">Enter your 4-digit PIN</p>}
+            {!success && !error && pin.length === 0 && <p className="text-sm text-white/25">Enter your 6-digit PIN</p>}
           </div>
 
           <div className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-2xl p-4 shadow-2xl shadow-black/40">

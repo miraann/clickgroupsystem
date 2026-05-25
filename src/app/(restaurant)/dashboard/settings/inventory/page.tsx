@@ -62,6 +62,7 @@ export default function InventoryPage() {
 
   const [restaurantId, setRestaurantId] = useState<string | null>(null)
   const [mounted, setMounted]           = useState(false)
+  const [synced,  setSynced]            = useState(false)
 
   useEffect(() => {
     setRestaurantId(localStorage.getItem('restaurant_id'))
@@ -71,7 +72,11 @@ export default function InventoryPage() {
   }, [])
 
   const { data: swrData, isLoading: swrLoading, mutate } = useInventoryData(restaurantId)
-  const loading = !mounted || swrLoading
+  // Keep loading until SWR data has been synced into local state at least once.
+  // Without this, cached SWR data (swrLoading=false) causes one render where
+  // `enabled=false` before the sync effect fires — if Save is clicked then it
+  // writes inventory_enabled:false to the DB.
+  const loading = !mounted || swrLoading || !synced
 
   const [tab, setTab] = useState<'settings' | 'items' | 'categories' | 'units'>('settings')
 
@@ -90,6 +95,7 @@ export default function InventoryPage() {
   const [lowThreshold, setLowThreshold] = useState(5)
   const [flagSaving,   setFlagSaving]   = useState(false)
   const [flagSaved,    setFlagSaved]    = useState(false)
+  const [flagErr,      setFlagErr]      = useState(false)
 
   // Data
   const [categories, setCategories] = useState<InvCategory[]>([])
@@ -128,12 +134,13 @@ export default function InventoryPage() {
     setCategories(swrData.categories)
     setUnits(swrData.units)
     setItems(swrData.items)
+    setSynced(true)
   }, [swrData])
 
   // ── Save settings ─────────────────────────────────────────
   const saveSettings = async () => {
     if (!restaurantId) return
-    setFlagSaving(true)
+    setFlagSaving(true); setFlagErr(false)
     const { data: rest } = await supabase.from('restaurants').select('settings').eq('id', restaurantId).maybeSingle()
     const merged = {
       ...(rest?.settings ?? {}),
@@ -142,9 +149,15 @@ export default function InventoryPage() {
       inventory_auto_deduct:   autoDeduct,
       inventory_low_threshold: lowThreshold,
     }
-    await supabase.from('restaurants').update({ settings: merged }).eq('id', restaurantId)
-    mutate(prev => prev ? { ...prev, flags: { enabled, showOnDash, autoDeduct, lowThreshold } } : prev, false)
+    const { error } = await supabase.from('restaurants').update({ settings: merged }).eq('id', restaurantId)
     setFlagSaving(false)
+    if (error) {
+      setFlagErr(true)
+      setTimeout(() => setFlagErr(false), 3000)
+      return
+    }
+    // Revalidate from DB to confirm write persisted
+    await mutate()
     setFlagSaved(true)
     setTimeout(() => setFlagSaved(false), 2000)
   }
@@ -395,9 +408,10 @@ export default function InventoryPage() {
                 {/* Save button */}
                 <motion.div variants={ITEM}>
                   <button onClick={saveSettings} disabled={flagSaving}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-sm font-semibold rounded-xl active:scale-95 transition-all shadow-lg shadow-emerald-500/20">
-                    {flagSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : flagSaved ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
-                    {flagSaved ? 'Saved!' : 'Save Settings'}
+                    className={cn('flex items-center gap-2 px-5 py-2.5 disabled:opacity-50 text-white text-sm font-semibold rounded-xl active:scale-95 transition-all shadow-lg',
+                      flagErr ? 'bg-red-500 hover:bg-red-600 shadow-red-500/20' : 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/20')}>
+                    {flagSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : flagSaved ? <Check className="w-4 h-4" /> : flagErr ? <AlertTriangle className="w-4 h-4" /> : <Save className="w-4 h-4" />}
+                    {flagSaved ? 'Saved!' : flagErr ? 'Save Failed' : 'Save Settings'}
                   </button>
                 </motion.div>
 

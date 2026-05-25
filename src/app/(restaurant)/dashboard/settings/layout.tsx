@@ -8,7 +8,7 @@ import {
   Wine, CalendarDays, Monitor, SlidersHorizontal, Settings2,
   Receipt, BarChart3, Database, Users, UserCircle,
   CreditCard, ArrowLeft, ChevronRight, Home, Palette,
-  DollarSign, Star, Ban, ActivitySquare, Package, MessageCircle,
+  DollarSign, Star, Ban, ActivitySquare, Package, MessageCircle, RefreshCw,
 } from 'lucide-react'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import type { TranslationKey } from '@/lib/i18n/translations'
@@ -67,8 +67,9 @@ const NAV_GROUPS: NavGroup[] = [
   {
     labelKey: 'sg_system',
     items: [
-      { labelKey: 'si_advanced', href: '/dashboard/settings/advanced', icon: Settings2 },
-      { labelKey: 'si_database', href: '/dashboard/settings/database', icon: Database  },
+      { labelKey: 'si_advanced',  href: '/dashboard/settings/advanced',  icon: Settings2    },
+      { labelKey: 'si_database',  href: '/dashboard/settings/database',  icon: Database     },
+      { labelKey: 'si_audit_log', href: '/dashboard/settings/audit-log', icon: ActivitySquare },
     ],
   },
   {
@@ -86,7 +87,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
   const supabase = createClient()
 
   const isHome      = pathname === '/dashboard/settings'
-  const isWidePage  = pathname === '/dashboard/settings/whatsapp' || pathname === '/dashboard/settings/appearance'
+  const isWidePage  = pathname === '/dashboard/settings/whatsapp' || pathname === '/dashboard/settings/appearance' || pathname === '/dashboard/settings/audit-log'
   const currentItem = NAV_GROUPS.flatMap(g => g.items).find(i => i.href === pathname || pathname.startsWith(i.href + '/'))
 
 
@@ -135,6 +136,13 @@ const [moduleEnabled,  setModuleEnabled]  = useState<boolean | null>(null)
             className="w-[54px] h-[54px] rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
           >
             <Home className="w-6 h-6" />
+          </button>
+
+          <button
+            onClick={() => window.location.reload()}
+            className="w-[54px] h-[54px] rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
+          >
+            <RefreshCw className="w-5 h-5" />
           </button>
 
           <div className="flex-1 min-w-0">

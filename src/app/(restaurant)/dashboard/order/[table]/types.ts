@@ -46,6 +46,6 @@ export interface DbOrderItem {
   item_name: string
   item_price: number
   qty: number
-  status: 'pending' | 'sent' | 'cooking' | 'ready' | 'void'
+  status: 'pending' | 'sent' | 'cooking' | 'ready' | 'void' | 'queued'
   note?: string | null
 }

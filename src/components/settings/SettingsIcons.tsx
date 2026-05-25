@@ -198,6 +198,22 @@ export const SettingsIcons: Record<string, ReactNode> = {
       <path d="M22 22 c-2 1-2 4-1 6 c2 4 6 8 10 10 c2 1 5 1 6-1 l1-2 c0-1-1-1-2-2 l-3-1 c-1 0-2 1-3 0 c-1 0-3-2-4-3 c-1-1-2-3-2-4 c0-1 1-1 1-2 c1-1 0-2 0-3 l-1-2 c-1-1-2-1-2 0 Z" fill="#fff"/>
     </svg>
   ),
+  audit: (
+    <svg viewBox="0 0 64 64" width="100%" height="100%">
+      <rect x="10" y="10" width="44" height="50" rx="4" fill="#38bdf8"/>
+      <rect x="10" y="10" width="44" height="14" rx="4" fill="#0ea5e9"/>
+      <rect x="16" y="16.5" width="22" height="2.5" rx="1.25" fill="#bae6fd"/>
+      <circle cx="46" cy="17.75" r="3" fill="#7dd3fc"/>
+      <rect x="16" y="32" width="8" height="2.5" rx="1.25" fill="#7dd3fc" opacity="0.7"/>
+      <rect x="27" y="32" width="19" height="2.5" rx="1.25" fill="#fff" opacity="0.85"/>
+      <rect x="16" y="39" width="8" height="2.5" rx="1.25" fill="#7dd3fc" opacity="0.7"/>
+      <rect x="27" y="39" width="15" height="2.5" rx="1.25" fill="#fff" opacity="0.85"/>
+      <rect x="16" y="46" width="8" height="2.5" rx="1.25" fill="#7dd3fc" opacity="0.7"/>
+      <rect x="27" y="46" width="17" height="2.5" rx="1.25" fill="#fff" opacity="0.85"/>
+      <rect x="16" y="53" width="8" height="2.5" rx="1.25" fill="#7dd3fc" opacity="0.5"/>
+      <rect x="27" y="53" width="11" height="2.5" rx="1.25" fill="#fff" opacity="0.55"/>
+    </svg>
+  ),
   palette: (
     <svg viewBox="0 0 64 64" width="100%" height="100%">
       <path d="M32 8 C17 8 6 19 6 32 C6 45 16 54 28 55.5 C31 56 33 54 33 51 C33 49 32 47.5 32 47.5 C32 46.5 33 45.5 35 45.5 L44 45.5 C50 45.5 58 40 58 32 C58 19 47 8 32 8 Z" fill="#ddd6fe"/>

@@ -11,15 +11,26 @@ import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import type { Restaurant } from './types'
-import { PLAN_LABELS } from './types'
 import { AddRestaurantModal } from './AddRestaurantModal'
 import { EditRestaurantModal } from './EditRestaurantModal'
 import type { RestaurantStatus } from '@/types'
+import type { Plan } from '../plans/PlanModal'
+
+const PLAN_BG: Record<string, string> = {
+  slate:   'bg-slate-500/15 text-slate-300',
+  indigo:  'bg-indigo-500/15 text-indigo-300',
+  violet:  'bg-violet-500/15 text-violet-300',
+  emerald: 'bg-emerald-500/15 text-emerald-300',
+  amber:   'bg-amber-500/15 text-amber-300',
+  rose:    'bg-rose-500/15 text-rose-300',
+  cyan:    'bg-cyan-500/15 text-cyan-300',
+}
 
 export default function RestaurantsPage() {
   const supabase = createClient()
 
   const [restaurants, setRestaurants]   = useState<Restaurant[]>([])
+  const [plans, setPlans]               = useState<Plan[]>([])
   const [loading, setLoading]           = useState(true)
   const [search, setSearch]             = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
@@ -29,11 +40,18 @@ export default function RestaurantsPage() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const { data } = await supabase
-      .from('restaurants')
-      .select('id, name, email, phone, plan, status, created_at, settings')
-      .order('created_at', { ascending: false })
-    setRestaurants((data ?? []) as Restaurant[])
+    const [{ data: rData }, { data: pData }] = await Promise.all([
+      supabase
+        .from('restaurants')
+        .select('id, name, email, phone, plan, status, created_at, settings')
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('plans')
+        .select('*')
+        .order('sort_order', { ascending: true }),
+    ])
+    setRestaurants((rData ?? []) as Restaurant[])
+    setPlans((pData ?? []) as Plan[])
     setLoading(false)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -85,7 +103,7 @@ export default function RestaurantsPage() {
             </div>
             <div className="flex items-center gap-2">
               <Filter className="w-4 h-4 text-white/30" />
-              {['all', 'active', 'trial', 'suspended', 'expired'].map(s => (
+              {['all', 'active', 'suspended', 'expired'].map(s => (
                 <button key={s} onClick={() => setStatusFilter(s)}
                   className={cn('px-3 py-1.5 rounded-lg text-xs font-medium capitalize transition-all',
                     statusFilter === s
@@ -153,12 +171,15 @@ export default function RestaurantsPage() {
                         {r.phone && <p className="text-xs text-white/30">{r.phone}</p>}
                       </td>
                       <td className="px-6 py-4">
-                        <span className={cn('text-xs font-medium px-2.5 py-1 rounded-lg',
-                          r.plan === 'enterprise'   ? 'bg-amber-500/15 text-amber-400' :
-                          r.plan === 'professional' ? 'bg-indigo-500/15 text-indigo-400' :
-                          'bg-slate-500/15 text-slate-400')}>
-                          {PLAN_LABELS[r.plan] ?? r.plan}
-                        </span>
+                        {(() => {
+                          const plan = plans.find(p => p.slug === r.plan)
+                          const colorCls = plan ? (PLAN_BG[plan.color] ?? PLAN_BG.indigo) : 'bg-white/8 text-white/40'
+                          return (
+                            <span className={cn('text-xs font-medium px-2.5 py-1 rounded-lg', colorCls)}>
+                              {plan?.name ?? r.plan}
+                            </span>
+                          )
+                        })()}
                       </td>
                       <td className="px-6 py-4"><Badge variant={r.status}>{r.status}</Badge></td>
                       <td className="px-6 py-4">
@@ -202,11 +223,11 @@ export default function RestaurantsPage() {
       </GlassCard>
 
       {showAdd && (
-        <AddRestaurantModal onClose={() => setShowAdd(false)} onSaved={() => { setShowAdd(false); load() }} />
+        <AddRestaurantModal plans={plans} onClose={() => setShowAdd(false)} onSaved={() => { setShowAdd(false); load() }} />
       )}
 
       {editRec && (
-        <EditRestaurantModal restaurant={editRec} onClose={() => setEditRec(null)} onSaved={() => { setEditRec(null); load() }} />
+        <EditRestaurantModal plans={plans} restaurant={editRec} onClose={() => setEditRec(null)} onSaved={() => { setEditRec(null); load() }} />
       )}
     </div>
   )

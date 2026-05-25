@@ -38,7 +38,26 @@
       "Bash(find g:/clickgroupsystem/src/app/\\\\\\(restaurant\\\\\\)/dashboard -maxdepth 1 -name \"layout.tsx\" -exec cat {} \\\\;)",
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
-      "Bash(git checkout *)"
+      "Bash(git checkout *)",
+      "Bash(Format-Table FullName)",
+      "PowerShell(Get-ChildItem -Path \"g:\\\\clickgroupsystem\\\\src\\\\app\" -Recurse -Directory | Select-Object -ExpandProperty FullName | ForEach-Object { $_.Replace\\('g:\\\\clickgroupsystem\\\\src\\\\app\\\\', ''\\) } | Sort-Object)",
+      "PowerShell(Get-ChildItem -Path \"g:\\\\clickgroupsystem\" -Directory | Select-Object -First 10 | ForEach-Object { $_.FullName })",
+      "Bash(PowerShell -NoProfile -Command \"Get-Content 'g:\\\\clickgroupsystem\\\\src\\\\app\\\\\\(seller\\)\\\\seller\\\\page.tsx' | Select-String -Pattern 'supabase|fetch|useEffect|useState|data|loading' | head -20\")",
+      "Bash(PowerShell -NoProfile -Command \"Get-Content 'g:\\\\clickgroupsystem\\\\src\\\\app\\\\api\\\\seller\\\\login\\\\route.ts' | Select-String -Pattern 'NextResponse|return|error|ok'\")",
+      "Bash(PowerShell -NoProfile -Command \"Get-Content 'g:\\\\clickgroupsystem\\\\src\\\\app\\\\\\(seller\\)\\\\seller\\\\settings\\\\page.tsx' | Select-String -Pattern 'supabase|fetch|API|server' | head -5\")",
+      "Bash(Get-ChildItem -Path \"g:\\\\clickgroupsystem\" -Recurse -Filter \"*.sql\")",
+      "Bash(grep -v \"^$\")",
+      "Bash(xargs -I {} grep \"create table\" {})",
+      "Bash(node -e \"const p = require\\('./package.json'\\); console.log\\('next:', p.dependencies.next\\)\")",
+      "Bash(Get-ChildItem -Path \"g:\\\\clickgroupsystem\\\\src\\\\app\\\\pos\" -Recurse -Force)",
+      "Bash(Select-Object FullName)",
+      "Bash(Get-ChildItem -Path \"g:\\\\clickgroupsystem\\\\src\" -Recurse -Directory)",
+      "Bash(Select-Object -First 20 FullName)",
+      "Bash(Select-String -Pattern \"\\(kds|delivery-orders|pending-orders|payment-screen|logAudit|audit-log\\)\")",
+      "PowerShell(git add \"src/app/\\(restaurant\\)/dashboard/settings/device/page.tsx\" \"src/app/api/devices/scan/route.ts\" \"src/app/api/printer/print-test/route.ts\" \"src/app/\\(restaurant\\)/dashboard/audit-log/page.tsx\" \"src/app/\\(restaurant\\)/dashboard/delivery-orders/page.tsx\" \"src/app/\\(restaurant\\)/dashboard/kds/page.tsx\" \"src/app/\\(restaurant\\)/dashboard/pending-orders/page.tsx\" \"src/components/restaurant/InvoiceModal/InvoicePrintTemplate.tsx\" \"src/components/restaurant/invoice-view-modal.tsx\" \"src/components/restaurant/payment-screen.tsx\" \"src/app/api/upload/receipt-image/route.ts\" \"src/lib/logAudit.ts\" \"src/app/\\(restaurant\\)/dashboard/settings/audit-log/\")",
+      "PowerShell(gh auth status)",
+      "PowerShell(gh auth switch --user miraann)",
+      "PowerShell(head -20)"
     ]
   }
 }

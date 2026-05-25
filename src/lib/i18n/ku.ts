@@ -44,6 +44,7 @@ const ku: Record<keyof typeof en, string> = {
   si_customer:          'کڕیار',
   si_advanced:          'پیشکەوتوو',
   si_database:          'بنکەی داتا',
+  si_audit_log:         'لۆگی چاودێری',
   si_whatsapp:          'واتسئەپ',
   si_roles:             'مۆڵەتەکانی ڕۆڵ',
 
@@ -993,8 +994,8 @@ const ku: Record<keyof typeof en, string> = {
   usr_print_qr:         'چاپکردنی QR',
   usr_email:            'ئیمەیل',
   usr_phone:            'تەلەفۆن',
-  usr_4_digits:         '(4 ژمارە)',
-  usr_pin_ph:           'PIN ی 4 ژمارەیی',
+  usr_4_digits:         '(6 ژمارە)',
+  usr_pin_ph:           'PIN ی 6 ژمارەیی',
   usr_no_roles_hint:    'هنوو هیچ ڕۆڵێک نییە — یەکێک لە تابی مۆڵەتەکانی ڕۆڵ دروست بکە.',
   usr_save:             'پاشەکەوت',
   usr_saved:            'پاشەکەوتکرا',

@@ -1,8 +1,12 @@
 import { SellerSidebar } from '@/components/seller/seller-sidebar'
 import { PageTransition } from '@/components/restaurant/PageTransition'
+import SellerAuthGuard from '@/components/seller/SellerAuthGuard'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 
 export default function SellerLayout({ children }: { children: React.ReactNode }) {
   return (
+    <ErrorBoundary>
+    <SellerAuthGuard>
     <div className="min-h-screen bg-[#080b14]">
       {/* Background gradient orbs */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
@@ -19,5 +23,7 @@ export default function SellerLayout({ children }: { children: React.ReactNode }
         </div>
       </main>
     </div>
+    </SellerAuthGuard>
+    </ErrorBoundary>
   )
 }

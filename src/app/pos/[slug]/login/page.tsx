@@ -47,9 +47,9 @@ export default function POSLoginPage() {
       })
   }, [slug])
 
-  // Auto-submit when 4 digits entered
+  // Auto-submit when 6 digits entered
   const checkPin = useCallback(async (enteredPin: string) => {
-    if (enteredPin.length !== 4 || !restaurantId) return
+    if (enteredPin.length !== 6 || !restaurantId) return
     setStatus('checking')
 
     const { data: staffRow } = await supabase
@@ -103,10 +103,10 @@ export default function POSLoginPage() {
     if (status === 'checking' || status === 'success') return
     if (key === 'del') { setPin(p => p.slice(0, -1)); setStatus('idle'); return }
     if (key === 'clr') { setPin(''); setStatus('idle'); return }
-    if (pin.length >= 4) return
+    if (pin.length >= 6) return
     const next = pin + key
     setPin(next)
-    if (next.length === 4) checkPin(next)
+    if (next.length === 6) checkPin(next)
   }, [pin, status, checkPin])
 
   // Physical keyboard support
@@ -164,16 +164,18 @@ export default function POSLoginPage() {
 
         {/* Restaurant logo / icon */}
         <div className="flex flex-col items-center mb-8">
-          <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-amber-400/20 to-orange-500/20 border border-amber-500/20 flex items-center justify-center mb-4 shadow-2xl shadow-amber-500/10">
-            <ChefHat className="w-9 h-9 text-amber-400" />
+          <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-amber-400/20 to-orange-500/20 border border-amber-500/20 flex items-center justify-center mb-4 shadow-2xl shadow-amber-500/10 overflow-hidden">
+            {restaurant?.logo_url
+              ? <img src={restaurant.logo_url} alt={restaurant.name} className="w-full h-full object-cover" />
+              : <ChefHat className="w-9 h-9 text-amber-400" />}
           </div>
           <h1 className="text-2xl font-bold text-white">Enter your PIN</h1>
-          <p className="text-white/35 text-sm mt-1">4-digit staff PIN to access POS</p>
+          <p className="text-white/35 text-sm mt-1">6-digit staff PIN to access POS</p>
         </div>
 
         {/* PIN dots */}
         <div className={cn('flex justify-center gap-5 mb-8', shake && 'animate-[pinShake_0.45s_ease-in-out]')}>
-          {[0, 1, 2, 3].map(i => (
+          {[0, 1, 2, 3, 4, 5].map(i => (
             <div key={i} className={cn(
               'w-5 h-5 rounded-full border-2 transition-all duration-150',
               status === 'success'   ? 'bg-emerald-400 border-emerald-400 scale-110'

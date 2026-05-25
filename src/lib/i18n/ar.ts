@@ -44,6 +44,7 @@ const ar: Record<keyof typeof en, string> = {
   si_customer:          'العميل',
   si_advanced:          'متقدم',
   si_database:          'قاعدة البيانات',
+  si_audit_log:         'سجل التدقيق',
   si_whatsapp:          'واتساب',
   si_roles:             'صلاحيات الأدوار',
 
@@ -993,8 +994,8 @@ const ar: Record<keyof typeof en, string> = {
   usr_print_qr:         'طباعة QR',
   usr_email:            'البريد الإلكتروني',
   usr_phone:            'الهاتف',
-  usr_4_digits:         '(4 أرقام)',
-  usr_pin_ph:           'رقم سري 4 أرقام',
+  usr_4_digits:         '(6 أرقام)',
+  usr_pin_ph:           'رقم سري 6 أرقام',
   usr_no_roles_hint:    'لا توجد أدوار — أنشئ واحداً أولاً.',
   usr_save:             'حفظ',
   usr_saved:            'تم الحفظ',

@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/client'
 import { assignOrderNumber } from '@/lib/orderNumber'
 import { printKitchenTicket } from '@/lib/printKitchenTicket'
 import { logAudit } from '@/lib/logAudit'
+import { enqueueOrder, getQueueCount, syncAllQueued } from '@/lib/offlineQueue'
 import type {
   DbCategory, DbMenuItem, KitchenNote, DraftEntry, DbOrderItem,
 } from './types'
@@ -18,11 +19,11 @@ export function useOrderState(table: string, guestCount: number) {
   const [orderNum, setOrderNum]             = useState<string | null>(null)
 
   // ── Menu data ────────────────────────────────────────────────
-  const [dbItems, setDbItems]               = useState<DbOrderItem[]>([])
-  const [categories, setCategories]         = useState<DbCategory[]>([])
-  const [menuItems, setMenuItems]           = useState<DbMenuItem[]>([])
-  const [kitchenNotes, setKitchenNotes]     = useState<KitchenNote[]>([])
-  const [catStationMap, setCatStationMap]   = useState<Map<string, string>>(new Map())
+  const [dbItems, setDbItems]             = useState<DbOrderItem[]>([])
+  const [categories, setCategories]       = useState<DbCategory[]>([])
+  const [menuItems, setMenuItems]         = useState<DbMenuItem[]>([])
+  const [kitchenNotes, setKitchenNotes]   = useState<KitchenNote[]>([])
+  const [catStationMap, setCatStationMap] = useState<Map<string, string>>(new Map())
 
   // ── Draft (items not yet sent) ───────────────────────────────
   const [draft, setDraft] = useState<Map<string, DraftEntry>>(new Map())
@@ -38,9 +39,15 @@ export function useOrderState(table: string, guestCount: number) {
   const [actionItem, setActionItem]         = useState<DbOrderItem | null>(null)
   const [showPayment, setShowPayment]       = useState(false)
 
+  // ── Offline queue state ──────────────────────────────────────
+  const [isOnline,    setIsOnline]    = useState(true)
+  const [queueCount,  setQueueCount]  = useState(0)
+  const [syncing,     setSyncing]     = useState(false)
+
   // Refs for use inside event handlers registered once at mount
   const showPaymentRef  = useRef(false)
   const restaurantIdRef = useRef<string | null>(null)
+  const initRef         = useRef<() => Promise<void>>(() => Promise.resolve())
   useEffect(() => { showPaymentRef.current  = showPayment },  [showPayment])
   useEffect(() => { restaurantIdRef.current = restaurantId }, [restaurantId])
 
@@ -58,6 +65,31 @@ export function useOrderState(table: string, guestCount: number) {
     }
     window.addEventListener('popstate', handler)
     return () => window.removeEventListener('popstate', handler)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Online / offline detection + auto-sync ──────────────────
+  useEffect(() => {
+    setIsOnline(navigator.onLine)
+    setQueueCount(getQueueCount())
+
+    const onOnline = async () => {
+      setIsOnline(true)
+      const count = getQueueCount()
+      if (count === 0) return
+      setSyncing(true)
+      await syncAllQueued(supabase)
+      setQueueCount(getQueueCount())
+      setSyncing(false)
+      initRef.current()
+    }
+    const onOffline = () => setIsOnline(false)
+
+    window.addEventListener('online',  onOnline)
+    window.addEventListener('offline', onOffline)
+    return () => {
+      window.removeEventListener('online',  onOnline)
+      window.removeEventListener('offline', onOffline)
+    }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Init ─────────────────────────────────────────────────────
@@ -109,6 +141,7 @@ export function useOrderState(table: string, guestCount: number) {
     setLoading(false)
   }, [table, guestCount]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => { initRef.current = init }, [init])
   useEffect(() => { init() }, [init])
 
   // ── Realtime: KDS status updates ─────────────────────────────
@@ -176,15 +209,24 @@ export function useOrderState(table: string, guestCount: number) {
     }
   }
 
+  // ── Manual queue sync ─────────────────────────────────────────
+  const syncQueuedOrders = useCallback(async () => {
+    if (!navigator.onLine || syncing) return
+    setSyncing(true)
+    await syncAllQueued(supabase)
+    setQueueCount(getQueueCount())
+    setSyncing(false)
+    init()
+  }, [syncing]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Send all draft items to kitchen ──────────────────────────
   const handleSend = async () => {
     if (draft.size === 0) return
     setSending(true); setSendError(null)
+    if (!restaurantId) { setSending(false); return }
 
-    const oid = await createOrderIfNeeded()
-    if (!oid) { setSending(false); return }
-
-    const rows = Array.from(draft.entries()).map(([menuId, entry]) => {
+    const now = new Date().toISOString()
+    const baseRows = Array.from(draft.entries()).map(([menuId, entry]) => {
       const item      = menuItems.find(m => m.id === menuId)!
       const modNames  = entry.selectedOptions.map(o => o.option_name)
       const noteTexts = entry.selectedNoteIds
@@ -194,18 +236,55 @@ export function useOrderState(table: string, guestCount: number) {
       const modPrice = entry.selectedOptions.reduce((s, o) => s + o.price, 0)
       const allParts = [...modNames, ...noteTexts]
       return {
-        order_id:     oid,
         menu_item_id: menuId,
         item_name:    item.name,
         item_price:   Number(item.price) + modPrice,
         qty:          entry.qty,
-        status:       'sent',
-        sent_at:      new Date().toISOString(),
+        status:       'sent' as const,
+        sent_at:      now,
         note:         allParts.length > 0 ? allParts.join(' · ') : null,
         station_id:   item.category_id ? (catStationMap.get(item.category_id) ?? null) : null,
       }
     })
 
+    // ── Offline: save to queue, show locally ──────────────────
+    if (!navigator.onLine) {
+      enqueueOrder({
+        restaurant_id: restaurantId,
+        table_number:  parseInt(table),
+        table_label:   table,
+        guests:        guestCount,
+        items: baseRows.map(r => ({
+          menu_item_id: r.menu_item_id,
+          item_name:    r.item_name,
+          item_price:   r.item_price,
+          qty:          r.qty,
+          note:         r.note,
+          station_id:   r.station_id,
+        })),
+        staff_id:   typeof window !== 'undefined' ? localStorage.getItem('pos_staff_id') : null,
+        staff_name: typeof window !== 'undefined' ? localStorage.getItem('pos_staff_name') : null,
+      })
+      setDbItems(prev => [...prev, ...baseRows.map((r, i) => ({
+        id:         `queued_${Date.now()}_${i}`,
+        item_name:  r.item_name,
+        item_price: r.item_price,
+        qty:        r.qty,
+        status:     'queued' as const,
+        note:       r.note,
+      }))])
+      setDraft(new Map())
+      setActiveTab('ordered')
+      setQueueCount(getQueueCount())
+      setSending(false)
+      return
+    }
+
+    // ── Online: send to Supabase ──────────────────────────────
+    const oid = await createOrderIfNeeded()
+    if (!oid) { setSending(false); return }
+
+    const rows = baseRows.map(r => ({ ...r, order_id: oid }))
     const { data: inserted, error } = await supabase
       .from('order_items').insert(rows).select('id,item_name,item_price,qty,status,note')
 
@@ -251,8 +330,7 @@ export function useOrderState(table: string, guestCount: number) {
     entry: DraftEntry,
   ): Promise<boolean> => {
     setSending(true); setSendError(null)
-    const oid = await createOrderIfNeeded()
-    if (!oid) { setSending(false); return false }
+    if (!restaurantId) { setSending(false); return false }
 
     const modNames  = entry.selectedOptions.map(o => o.option_name)
     const noteTexts = entry.selectedNoteIds
@@ -261,19 +339,57 @@ export function useOrderState(table: string, guestCount: number) {
     if (entry.customNote.trim()) noteTexts.push(entry.customNote.trim())
     const modPrice = entry.selectedOptions.reduce((s, o) => s + o.price, 0)
     const allParts = [...modNames, ...noteTexts]
+    const now = new Date().toISOString()
 
-    const row = {
-      order_id:     oid,
+    const baseRow = {
       menu_item_id: menuItem.id,
       item_name:    menuItem.name,
       item_price:   Number(menuItem.price) + modPrice,
       qty:          entry.qty,
-      status:       'sent',
-      sent_at:      new Date().toISOString(),
+      status:       'sent' as const,
+      sent_at:      now,
       note:         allParts.length > 0 ? allParts.join(' · ') : null,
       station_id:   menuItem.category_id ? (catStationMap.get(menuItem.category_id) ?? null) : null,
     }
 
+    // ── Offline: queue single item ────────────────────────────
+    if (!navigator.onLine) {
+      enqueueOrder({
+        restaurant_id: restaurantId,
+        table_number:  parseInt(table),
+        table_label:   table,
+        guests:        guestCount,
+        items: [{
+          menu_item_id: baseRow.menu_item_id,
+          item_name:    baseRow.item_name,
+          item_price:   baseRow.item_price,
+          qty:          baseRow.qty,
+          note:         baseRow.note,
+          station_id:   baseRow.station_id,
+        }],
+        staff_id:   typeof window !== 'undefined' ? localStorage.getItem('pos_staff_id') : null,
+        staff_name: typeof window !== 'undefined' ? localStorage.getItem('pos_staff_name') : null,
+      })
+      setDbItems(prev => [...prev, {
+        id:         `queued_${Date.now()}_0`,
+        item_name:  baseRow.item_name,
+        item_price: baseRow.item_price,
+        qty:        baseRow.qty,
+        status:     'queued' as const,
+        note:       baseRow.note,
+      }])
+      setDraft(prev => { const m = new Map(prev); m.delete(menuItem.id); return m })
+      setActiveTab('ordered')
+      setQueueCount(getQueueCount())
+      setSending(false)
+      return true
+    }
+
+    // ── Online: send to Supabase ──────────────────────────────
+    const oid = await createOrderIfNeeded()
+    if (!oid) { setSending(false); return false }
+
+    const row = { ...baseRow, order_id: oid }
     const { data: inserted, error } = await supabase
       .from('order_items').insert([row]).select('id,item_name,item_price,qty,status,note')
 
@@ -321,7 +437,7 @@ export function useOrderState(table: string, guestCount: number) {
 
   // ── Derived values ───────────────────────────────────────────
   const visible      = menuItems.filter(m => !activeCategory || m.category_id === activeCategory)
-  const sentItems    = dbItems.filter(i => i.status === 'sent' || i.status === 'cooking' || i.status === 'ready')
+  const sentItems    = dbItems.filter(i => i.status === 'sent' || i.status === 'cooking' || i.status === 'ready' || i.status === 'queued')
   const draftEntries = Array.from(draft.entries())
     .map(([id, entry]) => ({ item: menuItems.find(m => m.id === id)!, entry }))
     .filter(o => o.item)
@@ -329,8 +445,8 @@ export function useOrderState(table: string, guestCount: number) {
     const modPrice = o.entry.selectedOptions.reduce((m, opt) => m + opt.price, 0)
     return s + (Number(o.item.price) + modPrice) * o.entry.qty
   }, 0)
-  const sentTotal  = sentItems.reduce((s, i) => s + i.item_price * i.qty, 0)
-  const grandTotal = draftTotal + sentTotal
+  const sentTotal  = sentItems.filter(i => i.status !== 'queued').reduce((s, i) => s + i.item_price * i.qty, 0)
+  const grandTotal = draftTotal + sentItems.reduce((s, i) => s + i.item_price * i.qty, 0)
   const draftQty   = (id: string) => draft.get(id)?.qty ?? 0
 
   return {
@@ -351,6 +467,8 @@ export function useOrderState(table: string, guestCount: number) {
     editingId, setEditingId,
     actionItem, setActionItem,
     showPayment, setShowPayment,
+    // offline
+    isOnline, queueCount, syncing, syncQueuedOrders,
     // derived
     visible, sentItems, draftEntries, draftTotal, sentTotal, grandTotal, draftQty,
     // actions

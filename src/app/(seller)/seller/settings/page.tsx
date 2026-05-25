@@ -1,7 +1,75 @@
+'use client'
+import { useState, useEffect } from 'react'
 import { GlassCard, GlassCardBody, GlassCardHeader } from '@/components/ui/glass-card'
-import { Settings, Bell, Shield, Zap, Globe } from 'lucide-react'
+import { Settings, Bell, Shield, Zap, Loader2, Check } from 'lucide-react'
+import { ToggleSwitch } from '@/components/ui/ToggleSwitch'
+
+const STORAGE_KEY = 'seller_system_settings'
+
+type SettingsData = {
+  system_name:     string
+  support_email:   string
+  default_currency: string
+  notifications:   Record<string, boolean>
+  security:        Record<string, boolean>
+  webhook_url:     string
+  smtp_host:       string
+}
+
+const DEFAULTS: SettingsData = {
+  system_name:      'ClickGroup POS',
+  support_email:    'support@clickgroup.io',
+  default_currency: 'USD',
+  notifications: {
+    new_registration:     true,
+    subscription_expired: true,
+    payment_received:     true,
+    restaurant_suspended: false,
+  },
+  security: {
+    two_factor:      true,
+    session_timeout: true,
+    ip_whitelist:    false,
+    audit_logging:   true,
+  },
+  webhook_url: '',
+  smtp_host:   '',
+}
 
 export default function SellerSettingsPage() {
+  const [settings, setSettings] = useState<SettingsData>(DEFAULTS)
+  const [saving,   setSaving]   = useState(false)
+  const [saved,    setSaved]    = useState(false)
+
+  useEffect(() => {
+    const stored = localStorage.getItem(STORAGE_KEY)
+    if (stored) {
+      try { setSettings(prev => ({ ...prev, ...JSON.parse(stored) })) } catch {}
+    }
+  }, [])
+
+  const handleSave = () => {
+    setSaving(true)
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings))
+    setTimeout(() => {
+      setSaving(false)
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    }, 300)
+  }
+
+  const handleReset = () => {
+    setSettings(DEFAULTS)
+    localStorage.removeItem(STORAGE_KEY)
+  }
+
+  const setGeneral   = (key: string, value: string) =>
+    setSettings(prev => ({ ...prev, [key]: value }))
+  const toggleNotif  = (key: string) =>
+    setSettings(prev => ({ ...prev, notifications: { ...prev.notifications, [key]: !prev.notifications[key] } }))
+  const toggleSec    = (key: string) =>
+    setSettings(prev => ({ ...prev, security: { ...prev.security, [key]: !prev.security[key] } }))
+
   return (
     <div className="space-y-6">
       <div>
@@ -19,17 +87,17 @@ export default function SellerSettingsPage() {
             </div>
           </GlassCardHeader>
           <GlassCardBody className="space-y-4">
-            {[
-              { label: 'System Name', value: 'ClickGroup POS', type: 'text' },
-              { label: 'Support Email', value: 'support@clickgroup.io', type: 'email' },
-              { label: 'Default Currency', value: 'USD', type: 'text' },
-              { label: 'Trial Period (days)', value: '14', type: 'number' },
-            ].map(f => (
-              <div key={f.label}>
+            {([
+              { label: 'System Name',      key: 'system_name',      type: 'text'  },
+              { label: 'Support Email',    key: 'support_email',    type: 'email' },
+              { label: 'Default Currency', key: 'default_currency', type: 'text'  },
+            ] as const).map(f => (
+              <div key={f.key}>
                 <label className="block text-xs font-medium text-white/50 mb-1.5">{f.label}</label>
                 <input
                   type={f.type}
-                  defaultValue={f.value}
+                  value={settings[f.key]}
+                  onChange={e => setGeneral(f.key, e.target.value)}
                   className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm text-white focus:outline-none focus:border-indigo-500/50 transition-all"
                 />
               </div>
@@ -47,17 +115,18 @@ export default function SellerSettingsPage() {
           </GlassCardHeader>
           <GlassCardBody className="space-y-4">
             {[
-              { label: 'New restaurant registration', enabled: true },
-              { label: 'Subscription expired', enabled: true },
-              { label: 'Payment received', enabled: true },
-              { label: 'Trial ending (3 days)', enabled: true },
-              { label: 'Restaurant suspended', enabled: false },
+              { key: 'new_registration',     label: 'New restaurant registration' },
+              { key: 'subscription_expired', label: 'Subscription expired' },
+              { key: 'payment_received',     label: 'Payment received' },
+              { key: 'restaurant_suspended', label: 'Restaurant suspended' },
             ].map(n => (
-              <div key={n.label} className="flex items-center justify-between">
+              <div key={n.key} className="flex items-center justify-between">
                 <span className="text-sm text-white/70">{n.label}</span>
-                <button className={`relative w-10 h-5 rounded-full transition-colors ${n.enabled ? 'bg-indigo-500' : 'bg-white/10'}`}>
-                  <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${n.enabled ? 'left-5.5 translate-x-0' : 'left-0.5'}`} />
-                </button>
+                <ToggleSwitch
+                  on={!!settings.notifications[n.key]}
+                  onChange={() => toggleNotif(n.key)}
+                  activeColor="bg-violet-500"
+                />
               </div>
             ))}
           </GlassCardBody>
@@ -73,22 +142,24 @@ export default function SellerSettingsPage() {
           </GlassCardHeader>
           <GlassCardBody className="space-y-4">
             {[
-              { label: 'Two-Factor Authentication', enabled: true },
-              { label: 'Session Timeout (30 min)', enabled: true },
-              { label: 'IP Whitelisting', enabled: false },
-              { label: 'Audit Logging', enabled: true },
+              { key: 'two_factor',      label: 'Two-Factor Authentication' },
+              { key: 'session_timeout', label: 'Session Timeout (30 min)' },
+              { key: 'ip_whitelist',    label: 'IP Whitelisting' },
+              { key: 'audit_logging',   label: 'Audit Logging' },
             ].map(s => (
-              <div key={s.label} className="flex items-center justify-between">
+              <div key={s.key} className="flex items-center justify-between">
                 <span className="text-sm text-white/70">{s.label}</span>
-                <button className={`relative w-10 h-5 rounded-full transition-colors ${s.enabled ? 'bg-emerald-500' : 'bg-white/10'}`}>
-                  <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${s.enabled ? 'translate-x-5' : 'translate-x-0.5'}`} />
-                </button>
+                <ToggleSwitch
+                  on={!!settings.security[s.key]}
+                  onChange={() => toggleSec(s.key)}
+                  activeColor="bg-emerald-500"
+                />
               </div>
             ))}
           </GlassCardBody>
         </GlassCard>
 
-        {/* API */}
+        {/* API & Integrations */}
         <GlassCard>
           <GlassCardHeader>
             <div className="flex items-center gap-2">
@@ -98,32 +169,22 @@ export default function SellerSettingsPage() {
           </GlassCardHeader>
           <GlassCardBody className="space-y-4">
             <div>
-              <label className="block text-xs font-medium text-white/50 mb-1.5">API Key</label>
-              <div className="flex gap-2">
-                <input
-                  type="password"
-                  value="••••••••••••••••••••••••••••••••"
-                  readOnly
-                  className="flex-1 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm text-white/50 focus:outline-none"
-                />
-                <button className="px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-xs text-white/60 hover:bg-white/10 transition-all">
-                  Reveal
-                </button>
-              </div>
-            </div>
-            <div>
               <label className="block text-xs font-medium text-white/50 mb-1.5">Webhook URL</label>
               <input
                 type="url"
                 placeholder="https://your-webhook.com/endpoint"
+                value={settings.webhook_url}
+                onChange={e => setGeneral('webhook_url', e.target.value)}
                 className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm text-white placeholder-white/25 focus:outline-none focus:border-indigo-500/50 transition-all"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-white/50 mb-1.5">SMTP Settings</label>
+              <label className="block text-xs font-medium text-white/50 mb-1.5">SMTP Host</label>
               <input
                 type="text"
                 placeholder="smtp.yourmail.com"
+                value={settings.smtp_host}
+                onChange={e => setGeneral('smtp_host', e.target.value)}
                 className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm text-white placeholder-white/25 focus:outline-none focus:border-indigo-500/50 transition-all"
               />
             </div>
@@ -132,11 +193,14 @@ export default function SellerSettingsPage() {
       </div>
 
       <div className="flex justify-end gap-3">
-        <button className="px-6 py-2.5 rounded-xl border border-white/10 text-sm text-white/60 hover:bg-white/5 transition-all">
+        <button onClick={handleReset}
+          className="px-6 py-2.5 rounded-xl border border-white/10 text-sm text-white/60 hover:bg-white/5 transition-all">
           Reset to Defaults
         </button>
-        <button className="px-6 py-2.5 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-sm font-medium text-white transition-all shadow-lg shadow-indigo-500/25">
-          Save Changes
+        <button onClick={handleSave} disabled={saving}
+          className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 text-sm font-medium text-white transition-all shadow-lg shadow-indigo-500/25">
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : saved ? <Check className="w-4 h-4" /> : null}
+          {saving ? 'Saving…' : saved ? 'Saved!' : 'Save Changes'}
         </button>
       </div>
     </div>
