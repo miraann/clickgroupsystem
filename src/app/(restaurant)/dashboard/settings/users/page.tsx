@@ -10,7 +10,7 @@ import { QRCodeSVG } from 'qrcode.react'
 import {
   Users, Plus, Pencil, Trash2, X, ToggleLeft, ToggleRight,
   Key, Shield, Search, ChevronDown, Loader2,
-  Save, Check, ChevronRight, UserCircle, QrCode, Smartphone,
+  Save, Check, ChevronRight, UserCircle, QrCode, Smartphone, Download,
 } from 'lucide-react'
 import { AnimatedList, AnimatedItem } from '@/components/ui/AnimatedList'
 import { motion, AnimatePresence, type Variants } from 'framer-motion'
@@ -404,6 +404,9 @@ export default function UsersPage() {
   const [assigningId, setAssigningId] = useState<string | null>(null)
   const [editCustomRoleId, setEditCustomRoleId] = useState<string | null>(null)
   const [showQR, setShowQR]                     = useState(false)
+  const [showInstallModal, setShowInstallModal] = useState(false)
+  const [deferredInstall, setDeferredInstall]   = useState<any>(null)
+  const [alreadyInstalled, setAlreadyInstalled] = useState(false)
 
   const [restaurantSlug, setRestaurantSlug] = useState<string | null>(null)
 
@@ -422,6 +425,30 @@ export default function UsersPage() {
       })
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── PWA install prompt ──
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+      setAlreadyInstalled(true)
+      return
+    }
+    const handler = (e: Event) => { e.preventDefault(); setDeferredInstall(e) }
+    window.addEventListener('beforeinstallprompt', handler)
+    window.addEventListener('appinstalled', () => setAlreadyInstalled(true))
+    return () => window.removeEventListener('beforeinstallprompt', handler)
+  }, [])
+
+  const handleInstall = async () => {
+    if (deferredInstall) {
+      deferredInstall.prompt()
+      const { outcome } = await deferredInstall.userChoice
+      if (outcome === 'accepted') setAlreadyInstalled(true)
+      setDeferredInstall(null)
+      return
+    }
+    setShowInstallModal(true)
+  }
 
   // ── Staff loaders ──
   const loadUsers = async (rid: string) => {
@@ -609,6 +636,19 @@ export default function UsersPage() {
                 title="Show POS Login QR Code"
               >
                 <QrCode className="w-4 h-4" /> POS QR
+              </button>
+              <button
+                onClick={handleInstall}
+                title={alreadyInstalled ? 'App already installed' : 'Install POS App on this device'}
+                className={cn(
+                  'flex items-center gap-2 px-3 py-2 border text-sm font-medium rounded-xl active:scale-95 transition-all',
+                  alreadyInstalled
+                    ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400 cursor-default'
+                    : 'bg-indigo-500/10 hover:bg-indigo-500/20 border-indigo-500/20 hover:border-indigo-500/40 text-indigo-300 hover:text-indigo-200'
+                )}
+              >
+                {alreadyInstalled ? <Check className="w-4 h-4" /> : <Download className="w-4 h-4" />}
+                {alreadyInstalled ? 'Installed' : 'Install App'}
               </button>
               <button onClick={openAdd}
                 className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-xl active:scale-95 transition-all shadow-lg shadow-amber-500/20">
@@ -1003,6 +1043,79 @@ export default function UsersPage() {
               <button onClick={savePin} disabled={newPin.length !== 6 || saving}
                 className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white text-sm font-medium transition-all active:scale-95 flex items-center justify-center gap-2">
                 {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}{t.save_changes}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── INSTALL PWA MODAL ── */}
+      {showInstallModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={() => setShowInstallModal(false)}>
+          <div className="relative w-full max-w-sm bg-[#0d1220]/98 backdrop-blur-2xl border border-white/15 rounded-3xl shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-6 border-b border-white/8">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-indigo-500/15 flex items-center justify-center">
+                  <Download className="w-5 h-5 text-indigo-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-white">Install POS App</p>
+                  <p className="text-xs text-white/40">Add to home screen for quick PIN login</p>
+                </div>
+              </div>
+              <button onClick={() => setShowInstallModal(false)} className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-all active:scale-95">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {/* QR code */}
+              {restaurantSlug && (
+                <div className="flex flex-col items-center gap-2">
+                  <div className="p-3 bg-white rounded-2xl shadow-lg">
+                    <QRCodeSVG
+                      value={`${typeof window !== 'undefined' ? window.location.origin : ''}/pos/${restaurantSlug}/login`}
+                      size={160}
+                      bgColor="#ffffff"
+                      fgColor="#0d1220"
+                      level="M"
+                      includeMargin={false}
+                    />
+                  </div>
+                  <p className="text-[11px] text-white/35 text-center">Scan on your device to open the POS login</p>
+                </div>
+              )}
+
+              {/* Instructions */}
+              <div className="space-y-2">
+                <div className="flex items-start gap-3 p-3.5 rounded-xl bg-green-500/8 border border-green-500/15">
+                  <span className="text-base mt-0.5">🤖</span>
+                  <div>
+                    <p className="text-xs font-semibold text-green-400 mb-1">Android (Chrome)</p>
+                    <p className="text-[11px] text-white/50 leading-relaxed">
+                      Open the POS URL → tap <span className="text-white/70 font-semibold">⋮</span> menu →
+                      tap <span className="text-white/70 font-semibold">Add to Home Screen</span> → Install
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 p-3.5 rounded-xl bg-blue-500/8 border border-blue-500/15">
+                  <span className="text-base mt-0.5">🍎</span>
+                  <div>
+                    <p className="text-xs font-semibold text-blue-400 mb-1">iPhone / iPad (Safari)</p>
+                    <p className="text-[11px] text-white/50 leading-relaxed">
+                      Open in Safari → tap <span className="text-white/70 font-semibold">Share ⎙</span> →
+                      tap <span className="text-white/70 font-semibold">Add to Home Screen</span>
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Open in new tab */}
+              <button
+                onClick={() => { window.open(`/pos/${restaurantSlug}/login`, '_blank'); setShowInstallModal(false) }}
+                className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold transition-all active:scale-95 flex items-center justify-center gap-2"
+              >
+                <Smartphone className="w-4 h-4" /> Open POS Login Page
               </button>
             </div>
           </div>
