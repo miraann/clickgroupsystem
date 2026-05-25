@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { Delete, ChefHat, Clock, Loader2, CheckCircle2 } from 'lucide-react'
+import { Delete, ChefHat, Clock, Loader2, CheckCircle2, Download } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { getStaffHome } from '@/lib/permissions/staffHome'
@@ -26,6 +26,26 @@ export default function POSLoginPage() {
   const [status, setStatus]           = useState<'idle' | 'checking' | 'success' | 'error'>('idle')
   const [shake, setShake]             = useState(false)
   const [time, setTime]               = useState(new Date())
+  const [deferredInstall, setDeferredInstall] = useState<any>(null)
+  const [installed, setInstalled]             = useState(false)
+
+  // PWA install prompt — fires with the staff manifest (start_url = /pos/slug/login)
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (window.matchMedia('(display-mode: standalone)').matches) { setInstalled(true); return }
+    const handler = (e: Event) => { e.preventDefault(); setDeferredInstall(e) }
+    window.addEventListener('beforeinstallprompt', handler)
+    window.addEventListener('appinstalled', () => { setInstalled(true); setDeferredInstall(null) })
+    return () => window.removeEventListener('beforeinstallprompt', handler)
+  }, [])
+
+  const handleInstall = async () => {
+    if (!deferredInstall) return
+    deferredInstall.prompt()
+    const { outcome } = await deferredInstall.userChoice
+    if (outcome === 'accepted') setInstalled(true)
+    setDeferredInstall(null)
+  }
 
   // Clock tick
   useEffect(() => {
@@ -235,6 +255,26 @@ export default function POSLoginPage() {
         <p className="text-center text-xs text-white/15 mt-5">
           Contact your manager if you forgot your PIN.
         </p>
+
+        {/* Install App button — only shown when browser offers install prompt */}
+        {(deferredInstall || installed) && (
+          <div className="mt-5 flex justify-center">
+            <button
+              onClick={handleInstall}
+              disabled={installed}
+              className={cn(
+                'flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-semibold transition-all active:scale-95 border',
+                installed
+                  ? 'bg-emerald-500/15 border-emerald-500/25 text-emerald-400 cursor-default'
+                  : 'bg-white/8 border-white/15 text-white/70 hover:bg-white/14 hover:text-white hover:border-white/25'
+              )}
+            >
+              {installed
+                ? <><CheckCircle2 className="w-4 h-4" /> App Installed</>
+                : <><Download className="w-4 h-4" /> Install App</>}
+            </button>
+          </div>
+        )}
       </div>
 
       <style jsx>{`

@@ -426,29 +426,11 @@ export default function UsersPage() {
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── PWA install prompt ──
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    if (window.matchMedia('(display-mode: standalone)').matches) {
-      setAlreadyInstalled(true)
-      return
-    }
-    const handler = (e: Event) => { e.preventDefault(); setDeferredInstall(e) }
-    window.addEventListener('beforeinstallprompt', handler)
-    window.addEventListener('appinstalled', () => setAlreadyInstalled(true))
-    return () => window.removeEventListener('beforeinstallprompt', handler)
-  }, [])
-
-  const handleInstall = async () => {
-    if (deferredInstall) {
-      deferredInstall.prompt()
-      const { outcome } = await deferredInstall.userChoice
-      if (outcome === 'accepted') setAlreadyInstalled(true)
-      setDeferredInstall(null)
-      return
-    }
-    setShowInstallModal(true)
-  }
+  // ── PWA install ──
+  // The install must happen from the POS login page (which has the staff manifest
+  // with start_url = /pos/slug/login). Installing from the dashboard would open
+  // /dashboard instead of the PIN screen.
+  const handleInstall = () => setShowInstallModal(true)
 
   // ── Staff loaders ──
   const loadUsers = async (rid: string) => {
@@ -639,16 +621,10 @@ export default function UsersPage() {
               </button>
               <button
                 onClick={handleInstall}
-                title={alreadyInstalled ? 'App already installed' : 'Install POS App on this device'}
-                className={cn(
-                  'flex items-center gap-2 px-3 py-2 border text-sm font-medium rounded-xl active:scale-95 transition-all',
-                  alreadyInstalled
-                    ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400 cursor-default'
-                    : 'bg-indigo-500/10 hover:bg-indigo-500/20 border-indigo-500/20 hover:border-indigo-500/40 text-indigo-300 hover:text-indigo-200'
-                )}
+                title="Install POS App on staff devices"
+                className="flex items-center gap-2 px-3 py-2 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 hover:border-indigo-500/40 text-indigo-300 hover:text-indigo-200 text-sm font-medium rounded-xl active:scale-95 transition-all"
               >
-                {alreadyInstalled ? <Check className="w-4 h-4" /> : <Download className="w-4 h-4" />}
-                {alreadyInstalled ? 'Installed' : 'Install App'}
+                <Download className="w-4 h-4" /> Install App
               </button>
               <button onClick={openAdd}
                 className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-xl active:scale-95 transition-all shadow-lg shadow-amber-500/20">
@@ -1088,13 +1064,21 @@ export default function UsersPage() {
 
               {/* Instructions */}
               <div className="space-y-2">
+                <div className="flex items-start gap-3 p-3.5 rounded-xl bg-amber-500/8 border border-amber-500/15">
+                  <span className="text-base mt-0.5">💡</span>
+                  <div>
+                    <p className="text-xs font-semibold text-amber-300 mb-1">How to install</p>
+                    <p className="text-[11px] text-white/50 leading-relaxed">
+                      Open the POS Login page on the staff device. An <span className="text-white/70 font-semibold">Install App</span> button will appear at the bottom — tap it to install.
+                    </p>
+                  </div>
+                </div>
                 <div className="flex items-start gap-3 p-3.5 rounded-xl bg-green-500/8 border border-green-500/15">
                   <span className="text-base mt-0.5">🤖</span>
                   <div>
                     <p className="text-xs font-semibold text-green-400 mb-1">Android (Chrome)</p>
                     <p className="text-[11px] text-white/50 leading-relaxed">
-                      Open the POS URL → tap <span className="text-white/70 font-semibold">⋮</span> menu →
-                      tap <span className="text-white/70 font-semibold">Add to Home Screen</span> → Install
+                      Open the URL → tap <span className="text-white/70 font-semibold">Install App</span> button, or ⋮ → <span className="text-white/70 font-semibold">Add to Home Screen</span>
                     </p>
                   </div>
                 </div>
@@ -1103,8 +1087,7 @@ export default function UsersPage() {
                   <div>
                     <p className="text-xs font-semibold text-blue-400 mb-1">iPhone / iPad (Safari)</p>
                     <p className="text-[11px] text-white/50 leading-relaxed">
-                      Open in Safari → tap <span className="text-white/70 font-semibold">Share ⎙</span> →
-                      tap <span className="text-white/70 font-semibold">Add to Home Screen</span>
+                      Open in Safari → tap <span className="text-white/70 font-semibold">Share ⎙</span> → <span className="text-white/70 font-semibold">Add to Home Screen</span>
                     </p>
                   </div>
                 </div>
