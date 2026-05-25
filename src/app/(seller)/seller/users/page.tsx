@@ -39,7 +39,7 @@ export default function SellerUsersPage() {
       .from('staff')
       .select('id, name, email, role, status, created_at, restaurant_id, restaurants(name)')
       .order('created_at', { ascending: false })
-    setStaff((data ?? []) as StaffRow[])
+    setStaff((data ?? []) as unknown as StaffRow[])
     setLoading(false)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
