@@ -119,6 +119,10 @@ function connInfo(c: ConnectionType) {
   return CONNECTION_OPTIONS.find(o => o.value === c) ?? CONNECTION_OPTIONS[0]
 }
 
+// ── Android / mobile detection ────────────────────────────────
+const isAndroid = () =>
+  typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent)
+
 // ── Scan phase label ───────────────────────────────────────────
 const SCAN_PHASES = ['usb', 'bluetooth', 'network', null] as const
 type ScanPhase = typeof SCAN_PHASES[number]
@@ -496,6 +500,15 @@ export default function DevicePage() {
 
   // Request NEW USB device (shows OS picker — authorizes a new device)
   const requestNewUsb = async () => {
+    if (isAndroid()) {
+      setDetectedDevices(prev => {
+        const id = 'android-usb-note'
+        if (prev.some(x => x.id === id)) return prev
+        return [...prev, { id, name: 'USB not supported on Android', connection_type: 'usb' as const, address: '', status: 'offline' as const }]
+      })
+      setShowDetected(true)
+      return
+    }
     if (typeof navigator === 'undefined' || !('usb' in navigator)) return
     try {
       const d = await (navigator as any).usb.requestDevice({ filters: [] })
@@ -702,9 +715,33 @@ export default function DevicePage() {
   const testPrinter = async (p: PrinterDevice) => {
     setTestResults(prev => ({ ...prev, [p.id]: { status: 'testing' } }))
 
-    if (p.connection_type === 'ip' || p.connection_type === 'usb') {
-      // Both USB (via Windows usbprint.sys driver) and IP (via Windows network printer)
-      // are accessible through the browser's native print dialog.
+    if (p.connection_type === 'ip') {
+      // IP/TCP: send ESC/POS bytes directly via server-side socket — works on all platforms including Android
+      if (!p.ip_address) {
+        setTestResults(prev => ({ ...prev, [p.id]: { status: 'fail', message: 'No IP address configured' } }))
+        return
+      }
+      try {
+        const res = await fetch('/api/printer/print-test', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ip: p.ip_address, port: p.port ?? 9100, name: p.name, paper_width: p.paper_width ?? 80 }),
+        })
+        const json = await res.json()
+        setTestResults(prev => ({ ...prev, [p.id]: {
+          status: json.ok ? 'ok' : 'fail',
+          message: json.ok ? `Test page sent to ${p.ip_address}:${p.port ?? 9100}` : (json.error ?? 'TCP print failed'),
+        } }))
+      } catch (e: any) {
+        setTestResults(prev => ({ ...prev, [p.id]: { status: 'fail', message: e?.message ?? 'Network error' } }))
+      }
+
+    } else if (p.connection_type === 'usb') {
+      if (isAndroid()) {
+        setTestResults(prev => ({ ...prev, [p.id]: { status: 'fail', message: 'USB not supported on Android — use IP or Bluetooth' } }))
+        return
+      }
+      // Desktop: browser print dialog
       try {
         triggerTestPrint(p.name, p.paper_width ?? 80)
         setTestResults(prev => ({ ...prev, [p.id]: { status: 'ok', message: 'Print dialog opened — select your printer.' } }))
@@ -714,7 +751,7 @@ export default function DevicePage() {
 
     } else if (p.connection_type === 'bluetooth') {
       if (!('bluetooth' in navigator)) {
-        setTestResults(prev => ({ ...prev, [p.id]: { status: 'fail', message: 'Web Bluetooth not supported (use Chrome/Edge)' } }))
+        setTestResults(prev => ({ ...prev, [p.id]: { status: 'fail', message: 'Web Bluetooth not supported (use Chrome)' } }))
         return
       }
       try {
@@ -725,7 +762,6 @@ export default function DevicePage() {
         const msg = raw.includes('cancelled') || raw.includes('cancel') ? 'Pairing cancelled' : raw
         setTestResults(prev => ({ ...prev, [p.id]: { status: 'fail', message: msg } }))
       }
-
     }
   }
 
@@ -850,6 +886,22 @@ export default function DevicePage() {
             </button>
           </div>
 
+          {/* ── Android tip banner ── */}
+          {isAndroid() && (
+            <div className="mb-4 flex items-start gap-3 px-4 py-3 rounded-2xl bg-green-500/8 border border-green-500/20">
+              <div className="w-7 h-7 rounded-lg bg-green-500/15 flex items-center justify-center shrink-0 mt-0.5">
+                <Wifi className="w-3.5 h-3.5 text-green-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-green-300 mb-0.5">Android device detected</p>
+                <p className="text-[11px] text-white/45 leading-relaxed">
+                  <span className="text-white/65 font-medium">IP/Network</span> and <span className="text-white/65 font-medium">Bluetooth</span> printers work natively on Android.
+                  USB is not available — connect your thermal printer via WiFi (enter its IP address) or Bluetooth.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* ── Auto-Detect Panel ── */}
           <div className="mb-6 rounded-2xl border border-white/10 bg-white/3 overflow-hidden">
             {/* Header row */}
@@ -862,11 +914,13 @@ export default function DevicePage() {
                 <p className="text-xs text-white/35">Scans USB, Bluetooth, and local network (LAN) for printers</p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                {/* Request USB */}
-                <button onClick={requestNewUsb} title="Authorize new USB device"
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white/40 hover:text-white text-[11px] font-medium transition-all active:scale-95 border border-white/8">
-                  <Usb className="w-3 h-3" /> USB
-                </button>
+                {/* Request USB — hidden on Android (WebUSB not supported) */}
+                {!isAndroid() && (
+                  <button onClick={requestNewUsb} title="Authorize new USB device"
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white/40 hover:text-white text-[11px] font-medium transition-all active:scale-95 border border-white/8">
+                    <Usb className="w-3 h-3" /> USB
+                  </button>
+                )}
                 {/* Request BT */}
                 <button onClick={requestNewBt} title="Pair new Bluetooth device"
                   className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white/40 hover:text-white text-[11px] font-medium transition-all active:scale-95 border border-white/8">
@@ -912,18 +966,32 @@ export default function DevicePage() {
               <div className="border-t border-white/8 px-4 py-3">
                 {/* Device type legend */}
                 <div className="mb-3 space-y-1.5">
+                  {!isAndroid() && (
+                    <div className="flex items-start gap-2 text-[10px] text-white/35 leading-relaxed">
+                      <Usb className="w-3 h-3 shrink-0 mt-0.5 text-blue-400/60" />
+                      <span><span className="text-white/50 font-medium">USB printers / card readers</span> — click the <span className="text-white/50">USB</span> button above to authorize them in Chrome first, then scan again.</span>
+                    </div>
+                  )}
+                  {isAndroid() && (
+                    <div className="flex items-start gap-2 text-[10px] text-white/35 leading-relaxed">
+                      <Usb className="w-3 h-3 shrink-0 mt-0.5 text-rose-400/60" />
+                      <span><span className="text-rose-400/70 font-medium">USB not supported on Android.</span> Use IP/Network or Bluetooth instead.</span>
+                    </div>
+                  )}
                   <div className="flex items-start gap-2 text-[10px] text-white/35 leading-relaxed">
-                    <Usb className="w-3 h-3 shrink-0 mt-0.5 text-blue-400/60" />
-                    <span><span className="text-white/50 font-medium">USB printers / card readers</span> — click the <span className="text-white/50">USB</span> button above to authorize them in Chrome first, then scan again.</span>
-                  </div>
-                  <div className="flex items-start gap-2 text-[10px] text-white/35 leading-relaxed">
-                    <ScanLine className="w-3 h-3 shrink-0 mt-0.5 text-amber-400/60" />
-                    <span><span className="text-white/50 font-medium">Barcode scanners</span> — work automatically as a USB keyboard. No setup needed here; just focus any text field and scan.</span>
+                    <Bluetooth className="w-3 h-3 shrink-0 mt-0.5 text-indigo-400/60" />
+                    <span><span className="text-white/50 font-medium">Bluetooth printers</span> — click <span className="text-white/50">Pair BT</span> above to pair. Works on Android and desktop Chrome.</span>
                   </div>
                   <div className="flex items-start gap-2 text-[10px] text-white/35 leading-relaxed">
                     <Wifi className="w-3 h-3 shrink-0 mt-0.5 text-cyan-400/60" />
-                    <span><span className="text-white/50 font-medium">Network / IP printers</span> — click <span className="text-white/50">Add Printer</span> and enter the IP address manually (auto-scan only works on local deployments).</span>
+                    <span><span className="text-white/50 font-medium">Network / IP printers</span> — click <span className="text-white/50">Add Printer</span> and enter the printer&apos;s IP address. Auto-scan works when the server is on the same LAN.</span>
                   </div>
+                  {!isAndroid() && (
+                    <div className="flex items-start gap-2 text-[10px] text-white/35 leading-relaxed">
+                      <ScanLine className="w-3 h-3 shrink-0 mt-0.5 text-amber-400/60" />
+                      <span><span className="text-white/50 font-medium">Barcode scanners</span> — work automatically as a USB keyboard. No setup needed here; just focus any text field and scan.</span>
+                    </div>
+                  )}
                 </div>
 
                 {detectedDevices.length === 0 ? (
@@ -1345,14 +1413,20 @@ export default function DevicePage() {
 
               {/* USB fields */}
               {prtForm.connection_type === 'usb' && (
-                <div className="space-y-3 p-4 rounded-2xl bg-blue-500/5 border border-blue-500/15">
-                  <p className="text-xs font-medium text-blue-300 flex items-center gap-1.5">
+                <div className={cn('space-y-3 p-4 rounded-2xl border', isAndroid() ? 'bg-rose-500/5 border-rose-500/15' : 'bg-blue-500/5 border-blue-500/15')}>
+                  <p className={cn('text-xs font-medium flex items-center gap-1.5', isAndroid() ? 'text-rose-300' : 'text-blue-300')}>
                     <Usb className="w-3.5 h-3.5" /> USB via WebUSB
                   </p>
-                  <p className="text-[11px] text-white/40 leading-relaxed">
-                    Printing uses <strong className="text-white/60">WebUSB</strong> directly from your browser — no driver or path needed.
-                    Click <strong className="text-white/60">USB</strong> on the Auto-Detect panel to authorize your printer in Chrome/Edge, then it will be available for printing.
-                  </p>
+                  {isAndroid() ? (
+                    <p className="text-[11px] text-white/40 leading-relaxed">
+                      <strong className="text-rose-400/80">USB is not supported on Android.</strong> Please use <strong className="text-white/60">IP/Network</strong> or <strong className="text-white/60">Bluetooth</strong> to connect your printer on Android.
+                    </p>
+                  ) : (
+                    <p className="text-[11px] text-white/40 leading-relaxed">
+                      Printing uses <strong className="text-white/60">WebUSB</strong> directly from your browser — no driver or path needed.
+                      Click <strong className="text-white/60">USB</strong> on the Auto-Detect panel to authorize your printer in Chrome/Edge, then it will be available for printing.
+                    </p>
+                  )}
                 </div>
               )}
 

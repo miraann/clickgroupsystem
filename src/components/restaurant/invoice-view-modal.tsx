@@ -12,7 +12,7 @@ interface StoredInvoice {
   guests: number
   cashier: string | null
   payment_method: string | null
-  items: Array<{ name: string; price: number; qty: number }> | null
+  items: Array<{ name: string; price: number; qty: number; isDeliveryFee?: boolean }> | null
   subtotal: number
   discount: number
   total: number
@@ -116,18 +116,26 @@ export default function InvoiceViewModal({ invoice, restaurantId, onClose }: Pro
         ${invoice.customer_phone ? `<div class="row" style="margin-top:.5mm;"><span class="b">Phone</span><span class="xb">${invoice.customer_phone}</span></div>` : ''}
       </div>` : ''
 
-    const itemRows = (invoice.items ?? []).map(item => `
+    const allItems       = invoice.items ?? []
+    const regularItems   = allItems.filter(it => !it.isDeliveryFee)
+    const deliveryFeeItem = allItems.find(it => it.isDeliveryFee)
+    const printDeliveryFee = deliveryFeeItem ? deliveryFeeItem.price : 0
+
+    const itemRows = regularItems.map(item => `
       <tr>
         <td style="padding:1mm 0;font-weight:700;">${item.name}</td>
         <td style="padding:1mm 0;text-align:center;font-weight:700;">${item.qty}</td>
         <td style="padding:1mm 0;text-align:right;font-weight:700;">${formatPrice(item.price * item.qty)}</td>
       </tr>`).join('')
 
+    const origin = typeof window !== 'undefined' ? window.location.origin : ''
     const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
 <style>
+  @font-face { font-family:'KurdishFont'; src:url('${origin}/font/kurdish.ttf') format('truetype'); font-weight:normal; font-style:normal; }
   @page { size: ${paperWidth}mm auto; margin: ${marginMm}mm; }
   *  { box-sizing:border-box; margin:0; padding:0; }
   body { font-family:'Courier New',Courier,monospace; font-size:${basePt}pt; width:${wMm}mm; color:#000; background:#fff; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .rest-name { font-family:'KurdishFont','Courier New',Courier,monospace; }
   .d  { border:none; border-top:1px dashed #888; margin:0; }
   .row{ display:flex; justify-content:space-between; align-items:baseline; }
   .b  { font-weight:700; }
@@ -156,7 +164,7 @@ export default function InvoiceViewModal({ invoice, restaurantId, onClose }: Pro
     </div>
     <div class="c" style="flex:1;padding:0 1mm;">
       ${logoHtml}
-      <div class="xb lg">${name}</div>
+      <div class="xb lg rest-name">${name}</div>
       ${rs.show_phone && rs.phone ? `<div class="b">${rs.phone}</div>` : ''}
       ${rs.show_address && rs.address ? `<div class="b">${rs.address}</div>` : ''}
     </div>
@@ -204,7 +212,8 @@ ${customerHtml}
 <!-- TOTALS -->
 <div class="sec">
   <div class="row b" style="margin-bottom:.5mm;"><span>Subtotal</span><span>${formatPrice(Number(invoice.subtotal))}</span></div>
-  ${Number(invoice.discount) > 0 ? `<div class="row b" style="color:#dc2626;margin-bottom:.5mm;"><span>Discount</span><span>-${formatPrice(Number(invoice.discount))}</span></div>` : ''}
+  ${printDeliveryFee > 0 ? `<div class="row b" style="margin-bottom:.5mm;"><span>Delivery Fee</span><span>+${formatPrice(printDeliveryFee)}</span></div>` : ''}
+  ${Number(invoice.discount) > 0 ? `<div class="row b" style="margin-bottom:.5mm;"><span>Discount</span><span>-${formatPrice(Number(invoice.discount))}</span></div>` : ''}
   <div class="row xb lg" style="border-top:1px solid #999;padding-top:1mm;"><span>Total</span><span>${formatPrice(Number(invoice.total))}</span></div>
   ${Number(invoice.amount_paid) > 0 && Number(invoice.amount_paid) > Number(invoice.total) ? `
     <div class="row b" style="margin-top:.5mm;"><span>Paid</span><span>${formatPrice(Number(invoice.amount_paid))}</span></div>
@@ -302,7 +311,7 @@ ${qrHtml}
                   </div>
                 ) : null}
                 <div className="text-center">
-                  <p className="font-extrabold text-black text-[14px] leading-tight">{name}</p>
+                  <p className="font-extrabold text-black text-[14px] leading-tight" style={{ fontFamily: "'KurdishFont', sans-serif" }}>{name}</p>
                   {rs.show_phone && rs.phone && (
                     <p className="font-bold text-black text-[10px] mt-0.5">{rs.phone}</p>
                   )}
@@ -386,7 +395,7 @@ ${qrHtml}
                 </tr>
               </thead>
               <tbody>
-                {(invoice.items ?? []).map((item, i) => (
+                {(invoice.items ?? []).filter(it => !it.isDeliveryFee).map((item, i) => (
                   <tr key={i} className="border-b border-gray-100">
                     <td className="py-1.5 font-bold text-black">{item.name}</td>
                     <td className="py-1.5 text-center font-bold text-black">{item.qty}</td>
@@ -402,13 +411,23 @@ ${qrHtml}
           <div className="border-t border-dashed border-gray-300" />
 
           {/* Totals */}
+          {(() => {
+            const deliveryFeeItem = (invoice.items ?? []).find(it => it.isDeliveryFee)
+            const deliveryFee = deliveryFeeItem ? deliveryFeeItem.price : 0
+            return (
           <div className="px-5 py-3 space-y-1">
             <div className="flex justify-between font-bold text-black">
               <span>Subtotal</span>
               <span className="tabular-nums">{formatPrice(Number(invoice.subtotal))}</span>
             </div>
+            {deliveryFee > 0 && (
+              <div className="flex justify-between font-bold text-black">
+                <span>Delivery Fee</span>
+                <span className="tabular-nums">+{formatPrice(deliveryFee)}</span>
+              </div>
+            )}
             {Number(invoice.discount) > 0 && (
-              <div className="flex justify-between font-bold text-red-600">
+              <div className="flex justify-between font-bold text-black">
                 <span>Discount</span>
                 <span className="tabular-nums">-{formatPrice(Number(invoice.discount))}</span>
               </div>
@@ -430,6 +449,8 @@ ${qrHtml}
               </>
             )}
           </div>
+            )
+          })()}
 
           {/* Big total box */}
           <div className="mx-5 mb-3 rounded-xl bg-gray-50 border border-gray-200 py-3 text-center">

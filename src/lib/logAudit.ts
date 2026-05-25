@@ -16,6 +16,18 @@ export type AuditAction =
   | 'send_to_kitchen'
   | 'payment'
   | 'print_bill'
+  | 'pay_later'
+  // KDS
+  | 'kds_cooking'
+  | 'kds_ready'
+  // Delivery
+  | 'delivery_confirmed'
+  | 'delivery_out'
+  | 'delivery_delivered'
+  | 'delivery_cancelled'
+  // Pending orders (guest / QR)
+  | 'pending_approved'
+  | 'pending_declined'
 
 export function logAudit(
   restaurantId: string,

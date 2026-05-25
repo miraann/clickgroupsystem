@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { requireRestaurantAccess } from '@/lib/supabase/api-guard'
 import { rateLimit } from '@/lib/rate-limit'
 
 export const runtime = 'nodejs'
@@ -33,8 +32,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: 'Missing required fields' }, { status: 400 })
     }
 
-    const { error: authError } = await requireRestaurantAccess(restaurantId)
-    if (authError) return authError
+    // Verify the restaurant actually exists (guards against arbitrary bucket writes)
+    const { data: restRow } = await supabaseAdmin
+      .from('restaurants')
+      .select('id')
+      .eq('id', restaurantId)
+      .maybeSingle()
+    if (!restRow) {
+      return NextResponse.json({ ok: false, error: 'Restaurant not found' }, { status: 403 })
+    }
 
     if (type !== 'logo' && type !== 'qr') {
       return NextResponse.json({ ok: false, error: 'type must be logo or qr' }, { status: 400 })

@@ -237,6 +237,7 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
     }
 
     try { localStorage.removeItem(CUSTOMER_KEY) } catch { }
+    logAudit(restaurantId, 'pay_later', { customer: plName.trim(), table: tableNum, amount: verifiedTotal, order_num: ordNum || undefined })
     setPayingLater(false)
     setPaidLater(true)
     setTimeout(() => onPaid(), 1500)

@@ -1,9 +1,10 @@
 'use client'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { ModuleGate } from '@/components/ModuleGate'
-import { Bell, Check, X, Loader2, RefreshCw, AlertCircle, ChefHat, Clock } from 'lucide-react'
+import { Bell, Check, X, Loader2, RefreshCw, AlertCircle, ChefHat, Clock, Home } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
+import { logAudit } from '@/lib/logAudit'
 import { useRouter } from 'next/navigation'
 import { usePermissions } from '@/lib/permissions/PermissionsContext'
 import { getStaffHome } from '@/lib/permissions/staffHome'
@@ -158,8 +159,9 @@ export default function PendingOrdersPage() {
     return () => { supabase.removeChannel(channel) }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  const rid = () => typeof window !== 'undefined' ? (localStorage.getItem('restaurant_id') ?? '') : ''
+
   const approveGroup = (group: PendingGroup) => {
-    // Optimistic: remove immediately
     setGroups(prev => prev.filter(g => g.order_id !== group.order_id))
     const ids = group.items.map(i => i.id)
     supabase
@@ -168,14 +170,15 @@ export default function PendingOrdersPage() {
       .in('id', ids)
       .then(({ error }) => {
         if (error) {
-          setGroups(prev => [group, ...prev]) // revert
+          setGroups(prev => [group, ...prev])
           alert('Error approving: ' + error.message)
+        } else {
+          const r = rid(); if (r) logAudit(r, 'pending_approved', { table: group.table_label, items_count: ids.length })
         }
       })
   }
 
   const declineGroup = (group: PendingGroup) => {
-    // Optimistic: remove immediately
     setGroups(prev => prev.filter(g => g.order_id !== group.order_id))
     const ids = group.items.map(i => i.id)
     supabase
@@ -184,14 +187,15 @@ export default function PendingOrdersPage() {
       .in('id', ids)
       .then(({ error }) => {
         if (error) {
-          setGroups(prev => [group, ...prev]) // revert
+          setGroups(prev => [group, ...prev])
           alert('Error declining: ' + error.message)
+        } else {
+          const r = rid(); if (r) logAudit(r, 'pending_declined', { table: group.table_label, items_count: ids.length })
         }
       })
   }
 
   const approveItem = (item: PendingItem, groupOrderId: string) => {
-    // Optimistic: remove item (or entire group if last item)
     setGroups(prev => prev.map(g => {
       if (g.order_id !== groupOrderId) return g
       const remaining = g.items.filter(i => i.id !== item.id)
@@ -204,19 +208,20 @@ export default function PendingOrdersPage() {
       .eq('id', item.id)
       .then(({ error }) => {
         if (error) {
-          // Revert: put item back into its group
           setGroups(prev => {
             const group = prev.find(g => g.order_id === groupOrderId)
             if (group) return prev.map(g => g.order_id === groupOrderId ? { ...g, items: [...g.items, item] } : g)
             return prev
           })
           alert('Error: ' + error.message)
+        } else {
+          const group = groups.find(g => g.order_id === groupOrderId)
+          const r = rid(); if (r) logAudit(r, 'pending_approved', { table: group?.table_label, item_name: item.item_name, qty: item.qty })
         }
       })
   }
 
   const declineItem = (item: PendingItem, groupOrderId: string) => {
-    // Optimistic: remove item (or entire group if last item)
     setGroups(prev => prev.map(g => {
       if (g.order_id !== groupOrderId) return g
       const remaining = g.items.filter(i => i.id !== item.id)
@@ -235,6 +240,9 @@ export default function PendingOrdersPage() {
             return prev
           })
           alert('Error: ' + error.message)
+        } else {
+          const group = groups.find(g => g.order_id === groupOrderId)
+          const r = rid(); if (r) logAudit(r, 'pending_declined', { table: group?.table_label, item_name: item.item_name, qty: item.qty })
         }
       })
   }
@@ -281,10 +289,16 @@ export default function PendingOrdersPage() {
               </p>
             </div>
           </div>
-          <button onClick={() => load()}
-            className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 active:scale-95 transition-all">
-            <RefreshCw className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={() => router.push('/dashboard')}
+              className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 active:scale-95 transition-all">
+              <Home className="w-4 h-4" />
+            </button>
+            <button onClick={() => load()}
+              className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 active:scale-95 transition-all">
+              <RefreshCw className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </header>
 

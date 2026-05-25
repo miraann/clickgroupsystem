@@ -65,7 +65,7 @@ export function InvoicePrintTemplate({
               </div>
             ) : null}
             <div className="text-center min-w-0 w-full">
-              <p className="font-extrabold text-black text-[13px] leading-tight break-words">{displayName}</p>
+              <p className="font-extrabold text-black text-[13px] leading-tight break-words" style={{ fontFamily: "'KurdishFont', sans-serif" }}>{displayName}</p>
               {rs.show_phone && rs.phone && (
                 <p className="font-bold text-black text-[10px] mt-0.5">{rs.phone}</p>
               )}

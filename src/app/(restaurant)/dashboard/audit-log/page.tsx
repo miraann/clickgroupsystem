@@ -33,20 +33,32 @@ interface AuditLog {
 // ── Action config ────────────────────────────────────────────────
 const ACTION_CONFIG: Record<AuditAction, { label: string; color: string; bg: string; dot: string }> = {
   // Generic CRUD
-  add:              { label: 'Add',             color: 'text-emerald-400', bg: 'bg-emerald-500/12 border-emerald-500/25', dot: 'bg-emerald-400' },
-  edit:             { label: 'Edit',            color: 'text-blue-400',    bg: 'bg-blue-500/12 border-blue-500/25',    dot: 'bg-blue-400'    },
-  delete:           { label: 'Delete',          color: 'text-rose-400',    bg: 'bg-rose-500/12 border-rose-500/25',    dot: 'bg-rose-400'    },
-  toggle:           { label: 'Toggle',          color: 'text-amber-400',   bg: 'bg-amber-500/12 border-amber-500/25',  dot: 'bg-amber-400'   },
-  update_settings:  { label: 'Settings',        color: 'text-indigo-400',  bg: 'bg-indigo-500/12 border-indigo-500/25', dot: 'bg-indigo-400' },
-  print:            { label: 'Print',           color: 'text-cyan-400',    bg: 'bg-cyan-500/12 border-cyan-500/25',    dot: 'bg-cyan-400'    },
+  add:                { label: 'Add',             color: 'text-emerald-400', bg: 'bg-emerald-500/12 border-emerald-500/25', dot: 'bg-emerald-400'  },
+  edit:               { label: 'Edit',            color: 'text-blue-400',    bg: 'bg-blue-500/12 border-blue-500/25',       dot: 'bg-blue-400'     },
+  delete:             { label: 'Delete',          color: 'text-rose-400',    bg: 'bg-rose-500/12 border-rose-500/25',       dot: 'bg-rose-400'     },
+  toggle:             { label: 'Toggle',          color: 'text-amber-400',   bg: 'bg-amber-500/12 border-amber-500/25',     dot: 'bg-amber-400'    },
+  update_settings:    { label: 'Settings',        color: 'text-indigo-400',  bg: 'bg-indigo-500/12 border-indigo-500/25',   dot: 'bg-indigo-400'   },
+  print:              { label: 'Print',           color: 'text-cyan-400',    bg: 'bg-cyan-500/12 border-cyan-500/25',       dot: 'bg-cyan-400'     },
   // Order-specific
-  void_item:        { label: 'Void Item',       color: 'text-rose-400',    bg: 'bg-rose-500/12 border-rose-500/25',    dot: 'bg-rose-400'    },
-  edit_price:       { label: 'Edit Price',      color: 'text-violet-400',  bg: 'bg-violet-500/12 border-violet-500/25', dot: 'bg-violet-400'  },
-  apply_discount:   { label: 'Discount',        color: 'text-amber-400',   bg: 'bg-amber-500/12 border-amber-500/25',  dot: 'bg-amber-400'   },
-  transfer_item:    { label: 'Transfer',        color: 'text-blue-400',    bg: 'bg-blue-500/12 border-blue-500/25',    dot: 'bg-blue-400'    },
-  send_to_kitchen:  { label: 'Send to Kitchen', color: 'text-emerald-400', bg: 'bg-emerald-500/12 border-emerald-500/25', dot: 'bg-emerald-400' },
-  payment:          { label: 'Payment',         color: 'text-green-300',   bg: 'bg-green-500/12 border-green-500/25',  dot: 'bg-green-300'   },
-  print_bill:       { label: 'Print Bill',      color: 'text-cyan-400',    bg: 'bg-cyan-500/12 border-cyan-500/25',    dot: 'bg-cyan-400'    },
+  void_item:          { label: 'Void Item',       color: 'text-rose-400',    bg: 'bg-rose-500/12 border-rose-500/25',       dot: 'bg-rose-400'     },
+  edit_price:         { label: 'Edit Price',      color: 'text-violet-400',  bg: 'bg-violet-500/12 border-violet-500/25',   dot: 'bg-violet-400'   },
+  apply_discount:     { label: 'Discount',        color: 'text-amber-400',   bg: 'bg-amber-500/12 border-amber-500/25',     dot: 'bg-amber-400'    },
+  transfer_item:      { label: 'Transfer',        color: 'text-blue-400',    bg: 'bg-blue-500/12 border-blue-500/25',       dot: 'bg-blue-400'     },
+  send_to_kitchen:    { label: 'Send to Kitchen', color: 'text-emerald-400', bg: 'bg-emerald-500/12 border-emerald-500/25', dot: 'bg-emerald-400'  },
+  payment:            { label: 'Payment',         color: 'text-green-300',   bg: 'bg-green-500/12 border-green-500/25',     dot: 'bg-green-300'    },
+  print_bill:         { label: 'Print Bill',      color: 'text-cyan-400',    bg: 'bg-cyan-500/12 border-cyan-500/25',       dot: 'bg-cyan-400'     },
+  pay_later:          { label: 'Pay Later',       color: 'text-amber-300',   bg: 'bg-amber-500/12 border-amber-500/25',     dot: 'bg-amber-300'    },
+  // KDS
+  kds_cooking:        { label: 'KDS Cooking',     color: 'text-orange-400',  bg: 'bg-orange-500/12 border-orange-500/25',   dot: 'bg-orange-400'   },
+  kds_ready:          { label: 'KDS Ready',       color: 'text-green-400',   bg: 'bg-green-500/12 border-green-500/25',     dot: 'bg-green-400'    },
+  // Delivery
+  delivery_confirmed: { label: 'Confirmed',       color: 'text-sky-400',     bg: 'bg-sky-500/12 border-sky-500/25',         dot: 'bg-sky-400'      },
+  delivery_out:       { label: 'Out Delivery',    color: 'text-blue-400',    bg: 'bg-blue-500/12 border-blue-500/25',       dot: 'bg-blue-400'     },
+  delivery_delivered: { label: 'Delivered',       color: 'text-emerald-400', bg: 'bg-emerald-500/12 border-emerald-500/25', dot: 'bg-emerald-400'  },
+  delivery_cancelled: { label: 'Del. Cancelled',  color: 'text-rose-400',    bg: 'bg-rose-500/12 border-rose-500/25',       dot: 'bg-rose-400'     },
+  // Pending orders
+  pending_approved:   { label: 'Approved',        color: 'text-teal-400',    bg: 'bg-teal-500/12 border-teal-500/25',       dot: 'bg-teal-400'     },
+  pending_declined:   { label: 'Declined',        color: 'text-rose-400',    bg: 'bg-rose-500/12 border-rose-500/25',       dot: 'bg-rose-400'     },
 }
 
 function initials(name: string | null) {
@@ -167,8 +179,11 @@ function LogRow({ log, formatPrice }: { log: AuditLog; formatPrice: (n: number) 
 const PAGE_SIZE = 40
 const ALL_ACTIONS: AuditAction[] = [
   'add', 'edit', 'delete', 'toggle', 'update_settings', 'print',
-  'payment', 'void_item', 'send_to_kitchen', 'print_bill',
+  'payment', 'pay_later', 'void_item', 'send_to_kitchen', 'print_bill',
   'apply_discount', 'edit_price', 'transfer_item',
+  'kds_cooking', 'kds_ready',
+  'delivery_confirmed', 'delivery_out', 'delivery_delivered', 'delivery_cancelled',
+  'pending_approved', 'pending_declined',
 ]
 
 export default function AuditLogPage() {

@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useRef, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { ChefHat, RefreshCw, Check, CheckCheck, Clock, Wifi, WifiOff, Flame, Bell, Layers, AlertTriangle, X, Volume2, Truck } from 'lucide-react'
+import { logAudit } from '@/lib/logAudit'
 import { ModuleGate } from '@/components/ModuleGate'
 import { usePermissions } from '@/lib/permissions/PermissionsContext'
 import { getStaffHome } from '@/lib/permissions/staffHome'
@@ -804,21 +805,28 @@ function KdsPage() {
     const now = new Date().toISOString()
     const extra = nextStatus === 'cooking' ? { cooking_started_at: now } : { ready_at: now }
     await supabase.from('order_items').update({ status: nextStatus, ...extra }).eq('id', itemId)
+    if (restaurantId) {
+      const order = allOrders.find(o => o.items.some(i => i.id === itemId))
+      const item  = order?.items.find(i => i.id === itemId)
+      logAudit(restaurantId, nextStatus === 'cooking' ? 'kds_cooking' : 'kds_ready', {
+        item_id: itemId, item_name: item?.item_name, qty: item?.qty, table: order?.table_label,
+      })
+    }
     setBusy(itemId, false)
     if (restaurantId) fetchOrders(restaurantId)
   }
 
   const startAll = async (orderId: string, stationId: string | null) => {
     setBusy(`start-${orderId}`, true)
-    // When viewing a specific station, only start items that belong to it
-    const itemIds = allOrders
-      .find(o => o.order_id === orderId)?.items
+    const order = allOrders.find(o => o.order_id === orderId)
+    const itemIds = order?.items
       .filter(i => i.status === 'sent' && (stationId === null || i.station_id === stationId))
       .map(i => i.id) ?? []
     if (itemIds.length > 0) {
       await supabase.from('order_items')
         .update({ status: 'cooking', cooking_started_at: new Date().toISOString() })
         .in('id', itemIds)
+      if (restaurantId) logAudit(restaurantId, 'kds_cooking', { order_id: orderId, table: order?.table_label, items_count: itemIds.length })
     }
     setBusy(`start-${orderId}`, false)
     if (restaurantId) fetchOrders(restaurantId)
@@ -826,14 +834,15 @@ function KdsPage() {
 
   const readyAll = async (orderId: string, stationId: string | null) => {
     setBusy(`ready-${orderId}`, true)
-    const itemIds = allOrders
-      .find(o => o.order_id === orderId)?.items
+    const order = allOrders.find(o => o.order_id === orderId)
+    const itemIds = order?.items
       .filter(i => i.status === 'cooking' && (stationId === null || i.station_id === stationId))
       .map(i => i.id) ?? []
     if (itemIds.length > 0) {
       await supabase.from('order_items')
         .update({ status: 'ready', ready_at: new Date().toISOString() })
         .in('id', itemIds)
+      if (restaurantId) logAudit(restaurantId, 'kds_ready', { order_id: orderId, table: order?.table_label, items_count: itemIds.length })
     }
     setBusy(`ready-${orderId}`, false)
     if (restaurantId) fetchOrders(restaurantId)
