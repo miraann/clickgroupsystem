@@ -1,9 +1,10 @@
 'use client'
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence, type Variants } from 'framer-motion'
 import {
   SlidersHorizontal,
   Volume2, VolumeX, Clock, Globe, Bell, Play, Bike, Hand,
+  Smartphone, Truck, ChefHat, QrCode, BellRing, CheckCircle2, XCircle, AlertCircle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
@@ -24,6 +25,10 @@ interface PrefSettings {
   waiter_sounds_enabled:         boolean
   waiter_alert_sound:            'whistle' | 'tap' | 'horn' | 'xylophone'
   waiter_alert_repeat_seconds:   number
+  push_notif_delivery:           boolean
+  push_notif_waiter:             boolean
+  push_notif_kds:                boolean
+  push_notif_guest:              boolean
 }
 
 const DEFAULTS: PrefSettings = {
@@ -38,6 +43,43 @@ const DEFAULTS: PrefSettings = {
   waiter_sounds_enabled:       true,
   waiter_alert_sound:          'whistle',
   waiter_alert_repeat_seconds: 30,
+  push_notif_delivery:         true,
+  push_notif_waiter:           true,
+  push_notif_kds:              true,
+  push_notif_guest:            true,
+}
+
+type PermStatus = 'unknown' | 'granted' | 'denied' | 'prompt'
+
+function usePushPermission() {
+  const [permStatus, setPermStatus] = useState<PermStatus>('unknown')
+  const [isNative, setIsNative]     = useState(false)
+  const [requesting, setRequesting] = useState(false)
+
+  useEffect(() => {
+    import('@capacitor/core').then(({ Capacitor }) => {
+      const native = Capacitor.isNativePlatform()
+      setIsNative(native)
+      if (!native) return
+      import('@capacitor/push-notifications').then(({ PushNotifications }) => {
+        PushNotifications.checkPermissions().then(s => setPermStatus(s.receive as PermStatus)).catch(() => {})
+      }).catch(() => {})
+    }).catch(() => {})
+  }, [])
+
+  const requestPermission = useCallback(async () => {
+    if (!isNative) return
+    setRequesting(true)
+    try {
+      const { PushNotifications } = await import('@capacitor/push-notifications')
+      const result = await PushNotifications.requestPermissions()
+      setPermStatus(result.receive as PermStatus)
+      if (result.receive === 'granted') await PushNotifications.register()
+    } catch {}
+    setRequesting(false)
+  }, [isNative])
+
+  return { permStatus, isNative, requesting, requestPermission }
 }
 
 const LANGUAGES = [
@@ -268,6 +310,13 @@ function FadeSwitch({ id, children }: { id: string; children: React.ReactNode })
   )
 }
 
+const PUSH_ITEMS = [
+  { key: 'push_notif_delivery' as const, icon: Truck,    label: 'Delivery Orders',    desc: 'New delivery order received'          },
+  { key: 'push_notif_waiter'   as const, icon: BellRing, label: 'Waiter Calls',       desc: 'Guest requesting assistance at table' },
+  { key: 'push_notif_kds'      as const, icon: ChefHat,  label: 'Kitchen Orders',     desc: 'New order sent to KDS screen'         },
+  { key: 'push_notif_guest'    as const, icon: QrCode,   label: 'Guest Menu Orders',  desc: 'Order from QR code guest menu'        },
+] as const
+
 export default function PreferencePage() {
   const { t, setLang } = useLanguage()
   const { settings: cfg, setSettings: setCfg, loading, saveState, save, autoSave } =
@@ -275,6 +324,7 @@ export default function PreferencePage() {
 
   const [previewingId, setPreviewingId] = useState<string | null>(null)
   const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const { permStatus, isNative, requesting, requestPermission } = usePushPermission()
 
   const handlePreview = (previewKey: string, play: () => void) => {
     play()
@@ -661,6 +711,84 @@ export default function PreferencePage() {
                         <p className="text-[11px] text-white/30">{t.pref_repeat_hint}</p>
                       </div>
                     </>
+                  )}
+
+                </div>
+              </SettingsSection>
+            </motion.div>
+
+            {/* ── Push Notifications ── */}
+            <motion.div variants={FIELD_ITEM}>
+              <SettingsSection title="Push Notifications" icon={<Smartphone className="w-4 h-4 text-indigo-400" />}>
+                <div className="space-y-5">
+
+                  {/* Permission row */}
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center',
+                        permStatus === 'granted' ? 'bg-emerald-500/20' : 'bg-white/5')}>
+                        {permStatus === 'granted'
+                          ? <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                          : permStatus === 'denied'
+                          ? <XCircle className="w-5 h-5 text-rose-400" />
+                          : <AlertCircle className="w-5 h-5 text-amber-400" />}
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-white">Android Push Notifications</p>
+                        <p className="text-xs text-white/40">
+                          {permStatus === 'granted' ? 'Permission granted — notifications active'
+                           : permStatus === 'denied'  ? 'Permission denied — check device settings'
+                           : isNative                 ? 'Permission not yet requested'
+                           :                            'Only available in the Android app'}
+                        </p>
+                      </div>
+                    </div>
+                    {isNative && permStatus !== 'granted' && permStatus !== 'denied' && (
+                      <button
+                        onClick={requestPermission}
+                        disabled={requesting}
+                        className="shrink-0 px-4 py-2 rounded-xl bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 text-white text-xs font-semibold transition-all active:scale-95"
+                      >
+                        {requesting ? 'Requesting…' : 'Enable'}
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="border-t border-white/6" />
+
+                  {/* Per-type toggles */}
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-semibold text-white/40 uppercase tracking-wider mb-3 block">Notify me for</label>
+                    <div className="space-y-2">
+                      {PUSH_ITEMS.map(({ key, icon: Icon, label, desc }) => (
+                        <div key={key} className={cn(
+                          'flex items-center justify-between gap-4 px-4 py-3 rounded-xl border transition-all',
+                          cfg[key] ? 'bg-indigo-500/8 border-indigo-500/20' : 'bg-white/3 border-white/8',
+                        )}>
+                          <div className="flex items-center gap-3">
+                            <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center',
+                              cfg[key] ? 'bg-indigo-500/20' : 'bg-white/5')}>
+                              <Icon className={cn('w-4 h-4', cfg[key] ? 'text-indigo-400' : 'text-white/30')} />
+                            </div>
+                            <div>
+                              <p className={cn('text-sm font-semibold', cfg[key] ? 'text-white' : 'text-white/50')}>{label}</p>
+                              <p className="text-[11px] text-white/35">{desc}</p>
+                            </div>
+                          </div>
+                          <ToggleSwitch
+                            activeColor={ACCENT}
+                            on={cfg[key]}
+                            onChange={v => autoSave({ [key]: v } as Partial<PrefSettings>)}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {!isNative && (
+                    <p className="text-[11px] text-white/25 bg-white/3 border border-white/8 rounded-xl px-4 py-2.5">
+                      Push notifications are delivered through the Android app. Install the APK to receive real-time alerts on your device.
+                    </p>
                   )}
 
                 </div>
