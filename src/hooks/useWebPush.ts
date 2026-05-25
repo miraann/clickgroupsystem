@@ -10,17 +10,36 @@ function urlBase64ToUint8Array(base64String: string) {
   return Uint8Array.from([...raw].map(c => c.charCodeAt(0)))
 }
 
+async function isCapacitorNative(): Promise<boolean> {
+  try {
+    const { Capacitor } = await import('@capacitor/core')
+    return Capacitor.isNativePlatform()
+  } catch { return false }
+}
+
 export function useWebPush(restaurantId: string | null) {
-  const [status, setStatus]           = useState<SubStatus>('loading')
+  const [status, setStatus]             = useState<SubStatus>('loading')
   const [subscription, setSubscription] = useState<PushSubscription | null>(null)
-  const [busy, setBusy]               = useState(false)
+  const [busy, setBusy]                 = useState(false)
 
   const check = useCallback(async () => {
+    // ── Native Android via Capacitor ──────────────────────────
+    if (await isCapacitorNative()) {
+      try {
+        const { PushNotifications } = await import('@capacitor/push-notifications')
+        const s = await PushNotifications.checkPermissions()
+        setStatus(s.receive === 'granted' ? 'subscribed'
+                : s.receive === 'denied'  ? 'denied'
+                : 'unsubscribed')
+      } catch { setStatus('unsupported') }
+      return
+    }
+
+    // ── Browser Web Push ──────────────────────────────────────
     if (typeof window === 'undefined' || !('serviceWorker' in navigator) || !('PushManager' in window)) {
       setStatus('unsupported'); return
     }
     if (Notification.permission === 'denied') { setStatus('denied'); return }
-
     const reg = await navigator.serviceWorker.ready
     const existing = await reg.pushManager.getSubscription()
     if (existing) { setSubscription(existing); setStatus('subscribed') }
@@ -33,8 +52,36 @@ export function useWebPush(restaurantId: string | null) {
     if (!restaurantId || busy) return
     setBusy(true)
     try {
+      // ── Native Android ────────────────────────────────────
+      if (await isCapacitorNative()) {
+        const { PushNotifications } = await import('@capacitor/push-notifications')
+        const result = await PushNotifications.requestPermissions()
+        if (result.receive !== 'granted') { setStatus('denied'); setBusy(false); return }
+
+        await PushNotifications.register()
+
+        // Listen for FCM token once
+        await new Promise<void>((resolve) => {
+          const listener = PushNotifications.addListener('registration', async (token) => {
+            await fetch('/api/push/subscribe', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ fcm_token: token.value, restaurant_id: restaurantId }),
+            })
+            listener.then(l => l.remove())
+            resolve()
+          })
+          setTimeout(resolve, 5000) // safety timeout
+        })
+
+        setStatus('subscribed')
+        setBusy(false)
+        return
+      }
+
+      // ── Browser Web Push ──────────────────────────────────
       const permission = await Notification.requestPermission()
-      if (permission !== 'granted') { setStatus('denied'); return }
+      if (permission !== 'granted') { setStatus('denied'); setBusy(false); return }
 
       const reg = await navigator.serviceWorker.ready
       const sub = await reg.pushManager.subscribe({
@@ -52,22 +99,32 @@ export function useWebPush(restaurantId: string | null) {
       setStatus('subscribed')
     } catch (err) {
       console.error('Push subscribe failed:', err)
-    } finally {
-      setBusy(false)
     }
+    setBusy(false)
   }, [restaurantId, busy])
 
   const unsubscribe = useCallback(async () => {
-    if (!subscription || busy) return
+    if (busy) return
     setBusy(true)
     try {
-      await fetch('/api/push/subscribe', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ endpoint: subscription.endpoint }),
-      })
-      await subscription.unsubscribe()
-      setSubscription(null)
+      if (await isCapacitorNative()) {
+        const { PushNotifications } = await import('@capacitor/push-notifications')
+        // Remove all listeners; on next app open will re-register if needed
+        await PushNotifications.removeAllListeners()
+        setStatus('unsubscribed')
+        setBusy(false)
+        return
+      }
+
+      if (subscription) {
+        await fetch('/api/push/subscribe', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ endpoint: subscription.endpoint }),
+        })
+        await subscription.unsubscribe()
+        setSubscription(null)
+      }
       setStatus('unsubscribed')
     } catch {}
     setBusy(false)
