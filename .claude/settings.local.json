@@ -57,7 +57,14 @@
       "PowerShell(git add \"src/app/\\(restaurant\\)/dashboard/settings/device/page.tsx\" \"src/app/api/devices/scan/route.ts\" \"src/app/api/printer/print-test/route.ts\" \"src/app/\\(restaurant\\)/dashboard/audit-log/page.tsx\" \"src/app/\\(restaurant\\)/dashboard/delivery-orders/page.tsx\" \"src/app/\\(restaurant\\)/dashboard/kds/page.tsx\" \"src/app/\\(restaurant\\)/dashboard/pending-orders/page.tsx\" \"src/components/restaurant/InvoiceModal/InvoicePrintTemplate.tsx\" \"src/components/restaurant/invoice-view-modal.tsx\" \"src/components/restaurant/payment-screen.tsx\" \"src/app/api/upload/receipt-image/route.ts\" \"src/lib/logAudit.ts\" \"src/app/\\(restaurant\\)/dashboard/settings/audit-log/\")",
       "PowerShell(gh auth status)",
       "PowerShell(gh auth switch --user miraann)",
-      "PowerShell(head -20)"
+      "PowerShell(head -20)",
+      "PowerShell(git add \"src/app/\\(seller\\)/seller/users/page.tsx\")",
+      "PowerShell(git commit -m \"fix: cast Supabase staff query result to satisfy TS strict type check\")",
+      "PowerShell(git add \"public/.well-known/assetlinks.json\")",
+      "PowerShell(git commit -m \"feat: add .well-known/assetlinks.json for TWA Android APK\")",
+      "PowerShell(git add \"public/manifest.json\")",
+      "PowerShell(git commit -m \"fix: separate maskable and any icon purposes in manifest for PWABuilder\")",
+      "PowerShell(git commit -m \"feat: use PWABuilder-generated icons for Android, iOS, and Windows\")"
     ]
   }
 }

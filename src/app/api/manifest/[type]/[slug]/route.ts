@@ -76,24 +76,14 @@ export async function GET(
     categories:       ['business', 'productivity'],
     prefer_related_applications: false,
     icons: [
-      {
-        src:     '/icon.svg',
-        sizes:   'any',
-        type:    'image/svg+xml',
-        purpose: 'any',
-      },
-      {
-        src:     '/icon-192.png',
-        sizes:   '192x192',
-        type:    'image/png',
-        purpose: 'any maskable',
-      },
-      {
-        src:     '/icon-512.png',
-        sizes:   '512x512',
-        type:    'image/png',
-        purpose: 'any maskable',
-      },
+      { src: '/logo/android/launchericon-48x48.png',   sizes: '48x48',   type: 'image/png', purpose: 'any' },
+      { src: '/logo/android/launchericon-72x72.png',   sizes: '72x72',   type: 'image/png', purpose: 'any' },
+      { src: '/logo/android/launchericon-96x96.png',   sizes: '96x96',   type: 'image/png', purpose: 'any' },
+      { src: '/logo/android/launchericon-144x144.png', sizes: '144x144', type: 'image/png', purpose: 'any' },
+      { src: '/logo/android/launchericon-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+      { src: '/logo/android/launchericon-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+      { src: '/logo/android/launchericon-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
+      { src: '/logo/android/launchericon-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
     ],
   }
 
