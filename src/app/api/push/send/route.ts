@@ -2,11 +2,13 @@ import { NextResponse } from 'next/server'
 import webpush from 'web-push'
 import { createClient } from '@/lib/supabase/server'
 
-webpush.setVapidDetails(
-  process.env.VAPID_SUBJECT!,
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
-  process.env.VAPID_PRIVATE_KEY!,
-)
+function initVapid() {
+  webpush.setVapidDetails(
+    process.env.VAPID_SUBJECT!,
+    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
+    process.env.VAPID_PRIVATE_KEY!,
+  )
+}
 
 export type NotifType = 'delivery' | 'waiter' | 'kds' | 'guest'
 
@@ -19,6 +21,7 @@ const NOTIF_META: Record<NotifType, { title: string; body: string; icon: string 
 
 export async function POST(req: Request) {
   try {
+    initVapid()
     const { restaurant_id, type, body: customBody } = await req.json() as {
       restaurant_id: string
       type: NotifType
