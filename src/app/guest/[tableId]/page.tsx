@@ -12,6 +12,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import { assignOrderNumber } from '@/lib/orderNumber'
 import { sendPush } from '@/lib/push'
+import { logAudit } from '@/lib/logAudit'
 import { useRestaurantMenu } from '@/hooks/useRestaurantMenu'
 
 interface Restaurant { id: string; name: string; logo_url: string | null; settings: Record<string, string> }
@@ -282,6 +283,9 @@ export default function GuestPage() {
       status:        'pending',
     })
     sendPush(restaurant.id, 'waiter')
+    logAudit(restaurant.id, 'waiter_call',
+      { table: table.table_number || String(table.seq), table_name: table.name || null },
+      table.id, { staffName: 'Guest', staffRole: 'guest' })
     setWaiterLoading(false)
     setWaiterCalled(true)
     setWaiterCooldown(true)
@@ -491,6 +495,14 @@ export default function GuestPage() {
       return
     }
     sendPush(restaurant.id, 'guest')
+    logAudit(restaurant.id, 'guest_order',
+      {
+        table:       table.table_number || String(table.seq),
+        table_name:  table.name || null,
+        items_count: rows.length,
+        items:       rows.slice(0, 3).map(r => `${r.qty}× ${r.item_name}`).join(', '),
+      },
+      orderId, { staffName: 'Guest', staffRole: 'guest' })
 
     // Update order total
     const addedTotal = cartItems.reduce((s, { item, entry }) => {

@@ -53,6 +53,9 @@ const ACTION_CFG: Record<string, { emoji: string; label: string; color: string }
   delivery_cancelled: { emoji: '🚫', label: 'Delivery Cancelled', color: 'bg-rose-500/20 text-rose-300 border-rose-500/30' },
   pending_approved:   { emoji: '✅', label: 'Order Approved',     color: 'bg-teal-500/20 text-teal-300 border-teal-500/30' },
   pending_declined:   { emoji: '❌', label: 'Order Declined',     color: 'bg-rose-500/20 text-rose-300 border-rose-500/30' },
+  guest_order:        { emoji: '📱', label: 'Guest QR Order',     color: 'bg-violet-500/20 text-violet-300 border-violet-500/30' },
+  waiter_call:        { emoji: '🔔', label: 'Waiter Called',      color: 'bg-amber-500/20 text-amber-300 border-amber-500/30' },
+  delivery_order:     { emoji: '🛵', label: 'Delivery Order',     color: 'bg-blue-500/20 text-blue-300 border-blue-500/30' },
 }
 
 function getActionCfg(action: string) {
@@ -117,6 +120,12 @@ function buildDetail(action: string, meta: Record<string, unknown>): string {
       return `${m.customer ?? 'Customer'}${m.order_num ? ` #${m.order_num}` : ''}`
     case 'pending_approved': case 'pending_declined':
       return `Table ${m.table ?? '?'}${m.item_name ? ` — ${m.item_name}` : (m.items_count ? ` — ${m.items_count} items` : '')}`
+    case 'guest_order':
+      return `Table ${m.table ?? '?'}${m.table_name ? ` (${m.table_name})` : ''}${m.items ? ` — ${m.items}` : (m.items_count ? ` — ${m.items_count} items` : '')}`
+    case 'waiter_call':
+      return `Table ${m.table ?? '?'}${m.table_name ? ` (${m.table_name})` : ''} — Waiter requested`
+    case 'delivery_order':
+      return `${m.customer ?? 'Customer'}${m.phone ? ` · ${m.phone}` : ''}${m.items ? ` — ${m.items}` : (m.items_count ? ` — ${m.items_count} items` : '')}${m.address ? ` · ${m.address}` : ''}`
     default: {
       const parts: string[] = []
       if (m.table)     parts.push(`Table ${m.table}`)

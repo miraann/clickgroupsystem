@@ -13,6 +13,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import { assignOrderNumber } from '@/lib/orderNumber'
 import { sendPush } from '@/lib/push'
+import { logAudit } from '@/lib/logAudit'
 import { useRestaurantMenu } from '@/hooks/useRestaurantMenu'
 
 const LocationPickerMap = dynamic(
@@ -1188,6 +1189,15 @@ export default function DeliveryOrderPage() {
     if (delivErr) { setPlaceError(delivErr.message); setPlacing(false); return }
 
     sendPush(restaurant.id, 'delivery')
+    logAudit(restaurant.id, 'delivery_order',
+      {
+        customer:    custName,
+        phone:       custPhone || null,
+        items_count: rows.length,
+        items:       rows.slice(0, 3).map(r => `${r.qty}× ${r.item_name}`).join(', '),
+        address:     address || null,
+      },
+      newOrder.id, { staffName: 'Customer', staffRole: 'customer' })
 
     if (couponId) {
       await supabase.rpc('increment_discount_code', { p_id: couponId })

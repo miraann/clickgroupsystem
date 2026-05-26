@@ -28,19 +28,28 @@ export type AuditAction =
   // Pending orders (guest / QR)
   | 'pending_approved'
   | 'pending_declined'
+  // Public-facing events (no staff session)
+  | 'guest_order'
+  | 'waiter_call'
+  | 'delivery_order'
+
+interface LogOverrides { staffName?: string; staffRole?: string }
 
 export function logAudit(
   restaurantId: string,
   action: AuditAction,
   metadata: Record<string, unknown> = {},
   entityId?: string,
+  overrides?: LogOverrides,
 ) {
   if (typeof window === 'undefined') return
 
   const staffId   = localStorage.getItem('pos_staff_id')
-  const staffName = localStorage.getItem('pos_staff_name')
+  const staffName = overrides?.staffName
+    ?? localStorage.getItem('pos_staff_name')
     ?? (localStorage.getItem('owner_session') === 'true' ? 'Owner' : null)
-  const staffRole = localStorage.getItem('pos_staff_role')
+  const staffRole = overrides?.staffRole
+    ?? localStorage.getItem('pos_staff_role')
     ?? (localStorage.getItem('owner_session') === 'true' ? 'owner' : null)
 
   const supabase = createClient()

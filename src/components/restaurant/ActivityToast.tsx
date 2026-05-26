@@ -38,6 +38,9 @@ const ACTION_CFG: Record<string, { emoji: string; label: string; color: string }
   delivery_cancelled: { emoji: '🚫', label: 'Delivery Cancelled', color: 'text-rose-300'    },
   pending_approved:   { emoji: '✅', label: 'Order Approved',     color: 'text-teal-300'    },
   pending_declined:   { emoji: '❌', label: 'Order Declined',     color: 'text-rose-300'    },
+  guest_order:        { emoji: '📱', label: 'Guest QR Order',     color: 'text-violet-300'  },
+  waiter_call:        { emoji: '🔔', label: 'Waiter Called',      color: 'text-amber-300'   },
+  delivery_order:     { emoji: '🛵', label: 'Delivery Order',     color: 'text-blue-300'    },
 }
 
 function getAction(action: string) {
@@ -48,15 +51,35 @@ function getAction(action: string) {
   }
 }
 
-function metaDetails(metadata: Record<string, unknown>): string {
-  const SKIP = new Set(['restaurant_id', 'staff_id', 'entity'])
-  const parts: string[] = []
-  for (const [k, v] of Object.entries(metadata)) {
-    if (SKIP.has(k) || v == null) continue
-    if (typeof v === 'object') continue
-    parts.push(String(v))
+function metaDetails(action: string, metadata: Record<string, unknown>): string {
+  const m = metadata as Record<string, string | number | unknown>
+  switch (action) {
+    case 'guest_order':
+      return `Table ${m.table ?? '?'}${m.items ? ` — ${m.items}` : (m.items_count ? ` — ${m.items_count} items` : '')}`
+    case 'waiter_call':
+      return `Table ${m.table ?? '?'}${m.table_name ? ` (${m.table_name})` : ''}`
+    case 'delivery_order':
+      return `${m.customer ?? 'Customer'}${m.items ? ` — ${m.items}` : (m.items_count ? ` — ${m.items_count} items` : '')}`
+    case 'send_to_kitchen':
+      return `Table ${m.table ?? '?'}${m.items ? ` — ${m.items}` : ''}`
+    case 'payment':
+      return `Table ${m.table ?? '?'}${m.method ? ` via ${m.method}` : ''}${m.total ? ` — ${m.total}` : ''}`
+    default: {
+      const SKIP = new Set(['restaurant_id', 'staff_id', 'entity', 'items'])
+      const parts: string[] = []
+      if (m.table)     parts.push(`Table ${m.table}`)
+      if (m.name)      parts.push(String(m.name))
+      if (m.item_name) parts.push(String(m.item_name))
+      if (m.customer)  parts.push(String(m.customer))
+      if (parts.length === 0) {
+        for (const [k, v] of Object.entries(metadata)) {
+          if (SKIP.has(k) || v == null || typeof v === 'object') continue
+          parts.push(String(v))
+        }
+      }
+      return parts.slice(0, 3).join(' · ')
+    }
   }
-  return parts.slice(0, 3).join(' · ')
 }
 
 const AVATAR_COLORS = [
@@ -115,7 +138,7 @@ export default function ActivityToast() {
           type:      'audit',
           staffName: row.staff_name,
           action:    row.action,
-          details:   metaDetails(row.metadata ?? {}),
+          details:   metaDetails(row.action, row.metadata ?? {}),
         })
       })
       .subscribe()

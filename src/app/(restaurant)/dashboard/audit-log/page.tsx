@@ -59,6 +59,10 @@ const ACTION_CONFIG: Record<AuditAction, { label: string; color: string; bg: str
   // Pending orders
   pending_approved:   { label: 'Approved',        color: 'text-teal-400',    bg: 'bg-teal-500/12 border-teal-500/25',       dot: 'bg-teal-400'     },
   pending_declined:   { label: 'Declined',        color: 'text-rose-400',    bg: 'bg-rose-500/12 border-rose-500/25',       dot: 'bg-rose-400'     },
+  // Public-facing events
+  guest_order:        { label: '📱 Guest Order',  color: 'text-violet-400',  bg: 'bg-violet-500/12 border-violet-500/25',   dot: 'bg-violet-400'   },
+  waiter_call:        { label: '🔔 Waiter Call',  color: 'text-amber-400',   bg: 'bg-amber-500/12 border-amber-500/25',     dot: 'bg-amber-400'    },
+  delivery_order:     { label: '🛵 Delivery',     color: 'text-blue-400',    bg: 'bg-blue-500/12 border-blue-500/25',       dot: 'bg-blue-400'     },
 }
 
 function initials(name: string | null) {
@@ -92,6 +96,12 @@ function MetaLine({ log, formatPrice }: { log: AuditLog; formatPrice: (n: number
     parts.push(formatPrice(Number(m.total)))
   if (m.method)       parts.push(String(m.method))
   if (m.item_count)   parts.push(`${m.item_count} items`)
+  // Public-facing events
+  if (m.customer)     parts.push(String(m.customer))
+  if (m.phone)        parts.push(String(m.phone))
+  if (m.items)        parts.push(String(m.items))
+  else if (m.items_count) parts.push(`${m.items_count} items`)
+  if (m.address)      parts.push(String(m.address))
 
   return (
     <p className="text-xs text-white/40 mt-0.5 truncate">
@@ -184,6 +194,7 @@ const ALL_ACTIONS: AuditAction[] = [
   'kds_cooking', 'kds_ready',
   'delivery_confirmed', 'delivery_out', 'delivery_delivered', 'delivery_cancelled',
   'pending_approved', 'pending_declined',
+  'guest_order', 'waiter_call', 'delivery_order',
 ]
 
 export default function AuditLogPage() {
