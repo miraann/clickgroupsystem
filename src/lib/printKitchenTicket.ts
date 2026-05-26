@@ -53,6 +53,8 @@ export async function printKitchenTicket(params: {
   .qty{font-size:14px;font-weight:800;color:#f59e0b;min-width:22px;text-align:right}
   .name{font-size:13px;font-weight:600;color:#fff}
   .note{font-size:10px;color:rgba(255,255,255,0.4);padding-left:28px;margin-top:2px}
+  .closebtn{position:fixed;top:12px;right:12px;width:30px;height:30px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);border-radius:50%;font-size:16px;line-height:1;color:rgba(255,255,255,0.5);cursor:pointer;display:flex;align-items:center;justify-content:center}
+  .closebtn:hover{background:rgba(255,255,255,0.2);color:#fff}
   .printbtn{margin-top:16px;width:100%;padding:12px;background:#f59e0b;border:none;border-radius:12px;font-size:14px;font-weight:700;color:#fff;cursor:pointer;letter-spacing:.01em}
   .printbtn:hover{background:#d97706}.printbtn:active{transform:scale(.97)}
   .foot{margin-top:8px;font-size:9px;color:rgba(255,255,255,0.15);text-align:center;line-height:1.4}
@@ -67,6 +69,7 @@ export async function printKitchenTicket(params: {
   @page{size:${paperWidth}mm auto;margin:2mm}
 }
 </style></head><body>
+<button class="closebtn" onclick="window.close()">&times;</button>
 <div class="card">
   <div class="brand">ClickGroup POS · Kitchen</div>
   <div class="table-num">Table ${params.tableNum}</div>
