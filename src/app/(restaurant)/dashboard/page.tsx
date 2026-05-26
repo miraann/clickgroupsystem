@@ -1314,7 +1314,7 @@ export default function TablesPage() {
               </Link>
             )}
             {(isOwner || can('dashboard.btn_audit_log')) && (
-              <Link href="/dashboard/audit-log" title="Audit Log" className={cn('hidden sm:flex w-14 h-14 rounded-xl items-center justify-center transition-all active:scale-95', navBtnCn)} style={navBtn('audit')}>
+              <Link href="/dashboard/settings/audit-log" title="Audit Log" className={cn('hidden sm:flex w-14 h-14 rounded-xl items-center justify-center transition-all active:scale-95', navBtnCn)} style={navBtn('audit')}>
                 <Shield size={26} />
               </Link>
             )}
