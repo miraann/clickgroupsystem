@@ -11,6 +11,7 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import { assignOrderNumber } from '@/lib/orderNumber'
+import { sendPush } from '@/lib/push'
 import { useRestaurantMenu } from '@/hooks/useRestaurantMenu'
 
 interface Restaurant { id: string; name: string; logo_url: string | null; settings: Record<string, string> }
@@ -280,6 +281,7 @@ export default function GuestPage() {
       table_name:    table.name || null,
       status:        'pending',
     })
+    sendPush(restaurant.id, 'waiter')
     setWaiterLoading(false)
     setWaiterCalled(true)
     setWaiterCooldown(true)
@@ -488,6 +490,7 @@ export default function GuestPage() {
       setPlacing(false)
       return
     }
+    sendPush(restaurant.id, 'guest')
 
     // Update order total
     const addedTotal = cartItems.reduce((s, { item, entry }) => {

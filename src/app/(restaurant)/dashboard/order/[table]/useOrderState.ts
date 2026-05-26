@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/client'
 import { assignOrderNumber } from '@/lib/orderNumber'
 import { printKitchenTicket } from '@/lib/printKitchenTicket'
 import { logAudit } from '@/lib/logAudit'
+import { sendPush } from '@/lib/push'
 import { enqueueOrder, getQueueCount, syncAllQueued } from '@/lib/offlineQueue'
 import type {
   DbCategory, DbMenuItem, KitchenNote, DraftEntry, DbOrderItem,
@@ -313,6 +314,7 @@ export function useOrderState(table: string, guestCount: number) {
           item_count: rows.length,
           items:      rows.map(r => ({ name: r.item_name, qty: r.qty })),
         })
+        sendPush(restaurantId, 'kds')
         printKitchenTicket({
           restaurantId,
           tableNum: table,
@@ -407,6 +409,7 @@ export function useOrderState(table: string, guestCount: number) {
       setDraft(prev => { const m = new Map(prev); m.delete(menuItem.id); return m })
       setActiveTab('ordered')
       if (restaurantId) {
+        sendPush(restaurantId, 'kds')
         logAudit(restaurantId, 'send_to_kitchen', {
           table,
           order_id:  oid,

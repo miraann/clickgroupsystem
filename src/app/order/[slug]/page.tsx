@@ -12,6 +12,7 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import { assignOrderNumber } from '@/lib/orderNumber'
+import { sendPush } from '@/lib/push'
 import { useRestaurantMenu } from '@/hooks/useRestaurantMenu'
 
 const LocationPickerMap = dynamic(
@@ -1185,6 +1186,8 @@ export default function DeliveryOrderPage() {
       status:        'pending',
     })
     if (delivErr) { setPlaceError(delivErr.message); setPlacing(false); return }
+
+    sendPush(restaurant.id, 'delivery')
 
     if (couponId) {
       await supabase.rpc('increment_discount_code', { p_id: couponId })
