@@ -295,7 +295,7 @@ export default function PreferencePage() {
   const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const restaurantId = typeof window !== 'undefined' ? localStorage.getItem('restaurant_id') : null
-  const { status: pushStatus, busy: pushBusy, subscribe, unsubscribe } = useWebPush(restaurantId)
+  const { status: pushStatus, busy: pushBusy, error: pushError, subscribe, unsubscribe } = useWebPush(restaurantId)
 
   const handlePreview = (previewKey: string, play: () => void) => {
     play()
@@ -717,6 +717,9 @@ export default function PreferencePage() {
                            : pushStatus === 'loading'    ? 'Checking…'
                            :                              'Not enabled on this device yet'}
                         </p>
+                        {pushError && (
+                          <p className="text-xs text-rose-400 mt-1 break-all">{pushError}</p>
+                        )}
                       </div>
                     </div>
                     {pushStatus === 'unsubscribed' && (

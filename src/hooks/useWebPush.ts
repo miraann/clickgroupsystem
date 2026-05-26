@@ -21,6 +21,7 @@ export function useWebPush(restaurantId: string | null) {
   const [status, setStatus]             = useState<SubStatus>('loading')
   const [subscription, setSubscription] = useState<PushSubscription | null>(null)
   const [busy, setBusy]                 = useState(false)
+  const [error, setError]               = useState<string | null>(null)
 
   const check = useCallback(async () => {
     // ── Native Android via Capacitor ──────────────────────────
@@ -51,6 +52,7 @@ export function useWebPush(restaurantId: string | null) {
   const subscribe = useCallback(async () => {
     if (!restaurantId || busy) return
     setBusy(true)
+    setError(null)
     try {
       // ── Native Android ────────────────────────────────────
       if (await isCapacitorNative()) {
@@ -58,22 +60,39 @@ export function useWebPush(restaurantId: string | null) {
         const result = await PushNotifications.requestPermissions()
         if (result.receive !== 'granted') { setStatus('denied'); setBusy(false); return }
 
-        // Set up listener BEFORE calling register() to avoid missing the event
-        await new Promise<void>(async (resolve) => {
-          const handle = await PushNotifications.addListener('registration', async (token) => {
-            try {
-              await fetch('/api/push/subscribe', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ fcm_token: token.value, restaurant_id: restaurantId }),
-              })
-            } catch { /* silent */ }
-            handle.remove()
-            resolve()
+        // Set up both success and error listeners BEFORE calling register()
+        const outcome = await new Promise<{ token?: string; err?: string }>(async (resolve) => {
+          const okHandle  = await PushNotifications.addListener('registration', (token) => {
+            okHandle.remove()
+            resolve({ token: token.value })
           })
-          setTimeout(resolve, 10000) // 10s safety timeout
+          const errHandle = await PushNotifications.addListener('registrationError', (e) => {
+            errHandle.remove()
+            resolve({ err: JSON.stringify(e) })
+          })
+          setTimeout(() => resolve({ err: 'Registration timed out after 10s' }), 10000)
           await PushNotifications.register()
         })
+
+        if (outcome.err) {
+          setError(`FCM registration failed: ${outcome.err}`)
+          setBusy(false)
+          return
+        }
+
+        if (outcome.token) {
+          const res = await fetch('/api/push/subscribe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fcm_token: outcome.token, restaurant_id: restaurantId }),
+          })
+          if (!res.ok) {
+            const body = await res.text()
+            setError(`Subscribe API error: ${body}`)
+            setBusy(false)
+            return
+          }
+        }
 
         setStatus('subscribed')
         setBusy(false)
@@ -99,7 +118,7 @@ export function useWebPush(restaurantId: string | null) {
       setSubscription(sub)
       setStatus('subscribed')
     } catch (err) {
-      console.error('Push subscribe failed:', err)
+      setError(String(err))
     }
     setBusy(false)
   }, [restaurantId, busy])
@@ -107,10 +126,10 @@ export function useWebPush(restaurantId: string | null) {
   const unsubscribe = useCallback(async () => {
     if (busy) return
     setBusy(true)
+    setError(null)
     try {
       if (await isCapacitorNative()) {
         const { PushNotifications } = await import('@capacitor/push-notifications')
-        // Remove all listeners; on next app open will re-register if needed
         await PushNotifications.removeAllListeners()
         setStatus('unsubscribed')
         setBusy(false)
@@ -131,5 +150,5 @@ export function useWebPush(restaurantId: string | null) {
     setBusy(false)
   }, [subscription, busy])
 
-  return { status, busy, subscribe, unsubscribe }
+  return { status, busy, error, subscribe, unsubscribe }
 }
