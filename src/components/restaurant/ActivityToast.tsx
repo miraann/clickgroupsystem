@@ -17,42 +17,64 @@ interface Toast {
   targetRole?: string | null
 }
 
-// Emoji + colour per action (language-independent)
-const ACTION_STYLE: Record<string, { emoji: string; color: string; labelKey: keyof Translations }> = {
-  send_to_kitchen:    { emoji: '🍽️', color: 'text-amber-300',   labelKey: 'toast_sent_to_kitchen' },
-  payment:            { emoji: '💰', color: 'text-emerald-300', labelKey: 'toast_payment'          },
-  pay_later:          { emoji: '🗒️', color: 'text-amber-300',   labelKey: 'toast_pay_later'        },
-  void_item:          { emoji: '❌', color: 'text-rose-300',    labelKey: 'toast_void_item'        },
-  edit_price:         { emoji: '✏️', color: 'text-blue-300',    labelKey: 'toast_edit_price'       },
-  apply_discount:     { emoji: '🏷️', color: 'text-purple-300',  labelKey: 'toast_discount'         },
-  add:                { emoji: '📦', color: 'text-teal-300',    labelKey: 'toast_add'              },
-  edit:               { emoji: '✏️', color: 'text-sky-300',     labelKey: 'toast_edit'             },
-  delete:             { emoji: '🗑️', color: 'text-rose-300',    labelKey: 'toast_delete'           },
-  toggle:             { emoji: '🔄', color: 'text-indigo-300',  labelKey: 'toast_toggle'           },
-  update_settings:    { emoji: '⚙️', color: 'text-violet-300',  labelKey: 'toast_settings'         },
-  print:              { emoji: '🖨️', color: 'text-slate-300',   labelKey: 'toast_print'            },
-  print_bill:         { emoji: '🧾', color: 'text-slate-300',   labelKey: 'toast_print_bill'       },
-  transfer_item:      { emoji: '🔀', color: 'text-cyan-300',    labelKey: 'toast_transfer'         },
-  kds_cooking:        { emoji: '🔥', color: 'text-orange-300',  labelKey: 'toast_kds_cooking'      },
-  kds_ready:          { emoji: '✅', color: 'text-green-300',   labelKey: 'toast_kds_ready'        },
-  delivery_confirmed: { emoji: '📦', color: 'text-sky-300',     labelKey: 'toast_del_confirmed'    },
-  delivery_out:       { emoji: '🚚', color: 'text-blue-300',    labelKey: 'toast_del_out'          },
-  delivery_delivered: { emoji: '🎉', color: 'text-emerald-300', labelKey: 'toast_del_delivered'    },
-  delivery_cancelled: { emoji: '🚫', color: 'text-rose-300',    labelKey: 'toast_del_cancelled'    },
-  pending_approved:   { emoji: '✅', color: 'text-teal-300',    labelKey: 'toast_approved'         },
-  pending_declined:   { emoji: '❌', color: 'text-rose-300',    labelKey: 'toast_declined'         },
-  guest_order:        { emoji: '📱', color: 'text-violet-300',  labelKey: 'toast_guest_order'      },
-  waiter_call:        { emoji: '🔔', color: 'text-amber-300',   labelKey: 'toast_waiter_call'      },
-  delivery_order:     { emoji: '🛵', color: 'text-blue-300',    labelKey: 'toast_delivery_order'   },
+// All accent variants hardcoded so Tailwind includes them
+type Accent = 'amber' | 'emerald' | 'rose' | 'blue' | 'violet' | 'teal' | 'orange' | 'slate' | 'cyan' | 'purple' | 'sky' | 'indigo' | 'green'
+
+const ACCENT_CLASSES: Record<Accent, { bar: string; iconBg: string; labelText: string; progress: string; border: string }> = {
+  amber:   { bar: 'bg-amber-400',   iconBg: 'bg-amber-400/15',   labelText: 'text-amber-300',   progress: 'bg-amber-400',   border: 'border-amber-400/20'   },
+  emerald: { bar: 'bg-emerald-400', iconBg: 'bg-emerald-400/15', labelText: 'text-emerald-300', progress: 'bg-emerald-400', border: 'border-emerald-400/20' },
+  rose:    { bar: 'bg-rose-400',    iconBg: 'bg-rose-400/15',    labelText: 'text-rose-300',    progress: 'bg-rose-400',    border: 'border-rose-400/20'    },
+  blue:    { bar: 'bg-blue-400',    iconBg: 'bg-blue-400/15',    labelText: 'text-blue-300',    progress: 'bg-blue-400',    border: 'border-blue-400/20'    },
+  violet:  { bar: 'bg-violet-400',  iconBg: 'bg-violet-400/15',  labelText: 'text-violet-300',  progress: 'bg-violet-400',  border: 'border-violet-400/20'  },
+  teal:    { bar: 'bg-teal-400',    iconBg: 'bg-teal-400/15',    labelText: 'text-teal-300',    progress: 'bg-teal-400',    border: 'border-teal-400/20'    },
+  orange:  { bar: 'bg-orange-400',  iconBg: 'bg-orange-400/15',  labelText: 'text-orange-300',  progress: 'bg-orange-400',  border: 'border-orange-400/20'  },
+  slate:   { bar: 'bg-slate-400',   iconBg: 'bg-slate-400/15',   labelText: 'text-slate-300',   progress: 'bg-slate-400',   border: 'border-slate-400/20'   },
+  cyan:    { bar: 'bg-cyan-400',    iconBg: 'bg-cyan-400/15',    labelText: 'text-cyan-300',    progress: 'bg-cyan-400',    border: 'border-cyan-400/20'    },
+  purple:  { bar: 'bg-purple-400',  iconBg: 'bg-purple-400/15',  labelText: 'text-purple-300',  progress: 'bg-purple-400',  border: 'border-purple-400/20'  },
+  sky:     { bar: 'bg-sky-400',     iconBg: 'bg-sky-400/15',     labelText: 'text-sky-300',     progress: 'bg-sky-400',     border: 'border-sky-400/20'     },
+  indigo:  { bar: 'bg-indigo-400',  iconBg: 'bg-indigo-400/15',  labelText: 'text-indigo-300',  progress: 'bg-indigo-400',  border: 'border-indigo-400/20'  },
+  green:   { bar: 'bg-green-400',   iconBg: 'bg-green-400/15',   labelText: 'text-green-300',   progress: 'bg-green-400',   border: 'border-green-400/20'   },
 }
 
-function getStyle(action: string, t: Translations) {
+const ACTION_STYLE: Record<string, { emoji: string; accent: Accent; labelKey: keyof Translations }> = {
+  send_to_kitchen:    { emoji: '🍽️', accent: 'amber',   labelKey: 'toast_sent_to_kitchen' },
+  payment:            { emoji: '💰', accent: 'emerald', labelKey: 'toast_payment'          },
+  pay_later:          { emoji: '🗒️', accent: 'amber',   labelKey: 'toast_pay_later'        },
+  void_item:          { emoji: '❌', accent: 'rose',    labelKey: 'toast_void_item'        },
+  edit_price:         { emoji: '✏️', accent: 'blue',    labelKey: 'toast_edit_price'       },
+  apply_discount:     { emoji: '🏷️', accent: 'purple',  labelKey: 'toast_discount'         },
+  add:                { emoji: '📦', accent: 'teal',    labelKey: 'toast_add'              },
+  edit:               { emoji: '✏️', accent: 'sky',     labelKey: 'toast_edit'             },
+  delete:             { emoji: '🗑️', accent: 'rose',    labelKey: 'toast_delete'           },
+  toggle:             { emoji: '🔄', accent: 'indigo',  labelKey: 'toast_toggle'           },
+  update_settings:    { emoji: '⚙️', accent: 'violet',  labelKey: 'toast_settings'         },
+  print:              { emoji: '🖨️', accent: 'slate',   labelKey: 'toast_print'            },
+  print_bill:         { emoji: '🧾', accent: 'slate',   labelKey: 'toast_print_bill'       },
+  transfer_item:      { emoji: '🔀', accent: 'cyan',    labelKey: 'toast_transfer'         },
+  kds_cooking:        { emoji: '🔥', accent: 'orange',  labelKey: 'toast_kds_cooking'      },
+  kds_ready:          { emoji: '✅', accent: 'green',   labelKey: 'toast_kds_ready'        },
+  delivery_confirmed: { emoji: '📦', accent: 'sky',     labelKey: 'toast_del_confirmed'    },
+  delivery_out:       { emoji: '🚚', accent: 'blue',    labelKey: 'toast_del_out'          },
+  delivery_delivered: { emoji: '🎉', accent: 'emerald', labelKey: 'toast_del_delivered'    },
+  delivery_cancelled: { emoji: '🚫', accent: 'rose',    labelKey: 'toast_del_cancelled'    },
+  pending_approved:   { emoji: '✅', accent: 'teal',    labelKey: 'toast_approved'         },
+  pending_declined:   { emoji: '❌', accent: 'rose',    labelKey: 'toast_declined'         },
+  guest_order:        { emoji: '📱', accent: 'violet',  labelKey: 'toast_guest_order'      },
+  waiter_call:        { emoji: '🔔', accent: 'amber',   labelKey: 'toast_waiter_call'      },
+  delivery_order:     { emoji: '🛵', accent: 'blue',    labelKey: 'toast_delivery_order'   },
+}
+
+function getActionInfo(action: string, t: Translations) {
   const s = ACTION_STYLE[action]
-  if (s) return { emoji: s.emoji, label: t[s.labelKey], color: s.color }
+  if (s) return {
+    emoji:  s.emoji,
+    label:  t[s.labelKey],
+    accent: ACCENT_CLASSES[s.accent],
+  }
   return {
-    emoji: '📋',
-    label: action.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
-    color: 'text-white/60',
+    emoji:  '📋',
+    label:  action.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+    accent: ACCENT_CLASSES.slate,
   }
 }
 
@@ -60,15 +82,15 @@ function buildDetails(action: string, m: Record<string, unknown>, tableWord: str
   const get = (k: string) => m[k] as string | number | null | undefined
   switch (action) {
     case 'guest_order':
-      return `${tableWord} ${get('table') ?? '?'}${m.items ? ` — ${m.items}` : (m.items_count ? ` — ${m.items_count} ${itemsWord}` : '')}`
+      return `${tableWord} ${get('table') ?? '?'}${m.items ? ` · ${m.items}` : (m.items_count ? ` · ${m.items_count} ${itemsWord}` : '')}`
     case 'waiter_call':
-      return `${tableWord} ${get('table') ?? '?'}${m.table_name ? ` (${m.table_name})` : ''}`
+      return `${tableWord} ${get('table') ?? '?'}${m.table_name ? ` · ${m.table_name}` : ''}`
     case 'delivery_order':
-      return `${get('customer') ?? ''}${m.items ? ` — ${m.items}` : (m.items_count ? ` — ${m.items_count} ${itemsWord}` : '')}`
+      return `${get('customer') ?? ''}${m.items ? ` · ${m.items}` : (m.items_count ? ` · ${m.items_count} ${itemsWord}` : '')}`
     case 'send_to_kitchen':
-      return `${tableWord} ${get('table') ?? '?'}${m.items ? ` — ${m.items}` : ''}`
+      return `${tableWord} ${get('table') ?? '?'}${m.items ? ` · ${m.items}` : ''}`
     case 'payment':
-      return `${tableWord} ${get('table') ?? '?'}${m.method ? ` · ${m.method}` : ''}${m.total ? ` — ${m.total}` : ''}`
+      return `${tableWord} ${get('table') ?? '?'}${m.method ? ` · ${m.method}` : ''}${m.total ? ` · ${m.total}` : ''}`
     default: {
       const parts: string[] = []
       if (m.table)     parts.push(`${tableWord} ${m.table}`)
@@ -82,7 +104,7 @@ function buildDetails(action: string, m: Record<string, unknown>, tableWord: str
 
 const AVATAR_COLORS = [
   'bg-cyan-500', 'bg-amber-500', 'bg-emerald-500', 'bg-violet-500',
-  'bg-rose-500',  'bg-sky-500',  'bg-orange-500',  'bg-teal-500',
+  'bg-rose-500', 'bg-sky-500',   'bg-orange-500',  'bg-teal-500',
 ]
 function avatarColor(name?: string | null) {
   if (!name) return 'bg-white/20'
@@ -102,9 +124,8 @@ export default function ActivityToast() {
   const [toasts, setToasts] = useState<Toast[]>([])
   const timers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
 
-  // Translated filler words
-  const tableWord = t.kds_table   // "Table" / "مێز" / "الطاولة"
-  const itemsWord = t.kds_items   // "Items" / "کاڵاکان" / "الأصناف"
+  const tableWord = t.kds_table
+  const itemsWord = t.kds_items
 
   const dismiss = useCallback((id: string) => {
     setToasts(prev => prev.filter(t => t.id !== id))
@@ -113,7 +134,7 @@ export default function ActivityToast() {
   }, [])
 
   const push = useCallback((toast: Toast) => {
-    setToasts(prev => [toast, ...prev].slice(0, 5))
+    setToasts(prev => [toast, ...prev].slice(0, 4))
     timers.current.set(toast.id, setTimeout(() => dismiss(toast.id), TOAST_TTL))
   }, [dismiss])
 
@@ -136,13 +157,7 @@ export default function ActivityToast() {
           staff_name: string | null
           metadata: Record<string, unknown>
         }
-        push({
-          id:        row.id,
-          type:      'audit',
-          staffName: row.staff_name,
-          action:    row.action,
-          metadata:  row.metadata ?? {},
-        })
+        push({ id: row.id, type: 'audit', staffName: row.staff_name, action: row.action, metadata: row.metadata ?? {} })
       })
       .subscribe()
 
@@ -152,103 +167,145 @@ export default function ActivityToast() {
         event: 'INSERT', schema: 'public', table: 'role_messages',
         filter: `restaurant_id=eq.${restaurantId}`,
       }, payload => {
-        const row = payload.new as {
-          id: string; message: string
-          sender_name: string | null
-          target_role: string | null
-        }
+        const row = payload.new as { id: string; message: string; sender_name: string | null; target_role: string | null }
         if (!row.target_role || row.target_role === staffRole) {
-          push({
-            id:         row.id,
-            type:       'message',
-            message:    row.message,
-            senderName: row.sender_name,
-            targetRole: row.target_role,
-          })
+          push({ id: row.id, type: 'message', message: row.message, senderName: row.sender_name, targetRole: row.target_role })
         }
       })
       .subscribe()
 
-    return () => {
-      supabase.removeChannel(auditCh)
-      supabase.removeChannel(msgCh)
-    }
+    return () => { supabase.removeChannel(auditCh); supabase.removeChannel(msgCh) }
   }, [push])
 
   if (toasts.length === 0) return null
 
   return (
     <div
-      className="fixed top-4 left-1/2 -translate-x-1/2 z-[9999] flex flex-col gap-2 pointer-events-none w-[340px]"
+      className="fixed top-4 left-1/2 -translate-x-1/2 z-[9999] flex flex-col gap-2.5 pointer-events-none"
+      style={{ width: 'min(400px, calc(100vw - 24px))' }}
       dir={isRTL ? 'rtl' : 'ltr'}
     >
       <AnimatePresence initial={false}>
         {toasts.map(toast => {
-          const style   = toast.action ? getStyle(toast.action, t) : null
-          const details = toast.action && toast.metadata
-            ? buildDetails(toast.action, toast.metadata, tableWord, itemsWord)
-            : null
+          if (toast.type === 'audit') {
+            const info    = getActionInfo(toast.action ?? '', t)
+            const details = toast.action && toast.metadata
+              ? buildDetails(toast.action, toast.metadata, tableWord, itemsWord)
+              : null
 
+            return (
+              <motion.div
+                key={toast.id}
+                layout
+                initial={{ opacity: 0, y: -28, scale: 0.94 }}
+                animate={{ opacity: 1, y: 0,   scale: 1    }}
+                exit={{    opacity: 0, y: -16, scale: 0.96, transition: { duration: 0.18 } }}
+                transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
+                className="pointer-events-auto overflow-hidden rounded-2xl shadow-2xl shadow-black/60"
+                style={{ border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(10,13,24,0.92)' }}
+              >
+                {/* Body */}
+                <div className="flex items-stretch">
+                  {/* Left accent bar */}
+                  <div className={`w-[3px] shrink-0 ${info.accent.bar}`} />
+
+                  {/* Content */}
+                  <div className="flex-1 min-w-0 px-4 py-3.5">
+                    <div className="flex items-start gap-3">
+                      {/* Emoji circle */}
+                      <div className={`w-10 h-10 rounded-xl shrink-0 flex items-center justify-center text-xl border ${info.accent.iconBg} ${info.accent.border}`}>
+                        {info.emoji}
+                      </div>
+
+                      {/* Text */}
+                      <div className="flex-1 min-w-0 pt-0.5">
+                        <p className={`text-sm font-bold leading-tight ${info.accent.labelText}`}>
+                          {info.label}
+                        </p>
+                        <div className={`flex items-center gap-1.5 mt-1 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                          <div className={`w-5 h-5 rounded-md shrink-0 flex items-center justify-center text-white text-[9px] font-bold ${avatarColor(toast.staffName)}`}>
+                            {initials(toast.staffName)}
+                          </div>
+                          <span className="text-[11px] text-white/50 truncate">{toast.staffName ?? '—'}</span>
+                        </div>
+                        {details && (
+                          <p className="text-[11px] text-white/35 mt-1.5 leading-relaxed line-clamp-2">{details}</p>
+                        )}
+                      </div>
+
+                      {/* Dismiss */}
+                      <button
+                        onClick={() => dismiss(toast.id)}
+                        className="shrink-0 w-6 h-6 rounded-lg flex items-center justify-center text-white/20 hover:text-white/60 hover:bg-white/8 transition-all"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Progress bar */}
+                <div className="h-[2px] bg-white/5">
+                  <motion.div
+                    className={`h-full ${info.accent.progress}`}
+                    initial={{ width: '100%' }}
+                    animate={{ width: '0%' }}
+                    transition={{ duration: TOAST_TTL / 1000, ease: 'linear' }}
+                  />
+                </div>
+              </motion.div>
+            )
+          }
+
+          // ── Message toast ─────────────────────────────────────
           return (
             <motion.div
               key={toast.id}
               layout
-              initial={{ opacity: 0, y: -20, scale: 0.95 }}
+              initial={{ opacity: 0, y: -28, scale: 0.94 }}
               animate={{ opacity: 1, y: 0,   scale: 1    }}
-              exit={{    opacity: 0, y: -10, scale: 0.95 }}
-              transition={{ duration: 0.22, ease: 'circOut' }}
-              className="pointer-events-auto"
+              exit={{    opacity: 0, y: -16, scale: 0.96, transition: { duration: 0.18 } }}
+              transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
+              className="pointer-events-auto overflow-hidden rounded-2xl shadow-2xl shadow-black/60"
+              style={{ border: '1px solid rgba(245,158,11,0.25)', background: 'rgba(10,13,24,0.92)' }}
             >
-              {toast.type === 'audit' ? (
-                <div className="flex items-start gap-3 px-4 py-3 rounded-2xl border border-white/10 bg-[rgba(8,11,20,0.88)] backdrop-blur-2xl shadow-xl shadow-black/50">
-                  <div className={`w-8 h-8 rounded-xl shrink-0 flex items-center justify-center text-white text-[11px] font-bold mt-0.5 ${avatarColor(toast.staffName)}`}>
-                    {initials(toast.staffName)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className={`flex items-center gap-1.5 flex-wrap ${isRTL ? 'flex-row-reverse' : ''}`}>
-                      <span className="text-xs font-semibold text-white truncate max-w-[90px]">
-                        {toast.staffName ?? '—'}
-                      </span>
-                      <span className="text-white/20">·</span>
-                      {style && (
-                        <span className={`text-xs font-medium ${style.color}`}>
-                          {style.emoji} {style.label}
-                        </span>
-                      )}
+              <div className="flex items-stretch">
+                <div className="w-[3px] shrink-0 bg-amber-400" />
+                <div className="flex-1 px-4 py-3.5">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-xl shrink-0 flex items-center justify-center text-xl bg-amber-400/15 border border-amber-400/20">
+                      💬
                     </div>
-                    {details && (
-                      <p className="text-[11px] text-white/40 mt-0.5 truncate">{details}</p>
-                    )}
+                    <div className="flex-1 min-w-0 pt-0.5">
+                      <div className={`flex items-center gap-1.5 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                        <p className="text-sm font-bold text-amber-300 leading-tight">{toast.senderName ?? '—'}</p>
+                        {toast.targetRole && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-400/70 border border-amber-500/20 font-medium">
+                            {toast.targetRole}
+                          </span>
+                        )}
+                      </div>
+                      <p className={`text-xs text-white/70 mt-1.5 leading-relaxed break-words line-clamp-3 ${isRTL ? 'text-right' : ''}`}>
+                        {toast.message}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => dismiss(toast.id)}
+                      className="shrink-0 w-6 h-6 rounded-lg flex items-center justify-center text-white/20 hover:text-white/60 hover:bg-white/8 transition-all"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
                   </div>
-                  <button onClick={() => dismiss(toast.id)}
-                    className="shrink-0 w-5 h-5 rounded flex items-center justify-center text-white/20 hover:text-white/60 transition-colors mt-0.5">
-                    <X className="w-3 h-3" />
-                  </button>
                 </div>
-              ) : (
-                <div className="flex items-start gap-3 px-4 py-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 backdrop-blur-2xl shadow-xl shadow-black/50">
-                  <div className="w-8 h-8 rounded-xl shrink-0 flex items-center justify-center text-lg mt-0.5">
-                    💬
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-xs font-semibold text-amber-300 mb-0.5 ${isRTL ? 'text-right' : ''}`}>
-                      {toast.senderName ?? '—'}
-                      {toast.targetRole && (
-                        <span className={`${isRTL ? 'mr-1.5' : 'ml-1.5'} text-amber-400/60 font-normal`}>
-                          {isRTL ? `← ${toast.targetRole}` : `→ ${toast.targetRole}`}
-                        </span>
-                      )}
-                    </p>
-                    <p className={`text-xs text-white/80 leading-relaxed break-words ${isRTL ? 'text-right' : ''}`}>
-                      {toast.message}
-                    </p>
-                  </div>
-                  <button onClick={() => dismiss(toast.id)}
-                    className="shrink-0 w-5 h-5 rounded flex items-center justify-center text-white/20 hover:text-white/60 transition-colors mt-0.5">
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
-              )}
+              </div>
+              <div className="h-[2px] bg-white/5">
+                <motion.div
+                  className="h-full bg-amber-400"
+                  initial={{ width: '100%' }}
+                  animate={{ width: '0%' }}
+                  transition={{ duration: TOAST_TTL / 1000, ease: 'linear' }}
+                />
+              </div>
             </motion.div>
           )
         })}
