@@ -1012,6 +1012,33 @@ const ku: Record<keyof typeof en, string> = {
   mem_deduct_points:    'پووینت کەمبکەرەوە',
   mem_points_history:   'مێژووی پووینت',
   mem_reason:           'هۆکار',
+
+  // ── Activity toast action labels ──────────────────────────────
+  toast_sent_to_kitchen:    'نێردرا بۆ چێشتخانە',
+  toast_payment:            'پارەدان',
+  toast_pay_later:          'پاشتر دەدرێت',
+  toast_void_item:          'بەتاڵکردن',
+  toast_edit_price:         'گۆڕینی نرخ',
+  toast_discount:           'داشکاندن جێبەجێکرا',
+  toast_add:                'زیادکردن',
+  toast_edit:               'دەستکاری',
+  toast_delete:             'سڕینەوە',
+  toast_toggle:             'گۆڕانکاری',
+  toast_settings:           'ڕێکخستنەکان نوێکرایەوە',
+  toast_print:              'پرینت',
+  toast_print_bill:         'پرینتی پسووڵە',
+  toast_transfer:           'گواستنەوە',
+  toast_kds_cooking:        'KDS لە پشکرین',
+  toast_kds_ready:          'KDS ئامادەیە',
+  toast_del_confirmed:      'گەیاندن پشتڕاستکرایەوە',
+  toast_del_out:            'لە ڕێگادا',
+  toast_del_delivered:      'گەیشت',
+  toast_del_cancelled:      'گەیاندن هەڵوەشایەوە',
+  toast_approved:           'فەرمان پەسەندکرا',
+  toast_declined:           'فەرمان ڕەتکرایەوە',
+  toast_guest_order:        'فەرمانی QR میوان',
+  toast_waiter_call:        'گارسۆن بانگکرا',
+  toast_delivery_order:     'فەرمانی گەیاندن',
 }
 
 export default ku

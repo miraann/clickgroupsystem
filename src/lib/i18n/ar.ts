@@ -1012,6 +1012,33 @@ const ar: Record<keyof typeof en, string> = {
   mem_deduct_points:    'خصم نقاط',
   mem_points_history:   'سجل النقاط',
   mem_reason:           'السبب',
+
+  // ── Activity toast action labels ──────────────────────────────
+  toast_sent_to_kitchen:    'أُرسل للمطبخ',
+  toast_payment:            'الدفع',
+  toast_pay_later:          'الدفع لاحقاً',
+  toast_void_item:          'إلغاء الصنف',
+  toast_edit_price:         'تعديل السعر',
+  toast_discount:           'تطبيق خصم',
+  toast_add:                'إضافة',
+  toast_edit:               'تعديل',
+  toast_delete:             'حذف',
+  toast_toggle:             'تبديل',
+  toast_settings:           'تحديث الإعدادات',
+  toast_print:              'طباعة',
+  toast_print_bill:         'طباعة الفاتورة',
+  toast_transfer:           'نقل',
+  toast_kds_cooking:        'المطبخ يطبخ',
+  toast_kds_ready:          'المطبخ جاهز',
+  toast_del_confirmed:      'تأكيد التوصيل',
+  toast_del_out:            'في الطريق',
+  toast_del_delivered:      'تم التوصيل',
+  toast_del_cancelled:      'إلغاء التوصيل',
+  toast_approved:           'موافقة الطلب',
+  toast_declined:           'رفض الطلب',
+  toast_guest_order:        'طلب QR الزائر',
+  toast_waiter_call:        'استدعاء النادل',
+  toast_delivery_order:     'طلب توصيل',
 }
 
 export default ar

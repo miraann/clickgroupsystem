@@ -998,6 +998,33 @@ const en = {
   app_shape_round:      'Round',
   app_shape_rect:       'Rectangle',
 
+  // ── Activity toast action labels ──────────────────────────────
+  toast_sent_to_kitchen:    'Sent to Kitchen',
+  toast_payment:            'Payment',
+  toast_pay_later:          'Pay Later',
+  toast_void_item:          'Void Item',
+  toast_edit_price:         'Edit Price',
+  toast_discount:           'Discount Applied',
+  toast_add:                'Add',
+  toast_edit:               'Edit',
+  toast_delete:             'Delete',
+  toast_toggle:             'Toggle',
+  toast_settings:           'Settings Updated',
+  toast_print:              'Print',
+  toast_print_bill:         'Print Bill',
+  toast_transfer:           'Transfer',
+  toast_kds_cooking:        'KDS Cooking',
+  toast_kds_ready:          'KDS Ready',
+  toast_del_confirmed:      'Delivery Confirmed',
+  toast_del_out:            'Out for Delivery',
+  toast_del_delivered:      'Delivered',
+  toast_del_cancelled:      'Delivery Cancelled',
+  toast_approved:           'Order Approved',
+  toast_declined:           'Order Declined',
+  toast_guest_order:        'Guest QR Order',
+  toast_waiter_call:        'Waiter Called',
+  toast_delivery_order:     'Delivery Order',
+
 } as const
 
 export default en
