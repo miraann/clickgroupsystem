@@ -58,20 +58,21 @@ export function useWebPush(restaurantId: string | null) {
         const result = await PushNotifications.requestPermissions()
         if (result.receive !== 'granted') { setStatus('denied'); setBusy(false); return }
 
-        await PushNotifications.register()
-
-        // Listen for FCM token once
-        await new Promise<void>((resolve) => {
-          const listener = PushNotifications.addListener('registration', async (token) => {
-            await fetch('/api/push/subscribe', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ fcm_token: token.value, restaurant_id: restaurantId }),
-            })
-            listener.then(l => l.remove())
+        // Set up listener BEFORE calling register() to avoid missing the event
+        await new Promise<void>(async (resolve) => {
+          const handle = await PushNotifications.addListener('registration', async (token) => {
+            try {
+              await fetch('/api/push/subscribe', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ fcm_token: token.value, restaurant_id: restaurantId }),
+              })
+            } catch { /* silent */ }
+            handle.remove()
             resolve()
           })
-          setTimeout(resolve, 5000) // safety timeout
+          setTimeout(resolve, 10000) // 10s safety timeout
+          await PushNotifications.register()
         })
 
         setStatus('subscribed')
