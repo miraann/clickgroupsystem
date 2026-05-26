@@ -26,7 +26,7 @@ function pemToArrayBuffer(pem: string): ArrayBuffer {
   return buf.buffer
 }
 
-function toBase64Url(buf: ArrayBuffer): string {
+function toBase64Url(buf: ArrayBuffer | Uint8Array): string {
   return Buffer.from(buf).toString('base64url')
 }
 
