@@ -11,6 +11,7 @@ import {
   Users, Plus, Pencil, Trash2, X, ToggleLeft, ToggleRight,
   Key, Shield, Search, ChevronDown, Loader2,
   Save, Check, ChevronRight, UserCircle, QrCode, Smartphone, Download,
+  MessageCircle, Send,
 } from 'lucide-react'
 import { AnimatedList, AnimatedItem } from '@/components/ui/AnimatedList'
 import { motion, AnimatePresence, type Variants } from 'framer-motion'
@@ -398,7 +399,10 @@ export default function UsersPage() {
   const [savingPerms, setSavingPerms] = useState(false)
   const [savedPerms, setSavedPerms] = useState(false)
   const [deletingRoleId, setDeletingRoleId] = useState<string | null>(null)
-  const [rightTab, setRightTab]     = useState<'permissions' | 'staff'>('permissions')
+  const [rightTab, setRightTab]     = useState<'permissions' | 'staff' | 'message'>('permissions')
+  const [messageText, setMessageText] = useState('')
+  const [sendingMsg, setSendingMsg]   = useState(false)
+  const [sentMsg, setSentMsg]         = useState(false)
   const [roleStaff, setRoleStaff]   = useState<StaffMember[]>([])
   const [loadingRoleStaff, setLoadingRoleStaff] = useState(false)
   const [assigningId, setAssigningId] = useState<string | null>(null)
@@ -536,6 +540,24 @@ export default function UsersPage() {
     logAudit(restaurantId, 'edit', { entity: 'role_permissions', name: roleName }, selectedRoleId)
     setSavingPerms(false); setSavedPerms(true); loadRoles(restaurantId)
   }
+  const sendRoleMessage = async () => {
+    if (!restaurantId || !messageText.trim() || !selectedRoleId) return
+    setSendingMsg(true)
+    const senderName = localStorage.getItem('pos_staff_name')
+      ?? (localStorage.getItem('owner_session') === 'true' ? 'Owner' : null)
+    const roleName = roles.find(r => r.id === selectedRoleId)?.name ?? null
+    await supabase.from('role_messages').insert({
+      restaurant_id: restaurantId,
+      target_role:   roleName,
+      message:       messageText.trim(),
+      sender_name:   senderName,
+    })
+    setSendingMsg(false)
+    setSentMsg(true)
+    setMessageText('')
+    setTimeout(() => setSentMsg(false), 3000)
+  }
+
   const deleteRole = async (id: string) => {
     if (!restaurantId) return
     const roleName = roles.find(r => r.id === id)?.name
@@ -787,14 +809,18 @@ export default function UsersPage() {
                   <Shield className="w-4 h-4 text-amber-400 shrink-0" />
                   <span className="text-sm font-bold text-white">{selectedRole.name}</span>
                   <div className="flex gap-1 ml-4 p-0.5 rounded-lg bg-white/5 border border-white/8">
-                    {(['permissions', 'staff'] as const).map(tab => (
-                      <button key={tab} onClick={() => setRightTab(tab)}
-                        className={cn('px-3 py-1 rounded-md text-xs font-semibold transition-all capitalize', rightTab === tab ? 'bg-amber-500 text-white shadow-sm' : 'text-white/40 hover:text-white/70')}>
-                        {tab === 'staff'
-                          ? <span className="flex items-center gap-1.5"><Users className="w-3 h-3" /> Staff</span>
-                          : <span className="flex items-center gap-1.5"><Shield className="w-3 h-3" /> Permissions</span>}
-                      </button>
-                    ))}
+                    <button onClick={() => setRightTab('permissions')}
+                      className={cn('px-3 py-1 rounded-md text-xs font-semibold transition-all', rightTab === 'permissions' ? 'bg-amber-500 text-white shadow-sm' : 'text-white/40 hover:text-white/70')}>
+                      <span className="flex items-center gap-1.5"><Shield className="w-3 h-3" /> Permissions</span>
+                    </button>
+                    <button onClick={() => setRightTab('staff')}
+                      className={cn('px-3 py-1 rounded-md text-xs font-semibold transition-all', rightTab === 'staff' ? 'bg-amber-500 text-white shadow-sm' : 'text-white/40 hover:text-white/70')}>
+                      <span className="flex items-center gap-1.5"><Users className="w-3 h-3" /> Staff</span>
+                    </button>
+                    <button onClick={() => setRightTab('message')}
+                      className={cn('px-3 py-1 rounded-md text-xs font-semibold transition-all', rightTab === 'message' ? 'bg-amber-500 text-white shadow-sm' : 'text-white/40 hover:text-white/70')}>
+                      <span className="flex items-center gap-1.5"><MessageCircle className="w-3 h-3" /> Message</span>
+                    </button>
                   </div>
                   {rightTab === 'permissions' && (
                     <div className="ml-auto flex items-center gap-3">
@@ -816,6 +842,39 @@ export default function UsersPage() {
                     </div>
                     <div>{visiblePermTree.map(node => <PermRow key={node.key} node={node} perms={perms} onChange={changePermission} />)}</div>
                   </>
+                )}
+
+                {rightTab === 'message' && (
+                  <div className="p-5 space-y-4">
+                    <div>
+                      <p className="text-xs text-white/50 mb-1 font-medium">Send a message to</p>
+                      <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/20 w-fit">
+                        <MessageCircle className="w-3.5 h-3.5 text-amber-400" />
+                        <span className="text-xs font-semibold text-amber-300">{selectedRole.name}</span>
+                      </div>
+                      <p className="text-[11px] text-white/30 mt-2">All staff assigned to this role will see your message as a notification.</p>
+                    </div>
+                    <textarea
+                      value={messageText}
+                      onChange={e => setMessageText(e.target.value)}
+                      placeholder="Type your message…"
+                      rows={4}
+                      className="w-full px-3.5 py-3 rounded-xl bg-white/5 border border-white/10 text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500/50 transition-colors resize-none"
+                    />
+                    <button
+                      onClick={sendRoleMessage}
+                      disabled={sendingMsg || !messageText.trim()}
+                      className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-white bg-amber-500 hover:bg-amber-400 disabled:opacity-40 transition-all active:scale-95 shadow-lg shadow-amber-500/20"
+                    >
+                      {sendingMsg ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : sentMsg ? (
+                        <><Check className="w-4 h-4" /> Sent!</>
+                      ) : (
+                        <><Send className="w-4 h-4" /> Send Message</>
+                      )}
+                    </button>
+                  </div>
                 )}
 
                 {rightTab === 'staff' && (

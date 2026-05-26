@@ -7,6 +7,7 @@ import { PermissionsProvider } from '@/lib/permissions/PermissionsContext'
 import AuthGuard from '@/components/restaurant/AuthGuard'
 import AppearanceBgProvider from '@/components/restaurant/AppearanceBgProvider'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
+import ActivityToast from '@/components/restaurant/ActivityToast'
 
 export default function RestaurantLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -20,6 +21,7 @@ export default function RestaurantLayout({ children }: { children: React.ReactNo
                 <WakeLock />
                 <PWARegister />
                 <PageTransition>{children}</PageTransition>
+                <ActivityToast />
               </div>
             </AppearanceBgProvider>
           </AuthGuard>
