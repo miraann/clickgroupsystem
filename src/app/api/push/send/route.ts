@@ -27,7 +27,8 @@ function pemToArrayBuffer(pem: string): ArrayBuffer {
 }
 
 function toBase64Url(buf: ArrayBuffer | Uint8Array): string {
-  return Buffer.from(buf).toString('base64url')
+  const bytes = buf instanceof ArrayBuffer ? new Uint8Array(buf) : buf
+  return Buffer.from(bytes).toString('base64url')
 }
 
 async function getFcmAccessToken(sa: ServiceAccount): Promise<string> {
