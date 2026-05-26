@@ -175,15 +175,15 @@ export default function ActivityToast() {
   if (toasts.length === 0) return null
 
   return (
-    <div className="fixed bottom-4 right-4 z-[9999] flex flex-col-reverse gap-2 pointer-events-none w-[320px]">
+    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[9999] flex flex-col gap-2 pointer-events-none w-[340px]">
       <AnimatePresence initial={false}>
         {toasts.map(toast => (
           <motion.div
             key={toast.id}
             layout
-            initial={{ opacity: 0, y: 20, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0,  scale: 1    }}
-            exit={{    opacity: 0, y: 10, scale: 0.95 }}
+            initial={{ opacity: 0, y: -20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0,   scale: 1    }}
+            exit={{    opacity: 0, y: -10, scale: 0.95 }}
             transition={{ duration: 0.22, ease: 'circOut' }}
             className="pointer-events-auto"
           >
