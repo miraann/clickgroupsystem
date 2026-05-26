@@ -30,6 +30,8 @@ interface PrefSettings {
   push_notif_waiter:             boolean
   push_notif_kds:                boolean
   push_notif_guest:              boolean
+  toast_dismiss_mode:            'auto' | 'manual'
+  toast_dismiss_seconds:         number
 }
 
 const DEFAULTS: PrefSettings = {
@@ -48,6 +50,8 @@ const DEFAULTS: PrefSettings = {
   push_notif_waiter:           true,
   push_notif_kds:              true,
   push_notif_guest:            true,
+  toast_dismiss_mode:          'auto',
+  toast_dismiss_seconds:       7,
 }
 
 
@@ -771,6 +775,68 @@ export default function PreferencePage() {
                     <p className="text-[11px] text-white/25 bg-white/3 border border-white/8 rounded-xl px-4 py-2.5">
                       Open this page in Chrome or the Android app to enable push notifications.
                     </p>
+                  )}
+
+                </div>
+              </SettingsSection>
+            </motion.div>
+
+            {/* ── Activity Toasts ── */}
+            <motion.div variants={FIELD_ITEM}>
+              <SettingsSection title="Activity Toasts" icon={<BellRing className="w-4 h-4 text-indigo-400" />}>
+                <div className="space-y-5">
+
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-semibold text-white/40 uppercase tracking-wider">Dismiss behaviour</label>
+                    <div className="flex gap-2">
+                      {(['auto', 'manual'] as const).map(mode => (
+                        <button
+                          key={mode}
+                          onClick={() => autoSave({ toast_dismiss_mode: mode })}
+                          className={cn(
+                            'flex-1 py-2.5 rounded-xl border text-sm font-semibold transition-all active:scale-95',
+                            cfg.toast_dismiss_mode === mode
+                              ? 'bg-indigo-500/20 border-indigo-500/40 text-indigo-300'
+                              : 'bg-white/4 border-white/8 text-white/50 hover:text-white/80',
+                          )}
+                        >
+                          {mode === 'auto' ? 'Auto-dismiss' : 'Manual close'}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-[11px] text-white/30">
+                      {cfg.toast_dismiss_mode === 'manual'
+                        ? 'Toasts stay visible until you press ✕'
+                        : 'Toasts disappear automatically after the set duration'}
+                    </p>
+                  </div>
+
+                  {cfg.toast_dismiss_mode !== 'manual' && (
+                    <>
+                      <div className="border-t border-white/6" />
+                      <div className="space-y-1.5">
+                        <label className="flex items-center gap-1.5 text-[11px] font-semibold text-white/40 uppercase tracking-wider">
+                          <Clock className="w-3.5 h-3.5" />
+                          Auto-dismiss after
+                        </label>
+                        <div className="flex gap-2">
+                          {[3, 5, 7, 10, 15].map(sec => (
+                            <button
+                              key={sec}
+                              onClick={() => autoSave({ toast_dismiss_seconds: sec })}
+                              className={cn(
+                                'flex-1 py-2 rounded-xl border text-sm font-semibold transition-all active:scale-95',
+                                cfg.toast_dismiss_seconds === sec
+                                  ? 'bg-indigo-500/20 border-indigo-500/40 text-indigo-300'
+                                  : 'bg-white/4 border-white/8 text-white/50 hover:text-white/80',
+                              )}
+                            >
+                              {sec}s
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </>
                   )}
 
                 </div>

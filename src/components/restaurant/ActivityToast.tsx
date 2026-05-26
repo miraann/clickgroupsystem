@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
+import { useRestaurantSettings } from '@/hooks/useRestaurantSettings'
 import type { Translations } from '@/lib/i18n/translations'
 
 interface Toast {
@@ -117,12 +118,23 @@ function initials(name?: string | null) {
   return name.split(' ').map(p => p[0]?.toUpperCase()).filter(Boolean).slice(0, 2).join('')
 }
 
-const TOAST_TTL = 7000
+const TOAST_PREF_DEFAULTS = { toast_dismiss_mode: 'auto' as 'auto' | 'manual', toast_dismiss_seconds: 7 }
 
 export default function ActivityToast() {
   const { t, isRTL } = useLanguage()
+  const { settings: prefs } = useRestaurantSettings<typeof TOAST_PREF_DEFAULTS>(TOAST_PREF_DEFAULTS)
+
   const [toasts, setToasts] = useState<Toast[]>([])
   const timers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
+
+  // Use refs so the channel-setup effect doesn't re-run when prefs change
+  const isManualRef = useRef(false)
+  const ttlRef      = useRef(7000)
+
+  useEffect(() => {
+    isManualRef.current = prefs.toast_dismiss_mode === 'manual'
+    ttlRef.current      = (prefs.toast_dismiss_seconds ?? 7) * 1000
+  }, [prefs.toast_dismiss_mode, prefs.toast_dismiss_seconds])
 
   const tableWord = t.kds_table
   const itemsWord = t.kds_items
@@ -134,8 +146,10 @@ export default function ActivityToast() {
   }, [])
 
   const push = useCallback((toast: Toast) => {
-    setToasts(prev => [toast, ...prev].slice(0, 4))
-    timers.current.set(toast.id, setTimeout(() => dismiss(toast.id), TOAST_TTL))
+    setToasts(prev => [toast, ...prev])
+    if (!isManualRef.current) {
+      timers.current.set(toast.id, setTimeout(() => dismiss(toast.id), ttlRef.current))
+    }
   }, [dismiss])
 
   useEffect(() => {
@@ -179,9 +193,12 @@ export default function ActivityToast() {
 
   if (toasts.length === 0) return null
 
+  const isManual = prefs.toast_dismiss_mode === 'manual'
+  const ttl      = (prefs.toast_dismiss_seconds ?? 7) * 1000
+
   return (
     <div
-      className="fixed top-4 left-1/2 -translate-x-1/2 z-[9999] flex flex-col gap-2.5 pointer-events-none"
+      className="fixed top-4 left-1/2 -translate-x-1/2 z-[9999] flex flex-col gap-2.5 pointer-events-none max-h-[calc(100vh-2rem)] overflow-y-auto"
       style={{ width: 'min(400px, calc(100vw - 24px))' }}
       dir={isRTL ? 'rtl' : 'ltr'}
     >
@@ -201,7 +218,7 @@ export default function ActivityToast() {
                 animate={{ opacity: 1, y: 0,   scale: 1    }}
                 exit={{    opacity: 0, y: -16, scale: 0.96, transition: { duration: 0.18 } }}
                 transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
-                className="pointer-events-auto overflow-hidden rounded-2xl shadow-2xl shadow-black/60"
+                className="pointer-events-auto overflow-hidden rounded-2xl shadow-2xl shadow-black/60 shrink-0"
                 style={{ border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(10,13,24,0.92)' }}
               >
                 {/* Body */}
@@ -244,15 +261,17 @@ export default function ActivityToast() {
                   </div>
                 </div>
 
-                {/* Progress bar */}
-                <div className="h-[2px] bg-white/5">
-                  <motion.div
-                    className={`h-full ${info.accent.progress}`}
-                    initial={{ width: '100%' }}
-                    animate={{ width: '0%' }}
-                    transition={{ duration: TOAST_TTL / 1000, ease: 'linear' }}
-                  />
-                </div>
+                {/* Progress bar — only in auto mode */}
+                {!isManual && (
+                  <div className="h-[2px] bg-white/5">
+                    <motion.div
+                      className={`h-full ${info.accent.progress}`}
+                      initial={{ width: '100%' }}
+                      animate={{ width: '0%' }}
+                      transition={{ duration: ttl / 1000, ease: 'linear' }}
+                    />
+                  </div>
+                )}
               </motion.div>
             )
           }
@@ -266,7 +285,7 @@ export default function ActivityToast() {
               animate={{ opacity: 1, y: 0,   scale: 1    }}
               exit={{    opacity: 0, y: -16, scale: 0.96, transition: { duration: 0.18 } }}
               transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
-              className="pointer-events-auto overflow-hidden rounded-2xl shadow-2xl shadow-black/60"
+              className="pointer-events-auto overflow-hidden rounded-2xl shadow-2xl shadow-black/60 shrink-0"
               style={{ border: '1px solid rgba(245,158,11,0.25)', background: 'rgba(10,13,24,0.92)' }}
             >
               <div className="flex items-stretch">
@@ -298,14 +317,16 @@ export default function ActivityToast() {
                   </div>
                 </div>
               </div>
-              <div className="h-[2px] bg-white/5">
-                <motion.div
-                  className="h-full bg-amber-400"
-                  initial={{ width: '100%' }}
-                  animate={{ width: '0%' }}
-                  transition={{ duration: TOAST_TTL / 1000, ease: 'linear' }}
-                />
-              </div>
+              {!isManual && (
+                <div className="h-[2px] bg-white/5">
+                  <motion.div
+                    className="h-full bg-amber-400"
+                    initial={{ width: '100%' }}
+                    animate={{ width: '0%' }}
+                    transition={{ duration: ttl / 1000, ease: 'linear' }}
+                  />
+                </div>
+              )}
             </motion.div>
           )
         })}
