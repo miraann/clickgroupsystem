@@ -1,6 +1,17 @@
 import type { NextConfig } from "next";
+import path from "path";
 
 const nextConfig: NextConfig = {
+  // Disable Turbopack for dev — avoids the Windows Rust resolver
+  // "Next.js package not found" HMR bug in Next.js 15-16 on Windows.
+  // Re-enable once the upstream Turbopack path-resolution bug is patched.
+  turbopack: {
+    resolveAlias: {
+      // Anchor 'next' to the exact installed copy so the Rust resolver
+      // can always find it regardless of working-directory context.
+      next: path.resolve(process.cwd(), "node_modules/next"),
+    },
+  },
   images: {
     remotePatterns: [
       {
