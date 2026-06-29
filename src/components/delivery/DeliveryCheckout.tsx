@@ -499,8 +499,8 @@ function FaceScanPanel({
 // ─── Step indicator ───────────────────────────────────────────────────────────
 function StepIndicator({ step, primaryColor }: { step: Step; primaryColor: string }) {
   const steps: { id: Step; label: string }[] = [
-    { id: 'details', label: 'Details' },
     { id: 'scan',    label: 'Verify'  },
+    { id: 'details', label: 'Order'   },
   ]
   const activeIdx = steps.findIndex(s => s.id === step)
 
@@ -581,8 +581,8 @@ export default function DeliveryCheckout({
   deliveryFee, estimatedTime, minOrder,
 }: DeliveryCheckoutProps) {
 
-  // ── Navigation step ────────────────────────────────────────
-  const [step, setStep] = useState<Step>('details')
+  // ── Navigation step — face scan is always FIRST ────────────
+  const [step, setStep] = useState<Step>('scan')
 
   // ── Form state ─────────────────────────────────────────────
   const [name,     setName]     = useState('')
@@ -707,14 +707,15 @@ export default function DeliveryCheckout({
   const grandTotal     = cartTotal + deliveryFee - discountAmount
   const belowMin       = minOrder > 0 && cartTotal < minOrder
 
-  // ── Liveness verified → auto-submit ────────────────────────
+  // ── Liveness verified → advance to the form (step 2) ──────
   const handleVerified = useCallback(() => {
-    onConfirm(name.trim(), phone.trim(), lat, lng, address, discountAmount, appliedCoupon?.id ?? null)
-  }, [name, phone, lat, lng, address, discountAmount, appliedCoupon, onConfirm])
+    setStep('details')
+  }, [])
 
-  const goToScan = () => {
+  // ── Submit (step 2 CTA — face already verified) ─────────────
+  const submit = () => {
     if (!validateForm()) return
-    setStep('scan')
+    onConfirm(name.trim(), phone.trim(), lat, lng, address, discountAmount, appliedCoupon?.id ?? null)
   }
 
   // ── Render ─────────────────────────────────────────────────
@@ -805,15 +806,48 @@ export default function DeliveryCheckout({
         {/* ── Scrollable step content ─────────────────────── */}
         <div className="flex-1 overflow-y-auto overscroll-contain">
         <AnimatePresence mode="wait" initial={false}>
-          {step === 'details' ? (
+          {step === 'scan' ? (
+            /* ── Step 1: Face scan liveness check ── */
             <motion.div
-              key="details"
+              key="scan"
               initial={{ opacity: 0, x: -24 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -24 }}
               transition={{ duration: 0.22, ease: 'easeOut' }}
+              className="px-4 pt-2 pb-4"
+            >
+              <FaceScanPanel onVerified={handleVerified} />
+            </motion.div>
+          ) : (
+            /* ── Step 2: Delivery details (unlocked after face scan) ── */
+            <motion.div
+              key="details"
+              initial={{ opacity: 0, x: 24 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 24 }}
+              transition={{ duration: 0.22, ease: 'easeOut' }}
               className="px-4 pt-1 pb-4 space-y-3"
             >
+              {/* Verified badge */}
+              <div
+                className="flex items-center gap-2 px-3 py-2 rounded-xl"
+                style={{ background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.22)' }}
+              >
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <p className="text-[11px] text-emerald-400 font-semibold">Identity verified — fill in your delivery details below</p>
+              </div>
+
+              {/* Order error */}
+              {placeError && (
+                <div
+                  className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl"
+                  style={{ background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.18)' }}
+                >
+                  <AlertCircle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                  <p className="text-[11px] text-rose-400">{placeError}</p>
+                </div>
+              )}
+
               {/* Full name */}
               <FieldWrap label="Full Name" error={errors.name}>
                 <div className="relative">
@@ -1019,53 +1053,6 @@ export default function DeliveryCheckout({
               </div>
 
             </motion.div>
-          ) : (
-            <motion.div
-              key="scan"
-              initial={{ opacity: 0, x: 24 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 24 }}
-              transition={{ duration: 0.22, ease: 'easeOut' }}
-              className="px-4 pt-1 pb-4 space-y-3"
-            >
-              {/* Back link */}
-              <button
-                onClick={() => setStep('details')}
-                className="flex items-center gap-1 text-[11px] text-white/35 hover:text-white/60 transition-colors"
-              >
-                <ChevronRight className="w-3.5 h-3.5 rotate-180" />
-                Back to Details
-              </button>
-
-              {/* Section header */}
-              <div className="flex items-center gap-3">
-                <div
-                  className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-                  style={{ background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.24)' }}
-                >
-                  <ShieldCheck className="w-4 h-4 text-amber-400" />
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-white">Identity Verification</p>
-                  <p className="text-[10px] text-white/35">On-device only · Not stored · Not uploaded</p>
-                </div>
-              </div>
-
-              {/* Face scan panel */}
-              <FaceScanPanel onVerified={handleVerified} />
-
-              {/* Order error */}
-              {placeError && (
-                <div
-                  className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl"
-                  style={{ background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.18)' }}
-                >
-                  <AlertCircle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
-                  <p className="text-[11px] text-rose-400">{placeError}</p>
-                </div>
-              )}
-
-            </motion.div>
           )}
         </AnimatePresence>
         </div>{/* end scrollable area */}
@@ -1080,33 +1067,30 @@ export default function DeliveryCheckout({
         >
           {step === 'details' ? (
             <button
-              onClick={goToScan}
-              disabled={belowMin}
+              onClick={submit}
+              disabled={placing || belowMin}
               className="w-full py-4 rounded-2xl font-extrabold text-sm flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-40"
               style={{
-                background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+                background: `linear-gradient(135deg, #F59E0B 0%, #D97706 100%)`,
                 boxShadow: '0 8px 28px rgba(245,158,11,0.30)',
                 color: '#000',
               }}
             >
-              Continue to Face Verification
-              <ChevronRight className="w-4 h-4" strokeWidth={2.5} />
+              {placing
+                ? <><Loader2 className="w-4 h-4 animate-spin" /> Placing Order…</>
+                : <>Place Order <ChevronRight className="w-4 h-4" strokeWidth={2.5} /></>}
             </button>
           ) : (
             <div
               className="w-full py-4 rounded-2xl font-bold text-sm flex items-center justify-center gap-2.5"
               style={{
-                background: placing ? `linear-gradient(135deg, ${primaryColor}, ${primaryColor}cc)` : 'rgba(255,255,255,0.05)',
-                border: placing ? 'none' : '1px solid rgba(255,255,255,0.08)',
-                color: placing ? '#000' : 'rgba(255,255,255,0.22)',
-                boxShadow: placing ? `0 8px 28px ${primaryColor}40` : 'none',
+                background: 'rgba(255,255,255,0.05)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                color: 'rgba(255,255,255,0.22)',
                 cursor: 'default',
-                transition: 'all 0.45s ease',
               }}
             >
-              {placing
-                ? <><Loader2 className="w-4 h-4 animate-spin" /> Placing Order…</>
-                : <><Eye className="w-4 h-4" /> Complete Face Scan to Place Order</>}
+              <Eye className="w-4 h-4" /> Complete Face Scan to Continue
             </div>
           )}
         </div>
