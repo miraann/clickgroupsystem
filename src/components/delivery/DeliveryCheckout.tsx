@@ -16,12 +16,15 @@ const LocationPickerMap = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="w-full flex items-center justify-center" style={{ height: 200, background: 'rgba(255,255,255,0.03)' }}>
+      <div className="w-full flex items-center justify-center" style={{ height: 160, background: 'rgba(255,255,255,0.03)' }}>
         <Loader2 className="w-5 h-5 animate-spin text-amber-400/40" />
       </div>
     ),
   }
 )
+
+// Map height: 160px on small phones, 200px on larger screens
+const MAP_H = typeof window !== 'undefined' && window.innerWidth < 390 ? 160 : 200
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 // jsDelivr CDN hosts the face-api.js weights (~260 KB combined for tiny models)
@@ -276,7 +279,7 @@ function FaceScanPanel({
       <div
         className="relative rounded-2xl overflow-hidden bg-black"
         style={{
-          aspectRatio: '4/3',
+          height: 'clamp(200px, 52vw, 280px)',
           border: verified
             ? '2px solid rgba(52,211,153,0.65)'
             : faceIn
@@ -726,9 +729,11 @@ export default function DeliveryCheckout({
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 48 }}
         transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-        className="relative w-full max-w-md mx-0 sm:mx-4 mb-0 sm:mb-4 rounded-t-3xl sm:rounded-3xl overflow-y-auto"
+        /* Mobile: full-screen, no rounded top. sm+: floating card centered */
+        className="relative flex flex-col w-full sm:max-w-md sm:mx-4 sm:mb-4
+                   h-dvh sm:h-auto sm:max-h-[92dvh]
+                   rounded-none sm:rounded-3xl"
         style={{
-          maxHeight: '92dvh',
           background: 'linear-gradient(160deg, rgba(14,16,28,0.99) 0%, rgba(8,10,20,0.99) 100%)',
           backdropFilter: 'blur(48px) saturate(200%)',
           border: '1px solid rgba(255,255,255,0.09)',
@@ -797,7 +802,8 @@ export default function DeliveryCheckout({
           </div>
         </div>
 
-        {/* ── Animated step content ───────────────────────── */}
+        {/* ── Scrollable step content ─────────────────────── */}
+        <div className="flex-1 overflow-y-auto overscroll-contain">
         <AnimatePresence mode="wait" initial={false}>
           {step === 'details' ? (
             <motion.div
@@ -806,7 +812,7 @@ export default function DeliveryCheckout({
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -24 }}
               transition={{ duration: 0.22, ease: 'easeOut' }}
-              className="px-5 pb-6 space-y-4"
+              className="px-4 pt-1 pb-4 space-y-3"
             >
               {/* Full name */}
               <FieldWrap label="Full Name" error={errors.name}>
@@ -817,7 +823,7 @@ export default function DeliveryCheckout({
                     value={name}
                     onChange={e => { setName(e.target.value); setErrors(er => ({ ...er, name: undefined })) }}
                     placeholder="Your full name"
-                    className="w-full pl-10 pr-4 py-3 rounded-2xl text-sm text-white placeholder:text-white/18 outline-none"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-2xl text-sm text-white placeholder:text-white/18 outline-none"
                     style={inputStyle(errors.name)}
                     onFocus={e => { if (!errors.name) e.currentTarget.style.borderColor = `rgba(245,158,11,0.50)` }}
                     onBlur={e => { if (!errors.name) e.currentTarget.style.borderColor = 'rgba(255,255,255,0.10)' }}
@@ -835,7 +841,7 @@ export default function DeliveryCheckout({
                     value={phone}
                     onChange={e => { setPhone(e.target.value); setErrors(er => ({ ...er, phone: undefined })) }}
                     placeholder="+964 7XX XXX XXXX"
-                    className="w-full pl-10 pr-10 py-3 rounded-2xl text-sm text-white placeholder:text-white/18 outline-none"
+                    className="w-full pl-10 pr-10 py-2.5 rounded-2xl text-sm text-white placeholder:text-white/18 outline-none"
                     style={inputStyle(errors.phone, !!(phone && !phoneOk))}
                     onFocus={e => { if (!errors.phone) e.currentTarget.style.borderColor = 'rgba(245,158,11,0.50)' }}
                     onBlur={e => { if (!errors.phone) e.currentTarget.style.borderColor = phone && !phoneOk ? 'rgba(245,158,11,0.38)' : 'rgba(255,255,255,0.10)' }}
@@ -881,7 +887,7 @@ export default function DeliveryCheckout({
                     transition: 'border-color 0.25s ease',
                   }}
                 >
-                  <LocationPickerMap flyToLat={flyLat} flyToLng={flyLng} onMove={handleMapMove} />
+                  <LocationPickerMap flyToLat={flyLat} flyToLng={flyLng} onMove={handleMapMove} height={MAP_H} />
 
                   {/* GPS button */}
                   <button
@@ -1012,21 +1018,6 @@ export default function DeliveryCheckout({
                 </div>
               </div>
 
-              {/* Continue CTA */}
-              <button
-                onClick={goToScan}
-                disabled={belowMin}
-                className="w-full py-4 rounded-2xl font-extrabold text-sm flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-40"
-                style={{
-                  background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
-                  boxShadow: '0 8px 32px rgba(245,158,11,0.32)',
-                  color: '#000',
-                  letterSpacing: '0.01em',
-                }}
-              >
-                Continue to Face Verification
-                <ChevronRight className="w-4 h-4" strokeWidth={2.5} />
-              </button>
             </motion.div>
           ) : (
             <motion.div
@@ -1035,7 +1026,7 @@ export default function DeliveryCheckout({
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 24 }}
               transition={{ duration: 0.22, ease: 'easeOut' }}
-              className="px-5 pb-6 space-y-4"
+              className="px-4 pt-1 pb-4 space-y-3"
             >
               {/* Back link */}
               <button
@@ -1074,25 +1065,51 @@ export default function DeliveryCheckout({
                 </div>
               )}
 
-              {/* Locked submit (visual only — liveness triggers submit automatically) */}
-              <div
-                className="w-full py-4 rounded-2xl font-bold text-sm flex items-center justify-center gap-2.5"
-                style={{
-                  background: placing ? `linear-gradient(135deg, ${primaryColor}, ${primaryColor}cc)` : 'rgba(255,255,255,0.05)',
-                  border: placing ? 'none' : '1px solid rgba(255,255,255,0.08)',
-                  color: placing ? '#000' : 'rgba(255,255,255,0.22)',
-                  boxShadow: placing ? `0 8px 32px ${primaryColor}40` : 'none',
-                  cursor: 'default',
-                  transition: 'all 0.45s ease',
-                }}
-              >
-                {placing
-                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Placing Order…</>
-                  : <><Eye className="w-4 h-4" /> Complete Face Scan to Place Order</>}
-              </div>
             </motion.div>
           )}
         </AnimatePresence>
+        </div>{/* end scrollable area */}
+
+        {/* ── Sticky CTA footer ──────────────────────────── */}
+        <div
+          className="shrink-0 px-4 pb-5 pt-3"
+          style={{
+            background: 'linear-gradient(to top, rgba(8,10,20,1) 75%, transparent)',
+            borderTop: '1px solid rgba(255,255,255,0.06)',
+          }}
+        >
+          {step === 'details' ? (
+            <button
+              onClick={goToScan}
+              disabled={belowMin}
+              className="w-full py-4 rounded-2xl font-extrabold text-sm flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-40"
+              style={{
+                background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+                boxShadow: '0 8px 28px rgba(245,158,11,0.30)',
+                color: '#000',
+              }}
+            >
+              Continue to Face Verification
+              <ChevronRight className="w-4 h-4" strokeWidth={2.5} />
+            </button>
+          ) : (
+            <div
+              className="w-full py-4 rounded-2xl font-bold text-sm flex items-center justify-center gap-2.5"
+              style={{
+                background: placing ? `linear-gradient(135deg, ${primaryColor}, ${primaryColor}cc)` : 'rgba(255,255,255,0.05)',
+                border: placing ? 'none' : '1px solid rgba(255,255,255,0.08)',
+                color: placing ? '#000' : 'rgba(255,255,255,0.22)',
+                boxShadow: placing ? `0 8px 28px ${primaryColor}40` : 'none',
+                cursor: 'default',
+                transition: 'all 0.45s ease',
+              }}
+            >
+              {placing
+                ? <><Loader2 className="w-4 h-4 animate-spin" /> Placing Order…</>
+                : <><Eye className="w-4 h-4" /> Complete Face Scan to Place Order</>}
+            </div>
+          )}
+        </div>
       </motion.div>
     </div>
   )

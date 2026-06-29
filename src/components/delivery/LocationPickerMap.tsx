@@ -6,9 +6,10 @@ interface Props {
   flyToLat: number | null
   flyToLng: number | null
   onMove: (lat: number, lng: number) => void
+  height?: number
 }
 
-export default function LocationPickerMap({ flyToLat, flyToLng, onMove }: Props) {
+export default function LocationPickerMap({ flyToLat, flyToLng, onMove, height = 200 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef       = useRef<import('leaflet').Map | null>(null)
   const markerRef    = useRef<import('leaflet').Marker | null>(null)
@@ -103,5 +104,5 @@ export default function LocationPickerMap({ flyToLat, flyToLng, onMove }: Props)
     })
   }, [flyToLat, flyToLng])
 
-  return <div ref={containerRef} style={{ height: '200px', width: '100%' }} />
+  return <div ref={containerRef} style={{ height: `${height}px`, width: '100%' }} />
 }
