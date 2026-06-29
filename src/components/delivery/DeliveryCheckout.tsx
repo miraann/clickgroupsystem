@@ -58,7 +58,8 @@ export interface DeliveryCheckoutProps {
     lat: number | null, lng: number | null,
     address: string | null,
     discountAmount: number,
-    couponId: string | null
+    couponId: string | null,
+    selfieUrl: string | null
   ) => void
   placing: boolean
   placeError: string | null
@@ -87,7 +88,7 @@ function calcEAR(pts: Pt[]): number {
 }
 
 // ─── Face Scan Panel ──────────────────────────────────────────────────────────
-function FaceScanPanel({ onVerified }: { onVerified: () => void }) {
+function FaceScanPanel({ onVerified }: { onVerified: (selfieUrl: string) => void }) {
   const videoRef   = useRef<HTMLVideoElement>(null)
   const canvasRef  = useRef<HTMLCanvasElement>(null)
   const streamRef  = useRef<MediaStream | null>(null)
@@ -97,11 +98,13 @@ function FaceScanPanel({ onVerified }: { onVerified: () => void }) {
   const validSince = useRef<number | null>(null)
   const didCapture = useRef(false)
 
-  const [phase,    setPhase]    = useState<ScanPhase>('loading')
-  const [errMsg,   setErrMsg]   = useState('')
-  const [captured, setCaptured] = useState<string | null>(null)
-  const [progress, setProgress] = useState(0)
-  const [retryKey, setRetryKey] = useState(0)
+  const [phase,      setPhase]      = useState<ScanPhase>('loading')
+  const [errMsg,     setErrMsg]     = useState('')
+  const [captured,   setCaptured]   = useState<string | null>(null)
+  const [progress,   setProgress]   = useState(0)
+  const [retryKey,   setRetryKey]   = useState(0)
+  const [uploading,  setUploading]  = useState(false)
+  const [uploadErr,  setUploadErr]  = useState<string | null>(null)
 
   function retake() {
     didCapture.current = false
@@ -111,8 +114,21 @@ function FaceScanPanel({ onVerified }: { onVerified: () => void }) {
     setCaptured(null)
     setProgress(0)
     setErrMsg('')
+    setUploadErr(null)
     setPhase('loading')
     setRetryKey(k => k + 1)
+  }
+
+  async function uploadSelfie(dataUrl: string): Promise<string> {
+    const res      = await fetch(dataUrl)
+    const blob     = await res.blob()
+    const fileName = `selfie_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.jpg`
+    const sb       = createClient()
+    const { data, error } = await sb.storage
+      .from('customer-selfies')
+      .upload(fileName, blob, { contentType: 'image/jpeg', cacheControl: '3600', upsert: false })
+    if (error) throw error
+    return sb.storage.from('customer-selfies').getPublicUrl(data.path).data.publicUrl
   }
 
   useEffect(() => {
@@ -147,9 +163,9 @@ function FaceScanPanel({ onVerified }: { onVerified: () => void }) {
     }
 
     async function boot() {
-      // 1. Start camera first — user sees themselves while models load
+      // 1. Start camera first — request portrait (taller) dimensions for 9:16
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+        video: { facingMode: 'user', width: { ideal: 480 }, height: { ideal: 640 } },
         audio: false,
       })
       if (cancelled) { stream.getTracks().forEach(t => t.stop()); return }
@@ -318,11 +334,13 @@ function FaceScanPanel({ onVerified }: { onVerified: () => void }) {
         @keyframes scanLine { 0% { top: 18%; opacity: 0; } 8% { opacity: 1; } 92% { opacity: 1; } 100% { top: 82%; opacity: 0; } }
       `}</style>
 
-      {/* ── Camera viewport ──────────────────────────────────────── */}
+      {/* ── Camera viewport — strict 9:16 portrait ───────────────── */}
       <div
-        className="relative rounded-2xl overflow-hidden"
+        className="relative rounded-2xl overflow-hidden mx-auto"
         style={{
-          height: 'clamp(200px, 52vw, 280px)',
+          aspectRatio: '9/16',
+          width: '100%',
+          maxWidth: 'calc(min(72dvh, 520px) * 9 / 16)',
           background: 'rgba(10,13,24,0.90)',
           border: phase === 'face_found' || phase === 'captured'
             ? '2px solid rgba(52,211,153,0.65)'
@@ -479,23 +497,49 @@ function FaceScanPanel({ onVerified }: { onVerified: () => void }) {
               Liveness confirmed! Review your selfie above.
             </p>
           </div>
+
+          {uploadErr && (
+            <div
+              className="flex items-center gap-2 px-3.5 py-2 rounded-xl"
+              style={{ background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.20)' }}
+            >
+              <AlertCircle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+              <p className="text-[11px] text-rose-400">{uploadErr}</p>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={retake}
-              className="py-3.5 rounded-2xl text-sm font-semibold text-white/65 transition-all active:scale-95"
+              disabled={uploading}
+              className="py-3.5 rounded-2xl text-sm font-semibold text-white/65 transition-all active:scale-95 disabled:opacity-40"
               style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)' }}
             >
               Retake
             </button>
             <button
-              onClick={onVerified}
-              className="py-3.5 rounded-2xl text-sm font-bold text-black transition-all active:scale-[0.97]"
+              onClick={async () => {
+                if (!captured || uploading) return
+                setUploading(true)
+                setUploadErr(null)
+                try {
+                  const url = await uploadSelfie(captured)
+                  onVerified(url)
+                } catch {
+                  setUploadErr('Upload failed — tap Confirm to retry.')
+                  setUploading(false)
+                }
+              }}
+              disabled={uploading}
+              className="py-3.5 rounded-2xl text-sm font-bold text-black transition-all active:scale-[0.97] disabled:opacity-60 flex items-center justify-center gap-1.5"
               style={{
                 background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
                 boxShadow: '0 6px 20px rgba(245,158,11,0.35)',
               }}
             >
-              Confirm →
+              {uploading
+                ? <><Loader2 className="w-4 h-4 animate-spin" /> Uploading…</>
+                : 'Confirm →'}
             </button>
           </div>
         </div>
@@ -606,7 +650,8 @@ export default function DeliveryCheckout({
 }: DeliveryCheckoutProps) {
 
   // ── Navigation step — face scan is always FIRST ────────────
-  const [step, setStep] = useState<Step>('scan')
+  const [step,      setStep]      = useState<Step>('scan')
+  const [selfieUrl, setSelfieUrl] = useState<string | null>(null)
 
   // ── Form state ─────────────────────────────────────────────
   const [name,     setName]     = useState('')
@@ -731,15 +776,16 @@ export default function DeliveryCheckout({
   const grandTotal     = cartTotal + deliveryFee - discountAmount
   const belowMin       = minOrder > 0 && cartTotal < minOrder
 
-  // ── Liveness verified → advance to the form (step 2) ──────
-  const handleVerified = useCallback(() => {
+  // ── Liveness verified → store selfie URL → advance to step 2 ─
+  const handleVerified = useCallback((url: string) => {
+    setSelfieUrl(url)
     setStep('details')
   }, [])
 
   // ── Submit (step 2 CTA — face already verified) ─────────────
   const submit = () => {
     if (!validateForm()) return
-    onConfirm(name.trim(), phone.trim(), lat, lng, address, discountAmount, appliedCoupon?.id ?? null)
+    onConfirm(name.trim(), phone.trim(), lat, lng, address, discountAmount, appliedCoupon?.id ?? null, selfieUrl)
   }
 
   // ── Render ─────────────────────────────────────────────────

@@ -659,7 +659,7 @@ export default function DeliveryOrderPage() {
 
   const getQty = (id: string) => cart.get(id)?.qty ?? 0
 
-  const placeOrder = async (custName: string, custPhone: string, lat: number | null, lng: number | null, address: string | null, discountAmount = 0, couponId: string | null = null) => {
+  const placeOrder = async (custName: string, custPhone: string, lat: number | null, lng: number | null, address: string | null, discountAmount = 0, couponId: string | null = null, selfieUrl: string | null = null) => {
     if (!restaurant || cartItems.length === 0) return
     setPlacing(true); setPlaceError(null)
 
@@ -716,6 +716,7 @@ export default function DeliveryOrderPage() {
       address_text:  address,
       delivery_fee:  effectiveDeliveryFee,
       status:        'pending',
+      selfie_url:    selfieUrl,
     })
     if (delivErr) { setPlaceError(delivErr.message); setPlacing(false); return }
 
