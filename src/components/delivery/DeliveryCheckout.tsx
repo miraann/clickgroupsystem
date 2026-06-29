@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import dynamic from 'next/dynamic'
 import {
   Loader2, MapPin, X, Check, CheckCircle2, AlertCircle,
-  Truck, Clock, Package, Crosshair, Camera, Eye,
+  Truck, Clock, Package, Crosshair, Eye,
   ShieldCheck, ChevronRight, User, Phone, Tag,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -27,14 +27,21 @@ const LocationPickerMap = dynamic(
 const MAP_H = typeof window !== 'undefined' && window.innerWidth < 390 ? 160 : 200
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-// jsDelivr CDN hosts the face-api.js weights (~260 KB combined for tiny models)
-// For production: copy weights into /public/face-models/ and use '/face-models'
-const FACE_MODEL_URL = 'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights'
+// @vladmandic/face-api ships model weights INSIDE the npm package (model/ dir),
+// so jsDelivr can serve them reliably — unlike face-api.js which omits weights.
+const MODEL_CDN  = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/model'
 
-// Eye Aspect Ratio thresholds for blink detection
-const EAR_CLOSE    = 0.21  // EAR drops below this → eye considered closed
-const EAR_OPEN     = 0.27  // EAR rises above this → eye considered open again
-const BLINKS_NEED  = 2     // how many blinks required to pass liveness
+const EAR_CLOSE  = 0.21   // EAR drops below → eye closed
+const EAR_OPEN   = 0.27   // EAR rises above → blink complete
+
+// Face validation thresholds
+const SCORE_MIN  = 0.92   // minimum detection confidence
+const AREA_MIN   = 0.30   // face must cover ≥30% of frame
+const AREA_MAX   = 0.55   // but not more than 55%
+const CENTRE_MAX = 0.15   // face centre within ±15% of frame centre
+const ROLL_MAX   = 15     // max head roll in degrees
+const YAW_MAX    = 0.25   // max yaw (nose offset / inter-eye distance)
+const HOLD_MS    = 2500   // ms face must stay valid before auto-capture
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Pt { x: number; y: number }
@@ -60,8 +67,8 @@ export interface DeliveryCheckoutProps {
   minOrder: number
 }
 
-type Step     = 'details' | 'scan'
-type CamState = 'idle' | 'starting' | 'active' | 'error' | 'done'
+type Step      = 'details' | 'scan'
+type ScanPhase = 'loading' | 'searching' | 'face_found' | 'captured' | 'error'
 
 // ─── Math helpers ─────────────────────────────────────────────────────────────
 function dist(a: Pt, b: Pt): number {
@@ -80,405 +87,422 @@ function calcEAR(pts: Pt[]): number {
 }
 
 // ─── Face Scan Panel ──────────────────────────────────────────────────────────
-function FaceScanPanel({
-  onVerified,
-}: {
-  onVerified: () => void
-}) {
+function FaceScanPanel({ onVerified }: { onVerified: () => void }) {
   const videoRef   = useRef<HTMLVideoElement>(null)
   const canvasRef  = useRef<HTMLCanvasElement>(null)
   const streamRef  = useRef<MediaStream | null>(null)
   const rafRef     = useRef<number>(0)
+  const frameCount = useRef(0)
   const eyeDown    = useRef(false)
-  const blinkCount = useRef(0)
-  const didVerify  = useRef(false)
+  const validSince = useRef<number | null>(null)
+  const didCapture = useRef(false)
 
-  const [camState,  setCamState]  = useState<CamState>('idle')
-  const [modelsOk,  setModelsOk]  = useState(false)
-  const [errMsg,    setErrMsg]    = useState('')
-  const [faceIn,    setFaceIn]    = useState(false)
-  const [blinks,    setBlinks]    = useState(0)
-  const [hint,      setHint]      = useState('Position your face inside the oval')
-  const [verified,  setVerified]  = useState(false)
+  const [phase,    setPhase]    = useState<ScanPhase>('loading')
+  const [errMsg,   setErrMsg]   = useState('')
+  const [captured, setCaptured] = useState<string | null>(null)
+  const [progress, setProgress] = useState(0)
+  const [retryKey, setRetryKey] = useState(0)
 
-  // ── Camera start ────────────────────────────────────────────
-  const startCam = useCallback(async () => {
-    setCamState('starting')
+  function retake() {
+    didCapture.current = false
+    frameCount.current = 0
+    eyeDown.current    = false
+    validSince.current = null
+    setCaptured(null)
+    setProgress(0)
     setErrMsg('')
-    try {
+    setPhase('loading')
+    setRetryKey(k => k + 1)
+  }
+
+  useEffect(() => {
+    let cancelled = false
+    didCapture.current = false
+    frameCount.current = 0
+    eyeDown.current    = false
+    validSince.current = null
+
+    // ── Capture: draw frame to off-screen canvas, un-mirror, output JPEG ──
+    function doCapture() {
+      const vid = videoRef.current
+      if (!vid || didCapture.current) return
+      didCapture.current = true
+      cancelAnimationFrame(rafRef.current)
+      streamRef.current?.getTracks().forEach(t => t.stop())
+
+      const W     = vid.videoWidth  || 320
+      const H     = vid.videoHeight || 240
+      const scale = 240 / Math.max(W, H)
+      const outW  = Math.round(W * scale)
+      const outH  = Math.round(H * scale)
+      const off   = document.createElement('canvas')
+      off.width   = outW
+      off.height  = outH
+      const ctx   = off.getContext('2d')!
+      ctx.translate(outW, 0)    // un-mirror the CSS scaleX(-1)
+      ctx.scale(-1, 1)
+      ctx.drawImage(vid, 0, 0, outW, outH)
+      setCaptured(off.toDataURL('image/jpeg', 0.60))
+      setPhase('captured')
+    }
+
+    async function boot() {
+      // 1. Start camera first — user sees themselves while models load
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
         audio: false,
       })
+      if (cancelled) { stream.getTracks().forEach(t => t.stop()); return }
       streamRef.current = stream
       const vid = videoRef.current!
       vid.srcObject = stream
-      await new Promise<void>(res => { vid.onloadedmetadata = () => res() })
+      await new Promise<void>(r => { vid.onloadedmetadata = () => r() })
       await vid.play()
-      setCamState('active')
-    } catch (e) {
-      const err = e as DOMException
-      setCamState('error')
-      setErrMsg(
-        err.name === 'NotAllowedError'
-          ? 'Camera permission denied. Tap the lock icon in your browser address bar → allow camera, then try again.'
-          : err.name === 'NotFoundError'
-          ? 'No camera detected on this device.'
-          : 'Unable to start camera. Make sure no other app is using it.'
-      )
-    }
-  }, [])
 
-  // ── Face detection + liveness loop ──────────────────────────
-  useEffect(() => {
-    if (camState !== 'active') return
-    let cancelled = false
-
-    async function init() {
-      // Dynamic import keeps TensorFlow.js and face-api out of the SSR bundle
-      const faceapi = await import('face-api.js')
-
-      await Promise.all([
-        faceapi.nets.tinyFaceDetector.loadFromUri(FACE_MODEL_URL),
-        faceapi.nets.faceLandmark68TinyNet.loadFromUri(FACE_MODEL_URL),
-      ])
+      // 2. Load models in parallel (camera already streaming)
+      const faceapi = await import('@vladmandic/face-api')
+      try {
+        await Promise.all([
+          faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_CDN),
+          faceapi.nets.faceLandmark68TinyNet.loadFromUri(MODEL_CDN),
+        ])
+      } catch (modelErr) {
+        throw new Error(`Model weights failed: ${(modelErr as Error).message}`)
+      }
       if (cancelled) return
-      setModelsOk(true)
+      setPhase('searching')
 
-      const video  = videoRef.current!
       const canvas = canvasRef.current!
-      const ctx    = canvas.getContext('2d')!
+      const ctx2d  = canvas.getContext('2d')!
 
       async function tick() {
-        if (cancelled || didVerify.current) return
+        if (cancelled || didCapture.current) return
+        frameCount.current++
 
-        // Match canvas resolution to video
-        if (video.videoWidth && canvas.width !== video.videoWidth) {
-          canvas.width  = video.videoWidth
-          canvas.height = video.videoHeight
+        const W = vid.videoWidth  || 640
+        const H = vid.videoHeight || 480
+        if (canvas.width !== W) { canvas.width = W; canvas.height = H }
+        ctx2d.clearRect(0, 0, W, H)
+
+        // Throttle to every 6th frame (~5 fps on a 30 fps camera)
+        if (frameCount.current % 6 !== 0) {
+          rafRef.current = requestAnimationFrame(tick)
+          return
         }
 
-        ctx.clearRect(0, 0, canvas.width, canvas.height)
-        const W = canvas.width
-        const H = canvas.height
-        const cx = W / 2
-        const cy = H / 2 + H * 0.02 // very slightly below centre for face framing
-        const rx = W * 0.24
-        const ry = H * 0.34
+        try {
+          const det = await faceapi
+            .detectSingleFace(vid, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 }))
+            .withFaceLandmarks(true)
 
-        const detection = await faceapi
-          .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ scoreThreshold: 0.5, inputSize: 224 }))
-          .withFaceLandmarks(true) // true → tiny landmark model
+          if (cancelled || didCapture.current) return
 
-        if (cancelled || didVerify.current) return
+          const cx = W / 2, cy = H / 2
+          const rx = W * 0.26, ry = H * 0.36
+          let isValid = false
+          let hasFace = false
 
-        const inFrame = Boolean(detection)
-        setFaceIn(inFrame)
+          if (det) {
+            hasFace = true
+            const box   = det.detection.box
+            const score = det.detection.score
+            const le    = det.landmarks.getLeftEye()  as unknown as Pt[]
+            const re    = det.landmarks.getRightEye() as unknown as Pt[]
 
-        // ── Draw face guide oval ─────────────────────────────
-        ctx.beginPath()
-        ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2)
-        ctx.strokeStyle = verified
-          ? '#34d399'
-          : inFrame
-          ? 'rgba(245,158,11,0.9)'
-          : 'rgba(255,255,255,0.30)'
-        ctx.lineWidth = 3
-        ctx.shadowColor = inFrame ? 'rgba(245,158,11,0.4)' : 'transparent'
-        ctx.shadowBlur  = inFrame ? 12 : 0
-        ctx.stroke()
-        ctx.shadowBlur = 0
+            // ── 6 validation checks ──────────────────────────
+            const areaRatio = (box.width * box.height) / (W * H)
+            const faceCx    = box.x + box.width  / 2
+            const faceCy    = box.y + box.height / 2
+            const offX      = Math.abs((faceCx - cx) / W)
+            const offY      = Math.abs((faceCy - cy) / H)
 
-        if (detection) {
-          const { landmarks, detection: det } = detection
+            const leMid: Pt = { x: (le[0].x + le[3].x) / 2, y: (le[0].y + le[3].y) / 2 }
+            const reMid: Pt = { x: (re[0].x + re[3].x) / 2, y: (re[0].y + re[3].y) / 2 }
+            const roll = Math.abs(Math.atan2(reMid.y - leMid.y, reMid.x - leMid.x) * 180 / Math.PI)
 
-          // ── Eye landmark dots (amber) ─────────────────────
-          const drawEye = (eye: Pt[]) => {
-            eye.forEach(p => {
-              ctx.beginPath()
-              ctx.arc(p.x, p.y, 2.5, 0, Math.PI * 2)
-              ctx.fillStyle = '#F59E0B'
-              ctx.fill()
+            const nose    = det.landmarks.getNose() as unknown as Pt[]
+            const noseTip = nose[3]
+            const eyeMidX = (leMid.x + reMid.x) / 2
+            const interEye = dist(leMid, reMid)
+            const yaw = interEye > 0 ? Math.abs(noseTip.x - eyeMidX) / interEye : 1
+
+            const noClip = box.x >= 0 && box.y >= 0
+              && (box.x + box.width)  <= W
+              && (box.y + box.height) <= H
+
+            isValid = score >= SCORE_MIN
+              && noClip
+              && areaRatio >= AREA_MIN && areaRatio <= AREA_MAX
+              && offX <= CENTRE_MAX   && offY <= CENTRE_MAX
+              && roll <= ROLL_MAX
+              && yaw  <= YAW_MAX
+
+            // ── Blink detection (EAR) ─────────────────────────
+            const ear = (calcEAR(le) + calcEAR(re)) / 2
+            if (ear < EAR_CLOSE && !eyeDown.current) {
+              eyeDown.current = true
+            } else if (ear > EAR_OPEN && eyeDown.current) {
+              eyeDown.current = false
+              if (!didCapture.current) { doCapture(); return }
+            }
+
+            // Eye landmark dots
+            ;[...le, ...re].forEach(p => {
+              ctx2d.beginPath()
+              ctx2d.arc(p.x, p.y, 2, 0, Math.PI * 2)
+              ctx2d.fillStyle = isValid ? '#34d399' : '#F59E0B'
+              ctx2d.fill()
             })
           }
-          drawEye(landmarks.getLeftEye()  as unknown as Pt[])
-          drawEye(landmarks.getRightEye() as unknown as Pt[])
 
-          // ── EAR blink detection ───────────────────────────
-          const leftEAR  = calcEAR(landmarks.getLeftEye()  as unknown as Pt[])
-          const rightEAR = calcEAR(landmarks.getRightEye() as unknown as Pt[])
-          const ear      = (leftEAR + rightEAR) / 2
+          // ── Face guide oval ───────────────────────────────────
+          ctx2d.beginPath()
+          ctx2d.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2)
+          ctx2d.strokeStyle = isValid
+            ? '#34d399'
+            : hasFace ? 'rgba(245,158,11,0.9)' : 'rgba(255,255,255,0.25)'
+          ctx2d.lineWidth   = 2.5
+          ctx2d.shadowColor = isValid
+            ? 'rgba(52,211,153,0.5)'
+            : hasFace ? 'rgba(245,158,11,0.4)' : 'transparent'
+          ctx2d.shadowBlur  = (isValid || hasFace) ? 14 : 0
+          ctx2d.stroke()
+          ctx2d.shadowBlur  = 0
 
-          if (ear < EAR_CLOSE && !eyeDown.current) {
-            eyeDown.current = true  // eye just closed
-          } else if (ear > EAR_OPEN && eyeDown.current) {
-            eyeDown.current  = false  // eye just opened → blink complete
-            blinkCount.current += 1
-            setBlinks(blinkCount.current)
-
-            if (blinkCount.current === 1) setHint('Great! Blink one more time…')
-            if (blinkCount.current >= BLINKS_NEED && !didVerify.current) {
-              didVerify.current = true
-              setVerified(true)
-              setCamState('done')
-              // Brief celebration delay, then notify parent
-              setTimeout(() => {
-                streamRef.current?.getTracks().forEach(t => t.stop())
-                cancelAnimationFrame(rafRef.current)
-                onVerified()
-              }, 1800)
-              return
-            }
+          // ── Phase + auto-capture countdown ────────────────────
+          if (isValid) {
+            if (!validSince.current) validSince.current = Date.now()
+            const elapsed = Date.now() - validSince.current
+            setProgress(Math.min(100, (elapsed / HOLD_MS) * 100))
+            setPhase('face_found')
+            if (elapsed >= HOLD_MS && !didCapture.current) { doCapture(); return }
+          } else {
+            if (validSince.current) { validSince.current = null; setProgress(0) }
+            setPhase('searching')
           }
+        } catch { /* ignore per-frame detection errors */ }
 
-          // Nudge hint based on face centering
-          if (blinkCount.current === 0) {
-            const faceCx = det.box.x + det.box.width / 2
-            const faceCy = det.box.y + det.box.height / 2
-            if (Math.abs(faceCx - cx) / rx > 0.45 || Math.abs(faceCy - cy) / ry > 0.45) {
-              setHint('Center your face in the oval')
-            } else {
-              setHint('Blink slowly once…')
-            }
-          }
-        } else {
-          setHint('Position your face inside the oval')
+        if (!cancelled && !didCapture.current) {
+          rafRef.current = requestAnimationFrame(tick)
         }
-
-        rafRef.current = requestAnimationFrame(() => { tick() })
       }
 
       tick()
     }
 
-    init().catch(err => {
-      if (!cancelled) {
-        console.error('[FaceScan] init error:', err)
-        setErrMsg('Face detection could not load. Please refresh and try again.')
-        setCamState('error')
-      }
+    boot().catch(err => {
+      if (cancelled) return
+      const e = err as DOMException
+      setErrMsg(
+        e.name === 'NotAllowedError'
+          ? 'Camera permission denied. Tap the address bar lock icon → allow camera → try again.'
+          : e.name === 'NotFoundError'
+          ? 'No camera found on this device.'
+          : (err as Error)?.message ?? 'Face detection could not load. Please try again.'
+      )
+      setPhase('error')
     })
 
     return () => {
       cancelled = true
       cancelAnimationFrame(rafRef.current)
-    }
-  }, [camState, onVerified, verified])
-
-  // Cleanup stream on unmount
-  useEffect(() => {
-    return () => {
-      cancelAnimationFrame(rafRef.current)
       streamRef.current?.getTracks().forEach(t => t.stop())
     }
-  }, [])
+  }, [retryKey])
 
   return (
     <div className="space-y-4">
-      {/* ── Camera viewport ────────────────────────────────── */}
+      {/* Scan animations */}
+      <style>{`
+        @keyframes scanSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes scanLine { 0% { top: 18%; opacity: 0; } 8% { opacity: 1; } 92% { opacity: 1; } 100% { top: 82%; opacity: 0; } }
+      `}</style>
+
+      {/* ── Camera viewport ──────────────────────────────────────── */}
       <div
-        className="relative rounded-2xl overflow-hidden bg-black"
+        className="relative rounded-2xl overflow-hidden"
         style={{
           height: 'clamp(200px, 52vw, 280px)',
-          border: verified
+          background: 'rgba(10,13,24,0.90)',
+          border: phase === 'face_found' || phase === 'captured'
             ? '2px solid rgba(52,211,153,0.65)'
-            : faceIn
-            ? '2px solid rgba(245,158,11,0.55)'
-            : '1px solid rgba(255,255,255,0.10)',
-          boxShadow: verified
-            ? '0 0 36px rgba(52,211,153,0.25), inset 0 0 36px rgba(52,211,153,0.06)'
-            : faceIn
-            ? '0 0 24px rgba(245,158,11,0.18)'
+            : phase === 'error'
+            ? '1px solid rgba(239,68,68,0.28)'
+            : '1px solid rgba(245,158,11,0.22)',
+          boxShadow: phase === 'face_found'
+            ? '0 0 36px rgba(52,211,153,0.22), inset 0 0 36px rgba(52,211,153,0.05)'
             : 'none',
           transition: 'border 0.4s ease, box-shadow 0.4s ease',
         }}
       >
-        {/* ── Idle state ─────────────────────────────────── */}
-        {camState === 'idle' && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-6">
-            <div
-              className="w-16 h-16 rounded-full flex items-center justify-center"
-              style={{ background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.28)' }}
-            >
-              <Camera className="w-7 h-7 text-amber-400" />
-            </div>
-            <p className="text-sm text-white/55 text-center leading-relaxed">
-              We need a quick selfie to confirm you are placing this order in real-time.
-            </p>
-            <button
-              onClick={startCam}
-              className="px-8 py-3 rounded-xl font-bold text-sm text-black transition-all active:scale-95"
-              style={{
-                background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
-                boxShadow: '0 6px 20px rgba(245,158,11,0.35)',
-              }}
-            >
-              Enable Camera
-            </button>
-          </div>
-        )}
+        {/* Live video (hidden once captured) */}
+        <video
+          ref={videoRef}
+          className="w-full h-full object-cover"
+          style={{ transform: 'scaleX(-1)', display: phase === 'captured' ? 'none' : 'block' }}
+          playsInline
+          muted
+        />
 
-        {/* ── Loading overlay ─────────────────────────────── */}
-        {(camState === 'starting' || (camState === 'active' && !modelsOk)) && (
+        {/* Landmark + oval canvas */}
+        <canvas
+          ref={canvasRef}
+          className="absolute inset-0 w-full h-full pointer-events-none"
+          style={{
+            transform: 'scaleX(-1)',
+            display: phase === 'searching' || phase === 'face_found' ? 'block' : 'none',
+          }}
+        />
+
+        {/* Loading overlay */}
+        {phase === 'loading' && (
           <div
             className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3"
-            style={{ background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(4px)' }}
+            style={{ backdropFilter: 'blur(8px)', background: 'rgba(8,11,22,0.72)' }}
           >
             <Loader2 className="w-9 h-9 text-amber-400 animate-spin" />
-            <p className="text-sm text-white/60 font-medium">
-              {camState === 'starting' ? 'Starting camera…' : 'Loading face detection…'}
-            </p>
+            <p className="text-sm text-white/50 font-medium">Starting camera…</p>
           </div>
         )}
 
-        {/* ── Error state ─────────────────────────────────── */}
-        {camState === 'error' && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-6">
+        {/* Scanning animation (spinning arc + sweeping line) */}
+        {phase === 'searching' && (
+          <div className="absolute inset-0 pointer-events-none z-10">
+            <div
+              className="absolute inset-[14%] rounded-full"
+              style={{
+                border: '2px solid transparent',
+                borderTopColor: 'rgba(245,158,11,0.55)',
+                borderRightColor: 'rgba(245,158,11,0.15)',
+                animation: 'scanSpin 1.8s linear infinite',
+              }}
+            />
+            <div
+              className="absolute left-[14%] right-[14%] h-px"
+              style={{
+                background: 'linear-gradient(90deg, transparent, rgba(245,158,11,0.65), transparent)',
+                animation: 'scanLine 2.6s ease-in-out infinite',
+              }}
+            />
+          </div>
+        )}
+
+        {/* Error state */}
+        {phase === 'error' && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-6 z-10">
             <div
               className="w-12 h-12 rounded-full flex items-center justify-center"
-              style={{ background: 'rgba(239,68,68,0.14)', border: '1px solid rgba(239,68,68,0.28)' }}
+              style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.28)' }}
             >
               <AlertCircle className="w-6 h-6 text-rose-400" />
             </div>
             <p className="text-xs text-white/55 text-center leading-relaxed">{errMsg}</p>
             <button
-              onClick={startCam}
-              className="px-5 py-2 rounded-xl text-xs font-semibold text-white/75 transition-all active:scale-95"
-              style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.14)' }}
+              onClick={() => window.location.reload()}
+              className="px-5 py-2.5 rounded-xl text-xs font-semibold text-white/80 transition-all active:scale-95"
+              style={{ background: 'rgba(255,255,255,0.09)', border: '1px solid rgba(255,255,255,0.14)' }}
             >
               Try Again
             </button>
           </div>
         )}
 
-        {/* ── Live video + canvas overlay ─────────────────── */}
-        {/* Both elements share the same CSS mirror so face-api coordinates align */}
-        <video
-          ref={videoRef}
-          className="w-full h-full object-cover"
-          style={{ transform: 'scaleX(-1)', display: camState !== 'idle' && camState !== 'error' ? 'block' : 'none' }}
-          playsInline
-          muted
-        />
-        <canvas
-          ref={canvasRef}
-          className="absolute inset-0 w-full h-full pointer-events-none"
-          style={{ transform: 'scaleX(-1)', display: camState !== 'idle' && camState !== 'error' ? 'block' : 'none' }}
-        />
+        {/* Captured selfie preview */}
+        {phase === 'captured' && captured && (
+          <img src={captured} alt="Captured selfie" className="w-full h-full object-cover" />
+        )}
 
-        {/* ── Verified overlay ────────────────────────────── */}
-        <AnimatePresence>
-          {verified && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="absolute inset-0 flex flex-col items-center justify-center z-10"
-              style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(3px)' }}
-            >
-              <motion.div
-                initial={{ scale: 0, rotate: -20 }}
-                animate={{ scale: 1, rotate: 0 }}
-                transition={{ type: 'spring', stiffness: 320, damping: 22 }}
-                className="w-20 h-20 rounded-full flex items-center justify-center mb-3"
-                style={{ background: 'rgba(52,211,153,0.18)', border: '2px solid #34d399', boxShadow: '0 0 40px rgba(52,211,153,0.35)' }}
-              >
-                <Check className="w-10 h-10 text-emerald-400" strokeWidth={2.5} />
-              </motion.div>
-              <motion.p
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                className="text-white font-bold text-lg"
-              >
-                Identity Verified!
-              </motion.p>
-              <motion.p
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.4 }}
-                className="text-white/45 text-xs mt-1"
-              >
-                Placing your order…
-              </motion.p>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* ── Live hint chip ──────────────────────────────── */}
-        {camState === 'active' && modelsOk && !verified && (
-          <div className="absolute bottom-3 left-0 right-0 flex justify-center pointer-events-none z-10">
+        {/* Hint chip — face locked */}
+        {phase === 'face_found' && (
+          <div className="absolute bottom-3 left-0 right-0 flex justify-center z-10 pointer-events-none">
             <div
-              className="px-3 py-1.5 rounded-full text-xs font-medium"
+              className="px-3.5 py-1.5 rounded-full text-xs font-medium"
               style={{
-                background: 'rgba(0,0,0,0.75)',
+                background: 'rgba(52,211,153,0.16)',
+                border: '1px solid rgba(52,211,153,0.35)',
+                color: '#34d399',
                 backdropFilter: 'blur(10px)',
-                border: faceIn ? '1px solid rgba(245,158,11,0.35)' : '1px solid rgba(255,255,255,0.12)',
-                color: faceIn ? '#fbbf24' : 'rgba(255,255,255,0.55)',
-                transition: 'all 0.3s ease',
               }}
             >
-              {hint}
+              Blink to capture instantly
+            </div>
+          </div>
+        )}
+
+        {/* Hint chip — searching */}
+        {phase === 'searching' && (
+          <div className="absolute bottom-3 left-0 right-0 flex justify-center z-10 pointer-events-none">
+            <div
+              className="px-3.5 py-1.5 rounded-full text-xs font-medium"
+              style={{
+                background: 'rgba(0,0,0,0.55)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                color: 'rgba(255,255,255,0.50)',
+                backdropFilter: 'blur(10px)',
+              }}
+            >
+              Position your face in the oval · look straight ahead
             </div>
           </div>
         )}
       </div>
 
-      {/* ── Blink progress tracker ──────────────────────────── */}
-      {(camState === 'active' || camState === 'done') && modelsOk && (
+      {/* ── Auto-capture progress bar ─────────────────────────── */}
+      {phase === 'face_found' && (
         <div
-          className="rounded-2xl px-5 py-4"
-          style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}
+          className="rounded-2xl px-5 py-3 space-y-2"
+          style={{ background: 'rgba(52,211,153,0.06)', border: '1px solid rgba(52,211,153,0.18)' }}
         >
-          <p className="text-[11px] font-semibold text-white/35 uppercase tracking-wider mb-3">
-            Liveness Check — Blink Detection
-          </p>
-          <div className="flex items-center gap-2.5">
-            {Array.from({ length: BLINKS_NEED }).map((_, i) => {
-              const done = i < blinks
-              const active = i === blinks
-              return (
-                <div
-                  key={i}
-                  className="flex items-center gap-2 flex-1 px-3.5 py-2.5 rounded-xl transition-all duration-300"
-                  style={{
-                    background: done
-                      ? 'rgba(52,211,153,0.10)'
-                      : active
-                      ? 'rgba(245,158,11,0.07)'
-                      : 'rgba(255,255,255,0.03)',
-                    border: done
-                      ? '1px solid rgba(52,211,153,0.30)'
-                      : active
-                      ? '1px solid rgba(245,158,11,0.25)'
-                      : '1px solid rgba(255,255,255,0.07)',
-                  }}
-                >
-                  <Eye
-                    className="w-4 h-4 shrink-0 transition-colors duration-300"
-                    style={{
-                      color: done ? '#34d399' : active ? '#F59E0B' : 'rgba(255,255,255,0.18)',
-                    }}
-                  />
-                  <span
-                    className="text-xs font-semibold transition-colors duration-300"
-                    style={{
-                      color: done ? '#34d399' : active ? '#fbbf24' : 'rgba(255,255,255,0.22)',
-                    }}
-                  >
-                    {done ? 'Blinked ✓' : active ? 'Blink now' : 'Waiting…'}
-                  </span>
-                </div>
-              )
-            })}
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-semibold text-emerald-400">Face locked — auto-capturing…</span>
+            <span className="text-[10px] text-emerald-400/55">{Math.round(progress)}%</span>
           </div>
-          <p className="text-[10px] text-white/25 mt-3 text-center">
-            Blink naturally — anti-spoofing protection against photos or video replays
-          </p>
+          <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(52,211,153,0.12)' }}>
+            <div
+              className="h-full rounded-full transition-[width] duration-150"
+              style={{ width: `${progress}%`, background: 'linear-gradient(90deg, #34d399, #10b981)' }}
+            />
+          </div>
+          <p className="text-[10px] text-white/25 text-center">or blink now to capture instantly</p>
         </div>
       )}
 
-      {/* ── Why verification card (shown before camera starts) ── */}
-      {camState === 'idle' && (
+      {/* ── Post-capture: confirm / retake ───────────────────── */}
+      {phase === 'captured' && (
+        <div className="space-y-2.5">
+          <div
+            className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl"
+            style={{ background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.22)' }}
+          >
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+            <p className="text-[11px] text-emerald-400 font-semibold">
+              Liveness confirmed! Review your selfie above.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={retake}
+              className="py-3.5 rounded-2xl text-sm font-semibold text-white/65 transition-all active:scale-95"
+              style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)' }}
+            >
+              Retake
+            </button>
+            <button
+              onClick={onVerified}
+              className="py-3.5 rounded-2xl text-sm font-bold text-black transition-all active:scale-[0.97]"
+              style={{
+                background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+                boxShadow: '0 6px 20px rgba(245,158,11,0.35)',
+              }}
+            >
+              Confirm →
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Why verification card ─────────────────────────────── */}
+      {(phase === 'loading' || phase === 'searching') && (
         <div
           className="rounded-2xl px-5 py-4 space-y-2"
           style={{ background: 'rgba(245,158,11,0.04)', border: '1px solid rgba(245,158,11,0.14)' }}
@@ -488,7 +512,7 @@ function FaceScanPanel({
             <p className="text-xs font-bold text-amber-400">Why face verification?</p>
           </div>
           <p className="text-[11px] text-white/40 leading-relaxed">
-            A blink-based liveness check confirms this is a live person placing the order — preventing fraudulent or automated orders. Your image never leaves this device.
+            A blink-based liveness check confirms this is a real person placing the order — preventing fraudulent or automated orders. Your image never leaves this device.
           </p>
         </div>
       )}
