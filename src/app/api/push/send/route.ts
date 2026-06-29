@@ -1,6 +1,7 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import webpush from 'web-push'
 import { createClient } from '@/lib/supabase/server'
+import { rateLimit } from '@/lib/rate-limit'
 
 // ── VAPID (browser web push) ──────────────────────────────────────
 function initVapid() {
@@ -110,7 +111,12 @@ const ICON  = '/logo/android/launchericon-192x192.png'
 const BADGE = '/logo/android/launchericon-96x96.png'
 
 // ── Route handler ─────────────────────────────────────────────────
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
+  // Rate-limit: max 30 push sends per minute per IP
+  if (!rateLimit(req, 'push/send', 30, 60_000)) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+  }
+
   try {
     const { restaurant_id, type, body: customBody } = await req.json() as {
       restaurant_id: string
@@ -124,14 +130,17 @@ export async function POST(req: Request) {
 
     const supabase = await createClient()
 
-    // Check per-type preference
+    // Verify restaurant exists and fetch settings in one query
     const { data: restaurant } = await supabase
       .from('restaurants')
-      .select('settings')
+      .select('id, settings')
       .eq('id', restaurant_id)
       .maybeSingle()
 
-    const settings = (restaurant?.settings as Record<string, unknown>) ?? {}
+    if (!restaurant) return NextResponse.json({ error: 'Restaurant not found' }, { status: 404 })
+
+    // Check per-type notification preference
+    const settings = (restaurant.settings as Record<string, unknown>) ?? {}
     if (settings[`push_notif_${type}`] === false) {
       return NextResponse.json({ ok: true, skipped: true })
     }

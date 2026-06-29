@@ -1,7 +1,6 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 import { useInactivityLogout } from '@/hooks/useInactivityLogout'
 
 const EIGHT_HOURS = 8 * 60 * 60 * 1000
@@ -12,39 +11,45 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const restaurantId = localStorage.getItem('restaurant_id')
-    if (!restaurantId) {
-      router.replace('/restaurant-login')
-      return
-    }
 
-    // PIN staff login
-    if (localStorage.getItem('pos_staff_id')) {
+    // Fast path: localStorage session present
+    if (restaurantId && (localStorage.getItem('pos_staff_id') || localStorage.getItem('owner_session') === 'true')) {
       setReady(true)
       return
     }
 
-    // Owner login via restaurant-login page (custom password, no Supabase Auth)
-    if (localStorage.getItem('owner_session') === 'true') {
-      setReady(true)
-      return
-    }
-
-    // Supabase Auth session (fallback for future Auth-based flows)
-    const supabase = createClient()
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) {
+    // Fallback: localStorage was cleared but the HTTP-only session cookie may still be valid.
+    // Ask the server to verify and restore session data.
+    fetch('/api/restaurant/verify')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (!data?.ok) {
+          router.replace('/restaurant-login')
+          return
+        }
+        const { restaurant, role } = data
+        localStorage.setItem('restaurant_id',   restaurant.id)
+        localStorage.setItem('restaurant_name', restaurant.name)
+        localStorage.setItem('restaurant_slug', restaurant.menu_slug ?? '')
+        if (role === 'owner') localStorage.setItem('owner_session', 'true')
         setReady(true)
-      } else {
-        localStorage.removeItem('restaurant_id')
-        router.replace('/restaurant-login')
-      }
-    })
+      })
+      .catch(() => router.replace('/restaurant-login'))
   }, [router])
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
     const slug = localStorage.getItem('restaurant_slug')
     localStorage.removeItem('pos_staff_id')
+    localStorage.removeItem('pos_staff_name')
+    localStorage.removeItem('pos_staff_role')
+    localStorage.removeItem('pos_staff_color')
+    localStorage.removeItem('pos_role_permissions')
+    localStorage.removeItem('pos_role_name')
     localStorage.removeItem('owner_session')
+    localStorage.removeItem('restaurant_id')
+    localStorage.removeItem('restaurant_name')
+    localStorage.removeItem('restaurant_slug')
+    await fetch('/api/restaurant/logout', { method: 'POST' }).catch(() => {})
     router.replace(slug ? `/pos/${slug}/login` : '/restaurant-login')
   }, [router])
 

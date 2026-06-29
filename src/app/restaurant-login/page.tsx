@@ -1,19 +1,17 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 import { ChefHat, Eye, EyeOff, Loader2, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 
 export default function RestaurantLoginPage() {
-  const router   = useRouter()
-  const supabase = createClient()
+  const router = useRouter()
 
-  const [email,       setEmail]       = useState('')
-  const [password,    setPassword]    = useState('')
-  const [showPwd,     setShowPwd]     = useState(false)
-  const [loading,     setLoading]     = useState(false)
-  const [error,       setError]       = useState<string | null>(null)
+  const [email,    setEmail]    = useState('')
+  const [password, setPassword] = useState('')
+  const [showPwd,  setShowPwd]  = useState(false)
+  const [loading,  setLoading]  = useState(false)
+  const [error,    setError]    = useState<string | null>(null)
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -21,41 +19,28 @@ export default function RestaurantLoginPage() {
     setLoading(true)
     setError(null)
 
-    // Find restaurant by email
-    const { data: restaurants } = await supabase
-      .from('restaurants')
-      .select('id, name, settings, menu_slug')
-      .eq('email', email.trim().toLowerCase())
-      .limit(1)
+    const res = await fetch('/api/restaurant/login', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ email: email.trim(), password: password.trim() }),
+    })
 
-    const restaurant = restaurants?.[0] ?? null
-
-    if (!restaurant) {
-      setError('No restaurant found with this email address.')
+    if (res.ok) {
+      const { restaurant } = await res.json()
+      // Clear any stale POS staff session before starting owner session
+      const posKeys = ['pos_staff_id', 'pos_staff_name', 'pos_staff_role', 'pos_staff_color', 'pos_role_permissions', 'pos_role_name']
+      posKeys.forEach(k => localStorage.removeItem(k))
+      // Store for UI use (session authority comes from the HTTP-only cookie set by the API)
+      localStorage.setItem('restaurant_id',   restaurant.id)
+      localStorage.setItem('restaurant_name', restaurant.name)
+      localStorage.setItem('restaurant_slug', restaurant.menu_slug ?? '')
+      localStorage.setItem('owner_session',   'true')
+      router.push('/dashboard')
+    } else {
+      const body = await res.json().catch(() => ({ error: 'Login failed.' }))
+      setError(body.error ?? 'Login failed.')
       setLoading(false)
-      return
     }
-
-    // Check password stored in settings.password
-    const storedPassword = (restaurant.settings as Record<string, unknown>)?.password as string | undefined
-
-    if (!storedPassword || storedPassword !== password) {
-      setError('Incorrect password.')
-      setLoading(false)
-      return
-    }
-
-    // Clear any stale POS staff session before starting owner session
-    const posKeys = ['pos_staff_id', 'pos_staff_name', 'pos_staff_role', 'pos_staff_color', 'pos_role_permissions', 'pos_role_name']
-    posKeys.forEach(k => localStorage.removeItem(k))
-
-    // Store logged-in restaurant in localStorage so the dashboard can use it
-    localStorage.setItem('restaurant_id',   restaurant.id)
-    localStorage.setItem('restaurant_name', restaurant.name)
-    localStorage.setItem('restaurant_slug', restaurant.menu_slug ?? '')
-    localStorage.setItem('owner_session',   'true')
-
-    router.push('/dashboard')
   }
 
   return (

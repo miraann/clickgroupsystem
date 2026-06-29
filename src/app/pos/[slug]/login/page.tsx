@@ -8,24 +8,23 @@ import { getStaffHome } from '@/lib/permissions/staffHome'
 
 const supabase = createClient()
 
+
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'clr', '0', 'del'] as const
 type Key = typeof KEYS[number]
 
-interface Restaurant { id: string; name: string; logo_url?: string | null }
-interface StaffRow   { id: string; name: string; role: string; color: string; pin: string; role_id: string | null }
+interface Restaurant { id: string; name: string; logo_url?: string | null; menu_slug?: string | null }
 
 export default function POSLoginPage() {
   const router = useRouter()
   const params = useParams()
   const slug = params.slug as string
-  const [restaurantId, setRestaurantId] = useState<string>('')
 
   const [restaurant, setRestaurant]   = useState<Restaurant | null>(null)
   const [loadingRest, setLoadingRest] = useState(true)
-  const [pin, setPin]                 = useState('')
-  const [status, setStatus]           = useState<'idle' | 'checking' | 'success' | 'error'>('idle')
-  const [shake, setShake]             = useState(false)
-  const [time, setTime]               = useState(new Date())
+  const [pin, setPin]   = useState('')
+  const [status, setStatus] = useState<'idle' | 'checking' | 'success' | 'error'>('idle')
+  const [shake, setShake]   = useState(false)
+  const [time, setTime]     = useState(new Date())
   const [deferredInstall, setDeferredInstall] = useState<any>(null)
   const [installed, setInstalled]             = useState(false)
 
@@ -62,62 +61,45 @@ export default function POSLoginPage() {
       .eq('menu_slug', slug)
       .maybeSingle()
       .then(({ data }) => {
-        if (data) { setRestaurant(data as Restaurant); setRestaurantId(data.id) }
+        if (data) setRestaurant(data as Restaurant)
         setLoadingRest(false)
       })
   }, [slug])
 
-  // Auto-submit when 6 digits entered
+  // Auto-submit when 6 digits entered — PIN verification is now server-side
   const checkPin = useCallback(async (enteredPin: string) => {
-    if (enteredPin.length !== 6 || !restaurantId) return
+    if (enteredPin.length !== 6 || !slug) return
     setStatus('checking')
 
-    const { data: staffRow } = await supabase
-      .from('staff')
-      .select('id, name, role, color, pin, role_id')
-      .eq('restaurant_id', restaurantId)
-      .eq('pin', enteredPin)
-      .eq('status', 'active')
-      .maybeSingle()
+    const res = await fetch('/api/pos/login', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ slug, pin: enteredPin }),
+    })
 
-    if (!staffRow) {
+    if (!res.ok) {
       setStatus('error')
       setShake(true)
       setTimeout(() => { setPin(''); setStatus('idle'); setShake(false) }, 700)
       return
     }
 
-    const staff = staffRow as StaffRow
+    const { restaurant, staff } = await res.json()
 
-    // Fetch custom role permissions directly from staff.role_id → restaurant_roles
-    let rolePermissions: Record<string, boolean> = {}
-    let roleName: string | null = null
-    if (staff.role_id) {
-      const { data: roleRow } = await supabase
-        .from('restaurant_roles')
-        .select('name, permissions')
-        .eq('id', staff.role_id)
-        .maybeSingle()
-      if (roleRow) {
-        rolePermissions = (roleRow.permissions as Record<string, boolean>) ?? {}
-        roleName = roleRow.name as string
-      }
-    }
-
-    // Persist session to localStorage (UUID for DB queries, slug for URL building)
-    localStorage.setItem('restaurant_id',   restaurantId)
-    localStorage.setItem('restaurant_slug', slug)
-    localStorage.setItem('pos_staff_id', staff.id)
-    localStorage.setItem('pos_staff_name', staff.name)
-    localStorage.setItem('pos_staff_role', staff.role)
-    localStorage.setItem('pos_staff_color', staff.color ?? '')
-    localStorage.setItem('pos_role_permissions', JSON.stringify(rolePermissions))
-    if (roleName) localStorage.setItem('pos_role_name', roleName)
+    // Persist to localStorage for UI use (session authority is the HTTP-only cookie set by the API)
+    localStorage.setItem('restaurant_id',        restaurant.id)
+    localStorage.setItem('restaurant_slug',       restaurant.menu_slug ?? slug)
+    localStorage.setItem('pos_staff_id',          staff.id)
+    localStorage.setItem('pos_staff_name',        staff.name)
+    localStorage.setItem('pos_staff_role',        staff.role)
+    localStorage.setItem('pos_staff_color',       staff.color ?? '')
+    localStorage.setItem('pos_role_permissions',  JSON.stringify(staff.permissions ?? {}))
+    if (staff.roleName) localStorage.setItem('pos_role_name', staff.roleName)
     else localStorage.removeItem('pos_role_name')
 
     setStatus('success')
-    setTimeout(() => router.push(getStaffHome(rolePermissions, slug)), 1100)
-  }, [restaurantId, slug, router])
+    setTimeout(() => router.push(getStaffHome(staff.permissions ?? {}, restaurant.menu_slug ?? slug)), 1100)
+  }, [slug, router])
 
   const handleKey = useCallback((key: Key) => {
     if (status === 'checking' || status === 'success') return
