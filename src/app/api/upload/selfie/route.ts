@@ -25,11 +25,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: 'Missing or invalid image data' }, { status: 400 })
     }
 
-    // Strip the data URL prefix and decode to Buffer
-    const base64 = dataUrl.replace(/^data:image\/\w+;base64,/, '')
+    // Detect mime type and extension from the dataUrl
+    const mimeMatch = dataUrl.match(/^data:(image\/[\w+.-]+);base64,/)
+    const mimeType  = mimeMatch?.[1] ?? 'image/jpeg'
+    const ext       = mimeType === 'image/webp' ? 'webp' : mimeType === 'image/png' ? 'png' : 'jpg'
+
+    const base64 = dataUrl.replace(/^data:image\/[\w+.-]+;base64,/, '')
     const buffer = Buffer.from(base64, 'base64')
 
-    const fileName = `selfie_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.jpg`
+    const fileName = `selfie_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`
 
     const supabaseAdmin = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -40,7 +44,7 @@ export async function POST(req: NextRequest) {
     const { data, error } = await supabaseAdmin.storage
       .from('customer-selfies')
       .upload(fileName, buffer, {
-        contentType: 'image/jpeg',
+        contentType: mimeType,
         cacheControl: '3600',
         upsert: false,
       })
