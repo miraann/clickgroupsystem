@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   Truck, X, Loader2, Save, AlertCircle,
   Check, Clock, DollarSign, ShoppingCart, Package,
-  User, Phone, ChevronDown, RefreshCw, History, Settings2,
+  User, Phone, ChevronDown, RefreshCw, History,
   ToggleLeft, ToggleRight, MapPin, Globe,
 } from 'lucide-react'
 import OnlineMenuTemplatePage from '../menu/online-menu/page'
@@ -442,7 +442,7 @@ export default function DeliveryPage() {
   const { formatPrice } = useDefaultCurrency()
   const { t } = useLanguage()
 
-  const [tab, setTab]                   = useState<'history' | 'settings' | 'online-menu'>('history')
+  const [tab, setTab]                   = useState<'history' | 'online-menu'>('history')
   const [restaurantId, setRestaurantId] = useState<string | null>(null)
   const [mounted, setMounted]           = useState(false)
   const [synced,  setSynced]            = useState(false)
@@ -514,9 +514,6 @@ export default function DeliveryPage() {
             <h1 className="text-lg font-bold text-white">{t.del_title}</h1>
           </div>
         </div>
-        {tab === 'settings' && (
-          <SaveButton state={saveState} onClick={saveGeneral} />
-        )}
       </motion.div>
 
       {/* ── Tabs ── */}
@@ -533,15 +530,6 @@ export default function DeliveryPage() {
           )}
         >
           <History className="w-4 h-4" /> {t.del_orders}
-        </button>
-        <button
-          onClick={() => setTab('settings')}
-          className={cn(
-            'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all',
-            tab === 'settings' ? 'bg-indigo-500/25 text-indigo-300 shadow-sm' : 'text-white/40 hover:text-white/60'
-          )}
-        >
-          <Settings2 className="w-4 h-4" /> Settings
         </button>
         <button
           onClick={() => setTab('online-menu')}
@@ -569,44 +557,33 @@ export default function DeliveryPage() {
         <DeliveryHistoryTab restaurantId={restaurantId} formatPrice={formatPrice} />
       )}
 
-      {/* ── Online Menu Tab ── */}
-      {tab === 'online-menu' && <OnlineMenuTemplatePage />}
+      {/* ── Online Menu Tab (with delivery settings injected into Links tab) ── */}
+      {tab === 'online-menu' && (
+        <OnlineMenuTemplatePage linksSlot={
+          <div className="rounded-2xl bg-white/4 border border-white/10 p-4 space-y-4">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-semibold text-white">Delivery Settings</p>
+              <SaveButton state={saveState} onClick={saveGeneral} />
+            </div>
 
-      {/* ── Settings Tab ── */}
-      {tab === 'settings' && (
-        <div className="space-y-6">
-          {err && (
-            <motion.div
-              initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.35, ease: 'circOut' }}
-              className="flex items-center gap-2 px-4 py-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm"
-            >
-              <AlertCircle className="w-4 h-4 shrink-0" />{err}
-            </motion.div>
-          )}
+            {err && (
+              <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />{err}
+              </div>
+            )}
 
-          {/* Delivery On/Off */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.42, ease: 'circOut', delay: 0.05 }}
-            className="rounded-2xl border border-white/8 bg-white/3 p-5 space-y-4"
-          >
-            {/* Accept online delivery orders */}
-            <div className="flex items-center justify-between">
+            {/* Delivery Enabled */}
+            <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-3">
-                <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center transition-colors', general.delivery_enabled ? 'bg-indigo-500/20' : 'bg-white/5')}>
-                  {general.delivery_enabled
-                    ? <ToggleRight className="w-5 h-5 text-indigo-400" />
-                    : <ToggleLeft  className="w-5 h-5 text-white/30" />}
+                <div className={cn('w-8 h-8 rounded-xl flex items-center justify-center transition-colors', general.delivery_enabled ? 'bg-indigo-500/20' : 'bg-white/5')}>
+                  {general.delivery_enabled ? <ToggleRight className="w-4 h-4 text-indigo-400" /> : <ToggleLeft className="w-4 h-4 text-white/30" />}
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-white">{t.del_enabled}</p>
-                  <p className="text-xs text-white/40">{t.del_enabled_desc}</p>
+                  <p className="text-sm text-white/80 font-medium">{t.del_enabled}</p>
+                  <p className="text-xs text-white/30 mt-0.5">{t.del_enabled_desc}</p>
                 </div>
               </div>
-              <ToggleSwitch
-                on={general.delivery_enabled}
-                activeColor="bg-indigo-500"
+              <ToggleSwitch on={general.delivery_enabled} activeColor="bg-indigo-500"
                 onChange={async v => {
                   setGeneral(g => ({ ...g, delivery_enabled: v }))
                   if (!restaurantId) return
@@ -616,28 +593,23 @@ export default function DeliveryPage() {
                   const { error } = await supabase.from('restaurants').update({ settings: { ...existing, delivery_enabled: v } }).eq('id', restaurantId)
                   if (error) { setGeneral(g => ({ ...g, delivery_enabled: !v })); setErr(error.message); return }
                   await mutate()
-                }}
-              />
+                }} />
             </div>
 
-            <div className="border-t border-white/6" />
+            <div className="border-t border-white/8" />
 
-            {/* Show Delivery button on dashboard */}
-            <div className="flex items-center justify-between">
+            {/* Delivery Button on Dashboard */}
+            <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-3">
-                <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center transition-colors', general.show_delivery_button ? 'bg-indigo-500/20' : 'bg-white/5')}>
-                  {general.show_delivery_button
-                    ? <ToggleRight className="w-5 h-5 text-indigo-400" />
-                    : <ToggleLeft  className="w-5 h-5 text-white/30" />}
+                <div className={cn('w-8 h-8 rounded-xl flex items-center justify-center transition-colors', general.show_delivery_button ? 'bg-indigo-500/20' : 'bg-white/5')}>
+                  {general.show_delivery_button ? <ToggleRight className="w-4 h-4 text-indigo-400" /> : <ToggleLeft className="w-4 h-4 text-white/30" />}
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-white">{t.del_show_btn}</p>
-                  <p className="text-xs text-white/40">{t.del_show_btn_desc}</p>
+                  <p className="text-sm text-white/80 font-medium">{t.del_show_btn}</p>
+                  <p className="text-xs text-white/30 mt-0.5">{t.del_show_btn_desc}</p>
                 </div>
               </div>
-              <ToggleSwitch
-                on={general.show_delivery_button}
-                activeColor="bg-indigo-500"
+              <ToggleSwitch on={general.show_delivery_button} activeColor="bg-indigo-500"
                 onChange={async v => {
                   setGeneral(g => ({ ...g, show_delivery_button: v }))
                   if (!restaurantId) return
@@ -647,19 +619,14 @@ export default function DeliveryPage() {
                   const { error } = await supabase.from('restaurants').update({ settings: { ...existing, show_delivery_button: v } }).eq('id', restaurantId)
                   if (error) { setGeneral(g => ({ ...g, show_delivery_button: !v })); setErr(error.message); return }
                   await mutate()
-                }}
-              />
+                }} />
             </div>
-          </motion.div>
 
-          {/* General Settings */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.42, ease: 'circOut', delay: 0.12 }}
-            className="rounded-2xl border border-white/8 bg-white/3 p-5 space-y-5"
-          >
-            <h2 className="text-sm font-bold text-white/70 uppercase tracking-wider">{t.del_general}</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="border-t border-white/8" />
+
+            {/* General Settings */}
+            <p className="text-xs font-semibold uppercase tracking-wider text-white/30">{t.del_general}</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Field label={t.del_fee} icon={DollarSign}>
                 <input type="number" min="0" step="0.01" value={general.default_delivery_fee}
                   onChange={e => setGeneral(g => ({ ...g, default_delivery_fee: parseFloat(e.target.value) || 0 }))}
@@ -687,9 +654,8 @@ export default function DeliveryPage() {
                 rows={2} className={cn(inputCls, 'resize-none')}
                 placeholder="e.g. Please have your order ready at the door" />
             </Field>
-          </motion.div>
-
-        </div>
+          </div>
+        } />
       )}
 
         </motion.div>

@@ -590,7 +590,7 @@ const ITEM_VAR: Variants = {
 }
 
 // ── Main page ──────────────────────────────────────────────────
-export default function OnlineMenuTemplatePage() {
+export default function OnlineMenuTemplatePage({ linksSlot }: { linksSlot?: React.ReactNode } = {}) {
   const supabase = createClient()
   const { t } = useLanguage()
 
@@ -818,6 +818,8 @@ export default function OnlineMenuTemplatePage() {
                 </div>
               </div>
             </div>
+
+            {linksSlot}
           </motion.div>
         )}
 
