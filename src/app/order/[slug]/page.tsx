@@ -181,104 +181,74 @@ function AnimCookingPot({ color }: { color: string }) {
 }
 
 function AnimDeliveryBike({ color }: { color: string }) {
-  // viewBox 0 0 90 50, rendered 80×44 — aspect ratio 1.8:1 vs 1.818:1, fits cleanly
   return (
     <motion.svg width="80" height="44" viewBox="0 0 90 50" fill="none"
       animate={{ y: [0, -1.5, 0] }}
-      transition={{ duration: 0.4, repeat: Infinity, ease: 'easeInOut' }}>
+      transition={{ duration: 0.5, repeat: Infinity, ease: 'easeInOut' }}>
 
-      {/* ── Wind micro-dashes — grow-left then fade, simulating headwind ── */}
-      {([18, 23, 28] as number[]).map((y, i) => (
+      {/* ── Wind dashes (left side) ── */}
+      {([20, 26, 32] as number[]).map((y, i) => (
         <motion.rect key={i}
-          x={1} y={y - 0.75} width={7} height={1.5} rx={0.75}
+          x={1} y={y - 0.75} width={8} height={1.5} rx={0.75}
           fill={color}
-          style={{ transformOrigin: `8px ${y}px` }}
+          style={{ transformOrigin: `9px ${y}px` }}
           animate={{ scaleX: [0, 1.2, 0], opacity: [0, 0.7, 0] }}
           transition={{ duration: 0.6, delay: i * 0.18, repeat: Infinity, ease: 'easeInOut' }}
         />
       ))}
 
-      {/* ── Thermal delivery box (rear rack) ── */}
-      <rect x="8" y="11" width="18" height="19" rx="2"
-        stroke={color} strokeWidth="2" />
-      {/* Lid divider */}
-      <line x1="8" y1="17" x2="26" y2="17"
-        stroke={color} strokeWidth="1.5" strokeLinecap="round" />
-      {/* Carry handle on top */}
-      <path d="M 12,11 L 12,8 L 22,8 L 22,11"
-        stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      {/* ── Car body — sedan silhouette ── */}
+      {/* Main lower body / chassis */}
+      <path d="M 10,33 L 10,26 C 10,26 14,14 24,12 L 56,12 C 66,12 72,22 74,26 L 80,26 L 80,33 Z"
+        stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      {/* Cabin roof */}
+      <path d="M 22,26 C 24,18 30,14 36,14 L 55,14 C 62,14 66,19 68,26"
+        stroke={color} strokeWidth="2" strokeLinecap="round" />
+      {/* Windshield (front glass) */}
+      <path d="M 56,14 C 62,16 66,20 68,26 L 56,26 Z"
+        stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.5" />
+      {/* Rear window */}
+      <path d="M 22,26 C 24,20 28,15 34,14 L 22,14 Z"
+        stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.5" />
+      {/* B-pillar (middle window divider) */}
+      <line x1="44" y1="14" x2="44" y2="26"
+        stroke={color} strokeWidth="1.5" strokeLinecap="round" opacity="0.5" />
+      {/* Front bumper */}
+      <line x1="74" y1="30" x2="82" y2="30"
+        stroke={color} strokeWidth="2.5" strokeLinecap="round" />
+      {/* Rear bumper */}
+      <line x1="8" y1="30" x2="14" y2="30"
+        stroke={color} strokeWidth="2.5" strokeLinecap="round" />
+      {/* Headlight */}
+      <line x1="79" y1="24" x2="83" y2="24"
+        stroke={color} strokeWidth="2" strokeLinecap="round" opacity="0.7" />
+      {/* Tail light */}
+      <line x1="7" y1="24" x2="11" y2="24"
+        stroke={color} strokeWidth="2" strokeLinecap="round" opacity="0.7" />
 
       {/* ── Rear wheel ── */}
-      <circle cx="18" cy="41" r="9" stroke={color} strokeWidth="2" />
-      <circle cx="18" cy="41" r="2.5" stroke={color} strokeWidth="1.5" />
+      <circle cx="22" cy="38" r="9" stroke={color} strokeWidth="2" />
+      <circle cx="22" cy="38" r="3"  stroke={color} strokeWidth="1.5" />
       <motion.g animate={{ rotate: 360 }}
-        transition={{ duration: 0.6, repeat: Infinity, ease: 'linear' }}
-        style={{ transformOrigin: '18px 41px' }}>
-        <line x1="18" y1="32" x2="18" y2="50" stroke={color} strokeWidth="1" strokeLinecap="round" opacity="0.45" />
-        <line x1="9"  y1="41" x2="27" y2="41" stroke={color} strokeWidth="1" strokeLinecap="round" opacity="0.45" />
-        <line x1="11.6" y1="34.6" x2="24.4" y2="47.4" stroke={color} strokeWidth="1" strokeLinecap="round" opacity="0.3" />
-        <line x1="24.4" y1="34.6" x2="11.6" y2="47.4" stroke={color} strokeWidth="1" strokeLinecap="round" opacity="0.3" />
+        transition={{ duration: 0.7, repeat: Infinity, ease: 'linear' }}
+        style={{ transformOrigin: '22px 38px' }}>
+        <line x1="22" y1="29" x2="22" y2="47" stroke={color} strokeWidth="1" strokeLinecap="round" opacity="0.4" />
+        <line x1="13" y1="38" x2="31" y2="38" stroke={color} strokeWidth="1" strokeLinecap="round" opacity="0.4" />
+        <line x1="15.6" y1="31.6" x2="28.4" y2="44.4" stroke={color} strokeWidth="1" strokeLinecap="round" opacity="0.28" />
+        <line x1="28.4" y1="31.6" x2="15.6" y2="44.4" stroke={color} strokeWidth="1" strokeLinecap="round" opacity="0.28" />
       </motion.g>
-
-      {/* ── Scooter frame ── */}
-      {/* Rear fender arch over wheel */}
-      <path d="M 9,37 Q 18,26 27,35"
-        stroke={color} strokeWidth="2" strokeLinecap="round" />
-      {/* Main body spine: rear fender → under-seat → legshield base */}
-      <path d="M 27,32 C 31,27 36,25 43,24 L 56,23 C 60,23 63,26 64,30"
-        stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      {/* Seat — thick prominent stroke */}
-      <path d="M 38,24 C 43,22 51,22 56,23"
-        stroke={color} strokeWidth="4.5" strokeLinecap="round" />
-      {/* Front legshield panel */}
-      <path d="M 64,25 C 67,22 69,26 68,34"
-        stroke={color} strokeWidth="2" strokeLinecap="round" />
-      {/* Step-through floor (faint undercarriage) */}
-      <path d="M 28,36 C 42,38 56,38 63,35"
-        stroke={color} strokeWidth="1.5" strokeLinecap="round" opacity="0.38" />
-      {/* Front fork */}
-      <line x1="66" y1="31" x2="69" y2="41"
-        stroke={color} strokeWidth="2" strokeLinecap="round" />
-      {/* Handlebar stem */}
-      <line x1="64" y1="27" x2="65" y2="18"
-        stroke={color} strokeWidth="2" strokeLinecap="round" />
-      {/* Handlebar grip */}
-      <line x1="61" y1="18" x2="73" y2="18"
-        stroke={color} strokeWidth="2.5" strokeLinecap="round" />
 
       {/* ── Front wheel ── */}
-      <circle cx="70" cy="41" r="8" stroke={color} strokeWidth="2" />
-      <circle cx="70" cy="41" r="2.5" stroke={color} strokeWidth="1.5" />
+      <circle cx="66" cy="38" r="9" stroke={color} strokeWidth="2" />
+      <circle cx="66" cy="38" r="3"  stroke={color} strokeWidth="1.5" />
       <motion.g animate={{ rotate: 360 }}
-        transition={{ duration: 0.6, repeat: Infinity, ease: 'linear' }}
-        style={{ transformOrigin: '70px 41px' }}>
-        <line x1="70" y1="33" x2="70" y2="49" stroke={color} strokeWidth="1" strokeLinecap="round" opacity="0.45" />
-        <line x1="62" y1="41" x2="78" y2="41" stroke={color} strokeWidth="1" strokeLinecap="round" opacity="0.45" />
-        <line x1="64.3" y1="35.3" x2="75.7" y2="46.7" stroke={color} strokeWidth="1" strokeLinecap="round" opacity="0.3" />
-        <line x1="75.7" y1="35.3" x2="64.3" y2="46.7" stroke={color} strokeWidth="1" strokeLinecap="round" opacity="0.3" />
+        transition={{ duration: 0.7, repeat: Infinity, ease: 'linear' }}
+        style={{ transformOrigin: '66px 38px' }}>
+        <line x1="66" y1="29" x2="66" y2="47" stroke={color} strokeWidth="1" strokeLinecap="round" opacity="0.4" />
+        <line x1="57" y1="38" x2="75" y2="38" stroke={color} strokeWidth="1" strokeLinecap="round" opacity="0.4" />
+        <line x1="59.6" y1="31.6" x2="72.4" y2="44.4" stroke={color} strokeWidth="1" strokeLinecap="round" opacity="0.28" />
+        <line x1="72.4" y1="31.6" x2="59.6" y2="44.4" stroke={color} strokeWidth="1" strokeLinecap="round" opacity="0.28" />
       </motion.g>
-
-      {/* ── Helmeted rider ── */}
-      {/* Full-coverage helmet (round) */}
-      <circle cx="45" cy="11" r="8" stroke={color} strokeWidth="2" />
-      {/* Visor slot across lower front of helmet */}
-      <path d="M 38.5,14 Q 45,17.5 51.5,14"
-        stroke={color} strokeWidth="1.5" strokeLinecap="round" opacity="0.55" />
-      {/* Chin-guard arc */}
-      <path d="M 38,15.5 Q 45,20 52,15.5"
-        stroke={color} strokeWidth="1" strokeLinecap="round" opacity="0.28" />
-      {/* Neck */}
-      <line x1="45" y1="19" x2="45" y2="22"
-        stroke={color} strokeWidth="2" strokeLinecap="round" />
-      {/* Torso — leaned forward posture */}
-      <path d="M 43,22 C 42,24 42,26 45,27"
-        stroke={color} strokeWidth="3" strokeLinecap="round" />
-      {/* Arm reaching forward to handlebar */}
-      <path d="M 45,24 C 52,22 58,20 64,19"
-        stroke={color} strokeWidth="2" strokeLinecap="round" />
-      {/* Hips / lower body on seat */}
-      <path d="M 44,26 C 47,27.5 52,27.5 56,25"
-        stroke={color} strokeWidth="2.5" strokeLinecap="round" />
     </motion.svg>
   )
 }
