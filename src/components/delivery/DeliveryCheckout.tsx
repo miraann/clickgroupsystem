@@ -583,16 +583,16 @@ function StepIndicator({ step, primaryColor }: { step: Step; primaryColor: strin
               <div
                 className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold transition-all duration-300"
                 style={{
-                  background: active ? primaryColor : past ? 'rgba(52,211,153,0.22)' : 'rgba(255,255,255,0.07)',
-                  color: active ? '#000' : past ? '#34d399' : 'rgba(255,255,255,0.28)',
-                  border: active ? 'none' : past ? '1px solid rgba(52,211,153,0.38)' : '1px solid rgba(255,255,255,0.10)',
+                  background: active ? primaryColor : past ? 'rgba(16,185,129,0.14)' : 'rgba(0,0,0,0.06)',
+                  color: active ? '#000' : past ? '#059669' : 'rgba(0,0,0,0.28)',
+                  border: active ? 'none' : past ? '1px solid rgba(16,185,129,0.30)' : '1px solid rgba(0,0,0,0.10)',
                 }}
               >
                 {past ? <Check className="w-2.5 h-2.5" strokeWidth={3} /> : i + 1}
               </div>
               <span
                 className="text-[10px] font-semibold transition-colors duration-300"
-                style={{ color: active ? 'rgba(255,255,255,0.9)' : past ? '#34d399' : 'rgba(255,255,255,0.28)' }}
+                style={{ color: active ? 'rgba(0,0,0,0.85)' : past ? '#059669' : 'rgba(0,0,0,0.30)' }}
               >
                 {s.label}
               </span>
@@ -600,7 +600,7 @@ function StepIndicator({ step, primaryColor }: { step: Step; primaryColor: strin
             {i < steps.length - 1 && (
               <div
                 className="w-8 h-px transition-all duration-500"
-                style={{ background: past ? 'rgba(52,211,153,0.4)' : 'rgba(255,255,255,0.10)' }}
+                style={{ background: past ? 'rgba(16,185,129,0.35)' : 'rgba(0,0,0,0.10)' }}
               />
             )}
           </div>
@@ -613,8 +613,8 @@ function StepIndicator({ step, primaryColor }: { step: Step; primaryColor: strin
 // ─── Tiny shared primitives ───────────────────────────────────────────────────
 function inputStyle(error?: string, warn?: boolean): React.CSSProperties {
   return {
-    background: error ? 'rgba(239,68,68,0.07)' : warn ? 'rgba(245,158,11,0.05)' : 'rgba(255,255,255,0.055)',
-    border: `1px solid ${error ? 'rgba(239,68,68,0.42)' : warn ? 'rgba(245,158,11,0.38)' : 'rgba(255,255,255,0.10)'}`,
+    background: error ? 'rgba(239,68,68,0.06)' : warn ? 'rgba(245,158,11,0.05)' : 'rgba(0,0,0,0.04)',
+    border: `1px solid ${error ? 'rgba(239,68,68,0.38)' : warn ? 'rgba(245,158,11,0.38)' : 'rgba(0,0,0,0.10)'}`,
     transition: 'border-color 0.2s ease, background 0.2s ease',
   }
 }
@@ -622,7 +622,7 @@ function inputStyle(error?: string, warn?: boolean): React.CSSProperties {
 function FieldWrap({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
   return (
     <div>
-      <label className="text-[11px] font-semibold text-white/38 uppercase tracking-wider mb-2 block">{label}</label>
+      <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2 block">{label}</label>
       {children}
       {error && (
         <p className="text-[11px] text-rose-400 mt-1 flex items-center gap-1">
@@ -635,9 +635,9 @@ function FieldWrap({ label, error, children }: { label: string; error?: string; 
 
 function TotalRow({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
   return (
-    <div className="flex justify-between items-center px-4 py-2.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-      <span className={`text-xs ${accent ? 'text-emerald-400' : 'text-white/35'}`}>{label}</span>
-      <span className={`text-xs font-semibold ${accent ? 'text-emerald-400' : 'text-white/58'}`}>{value}</span>
+    <div className="flex justify-between items-center px-4 py-2.5" style={{ borderBottom: '1px solid rgba(0,0,0,0.06)' }}>
+      <span className={`text-xs ${accent ? 'text-emerald-600' : 'text-gray-400'}`}>{label}</span>
+      <span className={`text-xs font-semibold ${accent ? 'text-emerald-600' : 'text-gray-700'}`}>{value}</span>
     </div>
   )
 }
@@ -806,22 +806,16 @@ export default function DeliveryCheckout({
                    h-dvh sm:h-auto sm:max-h-[92dvh]
                    rounded-none sm:rounded-3xl"
         style={{
-          background: 'linear-gradient(160deg, rgba(14,16,28,0.99) 0%, rgba(8,10,20,0.99) 100%)',
-          backdropFilter: 'blur(48px) saturate(200%)',
-          border: '1px solid rgba(255,255,255,0.09)',
-          boxShadow: '0 48px 120px rgba(0,0,0,0.75), inset 0 1px 0 rgba(255,255,255,0.07)',
+          background: '#ffffff',
+          border: '1px solid rgba(0,0,0,0.08)',
+          boxShadow: '0 32px 80px rgba(0,0,0,0.22), 0 2px 8px rgba(0,0,0,0.08)',
         }}
       >
-        {/* Ambient glow orbs */}
-        <div className="absolute -top-28 -right-28 w-72 h-72 rounded-full pointer-events-none"
-          style={{ background: 'radial-gradient(circle, rgba(245,158,11,0.10) 0%, transparent 70%)' }} />
-        <div className="absolute -bottom-20 -left-20 w-56 h-56 rounded-full pointer-events-none"
-          style={{ background: 'radial-gradient(circle, rgba(99,102,241,0.07) 0%, transparent 70%)' }} />
 
         {/* ── Sticky header ──────────────────────────────── */}
         <div
           className="sticky top-0 z-20 px-5 pt-5 pb-4"
-          style={{ background: 'linear-gradient(to bottom, rgba(8,10,20,0.98) 80%, transparent)' }}
+          style={{ background: 'linear-gradient(to bottom, rgba(255,255,255,0.98) 80%, transparent)' }}
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -832,8 +826,8 @@ export default function DeliveryCheckout({
                 <Truck className="w-4 h-4 text-amber-400" />
               </div>
               <div>
-                <h2 className="text-sm font-bold text-white leading-tight">Delivery Order</h2>
-                <p className="text-[10px] text-white/38">
+                <h2 className="text-sm font-bold text-gray-900 leading-tight">Delivery Order</h2>
+                <p className="text-[10px] text-gray-400">
                   {cartCount} item{cartCount !== 1 ? 's' : ''} · {formatPrice(cartTotal)}
                 </p>
               </div>
@@ -844,25 +838,25 @@ export default function DeliveryCheckout({
                 onClick={onClose}
                 aria-label="Close"
                 className="w-7 h-7 rounded-full flex items-center justify-center transition-all active:scale-90"
-                style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.10)' }}
+                style={{ background: 'rgba(0,0,0,0.05)', border: '1px solid rgba(0,0,0,0.08)' }}
               >
-                <X className="w-3.5 h-3.5 text-white/50" />
+                <X className="w-3.5 h-3.5 text-gray-400" />
               </button>
             </div>
           </div>
 
           {/* Mini summary strip */}
           <div
-            className="mt-3 grid grid-cols-3 divide-x divide-white/8 rounded-xl overflow-hidden"
-            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}
+            className="mt-3 grid grid-cols-3 divide-x divide-gray-100 rounded-xl overflow-hidden"
+            style={{ background: 'rgba(0,0,0,0.03)', border: '1px solid rgba(0,0,0,0.07)' }}
           >
             <div className="flex items-center gap-1.5 px-3 py-2">
-              <Clock className="w-3 h-3 text-white/28 shrink-0" />
-              <span className="text-[10px] text-white/38">~{estimatedTime} min</span>
+              <Clock className="w-3 h-3 text-gray-400 shrink-0" />
+              <span className="text-[10px] text-gray-400">~{estimatedTime} min</span>
             </div>
             <div className="flex items-center gap-1.5 px-3 py-2">
-              <Package className="w-3 h-3 text-white/28 shrink-0" />
-              <span className="text-[10px] text-white/38">
+              <Package className="w-3 h-3 text-gray-400 shrink-0" />
+              <span className="text-[10px] text-gray-400">
                 {deliveryFee === 0 ? <span className="text-emerald-400/80">Free</span> : formatPrice(deliveryFee)}
               </span>
             </div>
@@ -922,16 +916,16 @@ export default function DeliveryCheckout({
               {/* Full name */}
               <FieldWrap label="Full Name" error={errors.name}>
                 <div className="relative">
-                  <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/22" />
+                  <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <input
                     type="text"
                     value={name}
                     onChange={e => { setName(e.target.value); setErrors(er => ({ ...er, name: undefined })) }}
                     placeholder="Your full name"
-                    className="w-full pl-10 pr-4 py-2.5 rounded-2xl text-sm text-white placeholder:text-white/18 outline-none"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-2xl text-sm text-gray-900 placeholder:text-gray-300 outline-none"
                     style={inputStyle(errors.name)}
                     onFocus={e => { if (!errors.name) e.currentTarget.style.borderColor = `rgba(245,158,11,0.50)` }}
-                    onBlur={e => { if (!errors.name) e.currentTarget.style.borderColor = 'rgba(255,255,255,0.10)' }}
+                    onBlur={e => { if (!errors.name) e.currentTarget.style.borderColor = 'rgba(0,0,0,0.10)' }}
                   />
                 </div>
               </FieldWrap>
@@ -939,17 +933,17 @@ export default function DeliveryCheckout({
               {/* Phone */}
               <FieldWrap label="Phone Number" error={errors.phone}>
                 <div className="relative">
-                  <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/22" />
+                  <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <input
                     type="tel"
                     inputMode="tel"
                     value={phone}
                     onChange={e => { setPhone(e.target.value); setErrors(er => ({ ...er, phone: undefined })) }}
                     placeholder="+964 7XX XXX XXXX"
-                    className="w-full pl-10 pr-10 py-2.5 rounded-2xl text-sm text-white placeholder:text-white/18 outline-none"
+                    className="w-full pl-10 pr-10 py-2.5 rounded-2xl text-sm text-gray-900 placeholder:text-gray-300 outline-none"
                     style={inputStyle(errors.phone, !!(phone && !phoneOk))}
                     onFocus={e => { if (!errors.phone) e.currentTarget.style.borderColor = 'rgba(245,158,11,0.50)' }}
-                    onBlur={e => { if (!errors.phone) e.currentTarget.style.borderColor = phone && !phoneOk ? 'rgba(245,158,11,0.38)' : 'rgba(255,255,255,0.10)' }}
+                    onBlur={e => { if (!errors.phone) e.currentTarget.style.borderColor = phone && !phoneOk ? 'rgba(245,158,11,0.38)' : 'rgba(0,0,0,0.10)' }}
                   />
                   {phone && (
                     <div className="absolute right-3.5 top-1/2 -translate-y-1/2">
@@ -964,7 +958,7 @@ export default function DeliveryCheckout({
               {/* Delivery location */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <label className="text-[11px] font-semibold text-white/38 uppercase tracking-wider">
+                  <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
                     Delivery Location
                   </label>
                   {lat && lng && (
@@ -988,7 +982,7 @@ export default function DeliveryCheckout({
                 <div
                   className="relative rounded-2xl overflow-hidden"
                   style={{
-                    border: `1px solid ${errors.loc ? 'rgba(239,68,68,0.42)' : lat && lng ? 'rgba(52,211,153,0.30)' : 'rgba(255,255,255,0.10)'}`,
+                    border: `1px solid ${errors.loc ? 'rgba(239,68,68,0.42)' : lat && lng ? 'rgba(52,211,153,0.30)' : 'rgba(0,0,0,0.10)'}`,
                     transition: 'border-color 0.25s ease',
                   }}
                 >
@@ -1000,11 +994,11 @@ export default function DeliveryCheckout({
                     disabled={gpsLoad}
                     className="absolute top-2 right-2 z-[1000] flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 disabled:opacity-60"
                     style={{
-                      background: 'rgba(8,10,20,0.90)',
+                      background: 'rgba(255,255,255,0.95)',
                       border: '1px solid rgba(245,158,11,0.42)',
-                      color: '#F59E0B',
+                      color: '#D97706',
                       backdropFilter: 'blur(10px)',
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.45)',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
                     }}
                   >
                     {gpsLoad
@@ -1017,10 +1011,10 @@ export default function DeliveryCheckout({
                   {!lat && !lng && (
                     <div
                       className="absolute inset-0 z-[999] flex flex-col items-center justify-center gap-1 pointer-events-none"
-                      style={{ background: 'rgba(0,0,0,0.38)', backdropFilter: 'blur(1.5px)' }}
+                      style={{ background: 'rgba(255,255,255,0.60)', backdropFilter: 'blur(1.5px)' }}
                     >
-                      <MapPin className="w-5 h-5 text-white/48" />
-                      <p className="text-[11px] text-white/60 font-medium">Tap map or use Live Location</p>
+                      <MapPin className="w-5 h-5 text-gray-400" />
+                      <p className="text-[11px] text-gray-500 font-medium">Tap map or use Live Location</p>
                     </div>
                   )}
 
@@ -1039,7 +1033,7 @@ export default function DeliveryCheckout({
                 {address && lat && lng && (
                   <div className="mt-1.5 flex items-start gap-1.5 px-1">
                     <MapPin className="w-3 h-3 text-emerald-400/55 shrink-0 mt-0.5" />
-                    <p className="text-[11px] text-white/38 leading-relaxed line-clamp-2">{address}</p>
+                    <p className="text-[11px] text-gray-500 leading-relaxed line-clamp-2">{address}</p>
                   </div>
                 )}
                 {gpsErr   && <p className="text-[11px] text-rose-400 mt-1.5 flex items-start gap-1"><AlertCircle className="w-3 h-3 shrink-0 mt-0.5" />{gpsErr}</p>}
@@ -1050,15 +1044,15 @@ export default function DeliveryCheckout({
               <FieldWrap label="Coupon Code">
                 <div className="flex gap-2">
                   <div className="relative flex-1">
-                    <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/22" />
+                    <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
                     <input
                       type="text"
                       value={couponCode}
                       onChange={e => { setCouponCode(e.target.value.toUpperCase()); setAppliedCoupon(null); setCouponErr(null) }}
                       placeholder="OPTIONAL"
                       disabled={!!appliedCoupon}
-                      className="w-full pl-9 pr-3 py-2.5 rounded-2xl text-sm text-white placeholder:text-white/18 font-mono uppercase outline-none disabled:opacity-45"
-                      style={{ background: 'rgba(255,255,255,0.055)', border: `1px solid ${appliedCoupon ? 'rgba(52,211,153,0.30)' : 'rgba(255,255,255,0.10)'}` }}
+                      className="w-full pl-9 pr-3 py-2.5 rounded-2xl text-sm text-gray-900 placeholder:text-gray-300 font-mono uppercase outline-none disabled:opacity-45"
+                      style={{ background: 'rgba(0,0,0,0.04)', border: `1px solid ${appliedCoupon ? 'rgba(52,211,153,0.30)' : 'rgba(0,0,0,0.10)'}` }}
                     />
                   </div>
                   <button
@@ -1107,16 +1101,16 @@ export default function DeliveryCheckout({
               {/* Order total breakdown */}
               <div
                 className="rounded-2xl overflow-hidden"
-                style={{ border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.025)' }}
+                style={{ border: '1px solid rgba(0,0,0,0.08)', background: 'rgba(0,0,0,0.02)' }}
               >
                 <TotalRow label="Subtotal"     value={formatPrice(cartTotal)} />
                 <TotalRow label="Delivery Fee" value={deliveryFee === 0 ? 'Free' : formatPrice(deliveryFee)} accent={deliveryFee === 0} />
                 {discountAmount > 0 && <TotalRow label="Discount" value={`−${formatPrice(discountAmount)}`} accent />}
                 <div
                   className="flex justify-between items-center px-4 py-3.5"
-                  style={{ background: 'rgba(245,158,11,0.045)', borderTop: '1px solid rgba(245,158,11,0.14)' }}
+                  style={{ background: 'rgba(245,158,11,0.07)', borderTop: '1px solid rgba(245,158,11,0.16)' }}
                 >
-                  <span className="text-sm font-bold text-white">Total to Pay</span>
+                  <span className="text-sm font-bold text-gray-900">Total to Pay</span>
                   <span className="text-base font-extrabold tracking-tight" style={{ color: primaryColor }}>
                     {formatPrice(grandTotal)}
                   </span>
@@ -1132,8 +1126,8 @@ export default function DeliveryCheckout({
         <div
           className="shrink-0 px-4 pb-5 pt-3"
           style={{
-            background: 'linear-gradient(to top, rgba(8,10,20,1) 75%, transparent)',
-            borderTop: '1px solid rgba(255,255,255,0.06)',
+            background: 'linear-gradient(to top, rgba(255,255,255,1) 75%, transparent)',
+            borderTop: '1px solid rgba(0,0,0,0.06)',
           }}
         >
           {step === 'details' ? (
@@ -1155,9 +1149,9 @@ export default function DeliveryCheckout({
             <div
               className="w-full py-4 rounded-2xl font-bold text-sm flex items-center justify-center gap-2.5"
               style={{
-                background: 'rgba(255,255,255,0.05)',
-                border: '1px solid rgba(255,255,255,0.08)',
-                color: 'rgba(255,255,255,0.22)',
+                background: 'rgba(0,0,0,0.04)',
+                border: '1px solid rgba(0,0,0,0.08)',
+                color: 'rgba(0,0,0,0.25)',
                 cursor: 'default',
               }}
             >
