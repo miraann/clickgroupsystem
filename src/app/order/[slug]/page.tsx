@@ -151,6 +151,94 @@ function buildSocialHref(key: string, value: string) {
 }
 
 
+// ── Status Micro-Animations ───────────────────────────────────
+function AnimCookingPot({ color }: { color: string }) {
+  return (
+    <svg width="36" height="32" viewBox="0 0 36 32" fill="none">
+      {([9, 18, 27] as number[]).map((x, i) => (
+        <motion.path key={i}
+          d={`M${x} 10 C${x - 2} 7,${x + 2} 5,${x} 2`}
+          stroke={color} strokeWidth="1.5" strokeLinecap="round" fill="none"
+          initial={{ opacity: 0, y: 2 }}
+          animate={{ opacity: [0, 0.8, 0], y: [2, -4] }}
+          transition={{ duration: 1.5, delay: i * 0.5, repeat: Infinity, ease: 'easeOut' }}
+        />
+      ))}
+      <rect x="5" y="11" width="26" height="4" rx="2" fill={color} />
+      <circle cx="18" cy="10" r="2" fill={color} />
+      <rect x="7" y="14" width="22" height="14" rx="3" fill={color} opacity="0.88" />
+      <rect x="2" y="15" width="5" height="6" rx="2.5" fill={color} opacity="0.6" />
+      <rect x="29" y="15" width="5" height="6" rx="2.5" fill={color} opacity="0.6" />
+      {([11, 18, 25] as number[]).map((bx, i) => (
+        <motion.circle key={i} cx={bx} r={1.8} fill="white"
+          initial={{ cy: 25 }}
+          animate={{ cy: [25, 16], opacity: [0, 0.7, 0] }}
+          transition={{ duration: 1.2, delay: i * 0.4, repeat: Infinity, ease: 'easeOut' }}
+        />
+      ))}
+    </svg>
+  )
+}
+
+function AnimDeliveryBike({ color }: { color: string }) {
+  return (
+    <motion.svg width="44" height="28" viewBox="0 0 44 28" fill="none"
+      animate={{ y: [0, -2, 0] }}
+      transition={{ duration: 0.65, repeat: Infinity, ease: 'easeInOut' }}>
+      {([7, 12, 17] as number[]).map((y, i) => (
+        <motion.line key={i} x1="0" y1={y} x2="6" y2={y}
+          stroke={color} strokeWidth="1.2" strokeLinecap="round"
+          animate={{ opacity: [0, 0.5, 0], x: [-3, 0] }}
+          transition={{ duration: 0.5, delay: i * 0.18, repeat: Infinity }}
+        />
+      ))}
+      <ellipse cx="25" cy="9" rx="4" ry="6.5" fill={color} opacity="0.9" />
+      <circle cx="25" cy="3" r="3.5" fill={color} />
+      <path d="M21.5 3 Q25 0 28.5 3" stroke="white" strokeWidth="1.2" fill="none" opacity="0.55" strokeLinecap="round" />
+      <line x1="9" y1="20" x2="20" y2="12" stroke={color} strokeWidth="2.5" strokeLinecap="round" />
+      <line x1="20" y1="12" x2="28" y2="12" stroke={color} strokeWidth="2.5" strokeLinecap="round" />
+      <line x1="28" y1="12" x2="36" y2="20" stroke={color} strokeWidth="2.5" strokeLinecap="round" />
+      <line x1="20" y1="12" x2="20" y2="20" stroke={color} strokeWidth="2" strokeLinecap="round" />
+      <circle cx="36" cy="21" r="6" stroke={color} strokeWidth="2" fill="none" />
+      <circle cx="9" cy="21" r="6" stroke={color} strokeWidth="2" fill="none" />
+      <motion.line x1="36" y1="15" x2="36" y2="27" stroke={color} strokeWidth="1.5" strokeLinecap="round"
+        animate={{ rotate: 360 }} transition={{ duration: 0.65, repeat: Infinity, ease: 'linear' }}
+        style={{ transformOrigin: '36px 21px' }} />
+      <motion.line x1="9" y1="15" x2="9" y2="27" stroke={color} strokeWidth="1.5" strokeLinecap="round"
+        animate={{ rotate: 360 }} transition={{ duration: 0.65, repeat: Infinity, ease: 'linear' }}
+        style={{ transformOrigin: '9px 21px' }} />
+    </motion.svg>
+  )
+}
+
+function AnimDelivered({ color }: { color: string }) {
+  return (
+    <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+      <motion.circle cx="18" cy="18" r="14" stroke={color} strokeWidth="1.5" fill="none"
+        animate={{ scale: [0.75, 1.4], opacity: [0.6, 0] }}
+        transition={{ duration: 1.4, repeat: Infinity, ease: 'easeOut' }}
+      />
+      {([0, 60, 120, 180, 240, 300] as number[]).map((deg, i) => {
+        const rad = (deg * Math.PI) / 180
+        return (
+          <motion.circle key={i}
+            cx={18 + 14 * Math.cos(rad)} cy={18 + 14 * Math.sin(rad)} r={1.8}
+            fill={i % 2 === 0 ? color : '#fbbf24'}
+            animate={{ scale: [0, 1.3, 0], opacity: [0, 1, 0] }}
+            transition={{ duration: 1.4, delay: i * 0.2, repeat: Infinity }}
+          />
+        )
+      })}
+      <circle cx="18" cy="18" r="11" fill={color} />
+      <motion.path d="M11 18 L15.5 22.5 L25 13"
+        stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none"
+        animate={{ pathLength: [0, 1] }}
+        transition={{ duration: 0.6, delay: 0.15, repeat: Infinity, repeatDelay: 2.5 }}
+      />
+    </svg>
+  )
+}
+
 // ── Track Order Section ────────────────────────────────────────
 interface TrackOrder {
   id: string
@@ -232,7 +320,7 @@ function TrackOrderSection({
       itemsMap.set(item.order_id, arr)
     }
 
-    const result: TrackOrder[] = delivRows.map(d => {
+    const allResult: TrackOrder[] = delivRows.map(d => {
       const o = ordersMap.get(d.order_id)
       return {
         id:            d.id,
@@ -247,6 +335,15 @@ function TrackOrderSection({
         items:         itemsMap.get(d.order_id) ?? [],
       }
     })
+
+    const todayStr = new Date().toDateString()
+    const result   = allResult.filter(r => new Date(r.created_at).toDateString() === todayStr)
+
+    if (result.length === 0) {
+      setError("No orders placed today found for this number.")
+      setLoading(false)
+      return
+    }
 
     setOrders(result)
     if (result.length > 0) setExpanded(result[0].id)
@@ -372,28 +469,44 @@ function TrackOrderSection({
                         </div>
                       </div>
                     ) : (
-                    <div className="pt-3">
+                    <div className="pt-2">
+                      {/* Animated character row — only active step shows its character */}
+                      <div className="flex justify-between mb-1" style={{ height: 44 }}>
+                        {DELIVERY_STEPS.map((s, i) => (
+                          <div key={s.key} className="flex flex-1 justify-center items-end overflow-visible">
+                            {i === step && s.key === 'preparing'        && <AnimCookingPot color={primaryColor} />}
+                            {i === step && s.key === 'out_for_delivery' && <AnimDeliveryBike color={primaryColor} />}
+                            {i === step && s.key === 'delivered'        && <AnimDelivered color={primaryColor} />}
+                          </div>
+                        ))}
+                      </div>
+                      {/* Timeline nodes + connecting line */}
                       <div className="flex items-center justify-between relative">
-                        {/* Connecting line */}
                         <div className="absolute top-4 left-0 right-0 h-0.5 mx-4"
                           style={{ background: isDark ? 'rgba(255,255,255,0.08)' : '#e5e7eb' }} />
-                        <div className="absolute top-4 left-0 h-0.5 mx-4 transition-all duration-500"
-                          style={{
-                            background: primaryColor,
-                            width: `${(step / (DELIVERY_STEPS.length - 1)) * (100 - 8) + '%'}`,
-                          }} />
+                        <div className="absolute top-4 left-0 h-0.5 mx-4 transition-all duration-700"
+                          style={{ background: primaryColor, width: `${(step / (DELIVERY_STEPS.length - 1)) * (100 - 8)}%` }} />
                         {DELIVERY_STEPS.map((s, i) => {
-                          const Icon    = s.icon
-                          const done    = i <= step
+                          const Icon     = s.icon
+                          const done     = i <= step
+                          const isActive = i === step
                           return (
                             <div key={s.key} className="relative z-10 flex flex-col items-center gap-1" style={{ flex: 1 }}>
-                              <div className="w-8 h-8 rounded-full flex items-center justify-center transition-all"
+                              <motion.div className="w-8 h-8 rounded-full flex items-center justify-center"
+                                animate={isActive ? {
+                                  boxShadow: [
+                                    `0 0 0 0px ${primaryColor}40`,
+                                    `0 0 0 6px ${primaryColor}22`,
+                                    `0 0 0 0px ${primaryColor}00`,
+                                  ],
+                                } : {}}
+                                transition={isActive ? { duration: 1.1, repeat: Infinity } : {}}
                                 style={{
                                   background: done ? primaryColor : (isDark ? 'rgba(255,255,255,0.08)' : '#e5e7eb'),
-                                  boxShadow: done ? `0 2px 8px ${primaryColor}50` : 'none',
+                                  boxShadow: done && !isActive ? `0 2px 8px ${primaryColor}50` : undefined,
                                 }}>
                                 <Icon className="w-3.5 h-3.5" style={{ color: done ? (primaryColor === '#39ff14' ? '#000' : '#fff') : dimText }} />
-                              </div>
+                              </motion.div>
                               <p className="text-[9px] font-semibold text-center leading-tight w-14"
                                 style={{ color: done ? primaryColor : dimText }}>
                                 {s.label}
