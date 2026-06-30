@@ -183,7 +183,7 @@ function AnimCookingPot({ color }: { color: string }) {
 function AnimDeliveryBike({ color }: { color: string }) {
   // Matches cooking pot / delivered: compact filled-shape style, ~36px wide, 30px tall
   return (
-    <motion.svg width="46" height="30" viewBox="0 0 46 30" fill="none"
+    <motion.svg width="38" height="25" viewBox="0 0 46 30" fill="none"
       animate={{ y: [0, -1.5, 0] }}
       transition={{ duration: 0.5, repeat: Infinity, ease: 'easeInOut' }}>
 
