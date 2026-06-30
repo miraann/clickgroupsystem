@@ -120,15 +120,14 @@ function FaceScanPanel({ onVerified }: { onVerified: (selfieUrl: string) => void
   }
 
   async function uploadSelfie(dataUrl: string): Promise<string> {
-    const res      = await fetch(dataUrl)
-    const blob     = await res.blob()
-    const fileName = `selfie_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.jpg`
-    const sb       = createClient()
-    const { data, error } = await sb.storage
-      .from('customer-selfies')
-      .upload(fileName, blob, { contentType: 'image/jpeg', cacheControl: '3600', upsert: false })
-    if (error) throw error
-    return sb.storage.from('customer-selfies').getPublicUrl(data.path).data.publicUrl
+    const res = await fetch('/api/upload/selfie', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dataUrl }),
+    })
+    const json = await res.json() as { ok: boolean; url?: string; error?: string }
+    if (!res.ok || !json.ok) throw new Error(json.error ?? 'Upload failed')
+    return json.url!
   }
 
   useEffect(() => {
@@ -138,13 +137,12 @@ function FaceScanPanel({ onVerified }: { onVerified: (selfieUrl: string) => void
     eyeDown.current    = false
     validSince.current = null
 
-    // ── Capture: draw frame to off-screen canvas, un-mirror, output JPEG ──
+    // ── Capture: draw FIRST, then stop stream (stopping first blacks out iOS) ──
     function doCapture() {
       const vid = videoRef.current
       if (!vid || didCapture.current) return
       didCapture.current = true
       cancelAnimationFrame(rafRef.current)
-      streamRef.current?.getTracks().forEach(t => t.stop())
 
       const W     = vid.videoWidth  || 320
       const H     = vid.videoHeight || 240
@@ -157,7 +155,8 @@ function FaceScanPanel({ onVerified }: { onVerified: (selfieUrl: string) => void
       const ctx   = off.getContext('2d')!
       ctx.translate(outW, 0)    // un-mirror the CSS scaleX(-1)
       ctx.scale(-1, 1)
-      ctx.drawImage(vid, 0, 0, outW, outH)
+      ctx.drawImage(vid, 0, 0, outW, outH)   // capture before stopping
+      streamRef.current?.getTracks().forEach(t => t.stop())
       setCaptured(off.toDataURL('image/jpeg', 0.60))
       setPhase('captured')
     }
