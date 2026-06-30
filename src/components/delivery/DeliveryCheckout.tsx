@@ -166,7 +166,9 @@ function FaceScanPanel({ onVerified }: { onVerified: (selfieUrl: string) => void
       const W   = vid.videoWidth  || 480
       const H   = vid.videoHeight || 640
       const OUT = 320   // output canvas size (square, device-agnostic)
-      const PAD = 1.40  // padding multiplier — hair/forehead/chin margin
+      // tinyFaceDetector box only covers tight facial features (eyes→chin).
+      // 1.85× gives generous margin for hair, ears, and chin/beard.
+      const PAD = 1.85
 
       const off = document.createElement('canvas')
       off.width  = OUT
@@ -176,10 +178,11 @@ function FaceScanPanel({ onVerified }: { onVerified: (selfieUrl: string) => void
       const fb = lastBoxRef.current
       if (fb) {
         // ── Face-centred padded crop ────────────────────────────────────────────
-        // Compute a square source region centred on the face, padded by PAD.
         // The face-api box is in un-mirrored video coords (CSS scaleX(-1) is only visual).
+        // fCy at 0.45 of box height (5% above geometric centre) gives proportionally
+        // more headroom above the box for hair while keeping the chin in frame.
         const fCx  = fb.x + fb.w / 2
-        const fCy  = fb.y + fb.h / 2
+        const fCy  = fb.y + fb.h * 0.45
         const half = Math.max(fb.w, fb.h) * PAD / 2
 
         // Clamp to video bounds (cropPadOk guard prevents this in practice)
@@ -312,13 +315,14 @@ function FaceScanPanel({ onVerified }: { onVerified: (selfieUrl: string) => void
               && (box.y + box.height) <= H
 
             // Padded crop region must fit entirely within the video frame.
-            // PAD must match the constant used in doCapture (1.40).
-            const CROP_PAD   = 1.40
-            const cropHalf   = Math.max(box.width, box.height) * CROP_PAD / 2
-            const cropPadOk  = (faceCx - cropHalf) >= 0
-              && (faceCy - cropHalf) >= 0
-              && (faceCx + cropHalf) <= W
-              && (faceCy + cropHalf) <= H
+            // CROP_PAD and the fCy shift must mirror doCapture constants exactly.
+            const CROP_PAD  = 1.85
+            const cropFCy   = box.y + box.height * 0.45   // same vertical shift as doCapture
+            const cropHalf  = Math.max(box.width, box.height) * CROP_PAD / 2
+            const cropPadOk = (faceCx  - cropHalf) >= 0
+              && (cropFCy   - cropHalf) >= 0
+              && (faceCx  + cropHalf) <= W
+              && (cropFCy  + cropHalf) <= H
 
             isValid = score >= SCORE_MIN
               && noClip
@@ -472,7 +476,7 @@ function FaceScanPanel({ onVerified }: { onVerified: (selfieUrl: string) => void
             ? '4px solid rgba(52,211,153,0.88)'
             : hasFace
             ? '2px solid rgba(245,158,11,0.55)'
-            : '1px solid rgba(245,158,11,0.28)',
+            : '1px solid rgba(148,163,184,0.20)',
           transition: 'border 0.35s ease',
         }}
         animate={phase === 'face_found' ? {
@@ -522,8 +526,48 @@ function FaceScanPanel({ onVerified }: { onVerified: (selfieUrl: string) => void
           </div>
         )}
 
-        {/* ── Scan animation: framer-motion bounded beam ── */}
-        {phase === 'searching' && (
+        {/* ── Idle: soft breathing rings when no face in frame ── */}
+        {phase === 'searching' && !hasFace && (
+          <div className="absolute inset-0 pointer-events-none z-10">
+            {/* Outer dashed ring — matches oval bounding box proportions */}
+            <motion.div
+              className="absolute"
+              style={{
+                left: '28%', right: '28%', top: '21%', bottom: '21%',
+                borderRadius: '50%',
+                border: '1.5px dashed rgba(148,163,184,0.32)',
+              }}
+              animate={{ opacity: [0.30, 0.88, 0.30], scale: [0.98, 1.03, 0.98] }}
+              transition={{ duration: 3.8, repeat: Infinity, ease: 'easeInOut' }}
+            />
+            {/* Inner solid ring */}
+            <motion.div
+              className="absolute"
+              style={{
+                left: '34%', right: '34%', top: '27%', bottom: '27%',
+                borderRadius: '50%',
+                border: '1px solid rgba(148,163,184,0.14)',
+              }}
+              animate={{ opacity: [0.15, 0.55, 0.15], scale: [1.03, 0.97, 1.03] }}
+              transition={{ duration: 3.8, repeat: Infinity, ease: 'easeInOut', delay: 0.7 }}
+            />
+            {/* Centre glow dot */}
+            <motion.div
+              className="absolute inset-0 flex items-center justify-center"
+              animate={{ opacity: [0.22, 0.65, 0.22] }}
+              transition={{ duration: 3.8, repeat: Infinity, ease: 'easeInOut', delay: 1.4 }}
+            >
+              <div style={{
+                width: 7, height: 7, borderRadius: '50%',
+                background: 'rgba(148,163,184,0.55)',
+                boxShadow: '0 0 18px 8px rgba(148,163,184,0.18)',
+              }} />
+            </motion.div>
+          </div>
+        )}
+
+        {/* ── Active scan: amber beam + spin arc, only once face enters frame ── */}
+        {phase === 'searching' && hasFace && (
           <div className="absolute inset-0 pointer-events-none z-10">
             {/* Spinning arc */}
             <div className="absolute" style={{
