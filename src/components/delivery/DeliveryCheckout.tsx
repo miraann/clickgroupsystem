@@ -754,15 +754,11 @@ function FaceScanPanel({ onVerified }: { onVerified: (selfieUrl: string) => void
             transition={{ duration: 0.22 }}
             className="space-y-1.5 px-1"
           >
-            {/* Percentage + label */}
-            <div className="flex items-end justify-center gap-1.5">
-              <span
-                className="font-black leading-none"
-                style={{ fontSize: 28, background: 'linear-gradient(90deg, #f43f5e, #f97316)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}
-              >
+            {/* Percentage centered */}
+            <div className="flex flex-col items-center justify-center mx-auto">
+              <span className="font-semibold text-xl text-amber-500 tracking-wider">
                 {Math.round(progress)}%
               </span>
-              <span className="text-[11px] text-white/35 mb-0.5">to complete</span>
             </div>
 
             {/* Pill progress bar — outer div has no overflow:hidden so the thumb renders freely */}
@@ -774,7 +770,10 @@ function FaceScanPanel({ onVerified }: { onVerified: (selfieUrl: string) => void
               >
                 <motion.div
                   className="absolute left-0 top-0 bottom-0 rounded-full"
-                  style={{ background: 'linear-gradient(90deg, #f43f5e 0%, #f97316 55%, #ea580c 100%)' }}
+                  style={{
+                    background: 'linear-gradient(90deg, #D97706 0%, #F59E0B 55%, #EAB308 100%)',
+                    boxShadow: '0 0 12px rgba(245,158,11,0.5)',
+                  }}
                   animate={{ width: `${Math.max(progress, 10)}%` }}
                   transition={{ duration: 0.15 }}
                 />
@@ -791,8 +790,8 @@ function FaceScanPanel({ onVerified }: { onVerified: (selfieUrl: string) => void
                   width: 28, height: 28,
                   borderRadius: '50%',
                   background: '#ffffff',
-                  border: '3px solid #f97316',
-                  boxShadow: '0 0 14px rgba(249,115,22,0.70), 0 2px 8px rgba(0,0,0,0.28)',
+                  border: '3px solid #D97706',
+                  boxShadow: '0 0 14px rgba(245,158,11,0.70), 0 2px 8px rgba(0,0,0,0.28)',
                   transform: 'translate(-50%, -50%)',
                 }} />
               </motion.div>
@@ -805,27 +804,27 @@ function FaceScanPanel({ onVerified }: { onVerified: (selfieUrl: string) => void
       {phase === 'captured' && (
         <motion.div
           initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.28 }}
-          className="space-y-2.5"
+          className="space-y-2"
         >
-          <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl"
+          <div className="flex items-center gap-2 px-3 py-2 rounded-xl"
             style={{ background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.22)' }}>
             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-            <p className="text-[11px] text-emerald-400 font-semibold">Liveness confirmed — review your photo above</p>
+            <p className="text-[10px] text-emerald-400 font-semibold">Liveness confirmed — review your photo above</p>
           </div>
 
           {uploadErr && (
-            <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl"
+            <div className="flex items-center gap-2 px-3 py-2 rounded-xl"
               style={{ background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.20)' }}>
               <AlertCircle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
-              <p className="text-[11px] text-rose-400">{uploadErr}</p>
+              <p className="text-[10px] text-rose-400">{uploadErr}</p>
             </div>
           )}
 
           <div className="grid grid-cols-2 gap-2">
             <button onClick={retake} disabled={uploading}
-              className="py-3.5 rounded-2xl text-sm font-semibold transition-all active:scale-95 disabled:opacity-40"
-              style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.65)' }}>
-              Retake
+              className="py-3 rounded-2xl text-sm font-semibold transition-all active:scale-95 disabled:opacity-40"
+              style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.18)', color: 'rgba(255,255,255,0.80)' }}>
+              ↩ Retake
             </button>
             <button
               onClick={async () => {
@@ -841,7 +840,7 @@ function FaceScanPanel({ onVerified }: { onVerified: (selfieUrl: string) => void
                 }
               }}
               disabled={uploading}
-              className="py-3.5 rounded-2xl text-sm font-bold text-black transition-all active:scale-[0.97] disabled:opacity-60 flex items-center justify-center gap-1.5"
+              className="py-3 rounded-2xl text-sm font-bold text-black transition-all active:scale-[0.97] disabled:opacity-60 flex items-center justify-center gap-1.5"
               style={{ background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)', boxShadow: '0 6px 20px rgba(245,158,11,0.35)' }}>
               Confirm →
             </button>
