@@ -517,7 +517,8 @@ export default function DeliveryOrderPage() {
   const [welcomeText, setWelcomeText] = useState<string | null>(null)
 
   // Online menu toggle
-  const [menuEnabled, setMenuEnabled] = useState(true)
+  const [menuEnabled,    setMenuEnabled]    = useState(true)
+  const [faceScanEnabled, setFaceScanEnabled] = useState(true)
 
   // Delivery config
   const [deliveryEnabled, setDeliveryEnabled]         = useState(false)
@@ -616,6 +617,7 @@ export default function DeliveryOrderPage() {
       if (d.show_descriptions !== undefined) setShowDescs(d.show_descriptions)
       if (d.welcome_text)     setWelcomeText(d.welcome_text)
       if (d.menu_enabled      !== undefined) setMenuEnabled(d.menu_enabled)
+      if (d.face_scan_enabled !== undefined) setFaceScanEnabled(d.face_scan_enabled)
     }
 
     // Load delivery settings from restaurant.settings
@@ -1354,6 +1356,7 @@ export default function DeliveryOrderPage() {
           deliveryFee={effectiveDeliveryFee}
           estimatedTime={estimatedTime}
           minOrder={minOrder}
+          faceScanEnabled={faceScanEnabled}
         />
       )}
 

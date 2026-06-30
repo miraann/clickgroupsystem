@@ -66,6 +66,7 @@ export interface DeliveryCheckoutProps {
   deliveryFee: number
   estimatedTime: number
   minOrder: number
+  faceScanEnabled?: boolean
 }
 
 type Step      = 'details' | 'scan'
@@ -646,10 +647,11 @@ export default function DeliveryCheckout({
   restaurantId, primaryColor, cartCount, cartTotal, formatPrice,
   onClose, onConfirm, placing, placeError,
   deliveryFee, estimatedTime, minOrder,
+  faceScanEnabled = true,
 }: DeliveryCheckoutProps) {
 
-  // ── Navigation step — face scan is always FIRST ────────────
-  const [step,      setStep]      = useState<Step>('scan')
+  // ── Navigation step — skip face scan when disabled ─────────
+  const [step,      setStep]      = useState<Step>(faceScanEnabled ? 'scan' : 'details')
   const [selfieUrl, setSelfieUrl] = useState<string | null>(null)
 
   // ── Form state ─────────────────────────────────────────────

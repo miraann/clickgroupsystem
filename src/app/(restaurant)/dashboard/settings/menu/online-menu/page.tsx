@@ -1,7 +1,7 @@
 ﻿'use client'
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
-import { Globe, Copy, Check, Loader2, Save, ExternalLink, UtensilsCrossed, Plus, Palette, LayoutGrid, SlidersHorizontal, Link2, Ticket } from 'lucide-react'
+import { Globe, Copy, Check, Loader2, Save, ExternalLink, UtensilsCrossed, Plus, Palette, LayoutGrid, SlidersHorizontal, Link2, Ticket, ScanFace } from 'lucide-react'
 import DiscountCodePage from '../discount-code/page'
 import { motion, AnimatePresence, type Variants } from 'framer-motion'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
@@ -41,6 +41,7 @@ interface MenuSettings {
   show_descriptions:  boolean
   welcome_text:       string | null
   menu_enabled:       boolean
+  face_scan_enabled:  boolean
 }
 
 interface PreviewData {
@@ -56,7 +57,7 @@ const DEFAULT: MenuSettings = {
   surface_style: 'solid', category_style: 'circles',
   item_style: 'grid', event_style: 'cards', social_style: 'pills',
   show_prices: true, show_descriptions: true, welcome_text: null,
-  menu_enabled: true,
+  menu_enabled: true, face_scan_enabled: true,
 }
 
 // ── Preset quick-starts ────────────────────────────────────────
@@ -634,6 +635,7 @@ export default function OnlineMenuTemplatePage() {
       show_descriptions: d.show_descriptions  ?? true,
       welcome_text:      d.welcome_text       ?? null,
       menu_enabled:      d.menu_enabled       ?? true,
+      face_scan_enabled: d.face_scan_enabled  ?? true,
     })
   }, [swrData])
 
@@ -785,17 +787,35 @@ export default function OnlineMenuTemplatePage() {
             {/* Enable Online Menu toggle */}
             <div className="rounded-2xl bg-white/4 border border-white/10 p-4">
               <p className="text-sm font-semibold text-white mb-3">Online Menu Settings</p>
-              <div className="flex items-center justify-between gap-4">
-                <div className="min-w-0">
-                  <p className="text-sm text-white/80 font-medium">Enable Online Menu</p>
-                  <p className="text-xs text-white/30 mt-0.5">Make the public QR menu accessible to guests</p>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="text-sm text-white/80 font-medium">Enable Online Menu</p>
+                    <p className="text-xs text-white/30 mt-0.5">Make the public QR menu accessible to guests</p>
+                  </div>
+                  <button onClick={() => set('menu_enabled', !settings.menu_enabled)}
+                    className={cn('relative w-11 h-6 rounded-full border transition-all duration-200 shrink-0',
+                      settings.menu_enabled ? 'bg-amber-500 border-amber-500' : 'bg-white/8 border-white/15')}>
+                    <span className={cn('absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all duration-200',
+                      settings.menu_enabled ? 'left-[22px]' : 'left-0.5')} />
+                  </button>
                 </div>
-                <button onClick={() => set('menu_enabled', !settings.menu_enabled)}
-                  className={cn('relative w-11 h-6 rounded-full border transition-all duration-200 shrink-0',
-                    settings.menu_enabled ? 'bg-amber-500 border-amber-500' : 'bg-white/8 border-white/15')}>
-                  <span className={cn('absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all duration-200',
-                    settings.menu_enabled ? 'left-[22px]' : 'left-0.5')} />
-                </button>
+                <div className="border-t border-white/8" />
+                <div className="flex items-center justify-between gap-4">
+                  <div className="min-w-0 flex items-start gap-2.5">
+                    <ScanFace className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm text-white/80 font-medium">Face Scan for Delivery</p>
+                      <p className="text-xs text-white/30 mt-0.5">Require liveness selfie before placing a delivery order</p>
+                    </div>
+                  </div>
+                  <button onClick={() => set('face_scan_enabled', !settings.face_scan_enabled)}
+                    className={cn('relative w-11 h-6 rounded-full border transition-all duration-200 shrink-0',
+                      settings.face_scan_enabled ? 'bg-amber-500 border-amber-500' : 'bg-white/8 border-white/15')}>
+                    <span className={cn('absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all duration-200',
+                      settings.face_scan_enabled ? 'left-[22px]' : 'left-0.5')} />
+                  </button>
+                </div>
               </div>
             </div>
           </motion.div>

@@ -14,6 +14,7 @@ export interface OnlineMenuSettings {
   show_descriptions: boolean
   welcome_text:      string | null
   menu_enabled:      boolean
+  face_scan_enabled: boolean
 }
 
 export interface OnlineMenuPreview {
