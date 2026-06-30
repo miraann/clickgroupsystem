@@ -493,7 +493,12 @@ export default function DeliveryPage() {
 
 
   return (
-    <motion.div variants={PAGE} initial="hidden" animate="show" className="max-w-3xl mx-auto space-y-6 pb-10">
+    <motion.div variants={PAGE} initial="hidden" animate="show"
+      className={cn(
+        'mx-auto space-y-6 pb-10',
+        tab === 'online-menu' ? 'max-w-[1600px] 2xl:max-w-[1800px]' : 'max-w-3xl'
+      )}
+    >
 
       {/* ── Header ── */}
       <motion.div
