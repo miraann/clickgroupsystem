@@ -182,31 +182,63 @@ function AnimCookingPot({ color }: { color: string }) {
 
 function AnimDeliveryBike({ color }: { color: string }) {
   return (
-    <motion.svg width="44" height="28" viewBox="0 0 44 28" fill="none"
+    // Whole bike bobs gently — sine-wave micro-float
+    <motion.svg width="58" height="36" viewBox="0 0 58 36" fill="none"
       animate={{ y: [0, -2, 0] }}
-      transition={{ duration: 0.65, repeat: Infinity, ease: 'easeInOut' }}>
-      {([7, 12, 17] as number[]).map((y, i) => (
-        <motion.line key={i} x1="0" y1={y} x2="6" y2={y}
-          stroke={color} strokeWidth="1.2" strokeLinecap="round"
-          animate={{ opacity: [0, 0.5, 0], x: [-3, 0] }}
-          transition={{ duration: 0.5, delay: i * 0.18, repeat: Infinity }}
+      transition={{ duration: 0.9, repeat: Infinity, ease: 'easeInOut' }}>
+
+      {/* Speed lines — staggered scaleX + opacity fade */}
+      {([20, 25, 29] as number[]).map((y, i) => (
+        <motion.line key={i} x1={0} y1={y} x2={7} y2={y}
+          stroke={color} strokeWidth="1.5" strokeLinecap="round"
+          animate={{ opacity: [0, 0.75, 0], x: [-3, 0] }}
+          transition={{ duration: 0.55, delay: i * 0.19, repeat: Infinity, ease: 'easeOut' }}
         />
       ))}
-      <ellipse cx="25" cy="9" rx="4" ry="6.5" fill={color} opacity="0.9" />
-      <circle cx="25" cy="3" r="3.5" fill={color} />
-      <path d="M21.5 3 Q25 0 28.5 3" stroke="white" strokeWidth="1.2" fill="none" opacity="0.55" strokeLinecap="round" />
-      <line x1="9" y1="20" x2="20" y2="12" stroke={color} strokeWidth="2.5" strokeLinecap="round" />
-      <line x1="20" y1="12" x2="28" y2="12" stroke={color} strokeWidth="2.5" strokeLinecap="round" />
-      <line x1="28" y1="12" x2="36" y2="20" stroke={color} strokeWidth="2.5" strokeLinecap="round" />
-      <line x1="20" y1="12" x2="20" y2="20" stroke={color} strokeWidth="2" strokeLinecap="round" />
-      <circle cx="36" cy="21" r="6" stroke={color} strokeWidth="2" fill="none" />
-      <circle cx="9" cy="21" r="6" stroke={color} strokeWidth="2" fill="none" />
-      <motion.line x1="36" y1="15" x2="36" y2="27" stroke={color} strokeWidth="1.5" strokeLinecap="round"
-        animate={{ rotate: 360 }} transition={{ duration: 0.65, repeat: Infinity, ease: 'linear' }}
-        style={{ transformOrigin: '36px 21px' }} />
-      <motion.line x1="9" y1="15" x2="9" y2="27" stroke={color} strokeWidth="1.5" strokeLinecap="round"
-        animate={{ rotate: 360 }} transition={{ duration: 0.65, repeat: Infinity, ease: 'linear' }}
-        style={{ transformOrigin: '9px 21px' }} />
+
+      {/* ── Delivery box (rear) ── */}
+      <rect x="3" y="7" width="14" height="11" rx="2.5" fill={color} opacity="0.9" />
+      {/* lid divider */}
+      <line x1="3" y1="12" x2="17" y2="12" stroke="white" strokeWidth="0.8" strokeLinecap="round" opacity="0.28" />
+      {/* vertical straps */}
+      <line x1="8"  y1="7" x2="8"  y2="18" stroke="white" strokeWidth="0.6" opacity="0.18" />
+      <line x1="12" y1="7" x2="12" y2="18" stroke="white" strokeWidth="0.6" opacity="0.18" />
+
+      {/* ── Chassis — smooth scooter silhouette ── */}
+      {/* Main frame curve: rear axle → body → legshield → front axle */}
+      <path d="M 10,22 C 11,15 16,11 20,10 L 34,9 C 39,9 42,12 44,17 L 47,22"
+        stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      {/* Seat — thick rounded top */}
+      <path d="M 19,10 C 23,7.5 31,7.5 34,9"
+        stroke={color} strokeWidth="4" strokeLinecap="round" fill="none" />
+      {/* Handlebar stem */}
+      <line x1="43" y1="15" x2="46" y2="9" stroke={color} strokeWidth="2" strokeLinecap="round" />
+      {/* Handlebar grip */}
+      <line x1="43" y1="9" x2="50" y2="9" stroke={color} strokeWidth="2.5" strokeLinecap="round" />
+      {/* Front fork */}
+      <line x1="44" y1="17" x2="47" y2="23" stroke={color} strokeWidth="2.5" strokeLinecap="round" />
+
+      {/* ── Rear wheel ── */}
+      <circle cx="10" cy="29" r="7" stroke={color} strokeWidth="2" fill="none" />
+      <circle cx="10" cy="29" r="1.8" fill={color} />
+      {/* Cross spokes — grouped for clean rotation */}
+      <motion.g animate={{ rotate: 360 }}
+        transition={{ duration: 0.8, repeat: Infinity, ease: 'linear' }}
+        style={{ transformOrigin: '10px 29px' }}>
+        <line x1="10" y1="22" x2="10" y2="36" stroke={color} strokeWidth="1.2" strokeLinecap="round" opacity="0.6" />
+        <line x1="3"  y1="29" x2="17" y2="29" stroke={color} strokeWidth="1.2" strokeLinecap="round" opacity="0.6" />
+      </motion.g>
+
+      {/* ── Front wheel ── */}
+      <circle cx="48" cy="29" r="7" stroke={color} strokeWidth="2" fill="none" />
+      <circle cx="48" cy="29" r="1.8" fill={color} />
+      {/* Cross spokes */}
+      <motion.g animate={{ rotate: 360 }}
+        transition={{ duration: 0.8, repeat: Infinity, ease: 'linear' }}
+        style={{ transformOrigin: '48px 29px' }}>
+        <line x1="48" y1="22" x2="48" y2="36" stroke={color} strokeWidth="1.2" strokeLinecap="round" opacity="0.6" />
+        <line x1="41" y1="29" x2="55" y2="29" stroke={color} strokeWidth="1.2" strokeLinecap="round" opacity="0.6" />
+      </motion.g>
     </motion.svg>
   )
 }
