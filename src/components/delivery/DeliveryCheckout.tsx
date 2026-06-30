@@ -34,13 +34,13 @@ const MODEL_CDN  = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/mod
 const EAR_CLOSE  = 0.21   // EAR drops below → eye closed
 const EAR_OPEN   = 0.27   // EAR rises above → blink complete
 
-// Face validation thresholds
-const SCORE_MIN  = 0.92   // minimum detection confidence
-const AREA_MIN   = 0.30   // face must cover ≥30% of frame
-const AREA_MAX   = 0.55   // but not more than 55%
-const CENTRE_MAX = 0.15   // face centre within ±15% of frame centre
+// Face validation thresholds — tuned for whole-face / mid-distance capture
+const SCORE_MIN  = 0.80   // slightly lower: smaller face = harder to detect
+const AREA_MIN   = 0.10   // face can be as little as 10% of frame (user further back)
+const AREA_MAX   = 0.38   // cap: if face exceeds 38% the user is too close
+const CENTRE_MAX = 0.20   // face centre within ±20% of frame centre
 const ROLL_MAX   = 15     // max head roll in degrees
-const YAW_MAX    = 0.25   // max yaw (nose offset / inter-eye distance)
+const YAW_MAX    = 0.30   // slightly more lenient yaw for mid-distance
 const HOLD_MS    = 2500   // ms face must stay valid before auto-capture
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -213,7 +213,7 @@ function FaceScanPanel({ onVerified }: { onVerified: (selfieUrl: string) => void
           if (cancelled || didCapture.current) return
 
           const cx = W / 2, cy = H / 2
-          const rx = W * 0.26, ry = H * 0.36
+          const rx = W * 0.20, ry = H * 0.28
           let isValid = false
           let hasFace = false
 
