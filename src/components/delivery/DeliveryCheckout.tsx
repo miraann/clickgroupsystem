@@ -456,19 +456,20 @@ function FaceScanPanel({ onVerified }: { onVerified: (selfieUrl: string) => void
   const RING_C   = 2 * Math.PI * RING_R
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       <style>{`
         @keyframes scanSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         @keyframes facePulse { 0%,100% { opacity:0.9; } 50% { opacity:0.45; } }
       `}</style>
 
-      {/* ── Camera viewport — 9:16 portrait ───────────────────── */}
+      {/* ── Camera viewport — 3:4 face capture, clamped height ──── */}
+      {/*   Height: clamp(200px, 47dvh, 360px) keeps it in the       */}
+      {/*   available space on every device without overflow.          */}
       <motion.div
         className="relative rounded-2xl overflow-hidden mx-auto"
         style={{
-          aspectRatio: '9/16',
-          width: '100%',
-          maxWidth: 'calc(min(72dvh, 520px) * 9 / 16)',
+          height: 'clamp(200px, 47dvh, 360px)',
+          width:  'calc(clamp(200px, 47dvh, 360px) * 3 / 4)',
           background: 'rgba(10,13,24,0.92)',
           border: phase === 'error'
             ? '1px solid rgba(239,68,68,0.38)'
@@ -751,7 +752,7 @@ function FaceScanPanel({ onVerified }: { onVerified: (selfieUrl: string) => void
           <motion.div
             initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.22 }}
-            className="space-y-2.5 px-1"
+            className="space-y-1.5 px-1"
           >
             {/* Percentage + label */}
             <div className="flex items-end justify-center gap-1.5">
@@ -848,11 +849,11 @@ function FaceScanPanel({ onVerified }: { onVerified: (selfieUrl: string) => void
         </motion.div>
       )}
 
-      {/* ── Why verification card ─────────────────────────────── */}
+      {/* ── Why verification card — only on taller screens ──────── */}
       {(phase === 'loading' || phase === 'searching') && (
         <motion.div
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}
-          className="rounded-2xl px-5 py-4 space-y-2"
+          className="hidden sm:block rounded-2xl px-4 py-3 space-y-1.5"
           style={{ background: 'rgba(245,158,11,0.04)', border: '1px solid rgba(245,158,11,0.14)' }}>
           <div className="flex items-center gap-2.5">
             <ShieldCheck className="w-4 h-4 text-amber-400 shrink-0" />
