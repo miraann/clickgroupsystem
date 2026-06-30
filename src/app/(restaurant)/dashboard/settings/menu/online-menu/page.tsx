@@ -1,7 +1,7 @@
 ﻿'use client'
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
-import { Globe, Copy, Check, Loader2, Save, ExternalLink, UtensilsCrossed, Plus, Palette, LayoutGrid, SlidersHorizontal, Link2, Ticket, ScanFace } from 'lucide-react'
+import { Globe, Copy, Check, Loader2, Save, ExternalLink, UtensilsCrossed, Plus, Palette, LayoutGrid, SlidersHorizontal, Link2, Ticket, ScanFace, Eye, X } from 'lucide-react'
 import DiscountCodePage from '../discount-code/page'
 import { motion, AnimatePresence, type Variants } from 'framer-motion'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
@@ -605,11 +605,12 @@ export default function OnlineMenuTemplatePage({ linksSlot }: { linksSlot?: Reac
 
   const [settings, setSettings] = useState<MenuSettings>(DEFAULT)
   const preview = swrData?.preview ?? null
-  const [saving,   setSaving]   = useState(false)
-  const [saved,    setSaved]    = useState(false)
-  const [copied,   setCopied]   = useState(false)
-  const [error,    setError]    = useState<string | null>(null)
-  const [subTab,   setSubTab]   = useState<'links' | 'design' | 'layout' | 'display' | 'coupons'>('links')
+  const [saving,      setSaving]      = useState(false)
+  const [saved,       setSaved]       = useState(false)
+  const [copied,      setCopied]      = useState(false)
+  const [error,       setError]       = useState<string | null>(null)
+  const [subTab,      setSubTab]      = useState<'links' | 'design' | 'layout' | 'display' | 'coupons'>('links')
+  const [showPreview, setShowPreview] = useState(false)
 
   const SUB_TABS = [
     { key: 'links'   as const, label: 'Links',   icon: Link2 },
@@ -1007,6 +1008,48 @@ export default function OnlineMenuTemplatePage({ linksSlot }: { linksSlot?: Reac
     </div>
     )}
     </FadeSwitch>
+
+    {/* Mobile preview button — hidden on lg+ where the sidebar preview is always visible */}
+    <button
+      onClick={() => setShowPreview(true)}
+      className="lg:hidden fixed bottom-6 right-6 z-40 flex items-center gap-2 px-4 py-3 rounded-2xl bg-amber-500 text-white shadow-xl shadow-amber-500/30 text-sm font-semibold active:scale-95 transition-all"
+    >
+      <Eye className="w-4 h-4" /> Preview
+    </button>
+
+    {/* Mobile preview modal */}
+    <AnimatePresence>
+      {showPreview && (
+        <motion.div
+          className="lg:hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex flex-col items-center justify-center p-4"
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          onClick={() => setShowPreview(false)}
+        >
+          <motion.div
+            className="flex flex-col items-center gap-4"
+            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.9, opacity: 0, y: 20 }}
+            transition={{ duration: 0.22, ease: 'circOut' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-xs text-white/60 font-medium">Live Preview</span>
+            </div>
+            <PhonePreview s={settings} data={preview} />
+            <button
+              onClick={() => setShowPreview(false)}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white/70 hover:text-white text-sm font-medium transition-all active:scale-95"
+            >
+              <X className="w-4 h-4" /> Close Preview
+            </button>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+
     </motion.div>
   )
 }
