@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import {
   Truck, X, Loader2, Save, AlertCircle,
   Check, Clock, DollarSign, ShoppingCart, Package,
@@ -441,8 +442,22 @@ export default function DeliveryPage() {
   const supabase = createClient()
   const { formatPrice } = useDefaultCurrency()
   const { t } = useLanguage()
+  const router       = useRouter()
+  const searchParams = useSearchParams()
 
-  const [tab, setTab]                   = useState<'history' | 'online-menu'>('history')
+  const [tab, setTab] = useState<'history' | 'online-menu'>(() => {
+    const p = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('tab') : null
+    return p === 'online-menu' ? 'online-menu' : 'history'
+  })
+
+  const switchTab = (next: 'history' | 'online-menu') => {
+    setTab(next)
+    const params = new URLSearchParams(searchParams.toString())
+    if (next === 'history') params.delete('tab')
+    else params.set('tab', next)
+    const qs = params.toString()
+    router.replace(`/dashboard/settings/delivery${qs ? '?' + qs : ''}`, { scroll: false })
+  }
   const [restaurantId, setRestaurantId] = useState<string | null>(null)
   const [mounted, setMounted]           = useState(false)
   const [synced,  setSynced]            = useState(false)
@@ -523,7 +538,7 @@ export default function DeliveryPage() {
         transition={{ duration: 0.45, ease: 'circOut', delay: 0.12 }}
       >
         <button
-          onClick={() => setTab('history')}
+          onClick={() => switchTab('history')}
           className={cn(
             'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all',
             tab === 'history' ? 'bg-indigo-500/25 text-indigo-300 shadow-sm' : 'text-white/40 hover:text-white/60'
@@ -532,7 +547,7 @@ export default function DeliveryPage() {
           <History className="w-4 h-4" /> {t.del_orders}
         </button>
         <button
-          onClick={() => setTab('online-menu')}
+          onClick={() => switchTab('online-menu')}
           className={cn(
             'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all',
             tab === 'online-menu' ? 'bg-indigo-500/25 text-indigo-300 shadow-sm' : 'text-white/40 hover:text-white/60'
