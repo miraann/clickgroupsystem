@@ -91,7 +91,7 @@ function calcEAR(pts: Pt[]): number {
 // ─── Face Scan Panel ──────────────────────────────────────────────────────────
 type Guidance = 'move_back' | 'move_closer' | 'center_face' | 'look_straight' | 'show_full_face' | null
 const GUIDE_CFG: Record<NonNullable<Guidance>, { text: string; color: string; bg: string; border: string }> = {
-  move_back:      { text: '↕  Move back a little',    color: '#fbbf24', bg: 'rgba(245,158,11,0.22)', border: 'rgba(245,158,11,0.50)' },
+  move_back:      { text: '↕  Move back a little',    color: '#ffffff', bg: '#F59E0B',              border: '#D97706'               },
   move_closer:    { text: '↔  Come a bit closer',     color: '#fbbf24', bg: 'rgba(245,158,11,0.22)', border: 'rgba(245,158,11,0.50)' },
   center_face:    { text: '◎  Center your face',      color: '#7dd3fc', bg: 'rgba(56,189,248,0.20)',  border: 'rgba(56,189,248,0.45)'  },
   look_straight:  { text: '👁  Look straight ahead',  color: '#f9a8d4', bg: 'rgba(244,114,182,0.20)', border: 'rgba(244,114,182,0.45)' },
