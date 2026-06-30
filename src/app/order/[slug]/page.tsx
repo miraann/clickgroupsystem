@@ -181,13 +181,13 @@ function AnimCookingPot({ color }: { color: string }) {
 }
 
 function AnimDeliveryBike({ color }: { color: string }) {
-  // Compact filled-shape motorbike — matches cooking pot / delivered style
+  // Matches cooking pot / delivered: compact filled-shape style, ~36px wide, 30px tall
   return (
     <motion.svg width="46" height="30" viewBox="0 0 46 30" fill="none"
       animate={{ y: [0, -1.5, 0] }}
       transition={{ duration: 0.5, repeat: Infinity, ease: 'easeInOut' }}>
 
-      {/* Wind dashes — grow from rear leftward */}
+      {/* Wind dashes — grow from car rear leftward */}
       {([10, 15, 20] as number[]).map((y, i) => (
         <motion.rect key={i}
           x={0} y={y - 0.75} width={5} height={1.5} rx={0.75}
@@ -198,47 +198,38 @@ function AnimDeliveryBike({ color }: { color: string }) {
         />
       ))}
 
-      {/* Delivery box (rear rack) */}
-      <rect x="4" y="9" width="10" height="11" rx="1.5" fill={color} />
-      <line x1="4" y1="14" x2="14" y2="14" stroke="white" strokeWidth="0.8" opacity="0.22" />
+      {/* Cabin / roof */}
+      <path d="M 12,14 C 13,7 16,4 19,4 L 32,4 C 35,4 37,8 38,14 Z"
+        fill={color} />
+      {/* Windshield tint */}
+      <path d="M 31,4.5 C 34,7 37,10 38,14 L 31,14 Z"
+        fill="white" opacity="0.18" />
 
-      {/* Angular frame / engine block */}
-      <path d="M 11,16 L 15,9 L 31,9 L 36,16 Z" fill={color} opacity="0.82" />
-
-      {/* Seat (rear, low) */}
-      <rect x="11" y="6" width="13" height="5" rx="2" fill={color} />
-
-      {/* Fuel tank hump (front of seat, slightly raised) */}
-      <rect x="21" y="5" width="10" height="6" rx="2" fill={color} />
-
-      {/* Front fork (angled diagonal) */}
-      <path d="M 31,9 L 36,16 L 37.5,16 L 32.5,9 Z" fill={color} />
-
-      {/* Handlebar grip + stem */}
-      <rect x="27" y="4" width="7" height="2" rx="1" fill={color} />
-      <rect x="29" y="4" width="2" height="6" rx="1" fill={color} />
-
-      {/* Rider head (helmet) */}
-      <circle cx="19" cy="4" r="3.5" fill={color} />
+      {/* Lower body */}
+      <rect x="6" y="14" width="33" height="9" rx="2" fill={color} opacity="0.9" />
+      {/* Rear bumper tab */}
+      <rect x="4" y="16" width="4" height="5" rx="1.5" fill={color} opacity="0.55" />
+      {/* Front bumper tab */}
+      <rect x="37" y="16" width="4" height="5" rx="1.5" fill={color} opacity="0.55" />
 
       {/* Rear wheel */}
-      <circle cx="11" cy="23" r="7" fill={color} />
-      <circle cx="11" cy="23" r="2.8" fill="white" />
+      <circle cx="14" cy="23" r="7" fill={color} />
+      <circle cx="14" cy="23" r="2.8" fill="white" />
       <motion.g animate={{ rotate: 360 }}
         transition={{ duration: 0.7, repeat: Infinity, ease: 'linear' }}
-        style={{ transformOrigin: '11px 23px' }}>
-        <line x1="11" y1="16" x2="11" y2="30" stroke="white" strokeWidth="1.2" strokeLinecap="round" opacity="0.45" />
-        <line x1="4"  y1="23" x2="18" y2="23" stroke="white" strokeWidth="1.2" strokeLinecap="round" opacity="0.45" />
+        style={{ transformOrigin: '14px 23px' }}>
+        <line x1="14" y1="16" x2="14" y2="30" stroke="white" strokeWidth="1.2" strokeLinecap="round" opacity="0.45" />
+        <line x1="7"  y1="23" x2="21" y2="23" stroke="white" strokeWidth="1.2" strokeLinecap="round" opacity="0.45" />
       </motion.g>
 
       {/* Front wheel */}
-      <circle cx="36" cy="23" r="7" fill={color} />
-      <circle cx="36" cy="23" r="2.8" fill="white" />
+      <circle cx="34" cy="23" r="7" fill={color} />
+      <circle cx="34" cy="23" r="2.8" fill="white" />
       <motion.g animate={{ rotate: 360 }}
         transition={{ duration: 0.7, repeat: Infinity, ease: 'linear' }}
-        style={{ transformOrigin: '36px 23px' }}>
-        <line x1="36" y1="16" x2="36" y2="30" stroke="white" strokeWidth="1.2" strokeLinecap="round" opacity="0.45" />
-        <line x1="29" y1="23" x2="43" y2="23" stroke="white" strokeWidth="1.2" strokeLinecap="round" opacity="0.45" />
+        style={{ transformOrigin: '34px 23px' }}>
+        <line x1="34" y1="16" x2="34" y2="30" stroke="white" strokeWidth="1.2" strokeLinecap="round" opacity="0.45" />
+        <line x1="27" y1="23" x2="41" y2="23" stroke="white" strokeWidth="1.2" strokeLinecap="round" opacity="0.45" />
       </motion.g>
     </motion.svg>
   )
