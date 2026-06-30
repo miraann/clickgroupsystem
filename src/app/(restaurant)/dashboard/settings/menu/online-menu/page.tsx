@@ -1,7 +1,7 @@
 ﻿'use client'
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
-import { Globe, Copy, Check, Loader2, Save, ExternalLink, UtensilsCrossed, Plus, Palette, LayoutGrid, SlidersHorizontal, Link2, Ticket, ScanFace, Eye, X } from 'lucide-react'
+import { Globe, Copy, Check, Loader2, Save, ExternalLink, UtensilsCrossed, Plus, Palette, LayoutGrid, Link2, Ticket, ScanFace, Eye, X } from 'lucide-react'
 import DiscountCodePage from '../discount-code/page'
 import { motion, AnimatePresence, type Variants } from 'framer-motion'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
@@ -609,14 +609,13 @@ export default function OnlineMenuTemplatePage({ linksSlot }: { linksSlot?: Reac
   const [saved,       setSaved]       = useState(false)
   const [copied,      setCopied]      = useState(false)
   const [error,       setError]       = useState<string | null>(null)
-  const [subTab,      setSubTab]      = useState<'links' | 'design' | 'layout' | 'display' | 'coupons'>('links')
+  const [subTab,      setSubTab]      = useState<'links' | 'design' | 'layout' | 'coupons'>('links')
   const [showPreview, setShowPreview] = useState(false)
 
   const SUB_TABS = [
-    { key: 'links'   as const, label: 'Links',   icon: Link2 },
+    { key: 'links'   as const, label: 'Settings', icon: Link2 },
     { key: 'design'  as const, label: 'Design',  icon: Palette },
     { key: 'layout'  as const, label: 'Layout',  icon: LayoutGrid },
-    { key: 'display' as const, label: 'Display', icon: SlidersHorizontal },
     { key: 'coupons' as const, label: 'Coupons', icon: Ticket },
   ]
 
@@ -817,6 +816,33 @@ export default function OnlineMenuTemplatePage({ linksSlot }: { linksSlot?: Reac
                       settings.face_scan_enabled ? 'left-[22px]' : 'left-0.5')} />
                   </button>
                 </div>
+                <div className="border-t border-white/8" />
+                {[
+                  { k: 'show_prices'       as const, label: 'Show Prices',       desc: 'Display item prices to guests' },
+                  { k: 'show_descriptions' as const, label: 'Show Descriptions', desc: 'Show item descriptions below name' },
+                ].map(opt => (
+                  <div key={opt.k} className="flex items-center justify-between gap-4">
+                    <div className="min-w-0">
+                      <p className="text-sm text-white/80 font-medium">{opt.label}</p>
+                      <p className="text-xs text-white/30 mt-0.5">{opt.desc}</p>
+                    </div>
+                    <button onClick={() => set(opt.k, !settings[opt.k])}
+                      className={cn('relative w-11 h-6 rounded-full border transition-all duration-200 shrink-0',
+                        settings[opt.k] ? 'bg-amber-500 border-amber-500' : 'bg-white/8 border-white/15')}>
+                      <span className={cn('absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all duration-200',
+                        settings[opt.k] ? 'left-[22px]' : 'left-0.5')} />
+                    </button>
+                  </div>
+                ))}
+                <div className="border-t border-white/8" />
+                <div>
+                  <label className="block text-xs font-semibold text-white/40 uppercase tracking-wider mb-1.5">Welcome Message</label>
+                  <input type="text" value={settings.welcome_text ?? ''}
+                    onChange={e => set('welcome_text', e.target.value || null)}
+                    placeholder="Welcome! Browse our menu and order from your table."
+                    maxLength={120}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-amber-500/50 transition-all" />
+                </div>
               </div>
             </div>
 
@@ -908,7 +934,7 @@ export default function OnlineMenuTemplatePage({ linksSlot }: { linksSlot?: Reac
             <div className="rounded-2xl bg-white/4 border border-white/10 p-4">
               <p className="text-sm font-semibold text-white mb-1">Item Card Style</p>
               <p className="text-xs text-white/30 mb-3">How menu items appear inside a category</p>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {ITEM_PREVIEWS.map(c => (
                   <StyleCard key={c.id} label={c.label} desc={c.desc}
                     active={settings.item_style === c.id}
@@ -920,7 +946,7 @@ export default function OnlineMenuTemplatePage({ linksSlot }: { linksSlot?: Reac
             <div className="rounded-2xl bg-white/4 border border-white/10 p-4">
               <p className="text-sm font-semibold text-white mb-1">Events &amp; Offers Style</p>
               <p className="text-xs text-white/30 mb-3">How promotions and events are showcased</p>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {EVENT_PREVIEWS.map(c => (
                   <StyleCard key={c.id} label={c.label} desc={c.desc}
                     active={settings.event_style === c.id}
@@ -932,7 +958,7 @@ export default function OnlineMenuTemplatePage({ linksSlot }: { linksSlot?: Reac
             <div className="rounded-2xl bg-white/4 border border-white/10 p-4">
               <p className="text-sm font-semibold text-white mb-1">Social Media Style</p>
               <p className="text-xs text-white/30 mb-3">How social links appear at the bottom</p>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {SOCIAL_PREVIEWS.map(c => (
                   <StyleCard key={c.id} label={c.label} desc={c.desc}
                     active={settings.social_style === c.id}
@@ -944,40 +970,6 @@ export default function OnlineMenuTemplatePage({ linksSlot }: { linksSlot?: Reac
           </motion.div>
         )}
 
-        {/* Tab: Display */}
-        {subTab === 'display' && (
-          <motion.div key="display" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.18 }}
-            className="space-y-5">
-            <div className="rounded-2xl bg-white/4 border border-white/10 p-4 space-y-3">
-              <p className="text-sm font-semibold text-white">Display Options</p>
-              {[
-                { k: 'show_prices'       as const, label: 'Show Prices',       desc: 'Display item prices to guests' },
-                { k: 'show_descriptions' as const, label: 'Show Descriptions', desc: 'Show item descriptions below name' },
-              ].map(opt => (
-                <div key={opt.k} className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-white/80 font-medium">{opt.label}</p>
-                    <p className="text-xs text-white/30">{opt.desc}</p>
-                  </div>
-                  <button onClick={() => set(opt.k, !settings[opt.k])}
-                    className={cn('relative w-11 h-6 rounded-full border transition-all duration-200 shrink-0',
-                      settings[opt.k] ? 'bg-amber-500 border-amber-500' : 'bg-white/8 border-white/15')}>
-                    <span className={cn('absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all duration-200',
-                      settings[opt.k] ? 'left-[22px]' : 'left-0.5')} />
-                  </button>
-                </div>
-              ))}
-              <div>
-                <label className="block text-xs font-semibold text-white/40 uppercase tracking-wider mb-1.5">Welcome Message</label>
-                <input type="text" value={settings.welcome_text ?? ''}
-                  onChange={e => set('welcome_text', e.target.value || null)}
-                  placeholder="Welcome! Browse our menu and order from your table."
-                  maxLength={120}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-amber-500/50 transition-all" />
-              </div>
-            </div>
-          </motion.div>
-        )}
         {/* Tab: Coupons */}
         {subTab === 'coupons' && (
           <motion.div key="coupons" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.18 }}>
