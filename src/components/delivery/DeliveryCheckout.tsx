@@ -146,7 +146,7 @@ function FaceScanPanel({ onVerified }: { onVerified: (selfieUrl: string) => void
 
       const W     = vid.videoWidth  || 320
       const H     = vid.videoHeight || 240
-      const scale = 160 / Math.max(W, H)
+      const scale = 320 / Math.max(W, H)
       const outW  = Math.round(W * scale)
       const outH  = Math.round(H * scale)
       const off   = document.createElement('canvas')
@@ -157,7 +157,7 @@ function FaceScanPanel({ onVerified }: { onVerified: (selfieUrl: string) => void
       ctx.scale(-1, 1)
       ctx.drawImage(vid, 0, 0, outW, outH)   // capture before stopping
       streamRef.current?.getTracks().forEach(t => t.stop())
-      setCaptured(off.toDataURL('image/webp', 0.40))
+      setCaptured(off.toDataURL('image/webp', 0.75))
       setPhase('captured')
     }
 
