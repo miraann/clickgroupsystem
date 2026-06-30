@@ -823,7 +823,7 @@ function FaceScanPanel({ onVerified }: { onVerified: (selfieUrl: string) => void
           <div className="grid grid-cols-2 gap-2">
             <button onClick={retake} disabled={uploading}
               className="py-3 rounded-2xl text-sm font-semibold transition-all active:scale-95 disabled:opacity-40"
-              style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.18)', color: 'rgba(255,255,255,0.80)' }}>
+              style={{ background: 'rgba(0,0,0,0.05)', border: '1px solid rgba(0,0,0,0.15)', color: 'rgba(0,0,0,0.65)' }}>
               ↩ Retake
             </button>
             <button
