@@ -11,7 +11,7 @@ import {
   Truck, Phone, MapPin, Clock, Check, X, Loader2,
   RefreshCw, Package,
   CheckCircle2, XCircle, AlertCircle,
-  Navigation, UtensilsCrossed, FileText, Home, MonitorSmartphone, UserRound,
+  Navigation, UtensilsCrossed, FileText, Home, MonitorSmartphone, UserRound, Camera,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
@@ -60,6 +60,7 @@ interface DeliveryOrder {
   order_num: string | null
   driver_id: string | null
   driver_name: string | null
+  selfie_url: string | null
 }
 
 interface Driver {
@@ -185,6 +186,7 @@ export default function DeliveryOrdersPage() {
   const [processing, setProcessing] = useState<Set<string>>(new Set())
   const [lastRefresh, setLastRefresh] = useState(new Date())
   const [cancelTarget, setCancelTarget] = useState<{ deliveryId: string; orderId: string; name: string } | null>(null)
+  const [selfiePreview, setSelfiePreview] = useState<string | null>(null)
   const [drivers, setDrivers]     = useState<Driver[]>([])
   const [driverPick, setDriverPick] = useState<Record<string, string>>({})
   const [whatsappDropdown, setWhatsappDropdown] = useState<string | null>(null)
@@ -756,6 +758,29 @@ export default function DeliveryOrdersPage() {
                     </div>
                   </div>
 
+                  {/* Selfie thumbnail (clickable) */}
+                  {order.selfie_url && (
+                    <button
+                      onClick={() => setSelfiePreview(order.selfie_url)}
+                      title="View customer selfie"
+                      className="shrink-0 relative overflow-hidden rounded-xl border-2 border-emerald-500/50 hover:border-emerald-400 transition-all active:scale-95 group"
+                      style={{ width: 40, height: 54 }}
+                    >
+                      <NextImage
+                        src={order.selfie_url}
+                        alt="Customer selfie"
+                        fill
+                        className="object-cover"
+                        sizes="40px"
+                      />
+                      <div className="absolute inset-0 bg-emerald-500/0 group-hover:bg-emerald-500/15 transition-colors flex items-end justify-center pb-0.5 pointer-events-none">
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Camera className="w-3 h-3 text-white drop-shadow" />
+                        </div>
+                      </div>
+                    </button>
+                  )}
+
                   {/* Total + location button */}
                   <div className="flex flex-col items-end gap-1 shrink-0">
                     <p className="text-sm font-extrabold text-white">{formatPrice(grandTotal)}</p>
@@ -990,6 +1015,55 @@ export default function DeliveryOrdersPage() {
       {whatsappDropdown && (
         <div className="fixed inset-0 z-20" onClick={() => setWhatsappDropdown(null)} />
       )}
+
+      {/* ── Selfie Lightbox ── */}
+      <AnimatePresence>
+        {selfiePreview && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/85 backdrop-blur-md"
+            onClick={() => setSelfiePreview(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.88, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.88, opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 340, damping: 28 }}
+              className="relative rounded-2xl overflow-hidden shadow-2xl"
+              style={{ width: 'min(82vw, 320px)', aspectRatio: '9/16' }}
+              onClick={e => e.stopPropagation()}
+            >
+              <NextImage
+                src={selfiePreview}
+                alt="Customer selfie"
+                fill
+                className="object-cover"
+                sizes="320px"
+              />
+              {/* Close button */}
+              <button
+                onClick={() => setSelfiePreview(null)}
+                className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/60 flex items-center justify-center text-white/80 hover:text-white hover:bg-black/80 transition-all active:scale-90 backdrop-blur-sm"
+              >
+                <X className="w-4 h-4" />
+              </button>
+              {/* Verified badge */}
+              <div className="absolute bottom-3 left-0 right-0 flex justify-center">
+                <div
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold"
+                  style={{ background: 'rgba(52,211,153,0.18)', border: '1px solid rgba(52,211,153,0.45)', color: '#34d399', backdropFilter: 'blur(8px)' }}
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  Liveness Verified
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── Cancel Confirm Modal ── */}
       {cancelTarget && (
