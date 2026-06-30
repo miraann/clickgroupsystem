@@ -41,7 +41,7 @@ const AREA_MAX   = 0.38   // cap: if face exceeds 38% the user is too close
 const CENTRE_MAX = 0.20   // face centre within ±20% of frame centre
 const ROLL_MAX   = 15     // max head roll in degrees
 const YAW_MAX    = 0.30   // slightly more lenient yaw for mid-distance
-const HOLD_MS    = 2500   // ms face must stay valid before auto-capture
+const HOLD_MS    = 3000   // ms face must stay valid before auto-capture
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Pt { x: number; y: number }
@@ -242,6 +242,20 @@ function FaceScanPanel({ onVerified }: { onVerified: (selfieUrl: string) => void
             const interEye = dist(leMid, reMid)
             const yaw = interEye > 0 ? Math.abs(noseTip.x - eyeMidX) / interEye : 1
 
+            // ── Whole-face check: forehead + eyes + chin must all be visible ──
+            const jaw   = det.landmarks.getJawOutline()   as unknown as Pt[]
+            const lBrow = det.landmarks.getLeftEyeBrow()  as unknown as Pt[]
+            const rBrow = det.landmarks.getRightEyeBrow() as unknown as Pt[]
+            const chinY    = jaw[8].y
+            const browTopY = Math.min(...[...lBrow, ...rBrow].map((p: Pt) => p.y))
+            const eyeMidY  = (leMid.y + reMid.y) / 2
+            const faceSpan = chinY - browTopY   // px from brow to chin
+            const wholeface = chinY > eyeMidY       // chin is below eyes
+              && browTopY < eyeMidY               // brows are above eyes
+              && faceSpan >= H * 0.18             // whole face has vertical extent
+              && browTopY > H * 0.01              // forehead isn't cut off at top
+              && chinY    < H * 0.99              // chin isn't cut off at bottom
+
             const noClip = box.x >= 0 && box.y >= 0
               && (box.x + box.width)  <= W
               && (box.y + box.height) <= H
@@ -252,6 +266,7 @@ function FaceScanPanel({ onVerified }: { onVerified: (selfieUrl: string) => void
               && offX <= CENTRE_MAX   && offY <= CENTRE_MAX
               && roll <= ROLL_MAX
               && yaw  <= YAW_MAX
+              && wholeface
 
             // ── Blink detection (EAR) ─────────────────────────
             const ear = (calcEAR(le) + calcEAR(re)) / 2
@@ -259,7 +274,8 @@ function FaceScanPanel({ onVerified }: { onVerified: (selfieUrl: string) => void
               eyeDown.current = true
             } else if (ear > EAR_OPEN && eyeDown.current) {
               eyeDown.current = false
-              if (!didCapture.current) { doCapture(); return }
+              // Only capture on blink when whole face is confirmed valid
+              if (!didCapture.current && isValid) { doCapture(); return }
             }
 
             // Eye landmark dots
@@ -272,18 +288,41 @@ function FaceScanPanel({ onVerified }: { onVerified: (selfieUrl: string) => void
           }
 
           // ── Face guide oval ───────────────────────────────────
+          const ovalColor = isValid
+            ? '#34d399'
+            : hasFace ? 'rgba(245,158,11,0.95)' : 'rgba(255,255,255,0.30)'
           ctx2d.beginPath()
           ctx2d.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2)
-          ctx2d.strokeStyle = isValid
-            ? '#34d399'
-            : hasFace ? 'rgba(245,158,11,0.9)' : 'rgba(255,255,255,0.25)'
-          ctx2d.lineWidth   = 2.5
-          ctx2d.shadowColor = isValid
-            ? 'rgba(52,211,153,0.5)'
-            : hasFace ? 'rgba(245,158,11,0.4)' : 'transparent'
-          ctx2d.shadowBlur  = (isValid || hasFace) ? 14 : 0
+          ctx2d.strokeStyle = ovalColor
+          ctx2d.lineWidth   = isValid ? 4.5 : 3
+          ctx2d.shadowColor = isValid ? 'rgba(52,211,153,0.8)' : hasFace ? 'rgba(245,158,11,0.6)' : 'transparent'
+          ctx2d.shadowBlur  = (isValid || hasFace) ? 20 : 0
           ctx2d.stroke()
           ctx2d.shadowBlur  = 0
+
+          // ── Corner brackets at oval bounding box ──────────────
+          const bL = cx - rx, bR = cx + rx, bT = cy - ry, bB = cy + ry
+          const bl = Math.min(rx, ry) * 0.28
+          ctx2d.lineWidth   = isValid ? 5.5 : hasFace ? 4 : 3
+          ctx2d.strokeStyle = ovalColor
+          ctx2d.lineCap     = 'round'
+          ctx2d.shadowColor = isValid ? 'rgba(52,211,153,1)' : hasFace ? 'rgba(245,158,11,0.8)' : 'rgba(255,255,255,0.5)'
+          ctx2d.shadowBlur  = isValid ? 24 : hasFace ? 16 : 10
+          const brackets: [number,number,number,number][] = [
+            [bL, bT,  1,  1],
+            [bR, bT, -1,  1],
+            [bL, bB,  1, -1],
+            [bR, bB, -1, -1],
+          ]
+          brackets.forEach(([x, y, dx, dy]) => {
+            ctx2d.beginPath()
+            ctx2d.moveTo(x + dx * bl, y)
+            ctx2d.lineTo(x, y)
+            ctx2d.lineTo(x, y + dy * bl)
+            ctx2d.stroke()
+          })
+          ctx2d.shadowBlur = 0
+          ctx2d.lineCap    = 'butt'
 
           // ── Phase + auto-capture countdown ────────────────────
           if (isValid) {
@@ -330,8 +369,17 @@ function FaceScanPanel({ onVerified }: { onVerified: (selfieUrl: string) => void
     <div className="space-y-4">
       {/* Scan animations */}
       <style>{`
+        @keyframes scanBeam {
+          0%   { top: 22%; opacity: 0; }
+          6%   { opacity: 1; }
+          94%  { opacity: 1; }
+          100% { top: 78%; opacity: 0; }
+        }
+        @keyframes scanGlow {
+          0%, 100% { box-shadow: 0 0 0 3px rgba(52,211,153,0.20), 0 0 32px rgba(52,211,153,0.22), inset 0 0 32px rgba(52,211,153,0.05); }
+          50%       { box-shadow: 0 0 0 3px rgba(52,211,153,0.45), 0 0 60px rgba(52,211,153,0.45), inset 0 0 60px rgba(52,211,153,0.12); }
+        }
         @keyframes scanSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        @keyframes scanLine { 0% { top: 18%; opacity: 0; } 8% { opacity: 1; } 92% { opacity: 1; } 100% { top: 82%; opacity: 0; } }
       `}</style>
 
       {/* ── Camera viewport — strict 9:16 portrait ───────────────── */}
@@ -343,14 +391,15 @@ function FaceScanPanel({ onVerified }: { onVerified: (selfieUrl: string) => void
           maxWidth: 'calc(min(72dvh, 520px) * 9 / 16)',
           background: 'rgba(10,13,24,0.90)',
           border: phase === 'face_found' || phase === 'captured'
-            ? '2px solid rgba(52,211,153,0.65)'
+            ? '4px solid rgba(52,211,153,0.85)'
             : phase === 'error'
-            ? '1px solid rgba(239,68,68,0.28)'
-            : '1px solid rgba(245,158,11,0.22)',
-          boxShadow: phase === 'face_found'
-            ? '0 0 36px rgba(52,211,153,0.22), inset 0 0 36px rgba(52,211,153,0.05)'
+            ? '1px solid rgba(239,68,68,0.35)'
+            : '1px solid rgba(245,158,11,0.30)',
+          animation: phase === 'face_found' ? 'scanGlow 1.6s ease-in-out infinite' : 'none',
+          boxShadow: phase === 'captured'
+            ? '0 0 0 3px rgba(52,211,153,0.30), 0 0 40px rgba(52,211,153,0.35)'
             : 'none',
-          transition: 'border 0.4s ease, box-shadow 0.4s ease',
+          transition: 'border 0.35s ease',
         }}
       >
         {/* Live video (hidden once captured) */}
@@ -383,23 +432,42 @@ function FaceScanPanel({ onVerified }: { onVerified: (selfieUrl: string) => void
           </div>
         )}
 
-        {/* Scanning animation (spinning arc + sweeping line) */}
+        {/* Scanning animation — glowing beam sweeping top to bottom */}
         {phase === 'searching' && (
           <div className="absolute inset-0 pointer-events-none z-10">
+            {/* Spinning arc around the oval */}
             <div
-              className="absolute inset-[14%] rounded-full"
+              className="absolute"
               style={{
+                left: '28%', right: '28%', top: '20%', bottom: '20%',
+                borderRadius: '50%',
                 border: '2px solid transparent',
-                borderTopColor: 'rgba(245,158,11,0.55)',
-                borderRightColor: 'rgba(245,158,11,0.15)',
-                animation: 'scanSpin 1.8s linear infinite',
+                borderTopColor: 'rgba(245,158,11,0.70)',
+                borderRightColor: 'rgba(245,158,11,0.20)',
+                animation: 'scanSpin 2s linear infinite',
               }}
             />
+            {/* Main scan beam — bright glowing line */}
             <div
-              className="absolute left-[14%] right-[14%] h-px"
+              className="absolute"
               style={{
-                background: 'linear-gradient(90deg, transparent, rgba(245,158,11,0.65), transparent)',
-                animation: 'scanLine 2.6s ease-in-out infinite',
+                left: '29%', right: '29%',
+                height: '3px',
+                borderRadius: '2px',
+                background: 'linear-gradient(90deg, transparent 0%, rgba(245,158,11,0.5) 15%, #FFD700 50%, rgba(245,158,11,0.5) 85%, transparent 100%)',
+                boxShadow: '0 0 8px 4px rgba(245,158,11,0.65), 0 0 22px 10px rgba(245,158,11,0.25)',
+                animation: 'scanBeam 2.4s ease-in-out infinite',
+              }}
+            />
+            {/* Beam tail glow — soft fade below the line */}
+            <div
+              className="absolute"
+              style={{
+                left: '29%', right: '29%',
+                height: '50px',
+                marginTop: '3px',
+                background: 'linear-gradient(to bottom, rgba(245,158,11,0.18) 0%, transparent 100%)',
+                animation: 'scanBeam 2.4s ease-in-out infinite',
               }}
             />
           </div>
