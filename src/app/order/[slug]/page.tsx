@@ -181,73 +181,55 @@ function AnimCookingPot({ color }: { color: string }) {
 }
 
 function AnimDeliveryBike({ color }: { color: string }) {
+  // Matches cooking pot / delivered: compact filled-shape style, ~36px wide, 30px tall
   return (
-    <motion.svg width="80" height="44" viewBox="0 0 90 50" fill="none"
+    <motion.svg width="46" height="30" viewBox="0 0 46 30" fill="none"
       animate={{ y: [0, -1.5, 0] }}
       transition={{ duration: 0.5, repeat: Infinity, ease: 'easeInOut' }}>
 
-      {/* ── Wind dashes (left side) ── */}
-      {([20, 26, 32] as number[]).map((y, i) => (
+      {/* Wind dashes — grow from car rear leftward */}
+      {([10, 15, 20] as number[]).map((y, i) => (
         <motion.rect key={i}
-          x={1} y={y - 0.75} width={8} height={1.5} rx={0.75}
+          x={0} y={y - 0.75} width={5} height={1.5} rx={0.75}
           fill={color}
-          style={{ transformOrigin: `9px ${y}px` }}
-          animate={{ scaleX: [0, 1.2, 0], opacity: [0, 0.7, 0] }}
+          style={{ transformOrigin: `5px ${y}px` }}
+          animate={{ scaleX: [0, 1.1, 0], opacity: [0, 0.65, 0] }}
           transition={{ duration: 0.6, delay: i * 0.18, repeat: Infinity, ease: 'easeInOut' }}
         />
       ))}
 
-      {/* ── Car body — sedan silhouette ── */}
-      {/* Main lower body / chassis */}
-      <path d="M 10,33 L 10,26 C 10,26 14,14 24,12 L 56,12 C 66,12 72,22 74,26 L 80,26 L 80,33 Z"
-        stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      {/* Cabin roof */}
-      <path d="M 22,26 C 24,18 30,14 36,14 L 55,14 C 62,14 66,19 68,26"
-        stroke={color} strokeWidth="2" strokeLinecap="round" />
-      {/* Windshield (front glass) */}
-      <path d="M 56,14 C 62,16 66,20 68,26 L 56,26 Z"
-        stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.5" />
-      {/* Rear window */}
-      <path d="M 22,26 C 24,20 28,15 34,14 L 22,14 Z"
-        stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.5" />
-      {/* B-pillar (middle window divider) */}
-      <line x1="44" y1="14" x2="44" y2="26"
-        stroke={color} strokeWidth="1.5" strokeLinecap="round" opacity="0.5" />
-      {/* Front bumper */}
-      <line x1="74" y1="30" x2="82" y2="30"
-        stroke={color} strokeWidth="2.5" strokeLinecap="round" />
-      {/* Rear bumper */}
-      <line x1="8" y1="30" x2="14" y2="30"
-        stroke={color} strokeWidth="2.5" strokeLinecap="round" />
-      {/* Headlight */}
-      <line x1="79" y1="24" x2="83" y2="24"
-        stroke={color} strokeWidth="2" strokeLinecap="round" opacity="0.7" />
-      {/* Tail light */}
-      <line x1="7" y1="24" x2="11" y2="24"
-        stroke={color} strokeWidth="2" strokeLinecap="round" opacity="0.7" />
+      {/* Cabin / roof */}
+      <path d="M 12,14 C 13,7 16,4 19,4 L 32,4 C 35,4 37,8 38,14 Z"
+        fill={color} />
+      {/* Windshield tint */}
+      <path d="M 31,4.5 C 34,7 37,10 38,14 L 31,14 Z"
+        fill="white" opacity="0.18" />
 
-      {/* ── Rear wheel ── */}
-      <circle cx="22" cy="38" r="9" stroke={color} strokeWidth="2" />
-      <circle cx="22" cy="38" r="3"  stroke={color} strokeWidth="1.5" />
+      {/* Lower body */}
+      <rect x="6" y="14" width="33" height="9" rx="2" fill={color} opacity="0.9" />
+      {/* Rear bumper tab */}
+      <rect x="4" y="16" width="4" height="5" rx="1.5" fill={color} opacity="0.55" />
+      {/* Front bumper tab */}
+      <rect x="37" y="16" width="4" height="5" rx="1.5" fill={color} opacity="0.55" />
+
+      {/* Rear wheel */}
+      <circle cx="14" cy="23" r="7" fill={color} />
+      <circle cx="14" cy="23" r="2.8" fill="white" />
       <motion.g animate={{ rotate: 360 }}
         transition={{ duration: 0.7, repeat: Infinity, ease: 'linear' }}
-        style={{ transformOrigin: '22px 38px' }}>
-        <line x1="22" y1="29" x2="22" y2="47" stroke={color} strokeWidth="1" strokeLinecap="round" opacity="0.4" />
-        <line x1="13" y1="38" x2="31" y2="38" stroke={color} strokeWidth="1" strokeLinecap="round" opacity="0.4" />
-        <line x1="15.6" y1="31.6" x2="28.4" y2="44.4" stroke={color} strokeWidth="1" strokeLinecap="round" opacity="0.28" />
-        <line x1="28.4" y1="31.6" x2="15.6" y2="44.4" stroke={color} strokeWidth="1" strokeLinecap="round" opacity="0.28" />
+        style={{ transformOrigin: '14px 23px' }}>
+        <line x1="14" y1="16" x2="14" y2="30" stroke="white" strokeWidth="1.2" strokeLinecap="round" opacity="0.45" />
+        <line x1="7"  y1="23" x2="21" y2="23" stroke="white" strokeWidth="1.2" strokeLinecap="round" opacity="0.45" />
       </motion.g>
 
-      {/* ── Front wheel ── */}
-      <circle cx="66" cy="38" r="9" stroke={color} strokeWidth="2" />
-      <circle cx="66" cy="38" r="3"  stroke={color} strokeWidth="1.5" />
+      {/* Front wheel */}
+      <circle cx="34" cy="23" r="7" fill={color} />
+      <circle cx="34" cy="23" r="2.8" fill="white" />
       <motion.g animate={{ rotate: 360 }}
         transition={{ duration: 0.7, repeat: Infinity, ease: 'linear' }}
-        style={{ transformOrigin: '66px 38px' }}>
-        <line x1="66" y1="29" x2="66" y2="47" stroke={color} strokeWidth="1" strokeLinecap="round" opacity="0.4" />
-        <line x1="57" y1="38" x2="75" y2="38" stroke={color} strokeWidth="1" strokeLinecap="round" opacity="0.4" />
-        <line x1="59.6" y1="31.6" x2="72.4" y2="44.4" stroke={color} strokeWidth="1" strokeLinecap="round" opacity="0.28" />
-        <line x1="72.4" y1="31.6" x2="59.6" y2="44.4" stroke={color} strokeWidth="1" strokeLinecap="round" opacity="0.28" />
+        style={{ transformOrigin: '34px 23px' }}>
+        <line x1="34" y1="16" x2="34" y2="30" stroke="white" strokeWidth="1.2" strokeLinecap="round" opacity="0.45" />
+        <line x1="27" y1="23" x2="41" y2="23" stroke="white" strokeWidth="1.2" strokeLinecap="round" opacity="0.45" />
       </motion.g>
     </motion.svg>
   )
