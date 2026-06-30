@@ -560,12 +560,12 @@ export default function GuestPage() {
   ].filter(s => s.value.trim() !== '')
 
   return (
-    <div className={`min-h-screen ${tpl.pageBg} flex flex-col items-center pt-16 text-center pb-28`}>
+    <div className={`min-h-screen ${tpl.pageBg} flex flex-col items-center pt-6 sm:pt-16 text-center pb-28`}>
       <style>{`.cat-scroll::-webkit-scrollbar{display:none} .social-scroll::-webkit-scrollbar{display:none}`}</style>
 
       {/* Circle logo */}
       <motion.div initial={{ opacity: 0, y: 28 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-        className="w-36 h-36 rounded-full overflow-hidden shadow-xl relative"
+        className="w-20 h-20 sm:w-36 sm:h-36 rounded-full overflow-hidden shadow-xl relative"
         style={{ outline: `4px solid ${tpl.logoRing}`, outlineOffset: '4px', background: '#f3f4f6' }}>
         {restaurant.logo_url
           ? <NextImage src={restaurant.logo_url} alt={restaurant.name} fill className="object-cover" />
@@ -576,19 +576,19 @@ export default function GuestPage() {
       </motion.div>
 
       {/* Restaurant name */}
-      <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1], delay: 0.13 }} className={`mt-4 text-2xl font-bold tracking-tight px-6 ${tpl.nameColor}`}>{restaurant.name}</motion.h1>
+      <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1], delay: 0.13 }} className={`mt-2 sm:mt-4 text-xl sm:text-2xl font-bold tracking-tight px-6 ${tpl.nameColor}`}>{restaurant.name}</motion.h1>
 
       {/* Table number */}
       {tableLabel && (
         <motion.span initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1], delay: 0.24 }}
-          className={`mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-semibold ${tpl.tableChipBg} ${tpl.tableChipText}`}>
+          className={`mt-1 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-semibold ${tpl.tableChipBg} ${tpl.tableChipText}`}>
           Table {tableLabel}
         </motion.span>
       )}
 
       {/* Welcome message */}
       <motion.p initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1], delay: 0.35 }}
-        className={`mt-4 text-sm px-6 ${tpl.welcomeColor}`}>
+        className={`mt-2 text-sm px-6 ${tpl.welcomeColor}`}>
         {welcomeText ?? 'Welcome! Browse our menu and order directly from your table.'}
       </motion.p>
 
@@ -642,11 +642,11 @@ export default function GuestPage() {
 
       {/* Category navigation */}
       {categories.length > 0 && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1], delay: 0.46 }} className="w-full mt-6 overflow-x-hidden">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1], delay: 0.46 }} className="w-full mt-3 sm:mt-6 overflow-x-hidden">
           {categoryStyle === 'circles' ? (
             /* ── Circles ── */
             <div
-              className="cat-scroll flex gap-5 overflow-x-auto px-6 py-4 justify-center"
+              className="cat-scroll flex gap-3 sm:gap-5 overflow-x-auto px-4 sm:px-6 py-2 sm:py-4 justify-center"
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', overflowY: 'visible' } as React.CSSProperties}
             >
               {categories.map(cat => {
@@ -656,10 +656,10 @@ export default function GuestPage() {
                   <button
                     key={cat.id}
                     onClick={() => { setActiveId(cat.id); setShowItems(true) }}
-                    className="flex flex-col items-center gap-2 shrink-0 focus:outline-none"
+                    className="flex flex-col items-center gap-1.5 shrink-0 focus:outline-none"
                   >
                     <div
-                      className="w-24 h-24 rounded-full flex items-center justify-center shadow-md transition-all duration-200"
+                      className="w-16 h-16 sm:w-24 sm:h-24 rounded-full flex items-center justify-center shadow-md transition-all duration-200"
                       style={{
                         background: cat.color,
                         outline: isActive ? `3px solid ${primaryColor}` : 'none',
@@ -669,12 +669,12 @@ export default function GuestPage() {
                       }}
                     >
                       {cat.icon
-                        ? <span style={{ fontSize: '3.5rem', lineHeight: 1 }}>{cat.icon}</span>
-                        : <span className="text-white text-3xl font-bold">{cat.name.charAt(0).toUpperCase()}</span>
+                        ? <span style={{ fontSize: '2rem', lineHeight: 1 }} className="sm:text-[3.5rem]">{cat.icon}</span>
+                        : <span className="text-white text-2xl sm:text-3xl font-bold">{cat.name.charAt(0).toUpperCase()}</span>
                       }
                     </div>
                     <span
-                      className="text-xs font-semibold w-16 text-center leading-tight line-clamp-1 transition-colors"
+                      className="text-xs font-semibold w-12 sm:w-16 text-center leading-tight line-clamp-1 transition-colors"
                       style={{ color: isActive ? primaryColor : (isDark ? '#9ca3af' : '#6b7280') }}
                     >
                       {cat.name}
@@ -975,12 +975,12 @@ export default function GuestPage() {
           {events.length > 0 && (
             <motion.div className="w-full mt-6"
               initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1], delay: 0.62 }}>
-              <h2 className={`text-lg font-bold mb-3 px-6 text-center ${tpl.sectionTitleColor}`}>Event &amp; Offers</h2>
+              <h2 className={`text-lg font-bold mb-3 pl-4 text-left ${tpl.sectionTitleColor}`}>Event &amp; Offers</h2>
 
               {eventStyle === 'story' ? (
                 /* ── Story circles ── */
                 <div
-                  className="cat-scroll flex gap-4 overflow-x-auto px-6 pb-4 pt-2 justify-center"
+                  className="cat-scroll flex gap-4 overflow-x-auto pl-4 pr-6 pb-4 pt-2 justify-start"
                   style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
                 >
                   {events.map((ev, idx) => (
@@ -1033,7 +1033,7 @@ export default function GuestPage() {
               ) : (
                 /* ── Cards (default horizontal scroll) ── */
                 <div
-                  className="cat-scroll flex gap-5 overflow-x-auto px-6 pb-4 pt-2 justify-center"
+                  className="cat-scroll flex gap-5 overflow-x-auto pl-4 pr-6 pb-4 pt-2 justify-start"
                   style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
                 >
                   {events.map((ev, idx) => (
@@ -1094,7 +1094,7 @@ export default function GuestPage() {
               ) : socialStyle === 'icons' ? (
                 /* ── Icon circles only ── */
                 <div
-                  className="social-scroll flex gap-4 overflow-x-auto px-6 py-2 justify-center"
+                  className="social-scroll flex gap-4 overflow-x-auto pl-4 pr-6 py-2 justify-start"
                   style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
                 >
                   {socialLinks.map((s, idx) => {
@@ -1120,7 +1120,7 @@ export default function GuestPage() {
               ) : (
                 /* ── Pills (default horizontal scroll) ── */
                 <div
-                  className="social-scroll flex gap-3 overflow-x-auto px-6 py-2 justify-center"
+                  className="social-scroll flex gap-3 overflow-x-auto pl-4 pr-6 py-2 justify-start"
                   style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
                 >
                   {socialLinks.map((s, idx) => {
