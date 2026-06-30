@@ -4,8 +4,9 @@ import {
   Truck, X, Loader2, Save, AlertCircle,
   Check, Clock, DollarSign, ShoppingCart, Package,
   User, Phone, ChevronDown, RefreshCw, History, Settings2,
-  ToggleLeft, ToggleRight, MapPin,
+  ToggleLeft, ToggleRight, MapPin, Globe,
 } from 'lucide-react'
+import OnlineMenuTemplatePage from '../menu/online-menu/page'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
@@ -441,7 +442,7 @@ export default function DeliveryPage() {
   const { formatPrice } = useDefaultCurrency()
   const { t } = useLanguage()
 
-  const [tab, setTab]                   = useState<'history' | 'settings'>('history')
+  const [tab, setTab]                   = useState<'history' | 'settings' | 'online-menu'>('history')
   const [restaurantId, setRestaurantId] = useState<string | null>(null)
   const [mounted, setMounted]           = useState(false)
   const [synced,  setSynced]            = useState(false)
@@ -537,6 +538,15 @@ export default function DeliveryPage() {
         >
           <Settings2 className="w-4 h-4" /> Settings
         </button>
+        <button
+          onClick={() => setTab('online-menu')}
+          className={cn(
+            'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all',
+            tab === 'online-menu' ? 'bg-indigo-500/25 text-indigo-300 shadow-sm' : 'text-white/40 hover:text-white/60'
+          )}
+        >
+          <Globe className="w-4 h-4" /> Online Menu
+        </button>
       </motion.div>
 
       {/* ── Tab content — AnimatePresence re-animates on every switch ── */}
@@ -553,6 +563,9 @@ export default function DeliveryPage() {
       {tab === 'history' && restaurantId && (
         <DeliveryHistoryTab restaurantId={restaurantId} formatPrice={formatPrice} />
       )}
+
+      {/* ── Online Menu Tab ── */}
+      {tab === 'online-menu' && <OnlineMenuTemplatePage />}
 
       {/* ── Settings Tab ── */}
       {tab === 'settings' && (
