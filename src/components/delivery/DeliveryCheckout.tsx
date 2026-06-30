@@ -751,20 +751,50 @@ function FaceScanPanel({ onVerified }: { onVerified: (selfieUrl: string) => void
           <motion.div
             initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.22 }}
-            className="rounded-2xl px-5 py-3 space-y-2"
-            style={{ background: 'rgba(52,211,153,0.06)', border: '1px solid rgba(52,211,153,0.20)' }}
+            className="space-y-2.5 px-1"
           >
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold text-emerald-400">Face locked — hold still…</span>
-              <span className="text-[10px] text-emerald-400/55">{Math.round(progress)}%</span>
+            {/* Percentage + label */}
+            <div className="flex items-end justify-center gap-1.5">
+              <span
+                className="font-black leading-none"
+                style={{ fontSize: 28, background: 'linear-gradient(90deg, #f43f5e, #f97316)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}
+              >
+                {Math.round(progress)}%
+              </span>
+              <span className="text-[11px] text-white/35 mb-0.5">to complete</span>
             </div>
-            <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(52,211,153,0.12)' }}>
+
+            {/* Pill progress bar — outer div has no overflow:hidden so the thumb renders freely */}
+            <div className="relative" style={{ height: 36 }}>
+              {/* Track + gradient fill (clipped inside pill shape) */}
+              <div
+                className="absolute inset-0 rounded-full overflow-hidden"
+                style={{ background: 'rgba(255,255,255,0.07)', border: '1.5px solid rgba(255,255,255,0.10)' }}
+              >
+                <motion.div
+                  className="absolute left-0 top-0 bottom-0 rounded-full"
+                  style={{ background: 'linear-gradient(90deg, #f43f5e 0%, #f97316 55%, #ea580c 100%)' }}
+                  animate={{ width: `${Math.max(progress, 10)}%` }}
+                  transition={{ duration: 0.15 }}
+                />
+              </div>
+
+              {/* Circle thumb positioned at fill's right edge */}
               <motion.div
-                className="h-full rounded-full"
-                style={{ background: 'linear-gradient(90deg, #34d399, #10b981)' }}
-                animate={{ width: `${progress}%` }}
+                className="absolute top-1/2"
+                animate={{ left: `${Math.max(progress, 10)}%` }}
                 transition={{ duration: 0.15 }}
-              />
+                style={{ zIndex: 2 }}
+              >
+                <div style={{
+                  width: 28, height: 28,
+                  borderRadius: '50%',
+                  background: '#ffffff',
+                  border: '3px solid #f97316',
+                  boxShadow: '0 0 14px rgba(249,115,22,0.70), 0 2px 8px rgba(0,0,0,0.28)',
+                  transform: 'translate(-50%, -50%)',
+                }} />
+              </motion.div>
             </div>
           </motion.div>
         )}
