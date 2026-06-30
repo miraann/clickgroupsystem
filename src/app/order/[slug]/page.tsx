@@ -187,49 +187,49 @@ function AnimDeliveryBike({ color }: { color: string }) {
       animate={{ y: [0, -1.5, 0] }}
       transition={{ duration: 0.5, repeat: Infinity, ease: 'easeInOut' }}>
 
-      {/* Wind dashes — grow from car rear leftward */}
+      {/* Wind dashes — right side (front of right-facing car) */}
       {([10, 15, 20] as number[]).map((y, i) => (
         <motion.rect key={i}
-          x={0} y={y - 0.75} width={5} height={1.5} rx={0.75}
+          x={41} y={y - 0.75} width={5} height={1.5} rx={0.75}
           fill={color}
-          style={{ transformOrigin: `5px ${y}px` }}
+          style={{ transformOrigin: `41px ${y}px` }}
           animate={{ scaleX: [0, 1.1, 0], opacity: [0, 0.65, 0] }}
           transition={{ duration: 0.6, delay: i * 0.18, repeat: Infinity, ease: 'easeInOut' }}
         />
       ))}
 
-      {/* Cabin / roof */}
-      <path d="M 12,14 C 13,7 16,4 19,4 L 32,4 C 35,4 37,8 38,14 Z"
+      {/* Cabin / roof — flipped to face right */}
+      <path d="M 34,14 C 33,7 30,4 27,4 L 14,4 C 11,4 9,8 8,14 Z"
         fill={color} />
-      {/* Windshield tint */}
-      <path d="M 31,4.5 C 34,7 37,10 38,14 L 31,14 Z"
+      {/* Rear window tint (left side) */}
+      <path d="M 15,4.5 C 12,7 9,10 8,14 L 15,14 Z"
         fill="white" opacity="0.18" />
 
       {/* Lower body */}
-      <rect x="6" y="14" width="33" height="9" rx="2" fill={color} opacity="0.9" />
-      {/* Rear bumper tab */}
-      <rect x="4" y="16" width="4" height="5" rx="1.5" fill={color} opacity="0.55" />
-      {/* Front bumper tab */}
-      <rect x="37" y="16" width="4" height="5" rx="1.5" fill={color} opacity="0.55" />
+      <rect x="7" y="14" width="33" height="9" rx="2" fill={color} opacity="0.9" />
+      {/* Rear bumper tab (left) */}
+      <rect x="5" y="16" width="4" height="5" rx="1.5" fill={color} opacity="0.55" />
+      {/* Front bumper tab (right) */}
+      <rect x="38" y="16" width="4" height="5" rx="1.5" fill={color} opacity="0.55" />
 
-      {/* Rear wheel */}
-      <circle cx="14" cy="23" r="7" fill={color} />
-      <circle cx="14" cy="23" r="2.8" fill="white" />
+      {/* Rear wheel (left, cx=12) */}
+      <circle cx="12" cy="23" r="7" fill={color} />
+      <circle cx="12" cy="23" r="2.8" fill="white" />
       <motion.g animate={{ rotate: 360 }}
         transition={{ duration: 0.7, repeat: Infinity, ease: 'linear' }}
-        style={{ transformOrigin: '14px 23px' }}>
-        <line x1="14" y1="16" x2="14" y2="30" stroke="white" strokeWidth="1.2" strokeLinecap="round" opacity="0.45" />
-        <line x1="7"  y1="23" x2="21" y2="23" stroke="white" strokeWidth="1.2" strokeLinecap="round" opacity="0.45" />
+        style={{ transformOrigin: '12px 23px' }}>
+        <line x1="12" y1="16" x2="12" y2="30" stroke="white" strokeWidth="1.2" strokeLinecap="round" opacity="0.45" />
+        <line x1="5"  y1="23" x2="19" y2="23" stroke="white" strokeWidth="1.2" strokeLinecap="round" opacity="0.45" />
       </motion.g>
 
-      {/* Front wheel */}
-      <circle cx="34" cy="23" r="7" fill={color} />
-      <circle cx="34" cy="23" r="2.8" fill="white" />
+      {/* Front wheel (right, cx=32) */}
+      <circle cx="32" cy="23" r="7" fill={color} />
+      <circle cx="32" cy="23" r="2.8" fill="white" />
       <motion.g animate={{ rotate: 360 }}
         transition={{ duration: 0.7, repeat: Infinity, ease: 'linear' }}
-        style={{ transformOrigin: '34px 23px' }}>
-        <line x1="34" y1="16" x2="34" y2="30" stroke="white" strokeWidth="1.2" strokeLinecap="round" opacity="0.45" />
-        <line x1="27" y1="23" x2="41" y2="23" stroke="white" strokeWidth="1.2" strokeLinecap="round" opacity="0.45" />
+        style={{ transformOrigin: '32px 23px' }}>
+        <line x1="32" y1="16" x2="32" y2="30" stroke="white" strokeWidth="1.2" strokeLinecap="round" opacity="0.45" />
+        <line x1="25" y1="23" x2="39" y2="23" stroke="white" strokeWidth="1.2" strokeLinecap="round" opacity="0.45" />
       </motion.g>
     </motion.svg>
   )
