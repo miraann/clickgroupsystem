@@ -259,7 +259,7 @@ function TrackOrderSection({
   }
 
   return (
-    <div className="w-full max-w-sm mt-5 mx-auto px-4">
+    <div className="w-full max-w-sm mt-3 mx-auto px-4">
       {/* Toggle header */}
       <button
         onClick={() => setOpen(o => !o)}
@@ -787,12 +787,12 @@ export default function DeliveryOrderPage() {
   ].filter(s => s.value.trim() !== '')
 
   return (
-    <div className={`min-h-screen ${tpl.pageBg} flex flex-col items-center pt-14 text-center pb-28`}>
+    <div className={`min-h-screen ${tpl.pageBg} flex flex-col items-center pt-6 sm:pt-14 text-center pb-28`}>
       <style>{`.scroll-hide::-webkit-scrollbar{display:none}`}</style>
 
       {/* Logo */}
       <motion.div initial={{ opacity: 0, y: 28 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-        className="w-32 h-32 rounded-full overflow-hidden shadow-xl relative"
+        className="w-20 h-20 sm:w-32 sm:h-32 rounded-full overflow-hidden shadow-xl relative"
         style={{ outline: `4px solid ${primaryColor}`, outlineOffset: '4px', background: '#f3f4f6' }}>
         {restaurant.logo_url
           ? <NextImage src={restaurant.logo_url} alt={restaurant.name} fill className="object-cover" />
@@ -802,18 +802,18 @@ export default function DeliveryOrderPage() {
       </motion.div>
 
       {/* Name */}
-      <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1], delay: 0.13 }} className={`mt-4 text-2xl font-bold tracking-tight px-6 ${tpl.nameColor}`}>{restaurant.name}</motion.h1>
+      <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1], delay: 0.13 }} className={`mt-2 sm:mt-4 text-xl sm:text-2xl font-bold tracking-tight px-6 ${tpl.nameColor}`}>{restaurant.name}</motion.h1>
 
       {/* Delivery badge */}
       <motion.span initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1], delay: 0.24 }}
-        className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-semibold"
+        className="mt-1 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-semibold"
         style={{ background: `${primaryColor}18`, color: primaryColor }}>
         <Truck className="w-3.5 h-3.5" /> Delivery Order
       </motion.span>
 
       {/* Delivery info strip */}
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1], delay: 0.35 }}
-        className="mt-3 flex items-center gap-3 text-xs flex-wrap justify-center"
+        className="mt-2 flex items-center gap-3 text-xs flex-wrap justify-center"
         style={{ color: tpl.isDark ? 'rgba(255,255,255,0.40)' : '#9ca3af' }}>
         <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> ~{estimatedTime} min</span>
         <span>·</span>
@@ -841,7 +841,7 @@ export default function DeliveryOrderPage() {
 
       {/* Welcome */}
       <motion.p initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1], delay: 0.46 }}
-        className={`mt-3 text-sm px-8 ${tpl.welcomeColor}`}>
+        className={`mt-1 text-sm px-8 ${tpl.welcomeColor}`}>
         {welcomeText ?? 'Browse our menu and place your delivery order below.'}
       </motion.p>
 
@@ -871,17 +871,17 @@ export default function DeliveryOrderPage() {
 
       {/* ── Category navigation ── */}
       {categories.length > 0 && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1], delay: 0.68 }} className="w-full mt-6 overflow-x-hidden">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1], delay: 0.68 }} className="w-full mt-3 sm:mt-6 overflow-x-hidden">
           {categoryStyle === 'circles' ? (
-            <div className="scroll-hide flex gap-5 overflow-x-auto px-6 py-4 justify-center"
+            <div className="scroll-hide flex gap-3 sm:gap-5 overflow-x-auto px-4 sm:px-6 py-2 sm:py-4 justify-center"
               style={{ scrollbarWidth: 'none', overflowY: 'visible' } as React.CSSProperties}>
               {categories.map(cat => {
                 const isActive = activeId === cat.id
                 return (
                   <button key={cat.id}
                     onClick={() => { setActiveId(cat.id); setShowItems(true) }}
-                    className="flex flex-col items-center gap-2 shrink-0 focus:outline-none">
-                    <div className="w-24 h-24 rounded-full flex items-center justify-center shadow-md transition-all duration-200"
+                    className="flex flex-col items-center gap-1.5 shrink-0 focus:outline-none">
+                    <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-full flex items-center justify-center shadow-md transition-all duration-200"
                       style={{
                         background: cat.color,
                         outline: isActive ? `3px solid ${primaryColor}` : 'none',
@@ -890,10 +890,10 @@ export default function DeliveryOrderPage() {
                         transform: isActive ? 'scale(1.12)' : 'scale(1)',
                       }}>
                       {cat.icon
-                        ? <span style={{ fontSize: '3.5rem', lineHeight: 1 }}>{cat.icon}</span>
-                        : <span className="text-white text-3xl font-bold">{cat.name.charAt(0).toUpperCase()}</span>}
+                        ? <span style={{ fontSize: '2rem', lineHeight: 1 }} className="sm:text-[3.5rem]">{cat.icon}</span>
+                        : <span className="text-white text-2xl sm:text-3xl font-bold">{cat.name.charAt(0).toUpperCase()}</span>}
                     </div>
-                    <span className="text-xs font-semibold w-16 text-center leading-tight line-clamp-1"
+                    <span className="text-xs font-semibold w-12 sm:w-16 text-center leading-tight line-clamp-1"
                       style={{ color: isActive ? primaryColor : (tpl.isDark ? '#9ca3af' : '#6b7280') }}>
                       {cat.name}
                     </span>
@@ -1126,8 +1126,8 @@ export default function DeliveryOrderPage() {
           {events.length > 0 && (
             <motion.div className="w-full mt-6"
               initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1], delay: 0.84 }}>
-              <h2 className={`text-lg font-bold mb-3 px-6 text-center ${tpl.sectionTitle}`}>Event &amp; Offers</h2>
-              <div className="scroll-hide flex gap-5 overflow-x-auto px-6 pb-4 pt-2 justify-center"
+              <h2 className={`text-lg font-bold mb-3 pl-4 text-left ${tpl.sectionTitle}`}>Event &amp; Offers</h2>
+              <div className="scroll-hide flex gap-5 overflow-x-auto pl-4 pr-6 pb-4 pt-2 justify-start"
                 style={{ scrollbarWidth: 'none' } as React.CSSProperties}>
                 {events.map((ev, idx) => (
                   <motion.div key={ev.id} onClick={() => openStory(idx)}
@@ -1155,7 +1155,7 @@ export default function DeliveryOrderPage() {
           {socialLinks.length > 0 && (
             <motion.div className="w-full mt-4 pb-10"
               initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1], delay: 1.06 }}>
-              <div className="scroll-hide flex gap-3 overflow-x-auto px-6 py-2 justify-center"
+              <div className="scroll-hide flex gap-3 overflow-x-auto pl-4 pr-6 py-2 justify-start"
                 style={{ scrollbarWidth: 'none' } as React.CSSProperties}>
                 {socialLinks.map((s, idx) => {
                   const href = buildSocialHref(s.key, s.value)
