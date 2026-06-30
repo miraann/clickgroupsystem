@@ -107,6 +107,8 @@ function FaceScanPanel({ onVerified }: { onVerified: (selfieUrl: string) => void
   const eyeDown    = useRef(false)
   const validSince = useRef<number | null>(null)
   const didCapture = useRef(false)
+  // Last validated face bounding box (video pixel coords, un-mirrored) — used by doCapture
+  const lastBoxRef = useRef<{ x: number; y: number; w: number; h: number } | null>(null)
 
   const [phase,     setPhase]     = useState<ScanPhase>('loading')
   const [errMsg,    setErrMsg]    = useState('')
@@ -123,6 +125,7 @@ function FaceScanPanel({ onVerified }: { onVerified: (selfieUrl: string) => void
     frameCount.current = 0
     eyeDown.current    = false
     validSince.current = null
+    lastBoxRef.current = null
     setCaptured(null)
     setProgress(0)
     setErrMsg('')
@@ -150,28 +153,65 @@ function FaceScanPanel({ onVerified }: { onVerified: (selfieUrl: string) => void
     frameCount.current = 0
     eyeDown.current    = false
     validSince.current = null
+    lastBoxRef.current = null
 
     // ── Capture: draw FIRST, then stop stream (stopping first blacks out iOS) ──
+    // Uses the last validated face bounding box for a face-centred padded crop.
     function doCapture() {
       const vid = videoRef.current
       if (!vid || didCapture.current) return
       didCapture.current = true
       cancelAnimationFrame(rafRef.current)
 
-      const W     = vid.videoWidth  || 320
-      const H     = vid.videoHeight || 240
-      const scale = 320 / Math.max(W, H)
-      const outW  = Math.round(W * scale)
-      const outH  = Math.round(H * scale)
-      const off   = document.createElement('canvas')
-      off.width   = outW
-      off.height  = outH
-      const ctx   = off.getContext('2d')!
-      ctx.translate(outW, 0)    // un-mirror the CSS scaleX(-1)
-      ctx.scale(-1, 1)
-      ctx.drawImage(vid, 0, 0, outW, outH)   // capture before stopping
+      const W   = vid.videoWidth  || 480
+      const H   = vid.videoHeight || 640
+      const OUT = 320   // output canvas size (square, device-agnostic)
+      const PAD = 1.40  // padding multiplier — hair/forehead/chin margin
+
+      const off = document.createElement('canvas')
+      off.width  = OUT
+      off.height = OUT
+      const ctx  = off.getContext('2d')!
+
+      const fb = lastBoxRef.current
+      if (fb) {
+        // ── Face-centred padded crop ────────────────────────────────────────────
+        // Compute a square source region centred on the face, padded by PAD.
+        // The face-api box is in un-mirrored video coords (CSS scaleX(-1) is only visual).
+        const fCx  = fb.x + fb.w / 2
+        const fCy  = fb.y + fb.h / 2
+        const half = Math.max(fb.w, fb.h) * PAD / 2
+
+        // Clamp to video bounds (cropPadOk guard prevents this in practice)
+        const srcX  = Math.max(0, Math.round(fCx - half))
+        const srcY  = Math.max(0, Math.round(fCy - half))
+        const srcX2 = Math.min(W, Math.round(fCx + half))
+        const srcY2 = Math.min(H, Math.round(fCy + half))
+        const srcW  = srcX2 - srcX
+        const srcH  = srcY2 - srcY
+
+        // Mirror the crop to match the mirrored video preview the user sees
+        ctx.translate(OUT, 0)
+        ctx.scale(-1, 1)
+        ctx.drawImage(vid, srcX, srcY, srcW, srcH, 0, 0, OUT, OUT)
+        ctx.setTransform(1, 0, 0, 1, 0, 0)
+      } else {
+        // Fallback: letterboxed full frame (should never reach here after validation)
+        const scale = OUT / Math.max(W, H)
+        const fW    = Math.round(W * scale)
+        const fH    = Math.round(H * scale)
+        const offX  = Math.round((OUT - fW) / 2)
+        const offY  = Math.round((OUT - fH) / 2)
+        ctx.fillStyle = '#111'
+        ctx.fillRect(0, 0, OUT, OUT)
+        ctx.translate(OUT, 0)
+        ctx.scale(-1, 1)
+        ctx.drawImage(vid, offX, offY, fW, fH)
+        ctx.setTransform(1, 0, 0, 1, 0, 0)
+      }
+
       streamRef.current?.getTracks().forEach(t => t.stop())
-      setCaptured(off.toDataURL('image/webp', 0.75))
+      setCaptured(off.toDataURL('image/webp', 0.82))
       setPhase('captured')
     }
 
@@ -271,18 +311,31 @@ function FaceScanPanel({ onVerified }: { onVerified: (selfieUrl: string) => void
               && (box.x + box.width)  <= W
               && (box.y + box.height) <= H
 
+            // Padded crop region must fit entirely within the video frame.
+            // PAD must match the constant used in doCapture (1.40).
+            const CROP_PAD   = 1.40
+            const cropHalf   = Math.max(box.width, box.height) * CROP_PAD / 2
+            const cropPadOk  = (faceCx - cropHalf) >= 0
+              && (faceCy - cropHalf) >= 0
+              && (faceCx + cropHalf) <= W
+              && (faceCy + cropHalf) <= H
+
             isValid = score >= SCORE_MIN
               && noClip
+              && cropPadOk
               && areaRatio >= AREA_MIN && areaRatio <= AREA_MAX
               && offX <= CENTRE_MAX   && offY <= CENTRE_MAX
               && roll <= ROLL_MAX
               && yaw  <= YAW_MAX
               && wholeface
 
+            // Save validated box so doCapture can crop precisely at this position
+            if (isValid) lastBoxRef.current = { x: box.x, y: box.y, w: box.width, h: box.height }
+
             // Specific user guidance
             let newGuidance: Guidance = null
             if (!isValid) {
-              if      (areaRatio > AREA_MAX)                         newGuidance = 'move_back'
+              if      (areaRatio > AREA_MAX || !cropPadOk)           newGuidance = 'move_back'
               else if (areaRatio < AREA_MIN)                         newGuidance = 'move_closer'
               else if (!wholeface)                                   newGuidance = 'show_full_face'
               else if (offX > CENTRE_MAX || offY > CENTRE_MAX)       newGuidance = 'center_face'
