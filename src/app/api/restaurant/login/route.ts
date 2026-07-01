@@ -105,9 +105,11 @@ export async function POST(req: NextRequest) {
     }
 
     // Always require PIN step — issue a 5-min pending token and redirect to PIN page
+    const hasPin = !!(settings.owner_pin as string | undefined)
     const pendingToken = await createPendingToken(restaurant.id)
     const res = NextResponse.json({
       requirePin: true,
+      hasPin,
       restaurant: { name: restaurant.name, menu_slug: restaurant.menu_slug },
     })
     res.cookies.set(RESTAURANT_PENDING_COOKIE, pendingToken, {

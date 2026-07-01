@@ -30,6 +30,7 @@ export default function RestaurantLoginPage() {
 
       if (data.requirePin) {
         sessionStorage.setItem('pending_restaurant_name', data.restaurant?.name ?? '')
+        sessionStorage.setItem('pending_restaurant_has_pin', data.hasPin ? '1' : '0')
         router.push(`/restaurant-login/${data.restaurant?.menu_slug}/pin`)
         return
       }
