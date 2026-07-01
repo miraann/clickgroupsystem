@@ -14,16 +14,7 @@ import {
   MessageCircle, Send,
 } from 'lucide-react'
 import { AnimatedList, AnimatedItem } from '@/components/ui/AnimatedList'
-import { motion, AnimatePresence, type Variants } from 'framer-motion'
-
-const CONTAINER: Variants = {
-  hidden: {},
-  show:   { transition: { staggerChildren: 0.07 } },
-}
-const ITEM: Variants = {
-  hidden: { opacity: 0, y: 18 },
-  show:   { opacity: 1, y: 0, transition: { duration: 0.42, ease: 'circOut' as const } },
-}
+import { motion, AnimatePresence } from 'framer-motion'
 
 // ─── Staff types ────────────────────────────────────────────
 type Role = 'owner' | 'manager' | 'cashier' | 'waiter' | 'chef'
@@ -371,7 +362,7 @@ export default function UsersPage() {
   }
 
   const [restaurantId, setRestaurantId] = useState<string | null>(null)
-  const [mounted, setMounted] = useState(false)
+  const [, setMounted] = useState(false)
   const [restaurantModules, setRestaurantModules] = useState<Record<string, boolean>>({})
 
   // ── Staff state ──
@@ -409,8 +400,6 @@ export default function UsersPage() {
   const [editCustomRoleId, setEditCustomRoleId] = useState<string | null>(null)
   const [showQR, setShowQR]                     = useState(false)
   const [showInstallModal, setShowInstallModal] = useState(false)
-  const [deferredInstall, setDeferredInstall]   = useState<any>(null)
-  const [alreadyInstalled, setAlreadyInstalled] = useState(false)
 
   const [restaurantSlug, setRestaurantSlug] = useState<string | null>(null)
 

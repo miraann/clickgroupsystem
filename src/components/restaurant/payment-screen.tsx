@@ -172,8 +172,6 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
   const payAmount   = enteredNum > 0 ? enteredNum : finalTotal
   const change      = Math.max(0, enteredNum - finalTotal)
   const shortfall   = Math.max(0, finalTotal - enteredNum)
-  const isExact     = enteredNum === finalTotal
-  const isReady     = enteredNum >= finalTotal || entered === ''
 
   const press = (key: string) => {
     if (key === '⌫') { setEntered(v => v.slice(0, -1)); return }

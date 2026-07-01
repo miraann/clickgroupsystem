@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { GlassCard, GlassCardBody, GlassCardHeader } from '@/components/ui/glass-card'
 import { StatCard } from '@/components/ui/stat-card'
 import { cn } from '@/lib/utils'
-import { Users, Plus, MoreVertical, Mail, Phone, Shield, Edit, Trash2, Key } from 'lucide-react'
+import { Users, Plus, MoreVertical, Mail, Shield, Edit, Trash2, Key } from 'lucide-react'
 
 type StaffRole = 'manager' | 'cashier' | 'waiter' | 'chef'
 

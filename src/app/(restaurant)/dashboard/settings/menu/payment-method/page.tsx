@@ -397,7 +397,7 @@ export default function PaymentMethodPage() {
               {!editCurId && (
                 <div>
                   <label className="block text-xs text-white/50 mb-2 font-medium">Quick Presets</label>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     {PRESET_CURRENCIES.map(p => (
                       <button key={p.symbol} onClick={() => applyPreset(p)}
                         className={cn(
@@ -430,7 +430,7 @@ export default function PaymentMethodPage() {
 
               <div>
                 <label className="block text-xs text-white/50 mb-2 font-medium">Decimal Places</label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-3 sm:grid-cols-3 gap-2">
                   {DECIMAL_OPTIONS.map(opt => (
                     <button key={opt.value} onClick={() => setCurForm(f => ({ ...f, decimal_places: opt.value }))}
                       className={cn('py-2.5 rounded-xl text-xs font-medium transition-all active:scale-95 border',
@@ -489,7 +489,7 @@ export default function PaymentMethodPage() {
 
               <div>
                 <label className="block text-xs text-white/50 mb-2 font-medium">{t.pm_type}</label>
-                <div className="grid grid-cols-5 gap-2">
+                <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
                   {ICONS.map(ic => (
                     <button key={ic.value} onClick={() => setPayForm(f => ({ ...f, icon_type: ic.value }))}
                       className={cn('flex flex-col items-center gap-1 p-2 rounded-xl transition-all active:scale-95',

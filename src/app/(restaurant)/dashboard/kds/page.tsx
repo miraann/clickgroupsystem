@@ -192,7 +192,6 @@ function OrderCard({
   stationColor?: string
 }) {
   const secs = useElapsed(order.oldest_at)
-  const mins = Math.floor(secs / 60)
 
   const sentItems    = order.items.filter(i => i.status === 'sent')
   const cookingItems = order.items.filter(i => i.status === 'cooking')

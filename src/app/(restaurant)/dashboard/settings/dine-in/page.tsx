@@ -107,7 +107,7 @@ export default function DineInPage() {
 
         {/* ── QR Menu ── */}
         <motion.div variants={FIELD_ITEM}>
-          <SettingsSection title={t.di_qr_section} icon={<QrCode className="w-4 h-4 text-amber-400" />}>
+          <SettingsSection title={t.di_qr_section} icon={<QrCode className="w-4 h-4 text-white/80" />} color="bg-amber-500/70">
             <div className="space-y-5">
 
               <div className="flex items-center justify-between gap-4">
@@ -161,7 +161,7 @@ export default function DineInPage() {
 
         {/* ── Table Service ── */}
         <motion.div variants={FIELD_ITEM}>
-          <SettingsSection title={t.di_table_service} icon={<Utensils className="w-4 h-4 text-amber-400" />}>
+          <SettingsSection title={t.di_table_service} icon={<Utensils className="w-4 h-4 text-white/80" />} color="bg-emerald-500/70">
             <div className="space-y-5">
 
               <div className="flex items-center justify-between gap-4">
@@ -199,7 +199,7 @@ export default function DineInPage() {
 
         {/* ── Guest Note ── */}
         <motion.div variants={FIELD_ITEM}>
-          <SettingsSection title={t.di_guest_msg} icon={<Info className="w-4 h-4 text-amber-400" />}>
+          <SettingsSection title={t.di_guest_msg} icon={<Info className="w-4 h-4 text-white/80" />} color="bg-violet-500/70">
             <div className="space-y-1.5">
               <label className="text-[11px] font-semibold text-white/40 uppercase tracking-wider">
                 {t.di_note_label}

@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Delete, ChevronRight, ChefHat, Clock } from 'lucide-react'
+import { ChevronRight, ChefHat, Clock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 

@@ -456,7 +456,7 @@ export default function AppearancePage() {
         </div>
 
         {/* ── Background Style ── */}
-        <SettingsSection title={t.app_sidebar} icon={<Monitor className="w-4 h-4 text-indigo-400" />}>
+        <SettingsSection title={t.app_sidebar} icon={<Monitor className="w-4 h-4 text-white/80" />} color="bg-indigo-500/70">
           <div className="space-y-3">
             <p className="text-xs text-white/40">{t.app_sidebar_d}</p>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -575,7 +575,8 @@ export default function AppearancePage() {
         {/* ── Table Design ── */}
         <SettingsSection
           title={t.app_table_design}
-          icon={<div className="w-4 h-4 rounded-lg bg-white/25" />}
+          icon={<div className="w-4 h-4 rounded-lg bg-white/50" />}
+          color="bg-emerald-500/70"
         >
           <div className="space-y-3">
             <p className="text-xs text-white/40">{t.app_table_design_d}</p>
@@ -612,7 +613,8 @@ export default function AppearancePage() {
         {/* ── Button Style ── */}
         <SettingsSection
           title="Button Style"
-          icon={<div className="w-4 h-4 rounded-lg border border-white/30 bg-white/10" />}
+          icon={<div className="w-4 h-4 rounded-lg border border-white/50 bg-white/20" />}
+          color="bg-amber-500/70"
         >
           <div className="space-y-3">
             <p className="text-xs text-white/40">Visual style for the top navigation buttons</p>

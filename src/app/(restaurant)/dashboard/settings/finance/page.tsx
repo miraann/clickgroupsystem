@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import {
-  TrendingUp, TrendingDown, Download,
+  Download,
   DollarSign, ShoppingBag, Wallet,
   ArrowUpRight, ArrowDownRight, Calendar,
 } from 'lucide-react'
@@ -39,12 +39,12 @@ interface Invoice {
 
 type Period = 'today' | 'week' | 'month' | 'year' | 'custom'
 
-const PERIODS: { key: Period; label: string }[] = [
-  { key: 'today', label: 'Today'      },
-  { key: 'week',  label: 'This Week'  },
-  { key: 'month', label: 'This Month' },
-  { key: 'year',  label: 'This Year'  },
-  { key: 'custom',label: 'Custom'     },
+const PERIODS: { key: Period; label: string; base: string; active: string }[] = [
+  { key: 'today',  label: 'Today',      base: 'bg-amber-500/70',   active: 'bg-amber-500 shadow-lg shadow-amber-500/30'   },
+  { key: 'week',   label: 'This Week',  base: 'bg-blue-500/70',    active: 'bg-blue-500 shadow-lg shadow-blue-500/30'    },
+  { key: 'month',  label: 'This Month', base: 'bg-emerald-500/70', active: 'bg-emerald-500 shadow-lg shadow-emerald-500/30' },
+  { key: 'year',   label: 'This Year',  base: 'bg-violet-500/70',  active: 'bg-violet-500 shadow-lg shadow-violet-500/30'  },
+  { key: 'custom', label: 'Custom',     base: 'bg-rose-500/70',    active: 'bg-rose-500 shadow-lg shadow-rose-500/30'    },
 ]
 
 // ── Date helpers ──────────────────────────────────────────────────
@@ -267,13 +267,11 @@ export default function FinancePage() {
         initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.42, ease: 'circOut' as const, delay: 0.12 }}
         className="flex flex-wrap items-center gap-3">
-        <div className="flex gap-1 p-1 rounded-xl bg-white/4 border border-white/8">
-          {PERIODS.map(({ key, label }) => (
+        <div className="flex gap-2">
+          {PERIODS.map(({ key, label, base, active }) => (
             <button key={key} onClick={() => handlePeriod(key)}
-              className={cn('px-3 py-1.5 rounded-lg text-xs font-medium transition-all',
-                period === key
-                  ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
-                  : 'text-white/40 hover:text-white/70')}>
+              className={cn('px-4 py-2 rounded-xl text-xs font-semibold transition-all active:scale-95 text-white',
+                period === key ? active : base)}>
               {label}
             </button>
           ))}

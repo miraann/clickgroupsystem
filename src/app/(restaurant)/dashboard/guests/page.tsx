@@ -94,29 +94,6 @@ function buildBuckets(period: Period, rows: OrderRow[]): Bucket[] {
   return buckets
 }
 
-function dateRangeFor(period: Period): { from: string; to: string } {
-  const now = new Date()
-  const pad = (n: number) => String(n).padStart(2, '0')
-  const fmt = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
-
-  if (period === 'today') {
-    return { from: `${fmt(now)}T00:00:00`, to: `${fmt(now)}T23:59:59` }
-  }
-  if (period === 'week') {
-    const start = new Date(now)
-    start.setDate(now.getDate() - ((now.getDay() + 6) % 7))
-    const end = new Date(start); end.setDate(start.getDate() + 6)
-    return { from: `${fmt(start)}T00:00:00`, to: `${fmt(end)}T23:59:59` }
-  }
-  if (period === 'month') {
-    return {
-      from: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01T00:00:00`,
-      to:   `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate())}T23:59:59`,
-    }
-  }
-  return { from: `${now.getFullYear()}-01-01T00:00:00`, to: `${now.getFullYear()}-12-31T23:59:59` }
-}
-
 // ── Animation variants ─────────────────────────────────────────
 const PAGE: Variants = {
   hidden: { opacity: 0, y: 20 },
@@ -188,8 +165,6 @@ export default function GuestsPage() {
   const totalOrders  = buckets.reduce((s, b) => s + b.orders, 0)
   const avgPerOrder  = totalOrders > 0 ? (totalGuests / totalOrders).toFixed(1) : '0'
   const peakBucket   = buckets.reduce((a, b) => b.guests > a.guests ? b : a, buckets[0])
-
-  const showAll   = period === 'today' || period === 'week'
 
   const SUMMARY_CARDS = [
     { label: 'Total Guests',  value: totalGuests.toLocaleString(), color: 'text-amber-400',   bg: 'bg-amber-500/10',   border: 'border-amber-500/20'   },

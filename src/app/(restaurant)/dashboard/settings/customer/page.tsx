@@ -145,21 +145,21 @@ export default function CustomerPage() {
         variants={CONTAINER} initial="hidden" animate="show"
         className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5"
       >
-        <motion.div variants={ITEM} className="p-3 rounded-2xl bg-white/4 border border-white/8">
-          <p className="text-xs text-white/40">Total</p>
+        <motion.div variants={ITEM} className="p-3 rounded-2xl bg-blue-500/70 border border-white/10">
+          <p className="text-xs text-white/70">Total</p>
           <p className="text-xl font-bold text-white mt-0.5">{customers.length}</p>
         </motion.div>
-        <motion.div variants={ITEM} className="p-3 rounded-2xl bg-white/4 border border-white/8">
-          <p className="text-xs text-white/40">Active</p>
-          <p className="text-xl font-bold text-emerald-400 mt-0.5">{customers.filter(c => c.status === 'active').length}</p>
+        <motion.div variants={ITEM} className="p-3 rounded-2xl bg-emerald-500/70 border border-white/10">
+          <p className="text-xs text-white/70">Active</p>
+          <p className="text-xl font-bold text-white mt-0.5">{customers.filter(c => c.status === 'active').length}</p>
         </motion.div>
-        <motion.div variants={ITEM} className="p-3 rounded-2xl bg-white/4 border border-white/8">
-          <p className="text-xs text-white/40">Total Visits</p>
+        <motion.div variants={ITEM} className="p-3 rounded-2xl bg-violet-500/70 border border-white/10">
+          <p className="text-xs text-white/70">Total Visits</p>
           <p className="text-xl font-bold text-white mt-0.5">{customers.reduce((s, c) => s + c.visit_count, 0)}</p>
         </motion.div>
-        <motion.div variants={ITEM} className="p-3 rounded-2xl bg-white/4 border border-white/8">
-          <p className="text-xs text-white/40">Blacklisted</p>
-          <p className="text-xl font-bold text-rose-400 mt-0.5">{blacklistedCount}</p>
+        <motion.div variants={ITEM} className="p-3 rounded-2xl bg-rose-500/70 border border-white/10">
+          <p className="text-xs text-white/70">Blacklisted</p>
+          <p className="text-xl font-bold text-white mt-0.5">{blacklistedCount}</p>
         </motion.div>
       </motion.div>
 

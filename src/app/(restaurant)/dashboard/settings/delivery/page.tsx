@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
-  Truck, X, Loader2, Save, AlertCircle,
+  Truck, X, AlertCircle,
   Check, Clock, DollarSign, ShoppingCart, Package,
   User, Phone, ChevronDown, RefreshCw, History,
   ToggleLeft, ToggleRight, MapPin, Globe,
@@ -163,7 +163,7 @@ function StatusDropdown({ value, onChange, disabled }: { value: string; onChange
 function DeliveryHistoryTab({ restaurantId, formatPrice }: { restaurantId: string; formatPrice: (n: number) => string }) {
   const supabase = createClient()
   const [orders, setOrders]       = useState<DeliveryOrder[]>([])
-  const [loading, setLoading]     = useState(true)
+  const [, setLoading]            = useState(true)
   const [filterStatus, setFilter] = useState<string>('all')
   const [dateFrom, setDateFrom]   = useState('')
   const [dateTo, setDateTo]       = useState('')
@@ -459,16 +459,15 @@ export default function DeliveryPage() {
     router.replace(`/dashboard/settings/delivery${qs ? '?' + qs : ''}`, { scroll: false })
   }
   const [restaurantId, setRestaurantId] = useState<string | null>(null)
-  const [mounted, setMounted]           = useState(false)
-  const [synced,  setSynced]            = useState(false)
+  const [, setMounted]                  = useState(false)
+  const [, setSynced]                   = useState(false)
 
   useEffect(() => {
     setRestaurantId(localStorage.getItem('restaurant_id'))
     setMounted(true)
   }, [])
 
-  const { data: swrData, isLoading: swrLoading, mutate } = useDeliverySettings(restaurantId)
-  const loading = !mounted || swrLoading || !synced
+  const { data: swrData, mutate } = useDeliverySettings(restaurantId)
 
   const [general, setGeneral] = useState<GeneralSettings>(GENERAL_DEFAULTS)
   const [saveState, setSaveState] = useState<SaveState>('idle')
@@ -533,15 +532,17 @@ export default function DeliveryPage() {
 
       {/* ── Tabs ── */}
       <motion.div
-        className="flex gap-1 p-1 rounded-xl bg-white/5 border border-white/8 w-fit"
+        className="flex gap-2"
         initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45, ease: 'circOut', delay: 0.12 }}
       >
         <button
           onClick={() => switchTab('history')}
           className={cn(
-            'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all',
-            tab === 'history' ? 'bg-indigo-500/25 text-indigo-300 shadow-sm' : 'text-white/40 hover:text-white/60'
+            'flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95',
+            tab === 'history'
+              ? 'bg-violet-500 text-white shadow-lg shadow-violet-500/30'
+              : 'bg-violet-500/70 text-white'
           )}
         >
           <History className="w-4 h-4" /> {t.del_orders}
@@ -549,8 +550,10 @@ export default function DeliveryPage() {
         <button
           onClick={() => switchTab('online-menu')}
           className={cn(
-            'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all',
-            tab === 'online-menu' ? 'bg-indigo-500/25 text-indigo-300 shadow-sm' : 'text-white/40 hover:text-white/60'
+            'flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95',
+            tab === 'online-menu'
+              ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/30'
+              : 'bg-indigo-500/70 text-white'
           )}
         >
           <Globe className="w-4 h-4" /> Online Menu

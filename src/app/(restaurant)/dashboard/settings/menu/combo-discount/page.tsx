@@ -176,7 +176,7 @@ export default function ComboDiscountPage() {
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500/50 transition-colors" />
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {([{ k: 'buy_qty', label: t.combo_items }, { k: 'get_qty', label: t.combo_items }, { k: 'discount_pct', label: t.combo_discount }] as const).map(({ k, label }) => (
                   <div key={k}>
                     <label className="block text-xs text-white/50 mb-1.5 font-medium">{label}</label>

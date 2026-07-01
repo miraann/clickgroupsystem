@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
-import { Ban, AlertCircle, Search, Calendar, ChevronDown } from 'lucide-react'
+import { Ban, AlertCircle, Search } from 'lucide-react'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
@@ -35,7 +35,7 @@ export default function VoidItemsPage() {
   const supabase = createClient()
   const { t } = useLanguage()
 
-  const [restaurantId, setRestaurantId] = useState<string | null>(null)
+  const [, setRestaurantId]             = useState<string | null>(null)
   const [items, setItems]               = useState<VoidItem[]>([])
   const [loading, setLoading]           = useState(true)
   const [error, setError]               = useState<string | null>(null)

@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
-import { GlassCard, GlassCardBody, GlassCardHeader } from '@/components/ui/glass-card'
+import { GlassCard, GlassCardHeader } from '@/components/ui/glass-card'
 import { Badge } from '@/components/ui/badge'
 import { StatCard } from '@/components/ui/stat-card'
 import { SkeletonList } from '@/components/ui/SkeletonList'

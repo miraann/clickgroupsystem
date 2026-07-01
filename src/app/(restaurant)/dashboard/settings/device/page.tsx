@@ -124,8 +124,7 @@ const isAndroid = () =>
   typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent)
 
 // ── Scan phase label ───────────────────────────────────────────
-const SCAN_PHASES = ['usb', 'bluetooth', 'network', null] as const
-type ScanPhase = typeof SCAN_PHASES[number]
+type ScanPhase = 'usb' | 'bluetooth' | 'network' | null
 
 function ScanPhaseBadge({ phase }: { phase: ScanPhase }) {
   if (!phase) return null

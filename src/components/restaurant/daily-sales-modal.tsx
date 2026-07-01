@@ -88,7 +88,6 @@ export function DailySalesModal({ restaurantId, restaurantName, formatPrice, onC
 
   // ── Metrics ───────────────────────────────────────────────────
   const totalRevenue  = invoices.reduce((s, i) => s + i.total, 0)
-  const totalSubtotal = invoices.reduce((s, i) => s + i.subtotal, 0)
   const totalDiscount = invoices.reduce((s, i) => s + (i.discount ?? 0), 0)
   const totalChange   = invoices.reduce((s, i) => s + (i.change_amount ?? 0), 0)
   const txCount       = invoices.length

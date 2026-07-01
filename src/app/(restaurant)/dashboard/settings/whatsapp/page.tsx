@@ -8,17 +8,8 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
-import { motion, AnimatePresence, type Variants } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
-
-const CONTAINER: Variants = {
-  hidden: {},
-  show:   { transition: { staggerChildren: 0.07 } },
-}
-const ITEM: Variants = {
-  hidden: { opacity: 0, y: 18 },
-  show:   { opacity: 1, y: 0, transition: { duration: 0.42, ease: 'circOut' as const } },
-}
 
 const WA_GREEN = '#25D366'
 
@@ -66,7 +57,7 @@ export default function WhatsAppPage() {
   const [activeTab, setActiveTab] = useState<'send' | 'templates'>('send')
 
   const [restaurantId, setRestaurantId] = useState<string | null>(null)
-  const [mounted, setMounted] = useState(false)
+  const [, setMounted] = useState(false)
   const [restName, setRestName] = useState('')
 
   // Recipients
@@ -849,10 +840,10 @@ export default function WhatsAppPage() {
                   />
                   <div className="flex gap-1.5 flex-wrap">
                     {[
-                      { label: '{{total}}',     display: 'Total Price',       title: 'Order total amount' },
-                      { label: '{{table}}',     display: 'Table Number',      title: 'Table number' },
-                      { label: '{{menu_link}}', display: 'Online Menu Link',  title: 'Online menu URL' },
-                    ].map(({ label, display, title }) => (
+                      { label: '{{total}}',     display: 'Total Price' },
+                      { label: '{{table}}',     display: 'Table Number' },
+                      { label: '{{menu_link}}', display: 'Online Menu Link' },
+                    ].map(({ label, display }) => (
                       <button
                         key={label}
                         type="button"

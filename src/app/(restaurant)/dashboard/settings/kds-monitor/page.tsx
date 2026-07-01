@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
-import { ActivitySquare, Search, Clock, Flame, CheckCheck, Loader2, ChevronDown, ChevronUp, X, Eye, User, QrCode, Calendar, Hash, UtensilsCrossed } from 'lucide-react'
+import { ActivitySquare, Search, Clock, Flame, CheckCheck, ChevronDown, ChevronUp, X, Eye, User, QrCode, Calendar, Hash, UtensilsCrossed } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { motion, AnimatePresence, type Variants } from 'framer-motion'
 
@@ -49,10 +49,10 @@ function fmtSecs(s: number): string {
 
 function StatCard({ label, value, sub, color }: { label: string; value: string; sub?: string; color: string }) {
   return (
-    <div className={cn('rounded-2xl border p-4', color)}>
-      <p className="text-xs font-semibold text-white/40 mb-1">{label}</p>
+    <div className={cn('rounded-2xl border border-white/10 p-4', color)}>
+      <p className="text-xs font-semibold text-white/70 mb-1">{label}</p>
       <p className="text-2xl font-extrabold text-white">{value}</p>
-      {sub && <p className="text-xs text-white/35 mt-0.5">{sub}</p>}
+      {sub && <p className="text-xs text-white/50 mt-0.5">{sub}</p>}
     </div>
   )
 }
@@ -486,7 +486,7 @@ export default function KdsMonitorPage() {
                   label={t.kds_pending}
                   value={avgPending !== null ? fmtSecs(avgPending) : '—'}
                   sub="Sent to kitchen → chef started"
-                  color="border-amber-500/20 bg-amber-500/5"
+                  color="bg-amber-500/70"
                 />
               </motion.div>
               <motion.div variants={ITEM}>
@@ -494,7 +494,7 @@ export default function KdsMonitorPage() {
                   label={t.kds_cooking}
                   value={avgCook !== null ? fmtSecs(avgCook) : '—'}
                   sub="Start cooking → ready"
-                  color="border-blue-500/20 bg-blue-500/5"
+                  color="bg-blue-500/70"
                 />
               </motion.div>
               <motion.div variants={ITEM}>
@@ -502,7 +502,7 @@ export default function KdsMonitorPage() {
                   label="Max Wait (Pending)"
                   value={maxPending !== null ? fmtSecs(maxPending) : '—'}
                   sub="Longest queue wait"
-                  color="border-rose-500/20 bg-rose-500/5"
+                  color="bg-rose-500/70"
                 />
               </motion.div>
               <motion.div variants={ITEM}>
@@ -510,7 +510,7 @@ export default function KdsMonitorPage() {
                   label="Max Cook Time"
                   value={maxCook !== null ? fmtSecs(maxCook) : '—'}
                   sub="Slowest dish"
-                  color="border-purple-500/20 bg-purple-500/5"
+                  color="bg-violet-500/70"
                 />
               </motion.div>
             </motion.div>

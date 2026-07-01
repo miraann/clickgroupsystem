@@ -123,29 +123,29 @@ export default function PayLaterPage() {
           >
             {/* ── Summary cards ── */}
             <motion.div variants={CONTAINER} initial="hidden" animate="show" className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <motion.div variants={ITEM} className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-rose-500/20 via-rose-500/10 to-transparent border border-rose-500/25 p-4">
-                <p className="text-xs font-semibold text-rose-400/70 uppercase tracking-wider mb-1">{t.pl_outstanding}</p>
+              <motion.div variants={ITEM} className="relative overflow-hidden rounded-2xl bg-rose-500/70 border border-white/10 p-4">
+                <p className="text-xs font-semibold text-white/70 uppercase tracking-wider mb-1">{t.pl_outstanding}</p>
                 <p className="text-xl font-extrabold text-white tabular-nums">{formatPrice(outstanding)}</p>
-                <p className="text-xs text-white/30 mt-0.5">{totalAccounts} account{totalAccounts !== 1 ? 's' : ''}</p>
-                <DollarSign className="absolute bottom-3 right-3 w-7 h-7 text-rose-500/15" />
+                <p className="text-xs text-white/60 mt-0.5">{totalAccounts} account{totalAccounts !== 1 ? 's' : ''}</p>
+                <DollarSign className="absolute bottom-3 right-3 w-7 h-7 text-white/20" />
               </motion.div>
-              <motion.div variants={ITEM} className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-500/20 via-amber-500/10 to-transparent border border-amber-500/25 p-4">
-                <p className="text-xs font-semibold text-amber-400/70 uppercase tracking-wider mb-1">Overdue</p>
+              <motion.div variants={ITEM} className="relative overflow-hidden rounded-2xl bg-amber-500/70 border border-white/10 p-4">
+                <p className="text-xs font-semibold text-white/70 uppercase tracking-wider mb-1">Overdue</p>
                 <p className="text-xl font-extrabold text-white tabular-nums">{overdueCount}</p>
-                <p className="text-xs text-white/30 mt-0.5">past due date</p>
-                <AlertCircle className="absolute bottom-3 right-3 w-7 h-7 text-amber-500/15" />
+                <p className="text-xs text-white/60 mt-0.5">past due date</p>
+                <AlertCircle className="absolute bottom-3 right-3 w-7 h-7 text-white/20" />
               </motion.div>
-              <motion.div variants={ITEM} className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500/20 via-emerald-500/10 to-transparent border border-emerald-500/25 p-4">
-                <p className="text-xs font-semibold text-emerald-400/70 uppercase tracking-wider mb-1">Total Collected</p>
+              <motion.div variants={ITEM} className="relative overflow-hidden rounded-2xl bg-emerald-500/70 border border-white/10 p-4">
+                <p className="text-xs font-semibold text-white/70 uppercase tracking-wider mb-1">Total Collected</p>
                 <p className="text-xl font-extrabold text-white tabular-nums">{formatPrice(paidTotal)}</p>
-                <p className="text-xs text-white/30 mt-0.5">fully paid</p>
-                <TrendingUp className="absolute bottom-3 right-3 w-7 h-7 text-emerald-500/15" />
+                <p className="text-xs text-white/60 mt-0.5">fully paid</p>
+                <TrendingUp className="absolute bottom-3 right-3 w-7 h-7 text-white/20" />
               </motion.div>
-              <motion.div variants={ITEM} className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-500/20 via-blue-500/10 to-transparent border border-blue-500/25 p-4">
-                <p className="text-xs font-semibold text-blue-400/70 uppercase tracking-wider mb-1">Total Records</p>
+              <motion.div variants={ITEM} className="relative overflow-hidden rounded-2xl bg-blue-500/70 border border-white/10 p-4">
+                <p className="text-xs font-semibold text-white/70 uppercase tracking-wider mb-1">Total Records</p>
                 <p className="text-xl font-extrabold text-white tabular-nums">{records.length}</p>
-                <p className="text-xs text-white/30 mt-0.5">all time</p>
-                <Users className="absolute bottom-3 right-3 w-7 h-7 text-blue-500/15" />
+                <p className="text-xs text-white/60 mt-0.5">all time</p>
+                <Users className="absolute bottom-3 right-3 w-7 h-7 text-white/20" />
               </motion.div>
             </motion.div>
 
@@ -304,7 +304,6 @@ export default function PayLaterPage() {
       {viewRec && restaurantId && (
         <ViewPayLaterModal
           record={viewRec}
-          restaurantId={restaurantId}
           cashier={cashier}
           onClose={() => setViewRec(null)}
           onDelete={handleDelete}

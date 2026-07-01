@@ -184,44 +184,41 @@ export default function ExpensePage() {
             <motion.div variants={CONTAINER} initial="hidden" animate="show"
               className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <motion.div variants={ITEM}>
-                <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-500/20 via-amber-500/10 to-transparent border border-amber-500/25 p-5">
-                  <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full bg-amber-500/10 blur-2xl" />
-                  <p className="text-xs font-semibold text-amber-400/70 uppercase tracking-wider mb-1">{t.exp_total}</p>
+                <div className="relative overflow-hidden rounded-2xl bg-amber-500/70 border border-white/10 p-5">
+                  <p className="text-xs font-semibold text-white/70 uppercase tracking-wider mb-1">{t.exp_total}</p>
                   <p className="text-2xl font-extrabold text-white tabular-nums">{formatPrice(totalAll)}</p>
-                  <p className="text-xs text-white/30 mt-1">{expenses.length} records</p>
-                  <DollarSign className="absolute bottom-4 right-4 w-8 h-8 text-amber-500/20" />
+                  <p className="text-xs text-white/60 mt-1">{expenses.length} records</p>
+                  <DollarSign className="absolute bottom-4 right-4 w-8 h-8 text-white/20" />
                 </div>
               </motion.div>
               <motion.div variants={ITEM}>
-                <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-500/20 via-blue-500/10 to-transparent border border-blue-500/25 p-5">
-                  <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full bg-blue-500/10 blur-2xl" />
-                  <p className="text-xs font-semibold text-blue-400/70 uppercase tracking-wider mb-1">{t.exp_this_month}</p>
+                <div className="relative overflow-hidden rounded-2xl bg-blue-500/70 border border-white/10 p-5">
+                  <p className="text-xs font-semibold text-white/70 uppercase tracking-wider mb-1">{t.exp_this_month}</p>
                   <p className="text-2xl font-extrabold text-white tabular-nums">{formatPrice(thisMonth)}</p>
                   <div className="flex items-center gap-1 mt-1">
                     {monthTrend > 0
-                      ? <TrendingUp className="w-3.5 h-3.5 text-rose-400" />
-                      : <TrendingDown className="w-3.5 h-3.5 text-emerald-400" />
+                      ? <TrendingUp className="w-3.5 h-3.5 text-white/70" />
+                      : <TrendingDown className="w-3.5 h-3.5 text-white/70" />
                     }
-                    <span className={cn('text-xs font-semibold', monthTrend > 0 ? 'text-rose-400' : 'text-emerald-400')}>
+                    <span className="text-xs font-semibold text-white/70">
                       {Math.abs(monthTrend).toFixed(1)}% vs last month
                     </span>
                   </div>
-                  <TrendingUp className="absolute bottom-4 right-4 w-8 h-8 text-blue-500/20" />
+                  <TrendingUp className="absolute bottom-4 right-4 w-8 h-8 text-white/20" />
                 </div>
               </motion.div>
               <motion.div variants={ITEM}>
-                <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-violet-500/20 via-violet-500/10 to-transparent border border-violet-500/25 p-5">
-                  <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full bg-violet-500/10 blur-2xl" />
-                  <p className="text-xs font-semibold text-violet-400/70 uppercase tracking-wider mb-1">Top Category</p>
+                <div className="relative overflow-hidden rounded-2xl bg-violet-500/70 border border-white/10 p-5">
+                  <p className="text-xs font-semibold text-white/70 uppercase tracking-wider mb-1">Top Category</p>
                   {topCat ? (
                     <>
                       <p className="text-2xl font-extrabold text-white">{topCat.name}</p>
-                      <p className="text-xs text-white/30 mt-1 tabular-nums">{formatPrice(topCat.total)}</p>
+                      <p className="text-xs text-white/60 mt-1 tabular-nums">{formatPrice(topCat.total)}</p>
                     </>
                   ) : (
-                    <p className="text-lg font-bold text-white/30">—</p>
+                    <p className="text-lg font-bold text-white/50">—</p>
                   )}
-                  <LayoutGrid className="absolute bottom-4 right-4 w-8 h-8 text-violet-500/20" />
+                  <LayoutGrid className="absolute bottom-4 right-4 w-8 h-8 text-white/20" />
                 </div>
               </motion.div>
             </motion.div>

@@ -6,7 +6,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import {
   Layers, LayoutGrid, Tag, UtensilsCrossed, Sliders, ChefHat,
-  XCircle, Percent, Gift, Plus, CreditCard, CalendarDays, Globe,
+  XCircle, Percent, Gift, Plus, CreditCard, CalendarDays,
 } from 'lucide-react'
 
 import TableGroupPage    from './table-group/page'
@@ -21,27 +21,24 @@ import DiscountPage      from './discount/page'
 import ComboDiscountPage from './combo-discount/page'
 import SurchargePage     from './surcharge/page'
 import PaymentMethodPage from './payment-method/page'
-import OnlineMenuPage    from './online-menu/page'
-
 type TabKey =
   | 'table-group' | 'table' | 'category' | 'item' | 'modifier'
   | 'kitchen-note' | 'void-reason' | 'event-offer' | 'discount'
-  | 'combo-discount' | 'surcharge' | 'payment-method' | 'online-menu'
+  | 'combo-discount' | 'surcharge' | 'payment-method'
 
-const TABS: { key: TabKey; label: string; icon: React.ElementType }[] = [
-  { key: 'table-group',    label: 'Table Group',    icon: Layers },
-  { key: 'table',          label: 'Table',          icon: LayoutGrid },
-  { key: 'category',       label: 'Category',       icon: Tag },
-  { key: 'item',           label: 'Item',           icon: UtensilsCrossed },
-  { key: 'modifier',       label: 'Modifier',       icon: Sliders },
-  { key: 'kitchen-note',   label: 'Kitchen Note',   icon: ChefHat },
-  { key: 'void-reason',    label: 'Void Reason',    icon: XCircle },
-  { key: 'event-offer',    label: 'Event & Offer',  icon: CalendarDays },
-  { key: 'discount',       label: 'Discount',       icon: Percent },
-  { key: 'combo-discount', label: 'Combo Discount', icon: Gift },
-  { key: 'surcharge',      label: 'Surcharge',      icon: Plus },
-  { key: 'payment-method', label: 'Payment Method', icon: CreditCard },
-  { key: 'online-menu',    label: 'Online Menu',    icon: Globe },
+const TABS: { key: TabKey; label: string; icon: React.ElementType; color: string; activeColor: string }[] = [
+  { key: 'table-group',    label: 'Table Group',    icon: Layers,          color: 'bg-violet-500/70 text-white',  activeColor: 'bg-violet-500 text-white shadow-lg shadow-violet-500/30' },
+  { key: 'table',          label: 'Table',          icon: LayoutGrid,      color: 'bg-blue-500/70 text-white',    activeColor: 'bg-blue-500 text-white shadow-lg shadow-blue-500/30' },
+  { key: 'category',       label: 'Category',       icon: Tag,             color: 'bg-cyan-500/70 text-white',    activeColor: 'bg-cyan-500 text-white shadow-lg shadow-cyan-500/30' },
+  { key: 'item',           label: 'Item',           icon: UtensilsCrossed, color: 'bg-amber-500/70 text-white',   activeColor: 'bg-amber-500 text-white shadow-lg shadow-amber-500/30' },
+  { key: 'modifier',       label: 'Modifier',       icon: Sliders,         color: 'bg-orange-500/70 text-white',  activeColor: 'bg-orange-500 text-white shadow-lg shadow-orange-500/30' },
+  { key: 'kitchen-note',   label: 'Kitchen Note',   icon: ChefHat,         color: 'bg-rose-500/70 text-white',    activeColor: 'bg-rose-500 text-white shadow-lg shadow-rose-500/30' },
+  { key: 'void-reason',    label: 'Void Reason',    icon: XCircle,         color: 'bg-red-500/70 text-white',     activeColor: 'bg-red-500 text-white shadow-lg shadow-red-500/30' },
+  { key: 'event-offer',    label: 'Event & Offer',  icon: CalendarDays,    color: 'bg-pink-500/70 text-white',    activeColor: 'bg-pink-500 text-white shadow-lg shadow-pink-500/30' },
+  { key: 'discount',       label: 'Discount',       icon: Percent,         color: 'bg-emerald-500/70 text-white', activeColor: 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30' },
+  { key: 'combo-discount', label: 'Combo Discount', icon: Gift,            color: 'bg-teal-500/70 text-white',    activeColor: 'bg-teal-500 text-white shadow-lg shadow-teal-500/30' },
+  { key: 'surcharge',      label: 'Surcharge',      icon: Plus,            color: 'bg-lime-600/70 text-white',    activeColor: 'bg-lime-600 text-white shadow-lg shadow-lime-500/30' },
+  { key: 'payment-method', label: 'Payment Method', icon: CreditCard,      color: 'bg-indigo-500/70 text-white',  activeColor: 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/30' },
 ]
 
 export default function MenuSettingsPage() {
@@ -68,19 +65,17 @@ export default function MenuSettingsPage() {
       <div className="shrink-0 sticky top-0 z-20 backdrop-blur-xl border-b border-white/8 w-full" style={{ background: 'var(--app-anchor-90, rgba(2,38,88,0.9))' }}>
         <div className="overflow-x-auto scrollbar-touch">
           <div className="flex gap-1 px-6 md:px-12 2xl:px-24 3xl:px-44 pt-4 pb-0 min-w-max">
-            {TABS.map(({ key, label, icon: Icon }) => (
+            {TABS.map(({ key, label, icon: Icon, color, activeColor }) => (
               <button
                 key={key}
                 onClick={() => switchTab(key)}
                 className={cn(
-                  'flex items-center gap-2.5 px-5 py-3.5 rounded-t-xl text-[15px] font-medium whitespace-nowrap transition-all duration-150 border-b-2 active:scale-95 touch-manipulation',
-                  tab === key
-                    ? 'bg-amber-500/15 text-amber-400 border-amber-500'
-                    : 'text-white/40 border-transparent hover:text-white/70 hover:bg-white/5'
+                  'flex items-center gap-2 px-3 py-2.5 sm:px-4 sm:py-3 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all duration-150 active:scale-95 touch-manipulation',
+                  tab === key ? activeColor : color
                 )}
               >
-                <Icon size={17} className={cn(tab === key ? 'text-amber-400' : 'text-white/30')} />
-                {label}
+                <Icon size={15} className="shrink-0" />
+                <span className="hidden sm:inline">{label}</span>
               </button>
             ))}
           </div>
@@ -110,7 +105,6 @@ export default function MenuSettingsPage() {
             {tab === 'combo-discount' && <ComboDiscountPage />}
             {tab === 'surcharge'      && <SurchargePage />}
             {tab === 'payment-method' && <PaymentMethodPage />}
-            {tab === 'online-menu'    && <OnlineMenuPage />}
           </motion.div>
         </AnimatePresence>
       </div>

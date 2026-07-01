@@ -1,8 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { ModuleGate } from '@/components/ModuleGate'
-import { Bell, Check, X, Loader2, RefreshCw, AlertCircle, ChefHat, Clock, Home } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { Check, X, RefreshCw, AlertCircle, ChefHat, Clock, Home } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { logAudit } from '@/lib/logAudit'
 import { useRouter } from 'next/navigation'
@@ -64,7 +63,7 @@ function TimeAgo({ dateStr }: { dateStr: string }) {
 export default function PendingOrdersPage() {
   const supabase = createClient()
   const router = useRouter()
-  const { symbol: cur, formatPrice } = useDefaultCurrency()
+  const { formatPrice } = useDefaultCurrency()
   const { can, isOwner, permissions, loading: permsLoading } = usePermissions()
 
   useEffect(() => {

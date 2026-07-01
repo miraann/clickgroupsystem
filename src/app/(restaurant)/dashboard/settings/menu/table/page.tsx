@@ -5,11 +5,10 @@ import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { Plus, Pencil, Trash2, LayoutGrid, X, Users, Loader2, AlertCircle, QrCode, Download, Copy, Check } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { logAudit } from '@/lib/logAudit'
-import { useTableGroups, type CachedTableGroup } from '@/hooks/useTableGroups'
+import { useTableGroups } from '@/hooks/useTableGroups'
 import { useTables, type CachedTable } from '@/hooks/useTables'
 import { motion, type Variants } from 'framer-motion'
 
-type TableGroup = CachedTableGroup
 type Table = CachedTable
 
 const SHAPE_ICONS: Record<string, string> = { Square: '⬜', Round: '⭕', Rectangle: '▬' }

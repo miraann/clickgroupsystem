@@ -27,9 +27,6 @@ import { useState } from 'react'
 
 
 interface Category  { id: string; name: string; color: string }
-interface Modifier   { id: string; name: string; required: boolean }
-interface InvItem    { id: string; name: string; sku: string | null; unit_id: string | null }
-interface InvUnit    { id: string; abbreviation: string }
 interface Ingredient { inventory_item_id: string; quantity: number }
 interface Item {
   id: string
@@ -65,7 +62,7 @@ const ITEM_VAR: Variants = {
 export default function ItemPage() {
   const supabase = createClient()
   const { t } = useLanguage()
-  const { symbol: cur, decimalPlaces, formatPrice } = useDefaultCurrency()
+  const { symbol: cur, formatPrice } = useDefaultCurrency()
 
   const [restaurantId] = useState<string | null>(() =>
     typeof window !== 'undefined' ? localStorage.getItem('restaurant_id') : null

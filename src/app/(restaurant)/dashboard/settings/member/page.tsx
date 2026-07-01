@@ -160,12 +160,18 @@ export default function MemberPage() {
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t.search}
             className="w-full pl-9 pr-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500/50 transition-colors" />
         </div>
-        <div className="flex gap-1">
-          {(['all', ...TIERS] as string[]).map(tier => (
-            <button key={tier} onClick={() => setTierFilter(tier)}
-              className={cn('px-3 py-2 rounded-xl text-xs font-medium transition-all',
-                tierFilter === tier ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-white/5 text-white/40 hover:text-white/70')}>
-              {tier === 'all' ? 'All' : tier}
+        <div className="flex gap-2 flex-wrap">
+          {([
+            { key: 'all',      label: 'All',      base: 'bg-white/20',       active: 'bg-white/40 shadow-lg'                          },
+            { key: 'Standard', label: 'Standard', base: 'bg-slate-500/70',   active: 'bg-slate-500 shadow-lg shadow-slate-500/30'   },
+            { key: 'Silver',   label: 'Silver',   base: 'bg-slate-400/70',   active: 'bg-slate-400 shadow-lg shadow-slate-400/30'   },
+            { key: 'Gold',     label: 'Gold',     base: 'bg-amber-500/70',   active: 'bg-amber-500 shadow-lg shadow-amber-500/30'   },
+            { key: 'Platinum', label: 'Platinum', base: 'bg-violet-500/70',  active: 'bg-violet-500 shadow-lg shadow-violet-500/30' },
+          ]).map(({ key, label, base, active }) => (
+            <button key={key} onClick={() => setTierFilter(key)}
+              className={cn('px-4 py-2 rounded-xl text-xs font-semibold transition-all active:scale-95 text-white',
+                tierFilter === key ? active : base)}>
+              {label}
             </button>
           ))}
         </div>

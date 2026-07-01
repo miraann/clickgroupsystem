@@ -284,15 +284,15 @@ function AllInvoices({ restaurantId }: { restaurantId: string }) {
   }, [load])
 
   return (
-    <div className="space-y-4 max-w-4xl">
+    <div className="space-y-4">
 
       {/* Search / Filter bar — animates once on mount */}
       <motion.div
         initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.42, ease: 'circOut' }}
-        className="flex flex-wrap gap-3 items-end"
+        className="flex flex-col sm:flex-row flex-wrap gap-3 items-stretch sm:items-end"
       >
-        <div className="flex-1 min-w-[200px]">
+        <div className="flex-1 min-w-[200px] w-full sm:w-auto">
           <label className="block text-xs text-white/40 mb-1.5">Invoice Number / Customer Name / Phone</label>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/30" />
@@ -311,7 +311,7 @@ function AllInvoices({ restaurantId }: { restaurantId: string }) {
             type="date"
             value={dateFrom}
             onChange={e => setDateFrom(e.target.value)}
-            className="bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500/50 transition-colors [color-scheme:dark]"
+            className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500/50 transition-colors [color-scheme:dark]"
           />
         </div>
         <div>
@@ -320,7 +320,7 @@ function AllInvoices({ restaurantId }: { restaurantId: string }) {
             type="date"
             value={dateTo}
             onChange={e => setDateTo(e.target.value)}
-            className="bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500/50 transition-colors [color-scheme:dark]"
+            className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500/50 transition-colors [color-scheme:dark]"
           />
         </div>
         <button
@@ -373,75 +373,68 @@ function AllInvoices({ restaurantId }: { restaurantId: string }) {
               return (
                 <motion.div variants={ITEM} key={inv.id} className="rounded-2xl bg-white/4 border border-white/8 overflow-hidden">
 
-                {/* Row */}
+                {/* Row — single layout that works at all sizes */}
                 <div
-                  className="w-full px-4 py-3 flex items-center gap-3 hover:bg-white/3 transition-colors cursor-pointer"
+                  className="w-full px-4 py-3 cursor-pointer hover:bg-white/3 transition-colors"
                   onClick={() => setExpanded(isOpen ? null : inv.id)}
                 >
-                  {/* Invoice # */}
-                  <div className="w-28 shrink-0">
-                    <p className="text-[10px] text-white/40">Invoice</p>
-                    <p className="text-sm font-bold text-amber-400">{inv.invoice_num}</p>
+                  {/* Row */}
+                  <div className="flex items-center gap-3 overflow-hidden">
+                    {/* Invoice — always */}
+                    <div className="w-[100px] shrink-0">
+                      <p className="text-[10px] text-white/40">Invoice</p>
+                      <p className="text-sm font-bold text-amber-400 truncate">{inv.invoice_num}</p>
+                    </div>
+                    {/* Order — sm+ */}
+                    <div className="w-[88px] shrink-0 hidden sm:block">
+                      <p className="text-[10px] text-white/40">Order</p>
+                      <p className="text-sm font-semibold text-white truncate">{inv.order_num || '—'}</p>
+                    </div>
+                    {/* Table — sm+ */}
+                    <div className="w-[80px] shrink-0 hidden sm:block">
+                      <p className="text-[10px] text-white/40">Table</p>
+                      <p className="text-sm font-semibold text-white truncate">{inv.table_num || '—'}</p>
+                    </div>
+                    {/* Payment — md+ */}
+                    <div className="w-[90px] shrink-0 hidden md:block">
+                      <p className="text-[10px] text-white/40">Payment</p>
+                      <p className="text-sm font-semibold text-white truncate">{inv.payment_method || '—'}</p>
+                    </div>
+                    {/* Cashier — fills remaining space on lg+ */}
+                    <div className="flex-1 min-w-0 hidden lg:block">
+                      <p className="text-[10px] text-white/40">Cashier</p>
+                      <p className="text-sm font-semibold text-white truncate">{inv.cashier || '—'}</p>
+                    </div>
+                    {/* Date — lg+ */}
+                    <div className="w-[110px] shrink-0 hidden lg:block">
+                      <p className="text-[10px] text-white/40">Date</p>
+                      <p className="text-[11px] text-white/60">{date.toLocaleDateString()}</p>
+                      <p className="text-[11px] text-white/40">{date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                    </div>
+                    {/* Spacer when cashier col hidden */}
+                    <div className="flex-1 lg:hidden" />
+                    {/* Total — always */}
+                    <div className="w-[100px] shrink-0 text-right">
+                      <p className="text-[10px] text-white/40">Total</p>
+                      <p className="text-sm font-bold text-white tabular-nums">{formatPrice(Number(inv.total))}</p>
+                    </div>
+                    {/* View */}
+                    <button
+                      onClick={e => { e.stopPropagation(); setViewInvoice(inv) }}
+                      className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-500/70 hover:bg-amber-500 text-white text-[11px] font-semibold active:scale-95 transition-all"
+                    >
+                      <Eye className="w-3.5 h-3.5" /><span className="hidden sm:inline ml-0.5">View</span>
+                    </button>
+                    {/* Chevron */}
+                    <div className="shrink-0 text-white/30">
+                      {isOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                    </div>
                   </div>
-
-                  {/* Order # */}
-                  <div className="w-24 shrink-0 hidden sm:block">
-                    <p className="text-[10px] text-white/40">Order</p>
-                    <p className="text-sm font-semibold text-white">{inv.order_num || '—'}</p>
-                  </div>
-
-                  {/* Table */}
-                  <div className="w-20 shrink-0">
-                    <p className="text-[10px] text-white/40">Table</p>
-                    <p className="text-sm font-semibold text-white">{inv.table_num || '—'}</p>
-                  </div>
-
-                  {/* Customer */}
-                  <div className="flex-1 min-w-0 hidden md:block">
-                    <p className="text-[10px] text-white/40">Customer</p>
-                    <p className="text-sm font-semibold text-white truncate">{inv.customer_name || '—'}</p>
-                    {inv.customer_phone && <p className="text-[10px] text-white/35">{inv.customer_phone}</p>}
-                  </div>
-
-                  {/* Cashier */}
-                  <div className="w-24 shrink-0 hidden lg:block">
-                    <p className="text-[10px] text-white/40">Cashier</p>
-                    <p className="text-sm font-semibold text-white truncate">{inv.cashier || '—'}</p>
-                  </div>
-
-                  {/* Payment */}
-                  <div className="w-24 shrink-0 hidden lg:block">
-                    <p className="text-[10px] text-white/40">Payment</p>
-                    <p className="text-sm font-semibold text-white">{inv.payment_method || '—'}</p>
-                  </div>
-
-                  {/* Total */}
-                  <div className="w-24 shrink-0 text-right">
-                    <p className="text-[10px] text-white/40">Total</p>
-                    <p className="text-sm font-bold text-white tabular-nums">{formatPrice(Number(inv.total))}</p>
-                  </div>
-
-                  {/* Date */}
-                  <div className="w-28 shrink-0 text-right hidden sm:block">
-                    <p className="text-[10px] text-white/50">{date.toLocaleDateString()}</p>
-                    <p className="text-[10px] text-white/40">
-                      {date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </p>
-                  </div>
-
-                  {/* View button */}
-                  <button
-                    onClick={e => { e.stopPropagation(); setViewInvoice(inv) }}
-                    className="shrink-0 px-2.5 py-1 rounded-lg bg-amber-500/15 border border-amber-500/25 text-amber-400 text-[11px] font-semibold hover:bg-amber-500/25 transition-colors"
-                  >
-                    View
-                  </button>
-
-                  {/* Expand icon */}
-                  <div className="shrink-0 text-white/30">
-                    {isOpen
-                      ? <ChevronUp className="w-4 h-4" />
-                      : <ChevronDown className="w-4 h-4" />}
+                  {/* Mobile sub-line */}
+                  <div className="flex items-center gap-3 mt-1 sm:hidden text-[10px] text-white/40">
+                    {inv.table_num && <span>Table: <span className="text-white/60">{inv.table_num}</span></span>}
+                    {inv.payment_method && <span>{inv.payment_method}</span>}
+                    <span className="ml-auto text-white/30">{date.toLocaleDateString()} {date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                   </div>
                 </div>
 
@@ -525,7 +518,7 @@ const INV_DEFAULTS: InvSettings = { prefix: 'INV-', start_num: 1001, current_num
 function InvoiceNumberTab({ restaurantId }: { restaurantId: string }) {
   const supabase = createClient()
   const [settings, setSettings] = useState<InvSettings>(INV_DEFAULTS)
-  const [loading, setLoading]   = useState(true)
+  const [, setLoading]          = useState(true)
   const [saving, setSaving]     = useState(false)
   const [saved, setSaved]       = useState(false)
   const [error, setError]       = useState<string | null>(null)
@@ -623,7 +616,7 @@ const ORD_DEFAULTS: OrdSettings = { prefix: 'ORD-', start_num: 1, current_num: 1
 function OrderNumberTab({ restaurantId }: { restaurantId: string }) {
   const supabase = createClient()
   const [settings, setSettings] = useState<OrdSettings>(ORD_DEFAULTS)
-  const [loading, setLoading]   = useState(true)
+  const [, setLoading]          = useState(true)
   const [saving, setSaving]     = useState(false)
   const [saved, setSaved]       = useState(false)
   const [error, setError]       = useState<string | null>(null)
@@ -963,7 +956,7 @@ export default function ReceiptSettingsPage() {
   const [restaurantId, setRestaurantId]         = useState<string | null>(null)
   const [restaurantName, setRestaurantName]     = useState('')
   const [form, setForm]                         = useState<RS>(DEFAULTS)
-  const [loading, setLoading]                   = useState(true)
+  const [, setLoading]                          = useState(true)
   const [saving, setSaving]                     = useState(false)
   const [uploading, setUploading]               = useState(false)
   const [uploadingQr, setUploadingQr]           = useState(false)
@@ -1089,26 +1082,24 @@ export default function ReceiptSettingsPage() {
 
       {/* ── Tab bar ── */}
       <motion.div
-        className="flex flex-wrap gap-1 mb-6 p-1 rounded-2xl bg-white/4 border border-white/8 w-fit"
+        className="flex flex-wrap gap-2 mb-6"
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45, ease: 'circOut', delay: 0.06 }}
       >
         {([
-          { key: 'invoices',    icon: <FileText    className="w-4 h-4" />,  label: t.rec_recent },
-          { key: 'settings',   icon: <Receipt     className="w-4 h-4" />,  label: t.rec_title },
-          { key: 'invoice-num',icon: <FileText    className="w-4 h-4" />,  label: t.in_title },
-          { key: 'order-num',  icon: <Hash        className="w-4 h-4" />,  label: t.on_title },
-          { key: 'recover',    icon: <RotateCcw   className="w-4 h-4" />,  label: 'Recover Table' },
-        ] as const).map(({ key, icon, label }) => (
+          { key: 'invoices',    icon: <FileText  className="w-4 h-4" />, label: t.rec_recent,     base: 'bg-amber-500/70',   active: 'bg-amber-500 shadow-lg shadow-amber-500/30'   },
+          { key: 'settings',   icon: <Receipt    className="w-4 h-4" />, label: t.rec_title,      base: 'bg-blue-500/70',    active: 'bg-blue-500 shadow-lg shadow-blue-500/30'    },
+          { key: 'invoice-num',icon: <FileText   className="w-4 h-4" />, label: t.in_title,       base: 'bg-violet-500/70',  active: 'bg-violet-500 shadow-lg shadow-violet-500/30'  },
+          { key: 'order-num',  icon: <Hash       className="w-4 h-4" />, label: t.on_title,       base: 'bg-emerald-500/70', active: 'bg-emerald-500 shadow-lg shadow-emerald-500/30' },
+          { key: 'recover',    icon: <RotateCcw  className="w-4 h-4" />, label: 'Recover Table',  base: 'bg-rose-500/70',    active: 'bg-rose-500 shadow-lg shadow-rose-500/30'    },
+        ] as const).map(({ key, icon, label, base, active }) => (
           <button
             key={key}
             onClick={() => switchTab(key)}
             className={cn(
-              'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all',
-              tab === key
-                ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20'
-                : 'text-white/50 hover:text-white/70'
+              'flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95 text-white',
+              tab === key ? active : base
             )}
           >
             {icon}{label}

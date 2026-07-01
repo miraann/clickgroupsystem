@@ -10,14 +10,13 @@ import { STATUS_CFG, PAY_METHODS, fmtDate, isOverdue } from './types'
 
 interface Props {
   record:     PayLater
-  restaurantId: string
   cashier:    string
   onClose:    () => void
   onDelete:   (id: string) => void
   onUpdated:  (r: PayLater) => void
 }
 
-export function ViewPayLaterModal({ record, restaurantId, cashier, onClose, onDelete, onUpdated }: Props) {
+export function ViewPayLaterModal({ record, cashier, onClose, onDelete, onUpdated }: Props) {
   const supabase = createClient()
   const { formatPrice } = useDefaultCurrency()
   const { t } = useLanguage()

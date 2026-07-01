@@ -95,12 +95,12 @@ export default function DatabasePage() {
         supabase.from('reservations').select('*', { count: 'exact', head: true }).eq('restaurant_id', restaurantId),
       ])
       setStats([
-        { label: 'Orders',       count: orders.count       ?? 0, icon: <ShoppingCart  className="w-4 h-4" />, color: 'text-amber-400  bg-amber-500/15  border-amber-500/20'  },
-        { label: 'Customers',    count: customers.count    ?? 0, icon: <Users          className="w-4 h-4" />, color: 'text-indigo-400 bg-indigo-500/15 border-indigo-500/20' },
-        { label: 'Menu Items',   count: menu.count         ?? 0, icon: <UtensilsCrossed className="w-4 h-4"/>, color: 'text-emerald-400 bg-emerald-500/15 border-emerald-500/20'},
-        { label: 'Staff',        count: staff.count        ?? 0, icon: <UserCheck      className="w-4 h-4" />, color: 'text-violet-400 bg-violet-500/15 border-violet-500/20' },
-        { label: 'Members',      count: members.count      ?? 0, icon: <Package        className="w-4 h-4" />, color: 'text-cyan-400   bg-cyan-500/15   border-cyan-500/20'   },
-        { label: 'Reservations', count: reservations.count ?? 0, icon: <CalendarDays   className="w-4 h-4" />, color: 'text-rose-400   bg-rose-500/15   border-rose-500/20'   },
+        { label: 'Orders',       count: orders.count       ?? 0, icon: <ShoppingCart   className="w-4 h-4" />, color: 'text-white bg-amber-500/70   border-amber-500/40'   },
+        { label: 'Customers',    count: customers.count    ?? 0, icon: <Users           className="w-4 h-4" />, color: 'text-white bg-indigo-500/70  border-indigo-500/40'  },
+        { label: 'Menu Items',   count: menu.count         ?? 0, icon: <UtensilsCrossed className="w-4 h-4" />, color: 'text-white bg-emerald-500/70 border-emerald-500/40' },
+        { label: 'Staff',        count: staff.count        ?? 0, icon: <UserCheck       className="w-4 h-4" />, color: 'text-white bg-violet-500/70  border-violet-500/40'  },
+        { label: 'Members',      count: members.count      ?? 0, icon: <Package         className="w-4 h-4" />, color: 'text-white bg-cyan-500/70    border-cyan-500/40'    },
+        { label: 'Reservations', count: reservations.count ?? 0, icon: <CalendarDays    className="w-4 h-4" />, color: 'text-white bg-rose-500/70    border-rose-500/40'    },
       ])
       setStatsLoading(false)
     }
@@ -275,7 +275,7 @@ export default function DatabasePage() {
                   {s.icon}
                   <div>
                     <p className="text-lg font-bold text-white leading-none">{s.count.toLocaleString()}</p>
-                    <p className="text-[11px] text-white/40 mt-0.5">{s.label}</p>
+                    <p className="text-[11px] text-white/60 mt-0.5">{s.label}</p>
                   </div>
                 </div>
               ))

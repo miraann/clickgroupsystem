@@ -181,7 +181,7 @@ export default function DiscountPage() {
 
               <div>
                 <label className="block text-xs text-white/50 mb-2 font-medium">{t.disc_type}</label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {(['percentage', 'fixed'] as const).map(dtype => (
                     <button key={dtype} onClick={() => setForm(f => ({ ...f, type: dtype }))}
                       className={cn('py-2.5 rounded-xl text-sm font-medium transition-all active:scale-95',
@@ -192,7 +192,7 @@ export default function DiscountPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.disc_value} {form.type === 'percentage' ? '(%)' : '($)'}</label>
                   <input type="number" min="0" value={form.value} onChange={e => setForm(f => ({ ...f, value: parseFloat(e.target.value) || 0 }))}

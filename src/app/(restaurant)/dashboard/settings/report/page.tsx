@@ -1,9 +1,9 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import {
-  BarChart3, TrendingUp, TrendingDown, Download, RefreshCw,
+  BarChart3, TrendingUp, Download, RefreshCw,
   DollarSign, Receipt, ShoppingBag, Users,
-  CreditCard, Calendar, ArrowUpRight, ArrowDownRight,
+  CreditCard, Calendar, ArrowDownRight,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { motion, type Variants } from 'framer-motion'
@@ -18,7 +18,7 @@ import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend,
+  Tooltip, ResponsiveContainer, Cell, PieChart, Pie,
 } from 'recharts'
 
 // ── Types ─────────────────────────────────────────────────────────
@@ -41,10 +41,6 @@ interface Expense {
 }
 
 type Range = 'today' | 'week' | 'month' | 'custom'
-
-const RANGE_LABELS: Record<Range, string> = {
-  today: 'Today', week: 'This Week', month: 'This Month', custom: 'Custom',
-}
 
 const PIE_COLORS = ['#f59e0b','#6366f1','#10b981','#ec4899','#3b82f6','#f97316','#8b5cf6']
 

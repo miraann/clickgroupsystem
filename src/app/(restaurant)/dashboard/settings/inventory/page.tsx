@@ -294,16 +294,16 @@ export default function InventoryPage() {
       {/* Tab bar */}
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.42, ease: 'circOut', delay: 0.12 }}
-        className="flex gap-1 mb-6 p-1 rounded-2xl bg-white/4 border border-white/8 w-fit">
+        className="flex gap-2 mb-6">
         {([
-          { key: 'settings',   label: 'Settings',   icon: <Settings   className="w-4 h-4" /> },
-          { key: 'items',      label: 'Items',       icon: <Archive    className="w-4 h-4" /> },
-          { key: 'categories', label: 'Categories',  icon: <Tag        className="w-4 h-4" /> },
-          { key: 'units',      label: 'Units',       icon: <Ruler      className="w-4 h-4" /> },
-        ] as const).map(({ key, label, icon }) => (
+          { key: 'settings',   label: 'Settings',   icon: <Settings className="w-4 h-4" />, base: 'bg-emerald-500/70', active: 'bg-emerald-500 shadow-lg shadow-emerald-500/30' },
+          { key: 'items',      label: 'Items',       icon: <Archive  className="w-4 h-4" />, base: 'bg-violet-500/70',  active: 'bg-violet-500 shadow-lg shadow-violet-500/30'  },
+          { key: 'categories', label: 'Categories',  icon: <Tag      className="w-4 h-4" />, base: 'bg-amber-500/70',   active: 'bg-amber-500 shadow-lg shadow-amber-500/30'   },
+          { key: 'units',      label: 'Units',       icon: <Ruler    className="w-4 h-4" />, base: 'bg-blue-500/70',    active: 'bg-blue-500 shadow-lg shadow-blue-500/30'    },
+        ] as const).map(({ key, label, icon, base, active }) => (
           <button key={key} onClick={() => switchTab(key)}
-            className={cn('flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all',
-              tab === key ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'text-white/50 hover:text-white/70')}>
+            className={cn('flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95 text-white',
+              tab === key ? active : base)}>
             {icon}{label}
             {key === 'items' && items.length > 0 && (
               <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-white/20">{items.length}</span>

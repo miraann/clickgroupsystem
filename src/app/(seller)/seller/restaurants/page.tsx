@@ -4,7 +4,7 @@ import { GlassCard, GlassCardBody } from '@/components/ui/glass-card'
 import { Badge } from '@/components/ui/badge'
 import {
   Search, Plus, Store, MoreVertical, Eye, Ban,
-  Trash2, Edit, CheckCircle, Filter, Download, Loader2,
+  Trash2, Edit, CheckCircle, Filter, Download,
 } from 'lucide-react'
 import { SkeletonList } from '@/components/ui/SkeletonList'
 import { motion } from 'framer-motion'

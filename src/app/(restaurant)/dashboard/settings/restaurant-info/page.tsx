@@ -307,7 +307,7 @@ export default function RestaurantInfoPage() {
       </div>
 
       {/* Logo — card background is instant, content crossfades */}
-      <Section title={t.ri_logo}>
+      <Section title={t.ri_logo} color="bg-amber-500/70">
         <FadeSwitch id={loading ? 'skel-logo' : 'real-logo'}>
           {loading ? (
             <div className="flex items-center gap-5">
@@ -351,7 +351,7 @@ export default function RestaurantInfoPage() {
       </Section>
 
       {/* Basic Info */}
-      <Section title={t.ri_basic_info}>
+      <Section title={t.ri_basic_info} color="bg-blue-500/70">
         <FadeSwitch id={loading ? 'skel-basic' : 'real-basic'}>
           {loading ? (
             <div className="space-y-4">
@@ -380,7 +380,7 @@ export default function RestaurantInfoPage() {
       </Section>
 
       {/* Contact */}
-      <Section title={t.ri_contact}>
+      <Section title={t.ri_contact} color="bg-emerald-500/70">
         <FadeSwitch id={loading ? 'skel-contact' : 'real-contact'}>
           {loading ? (
             <div className="space-y-4">
@@ -404,7 +404,7 @@ export default function RestaurantInfoPage() {
       </Section>
 
       {/* Social */}
-      <Section title={t.ri_social}>
+      <Section title={t.ri_social} color="bg-violet-500/70">
         <FadeSwitch id={loading ? 'skel-social' : 'real-social'}>
           {loading ? (
             <div className="space-y-3">
@@ -444,11 +444,11 @@ export default function RestaurantInfoPage() {
 // ── Reusable sub-components ───────────────────────────────────
 
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, children, color = 'bg-white/8' }: { title: string; children: React.ReactNode; color?: string }) {
   return (
     <div className="rounded-2xl border border-white/10 bg-white/3 backdrop-blur-xl overflow-hidden">
-      <div className="px-5 py-3.5 border-b border-white/8 bg-white/3">
-        <p className="text-xs font-semibold text-white/40 uppercase tracking-widest">{title}</p>
+      <div className={cn('px-5 py-3.5 border-b border-white/10', color)}>
+        <p className="text-xs font-semibold text-white/80 uppercase tracking-widest">{title}</p>
       </div>
       <div className="p-5">{children}</div>
     </div>

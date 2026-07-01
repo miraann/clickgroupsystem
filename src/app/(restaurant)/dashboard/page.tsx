@@ -8,7 +8,7 @@ import {
   LogOut, Bell, Settings, DollarSign,
   Utensils, Coffee, ChevronRight, Delete,
   CalendarDays, Phone, Check, AlertCircle, Loader2,
-  ArrowRightLeft, Merge, Receipt, Printer, X as XIcon, Truck, BellRing, Globe, Monitor, Shield, BarChart2,
+  ArrowRightLeft, Merge, X as XIcon, Truck, BellRing, Globe, Monitor, Shield, BarChart2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
@@ -346,13 +346,10 @@ function MergeTablesModal({ sourceTable, allTables, onClose, onMerged }: {
 }
 
 // ── Quick Action Menu ─────────────────────────────────────────
-function QuickMenu({ table, onClose, onQuickPay, onPrintBill, onMove, onMerge, router }: {
+function QuickMenu({ table, onClose, onMove, onMerge }: {
   table: Table; onClose: () => void
-  onQuickPay: (t: Table) => void
-  onPrintBill: (t: Table) => void
   onMove: () => void
   onMerge: () => void
-  router: ReturnType<typeof import('next/navigation').useRouter>
 }) {
   const isOccupied = table.status === 'occupied' || table.status === 'bill_requested'
   const actions = [
@@ -1272,23 +1269,23 @@ export default function TablesPage() {
 
       {/* Fixed top bar */}
       <header className="sticky top-0 z-30 border-b border-white/8 backdrop-blur-2xl" style={{ background: 'var(--app-anchor-80, rgba(2,38,88,0.8))' }}>
-        <div className="flex items-center justify-between px-5 py-3">
+        <div className="flex items-center justify-between px-2 sm:px-5 py-2 sm:py-3">
           {/* Left: restaurant + user */}
-          <div className="flex items-center gap-3">
-            <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/30 shrink-0 overflow-hidden">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-lg sm:rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/30 shrink-0 overflow-hidden">
               {restaurant?.logo_url
                 ? <img src={restaurant.logo_url} alt="logo" className="w-full h-full object-cover" />
-                : <ChefHat size={26} className="text-white" />}
+                : <ChefHat className="w-5 h-5 lg:w-[26px] lg:h-[26px] text-white" />}
             </div>
-            <div>
-              <p className="text-sm font-bold text-white leading-none">{restaurant?.name ?? '...'}</p>
-              <p className="text-xs text-white/30 mt-0.5">POS System</p>
+            <div className="min-w-0">
+              <p className="text-[11px] sm:text-sm font-bold text-white leading-none truncate max-w-[70px] sm:max-w-none">{restaurant?.name ?? '...'}</p>
+              <p className="hidden sm:block text-xs text-white/30 mt-0.5">POS System</p>
             </div>
           </div>
 
           {/* Center: clock */}
-          <div className="text-center">
-            <p className="text-xl font-bold text-white tabular-nums">
+          <div className="text-center shrink-0">
+            <p className="text-sm sm:text-xl font-bold text-white tabular-nums">
               {time.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: true })}
             </p>
             <p className="hidden sm:block text-xs text-white/25 tabular-nums">
@@ -1297,10 +1294,10 @@ export default function TablesPage() {
           </div>
 
           {/* Right: actions */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
             {/* Staff name badge when PIN logged in */}
             {isPinStaff && staffName && (
-              <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20">
+              <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20">
                 <div className="w-5 h-5 rounded-full bg-amber-500/30 flex items-center justify-center text-[10px] font-bold text-amber-300">
                   {staffName[0]}
                 </div>
@@ -1309,17 +1306,17 @@ export default function TablesPage() {
               </div>
             )}
             {can('dashboard.btn_reports') && (
-              <Link href="/dashboard/reports" className={cn('hidden sm:flex w-14 h-14 rounded-xl items-center justify-center transition-all active:scale-95', navBtnCn)} style={navBtn('reports')}>
+              <Link href="/dashboard/reports" className={cn('hidden lg:flex w-14 h-14 rounded-xl items-center justify-center transition-all active:scale-95', navBtnCn)} style={navBtn('reports')}>
                 <DollarSign size={26} />
               </Link>
             )}
             {(isOwner || can('dashboard.btn_audit_log')) && (
-              <Link href="/dashboard/settings/audit-log" title="Audit Log" className={cn('hidden sm:flex w-14 h-14 rounded-xl items-center justify-center transition-all active:scale-95', navBtnCn)} style={navBtn('audit')}>
+              <Link href="/dashboard/settings/audit-log" title="Audit Log" className={cn('hidden lg:flex w-14 h-14 rounded-xl items-center justify-center transition-all active:scale-95', navBtnCn)} style={navBtn('audit')}>
                 <Shield size={26} />
               </Link>
             )}
             {can('dashboard.btn_staff') && (
-              <Link href="/dashboard/staff" className={cn('hidden sm:flex w-14 h-14 rounded-xl items-center justify-center transition-all active:scale-95', navBtnCn)} style={navBtn('staff')}>
+              <Link href="/dashboard/staff" className={cn('hidden lg:flex w-14 h-14 rounded-xl items-center justify-center transition-all active:scale-95', navBtnCn)} style={navBtn('staff')}>
                 <Users size={26} />
               </Link>
             )}
@@ -1327,50 +1324,50 @@ export default function TablesPage() {
               <button
                 onClick={() => setShowWaiterPanel(p => !p)}
                 className={cn(
-                  'w-14 h-14 rounded-xl border flex items-center justify-center transition-all active:scale-95 relative',
+                  'hidden lg:flex w-9 h-9 lg:w-14 lg:h-14 rounded-xl border items-center justify-center transition-all active:scale-95 relative shrink-0',
                   waiterCalls.length > 0
                     ? 'bg-violet-500/15 border-violet-500/40 text-violet-400 hover:bg-violet-500/25 animate-pulse'
                     : 'bg-white/5 border-white/10 text-white/40 hover:text-white/70 hover:bg-white/10'
                 )}
                 title="Waiter Calls"
               >
-                <BellRing size={26} />
+                <BellRing className="w-[18px] h-[18px] lg:w-[26px] lg:h-[26px]" />
                 {waiterCalls.length > 0 && (
-                  <span className="absolute -top-1 -right-1 min-w-[22px] h-[22px] rounded-full bg-violet-500 text-white text-xs font-bold flex items-center justify-center px-1 shadow-lg shadow-violet-500/40">
+                  <span className="absolute -top-1 -right-1 min-w-[16px] h-4 lg:min-w-[22px] lg:h-[22px] rounded-full bg-violet-500 text-white text-[9px] lg:text-xs font-bold flex items-center justify-center px-0.5 lg:px-1 shadow-lg shadow-violet-500/40">
                     {waiterCalls.length > 99 ? '99+' : waiterCalls.length}
                   </span>
                 )}
               </button>
             )}
             {can('dashboard.btn_kds') && (
-              <Link href="/dashboard/kds" className={cn('hidden sm:flex w-14 h-14 rounded-xl items-center justify-center transition-all active:scale-95', navBtnCn)} style={navBtn('kds')} title="Kitchen Display">
+              <Link href="/dashboard/kds" className={cn('hidden lg:flex w-14 h-14 rounded-xl items-center justify-center transition-all active:scale-95', navBtnCn)} style={navBtn('kds')} title="Kitchen Display">
                 <ChefHat size={26} />
               </Link>
             )}
             {can('dashboard.cfd') && swrData?.restaurant?.menu_slug && (
               <button
                 onClick={() => window.open(`/cfd/${swrData.restaurant!.menu_slug}`, 'CFD', 'width=1024,height=768,menubar=no,toolbar=no,location=no,status=no')}
-                className="hidden sm:flex w-14 h-14 rounded-xl bg-blue-500/10 border border-blue-500/20 items-center justify-center text-blue-400 hover:bg-blue-500/20 hover:border-blue-500/40 transition-all active:scale-95"
+                className="hidden lg:flex w-14 h-14 rounded-xl bg-blue-500/10 border border-blue-500/20 items-center justify-center text-blue-400 hover:bg-blue-500/20 hover:border-blue-500/40 transition-all active:scale-95"
                 title="Customer Facing Display"
               >
                 <Monitor size={26} />
               </button>
             )}
             {can('dashboard.btn_guests') && (
-              <Link href="/dashboard/guests" className={cn('hidden sm:flex w-14 h-14 rounded-xl items-center justify-center transition-all active:scale-95', navBtnCn)} style={navBtn('guests')} title="Guest Tracking">
+              <Link href="/dashboard/guests" className={cn('hidden lg:flex w-14 h-14 rounded-xl items-center justify-center transition-all active:scale-95', navBtnCn)} style={navBtn('guests')} title="Guest Tracking">
                 <Users size={26} />
               </Link>
             )}
             {/* Language picker */}
             {can('dashboard.btn_language') && (
-              <div className="relative">
+              <div className="relative hidden lg:block">
                 <button
                   onClick={() => setShowLangPicker(v => !v)}
-                  className={cn('w-14 h-14 rounded-xl flex items-center justify-center transition-all active:scale-95', navBtnCn)}
+                  className={cn('w-9 h-9 sm:w-14 sm:h-14 rounded-xl flex items-center justify-center transition-all active:scale-95 shrink-0', navBtnCn)}
                   style={navBtn('language')}
                   title="Language"
                 >
-                  <Globe size={26} />
+                  <Globe className="w-[18px] h-[18px] lg:w-[26px] lg:h-[26px]" />
                 </button>
                 {showLangPicker && (
                   <div className="absolute top-full mt-2 right-0 w-44 rounded-2xl border border-white/12 bg-[#0d1120] shadow-2xl overflow-hidden z-50">
@@ -1401,11 +1398,11 @@ export default function TablesPage() {
             {can('dashboard.btn_reports') && (
               <button
                 onClick={() => setShowDailySales(true)}
-                className={cn('w-14 h-14 rounded-xl flex items-center justify-center transition-all active:scale-95', navBtnCn)}
+                className={cn('hidden lg:flex w-9 h-9 lg:w-14 lg:h-14 rounded-xl items-center justify-center transition-all active:scale-95 shrink-0', navBtnCn)}
                 style={navBtn('reports')}
                 title="Daily Sales"
               >
-                <BarChart2 size={26} />
+                <BarChart2 className="w-[18px] h-[18px] lg:w-[26px] lg:h-[26px]" />
               </button>
             )}
 
@@ -1418,12 +1415,118 @@ export default function TablesPage() {
                 keys.forEach(k => localStorage.removeItem(k))
                 router.replace(slug ? `/pos/${slug}/login` : '/restaurant-login')
               }}
-              className="w-14 h-14 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-rose-400/50 hover:text-rose-400 hover:bg-rose-500/10 transition-all active:scale-95"
+              className="w-9 h-9 lg:w-14 lg:h-14 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-rose-400/50 hover:text-rose-400 hover:bg-rose-500/10 transition-all active:scale-95 shrink-0"
             >
-              <LogOut size={26} />
+              <LogOut className="w-[18px] h-[18px] lg:w-[26px] lg:h-[26px]" />
             </button>
           </div>
         </div>
+
+        {/* Mobile-only icon strip — all nav actions in one scrollable row */}
+        <div
+          className="lg:hidden flex items-center justify-center gap-1.5 sm:gap-3 md:gap-4 px-2 sm:px-4 md:px-6 py-1 sm:py-2 md:py-2.5 border-t border-white/5 overflow-x-auto [&::-webkit-scrollbar]:hidden"
+          style={{ scrollbarWidth: 'none' }}
+        >
+          {can('dashboard.btn_reports') && (
+            <Link href="/dashboard/reports" className={cn('shrink-0 flex w-8 h-8 sm:w-11 sm:h-11 md:w-14 md:h-14 rounded-xl items-center justify-center transition-all active:scale-95', navBtnCn)} style={navBtn('reports')}>
+              <DollarSign className="w-[18px] h-[18px] sm:w-5 sm:h-5 md:w-[26px] md:h-[26px]" />
+            </Link>
+          )}
+          {(isOwner || can('dashboard.btn_audit_log')) && (
+            <Link href="/dashboard/settings/audit-log" title="Audit Log" className={cn('shrink-0 flex w-8 h-8 sm:w-11 sm:h-11 md:w-14 md:h-14 rounded-xl items-center justify-center transition-all active:scale-95', navBtnCn)} style={navBtn('audit')}>
+              <Shield className="w-[18px] h-[18px] sm:w-5 sm:h-5 md:w-[26px] md:h-[26px]" />
+            </Link>
+          )}
+          {can('dashboard.btn_staff') && (
+            <Link href="/dashboard/staff" className={cn('shrink-0 flex w-8 h-8 sm:w-11 sm:h-11 md:w-14 md:h-14 rounded-xl items-center justify-center transition-all active:scale-95', navBtnCn)} style={navBtn('staff')}>
+              <Users className="w-[18px] h-[18px] sm:w-5 sm:h-5 md:w-[26px] md:h-[26px]" />
+            </Link>
+          )}
+          {can('dashboard.btn_waiter') && (
+            <button
+              onClick={() => setShowWaiterPanel(p => !p)}
+              className={cn(
+                'shrink-0 flex w-8 h-8 sm:w-11 sm:h-11 md:w-14 md:h-14 rounded-xl border items-center justify-center transition-all active:scale-95 relative',
+                waiterCalls.length > 0
+                  ? 'bg-violet-500/15 border-violet-500/40 text-violet-400 hover:bg-violet-500/25 animate-pulse'
+                  : 'bg-white/5 border-white/10 text-white/40 hover:text-white/70 hover:bg-white/10'
+              )}
+              title="Waiter Calls"
+            >
+              <BellRing className="w-[18px] h-[18px] sm:w-5 sm:h-5 md:w-[26px] md:h-[26px]" />
+              {waiterCalls.length > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[16px] h-4 rounded-full bg-violet-500 text-white text-[9px] font-bold flex items-center justify-center px-0.5 shadow-lg shadow-violet-500/40">
+                  {waiterCalls.length > 99 ? '99+' : waiterCalls.length}
+                </span>
+              )}
+            </button>
+          )}
+          {can('dashboard.btn_kds') && (
+            <Link href="/dashboard/kds" className={cn('shrink-0 flex w-8 h-8 sm:w-11 sm:h-11 md:w-14 md:h-14 rounded-xl items-center justify-center transition-all active:scale-95', navBtnCn)} style={navBtn('kds')} title="Kitchen Display">
+              <ChefHat className="w-[18px] h-[18px] sm:w-5 sm:h-5 md:w-[26px] md:h-[26px]" />
+            </Link>
+          )}
+          {can('dashboard.cfd') && swrData?.restaurant?.menu_slug && (
+            <button
+              onClick={() => window.open(`/cfd/${swrData.restaurant!.menu_slug}`, 'CFD', 'width=1024,height=768,menubar=no,toolbar=no,location=no,status=no')}
+              className="shrink-0 flex w-8 h-8 sm:w-11 sm:h-11 md:w-14 md:h-14 rounded-xl bg-blue-500/10 border border-blue-500/20 items-center justify-center text-blue-400 hover:bg-blue-500/20 hover:border-blue-500/40 transition-all active:scale-95"
+              title="Customer Facing Display"
+            >
+              <Monitor className="w-[18px] h-[18px] sm:w-5 sm:h-5 md:w-[26px] md:h-[26px]" />
+            </button>
+          )}
+          {can('dashboard.btn_guests') && (
+            <Link href="/dashboard/guests" className={cn('shrink-0 flex w-8 h-8 sm:w-11 sm:h-11 md:w-14 md:h-14 rounded-xl items-center justify-center transition-all active:scale-95', navBtnCn)} style={navBtn('guests')} title="Guest Tracking">
+              <Users className="w-[18px] h-[18px] sm:w-5 sm:h-5 md:w-[26px] md:h-[26px]" />
+            </Link>
+          )}
+          {can('dashboard.btn_language') && (
+            <button
+              onClick={() => setShowLangPicker(v => !v)}
+              className={cn('shrink-0 flex w-8 h-8 sm:w-11 sm:h-11 md:w-14 md:h-14 rounded-xl items-center justify-center transition-all active:scale-95', navBtnCn)}
+              style={navBtn('language')}
+              title="Language"
+            >
+              <Globe className="w-[18px] h-[18px] sm:w-5 sm:h-5 md:w-[26px] md:h-[26px]" />
+            </button>
+          )}
+          {can('dashboard.btn_reports') && (
+            <button
+              onClick={() => setShowDailySales(true)}
+              className={cn('shrink-0 flex w-8 h-8 sm:w-11 sm:h-11 md:w-14 md:h-14 rounded-xl items-center justify-center transition-all active:scale-95', navBtnCn)}
+              style={navBtn('reports')}
+              title="Daily Sales"
+            >
+              <BarChart2 className="w-[18px] h-[18px] sm:w-5 sm:h-5 md:w-[26px] md:h-[26px]" />
+            </button>
+          )}
+        </div>
+
+        {/* Mobile language dropdown — rendered outside the scrollable strip so it isn't clipped */}
+        {can('dashboard.btn_language') && showLangPicker && (
+          <div
+            className="lg:hidden absolute left-0 right-0 top-full z-50 rounded-b-2xl shadow-2xl overflow-hidden"
+            style={{ background: '#0d1120', borderTop: '1px solid rgba(255,255,255,0.08)' }}
+          >
+            <p className="px-4 py-2.5 text-[10px] font-bold text-white/30 uppercase tracking-widest border-b border-white/8">
+              Language
+            </p>
+            {(Object.entries(LANG_META) as [Lang, typeof LANG_META[Lang]][]).map(([code, meta]) => (
+              <button
+                key={code}
+                onClick={() => { setLang(code); setShowLangPicker(false) }}
+                className={cn(
+                  'w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors',
+                  lang === code ? 'bg-amber-500/15 text-amber-300' : 'text-white/60 hover:bg-white/5 hover:text-white',
+                )}
+              >
+                <span className="text-base">{meta.flag}</span>
+                <span className="flex-1 text-left">{meta.nativeLabel}</span>
+                {lang === code && <Check className="w-4 h-4 text-amber-400 shrink-0" />}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Summary stats row */}
         <div className="grid grid-cols-4 divide-x divide-white/5 border-t border-white/5">
@@ -1437,7 +1540,7 @@ export default function TablesPage() {
               key={s.status}
               onClick={() => setFilter(filter === s.status ? 'all' : s.status)}
               className={cn(
-                'flex items-center justify-center gap-2 py-2.5 transition-all active:scale-95',
+                'flex items-center justify-center gap-1.5 sm:gap-2 py-1.5 sm:py-2.5 transition-all active:scale-95',
                 filter === s.status ? 'bg-white/5' : 'hover:bg-white/3'
               )}
             >
@@ -1701,11 +1804,8 @@ export default function TablesPage() {
         <QuickMenu
           table={quickMenuTable}
           onClose={() => setQuickMenuTable(null)}
-          onQuickPay={t => { setQuickMenuTable(null); openOrder(t) }}
-          onPrintBill={t => { setQuickMenuTable(null); setPrintBillTable(t) }}
           onMove={() => { setMoveTableSource(quickMenuTable); setQuickMenuTable(null) }}
           onMerge={() => { setMergeTableSource(quickMenuTable); setQuickMenuTable(null) }}
-          router={router}
         />
       )}
 

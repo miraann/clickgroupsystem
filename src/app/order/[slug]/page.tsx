@@ -1,11 +1,11 @@
 'use client'
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { motion } from 'framer-motion'
 import dynamic from 'next/dynamic'
 import { useParams } from 'next/navigation'
 import NextImage from 'next/image'
 import {
-  Loader2, UtensilsCrossed, MapPin, ShoppingCart, Plus, Minus, X, Check,
+  Loader2, UtensilsCrossed, MapPin, ShoppingCart, Plus, Minus, X,
   CheckCircle2, ChevronLeft, ChevronRight, AlertCircle,
   Truck, Clock, Package, Search, ChevronDown, ChevronUp, User, Phone,
 } from 'lucide-react'
@@ -15,15 +15,6 @@ import { assignOrderNumber } from '@/lib/orderNumber'
 import { sendPush } from '@/lib/push'
 import { logAudit } from '@/lib/logAudit'
 import { useRestaurantMenu } from '@/hooks/useRestaurantMenu'
-
-const LocationPickerMap = dynamic(
-  () => import('@/components/delivery/LocationPickerMap'),
-  { ssr: false, loading: () => (
-    <div className="w-full flex items-center justify-center bg-white/5" style={{ height: 200 }}>
-      <Loader2 className="w-5 h-5 animate-spin text-white/30" />
-    </div>
-  )},
-)
 
 const DeliveryCheckout = dynamic(
   () => import('@/components/delivery/DeliveryCheckout'),

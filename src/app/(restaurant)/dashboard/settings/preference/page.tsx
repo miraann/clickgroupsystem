@@ -1,5 +1,5 @@
 'use client'
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef } from 'react'
 import { motion, AnimatePresence, type Variants } from 'framer-motion'
 import {
   SlidersHorizontal,
@@ -344,7 +344,7 @@ export default function PreferencePage() {
 
             {/* ── Language & Display ── */}
             <motion.div variants={FIELD_ITEM}>
-              <SettingsSection title={t.pref_lang_display} icon={<Globe className="w-4 h-4 text-indigo-400" />}>
+              <SettingsSection title={t.pref_lang_display} icon={<Globe className="w-4 h-4 text-white/80" />} color="bg-indigo-500/70">
                 <div className="space-y-5">
 
                   <div className="space-y-2">
@@ -405,7 +405,7 @@ export default function PreferencePage() {
 
             {/* ── Notification Sounds ── */}
             <motion.div variants={FIELD_ITEM}>
-              <SettingsSection title={t.pref_sounds} icon={<Bell className="w-4 h-4 text-indigo-400" />}>
+              <SettingsSection title={t.pref_sounds} icon={<Bell className="w-4 h-4 text-white/80" />} color="bg-amber-500/70">
                 <div className="space-y-5">
 
                   <div className="flex items-center justify-between gap-4">
@@ -502,7 +502,7 @@ export default function PreferencePage() {
 
             {/* ── Online Order Sounds ── */}
             <motion.div variants={FIELD_ITEM}>
-              <SettingsSection title={t.pref_online_sounds} icon={<Bike className="w-4 h-4 text-indigo-400" />}>
+              <SettingsSection title={t.pref_online_sounds} icon={<Bike className="w-4 h-4 text-white/80" />} color="bg-emerald-500/70">
                 <div className="space-y-5">
 
                   <div className="flex items-center justify-between gap-4">
@@ -599,7 +599,7 @@ export default function PreferencePage() {
 
             {/* ── Waiter Call Sounds ── */}
             <motion.div variants={FIELD_ITEM}>
-              <SettingsSection title={t.pref_waiter_sounds} icon={<Hand className="w-4 h-4 text-indigo-400" />}>
+              <SettingsSection title={t.pref_waiter_sounds} icon={<Hand className="w-4 h-4 text-white/80" />} color="bg-violet-500/70">
                 <div className="space-y-5">
 
                   <div className="flex items-center justify-between gap-4">
@@ -694,7 +694,7 @@ export default function PreferencePage() {
 
             {/* ── Push Notifications ── */}
             <motion.div variants={FIELD_ITEM}>
-              <SettingsSection title="Push Notifications" icon={<Smartphone className="w-4 h-4 text-indigo-400" />}>
+              <SettingsSection title="Push Notifications" icon={<Smartphone className="w-4 h-4 text-white/80" />} color="bg-rose-500/70">
                 <div className="space-y-5">
 
                   {/* Permission row */}
@@ -783,7 +783,7 @@ export default function PreferencePage() {
 
             {/* ── Activity Toasts ── */}
             <motion.div variants={FIELD_ITEM}>
-              <SettingsSection title="Activity Toasts" icon={<BellRing className="w-4 h-4 text-indigo-400" />}>
+              <SettingsSection title="Activity Toasts" icon={<BellRing className="w-4 h-4 text-white/80" />} color="bg-cyan-500/70">
                 <div className="space-y-5">
 
                   <div className="space-y-2">

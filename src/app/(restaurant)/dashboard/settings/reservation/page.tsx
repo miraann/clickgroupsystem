@@ -22,6 +22,15 @@ import type { Reservation, Table, TableGroup, StatusFilter } from './types'
 import { STATUS_CONFIG, fmtDate, todayStr } from './types'
 import { ReservationModal } from './ReservationModal'
 
+const FILTER_COLORS: Record<StatusFilter, { base: string; active: string }> = {
+  all:       { base: 'bg-white/20 text-white',        active: 'bg-white/40 text-white shadow-lg' },
+  pending:   { base: 'bg-amber-500/70 text-white',    active: 'bg-amber-500 text-white shadow-lg shadow-amber-500/30' },
+  confirmed: { base: 'bg-emerald-500/70 text-white',  active: 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30' },
+  seated:    { base: 'bg-blue-500/70 text-white',     active: 'bg-blue-500 text-white shadow-lg shadow-blue-500/30' },
+  cancelled: { base: 'bg-rose-500/70 text-white',     active: 'bg-rose-500 text-white shadow-lg shadow-rose-500/30' },
+  no_show:   { base: 'bg-slate-500/70 text-white',    active: 'bg-slate-500 text-white shadow-lg shadow-slate-500/30' },
+}
+
 export default function ReservationPage() {
   const supabase = createClient()
   const { t } = useLanguage()
@@ -142,10 +151,8 @@ export default function ReservationPage() {
         <div className="flex items-center gap-1.5 flex-wrap">
           {(['all','pending','confirmed','seated','cancelled','no_show'] as StatusFilter[]).map(s => (
             <button key={s} onClick={() => setStatusFilter(s)}
-              className={cn('px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all active:scale-95',
-                statusFilter === s
-                  ? s === 'all' ? 'bg-white/15 border-white/25 text-white' : `${STATUS_CONFIG[s]?.bg} ${STATUS_CONFIG[s]?.border} ${STATUS_CONFIG[s]?.color}`
-                  : 'bg-white/5 border-white/10 text-white/40 hover:text-white/60')}>
+              className={cn('px-4 py-2 rounded-xl text-xs font-semibold transition-all active:scale-95',
+                statusFilter === s ? FILTER_COLORS[s].active : FILTER_COLORS[s].base)}>
               {s === 'all' ? t.rsv_all : STATUS_CONFIG[s]?.label}
             </button>
           ))}

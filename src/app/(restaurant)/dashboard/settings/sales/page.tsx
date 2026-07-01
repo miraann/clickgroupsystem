@@ -13,10 +13,6 @@ const PAGE: Variants = {
   hidden: { opacity: 0, y: 20 },
   show:   { opacity: 1, y: 0, transition: { duration: 0.22, ease: 'circOut' as const } },
 }
-const FIELDS: Variants = {
-  hidden: {},
-  show:   { transition: { staggerChildren: 0.28 } },
-}
 const FIELD_ITEM: Variants = {
   hidden: { opacity: 0, y: -10 },
   show:   { opacity: 1, y: 0, transition: { duration: 0.55, ease: 'circOut' as const } },

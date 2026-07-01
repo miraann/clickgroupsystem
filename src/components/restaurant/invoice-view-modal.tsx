@@ -250,7 +250,6 @@ ${qrHtml}
     pw.document.close()
   }
 
-  const cur  = rs.currency_symbol
   const name = rs.shop_name || restaurantName || 'Restaurant'
   const date = new Date(invoice.created_at)
   const dateStr = date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })
