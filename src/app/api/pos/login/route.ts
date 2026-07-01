@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { rateLimit } from '@/lib/rate-limit'
-import { createRestaurantToken, RESTAURANT_COOKIE } from '@/lib/session'
+import {
+  createRestaurantToken, RESTAURANT_COOKIE,
+  verifyPendingToken, RESTAURANT_PENDING_COOKIE,
+} from '@/lib/session'
 
 function serviceClient() {
   return createClient(
@@ -25,10 +28,10 @@ export async function POST(req: NextRequest) {
 
     const supabase = serviceClient()
 
-    // Resolve slug → restaurant
+    // Resolve slug → restaurant (include settings for owner PIN check)
     const { data: restaurant } = await supabase
       .from('restaurants')
-      .select('id, name, menu_slug')
+      .select('id, name, menu_slug, settings')
       .eq('menu_slug', slug.trim())
       .maybeSingle()
 
@@ -36,7 +39,53 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Restaurant not found.' }, { status: 404 })
     }
 
-    // Verify PIN against staff table
+    // ── Owner PIN path ──────────────────────────────────────────────
+    // If a valid pending-restaurant cookie exists for this restaurant,
+    // check the entered PIN against settings.owner_pin.
+    const pendingCookie = req.cookies.get(RESTAURANT_PENDING_COOKIE)?.value
+    if (pendingCookie) {
+      const rid = await verifyPendingToken(pendingCookie)
+      if (rid === restaurant.id) {
+        const settings = (restaurant.settings ?? {}) as Record<string, unknown>
+        const ownerPin = settings.owner_pin as string | undefined
+
+        if (!ownerPin) {
+          return NextResponse.json(
+            { error: 'No owner PIN configured. Ask your administrator.' },
+            { status: 403 },
+          )
+        }
+
+        if (pin.trim() !== ownerPin) {
+          return NextResponse.json({ error: 'Incorrect PIN.' }, { status: 401 })
+        }
+
+        // PIN correct — grant owner session, clear pending cookie
+        const token = await createRestaurantToken(restaurant.id, 'owner')
+        const res = NextResponse.json({
+          ok: true,
+          isOwner: true,
+          restaurant: { id: restaurant.id, name: restaurant.name, menu_slug: restaurant.menu_slug },
+        })
+        res.cookies.set(RESTAURANT_COOKIE, token, {
+          httpOnly: true,
+          secure:   process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          path:     '/',
+          maxAge:   8 * 3600,
+        })
+        res.cookies.set(RESTAURANT_PENDING_COOKIE, '', {
+          httpOnly: true,
+          secure:   process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          path:     '/',
+          maxAge:   0,
+        })
+        return res
+      }
+    }
+
+    // ── Staff PIN path ──────────────────────────────────────────────
     const { data: staffRow } = await supabase
       .from('staff')
       .select('id, name, role, color, role_id')

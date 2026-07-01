@@ -84,9 +84,24 @@ export default function POSLoginPage() {
       return
     }
 
-    const { restaurant, staff } = await res.json()
+    const data = await res.json()
+    const { restaurant } = data
 
-    // Persist to localStorage for UI use (session authority is the HTTP-only cookie set by the API)
+    if (data.isOwner) {
+      // Restaurant owner logged in via PIN — set owner session
+      const posKeys = ['pos_staff_id', 'pos_staff_name', 'pos_staff_role', 'pos_staff_color', 'pos_role_permissions', 'pos_role_name']
+      posKeys.forEach(k => localStorage.removeItem(k))
+      localStorage.setItem('restaurant_id',   restaurant.id)
+      localStorage.setItem('restaurant_name', restaurant.name)
+      localStorage.setItem('restaurant_slug', restaurant.menu_slug ?? slug)
+      localStorage.setItem('owner_session',   'true')
+      setStatus('success')
+      setTimeout(() => router.push('/dashboard'), 1100)
+      return
+    }
+
+    // Staff login — persist to localStorage for UI use
+    const { staff } = data
     localStorage.setItem('restaurant_id',        restaurant.id)
     localStorage.setItem('restaurant_slug',       restaurant.menu_slug ?? slug)
     localStorage.setItem('pos_staff_id',          staff.id)
