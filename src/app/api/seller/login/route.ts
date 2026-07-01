@@ -3,7 +3,7 @@ import { rateLimit } from '@/lib/rate-limit'
 import { createSellerToken, SELLER_COOKIE } from '@/lib/session'
 
 export async function POST(req: NextRequest) {
-  if (!rateLimit(req, 'seller/login', 5, 60_000)) {
+  if (!rateLimit(req, 'seller/login', 1, 60_000)) {
     return NextResponse.json({ error: 'Too many requests. Try again later.' }, { status: 429 })
   }
 

@@ -1,8 +1,11 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Eye, EyeOff, Loader2, ArrowLeft, Zap } from 'lucide-react'
+import { Eye, EyeOff, Loader2, ArrowLeft, Zap, Clock } from 'lucide-react'
 import Link from 'next/link'
+
+const COOLDOWN_MS = 60_000
+const STORAGE_KEY = 'seller_login_last_attempt'
 
 export default function SellerLoginPage() {
   const router = useRouter()
@@ -11,12 +14,26 @@ export default function SellerLoginPage() {
   const [showPwd,  setShowPwd]  = useState(false)
   const [loading,  setLoading]  = useState(false)
   const [error,    setError]    = useState<string | null>(null)
+  const [cooldown, setCooldown] = useState(0)
+
+  useEffect(() => {
+    const tick = () => {
+      const last = Number(localStorage.getItem(STORAGE_KEY) ?? 0)
+      const remaining = Math.ceil((last + COOLDOWN_MS - Date.now()) / 1000)
+      setCooldown(remaining > 0 ? remaining : 0)
+    }
+    tick()
+    const t = setInterval(tick, 1000)
+    return () => clearInterval(t)
+  }, [])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!password.trim()) return
+    if (!password.trim() || cooldown > 0 || loading) return
+
     setLoading(true)
     setError(null)
+    localStorage.setItem(STORAGE_KEY, String(Date.now()))
 
     const res = await fetch('/api/seller/login', {
       method: 'POST',
@@ -33,6 +50,8 @@ export default function SellerLoginPage() {
       setLoading(false)
     }
   }
+
+  const isBlocked = cooldown > 0
 
   return (
     <div className="min-h-screen bg-[#080b14] flex items-center justify-center px-4 relative overflow-hidden">
@@ -71,7 +90,8 @@ export default function SellerLoginPage() {
                 autoComplete="current-password"
                 autoFocus
                 required
-                className="w-full px-4 py-3 pr-11 rounded-xl bg-white/5 border border-white/10 text-sm text-white placeholder-white/20 focus:outline-none focus:border-indigo-500/50 transition-colors"
+                disabled={isBlocked}
+                className="w-full px-4 py-3 pr-11 rounded-xl bg-white/5 border border-white/10 text-sm text-white placeholder-white/20 focus:outline-none focus:border-indigo-500/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               />
               <button
                 type="button"
@@ -89,13 +109,20 @@ export default function SellerLoginPage() {
             </p>
           )}
 
+          {isBlocked && (
+            <div className="flex items-center gap-2 text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-2.5">
+              <Clock className="w-3.5 h-3.5 shrink-0" />
+              <span>Wait <span className="font-bold tabular-nums">{cooldown}s</span> before trying again</span>
+            </div>
+          )}
+
           <button
             type="submit"
-            disabled={loading || !password.trim()}
+            disabled={loading || !password.trim() || isBlocked}
             className="w-full py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-30 disabled:cursor-not-allowed text-white font-bold text-sm transition-all active:scale-[0.98] shadow-lg shadow-indigo-500/20 flex items-center justify-center gap-2 mt-2"
           >
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-            {loading ? 'Signing in…' : 'Enter Seller Console'}
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : isBlocked ? <Clock className="w-4 h-4" /> : null}
+            {loading ? 'Signing in…' : isBlocked ? `Try again in ${cooldown}s` : 'Enter Seller Console'}
           </button>
         </form>
 
