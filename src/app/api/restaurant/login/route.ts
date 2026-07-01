@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { rateLimit } from '@/lib/rate-limit'
-import { createRestaurantToken, RESTAURANT_COOKIE } from '@/lib/session'
+import {
+  createRestaurantToken, RESTAURANT_COOKIE,
+  createPendingToken, RESTAURANT_PENDING_COOKIE,
+} from '@/lib/session'
 
 const enc = new TextEncoder()
 
@@ -104,6 +107,26 @@ export async function POST(req: NextRequest) {
         .eq('id', restaurant.id)
     }
 
+    const ownerPin = settings.owner_pin as string | undefined
+
+    // If a PIN is configured, issue a short-lived pending token and prompt for PIN
+    if (ownerPin) {
+      const pendingToken = await createPendingToken(restaurant.id)
+      const res = NextResponse.json({
+        requirePin: true,
+        restaurant: { name: restaurant.name },
+      })
+      res.cookies.set(RESTAURANT_PENDING_COOKIE, pendingToken, {
+        httpOnly: true,
+        secure:   process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path:     '/',
+        maxAge:   5 * 60,
+      })
+      return res
+    }
+
+    // No PIN — grant full session immediately (backward-compatible)
     const token = await createRestaurantToken(restaurant.id, 'owner')
 
     const res = NextResponse.json({

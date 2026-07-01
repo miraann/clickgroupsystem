@@ -85,6 +85,29 @@ export async function verifyRestaurantToken(token: string): Promise<RestaurantSe
   }
 }
 
+// ── Pending (pre-PIN) restaurant session ────────────────────────────
+
+export const RESTAURANT_PENDING_COOKIE = '__pos_restaurant_pending'
+
+interface PendingSession { rid: string; exp: number }
+
+export async function createPendingToken(rid: string, ttlMs = 5 * 60 * 1000): Promise<string> {
+  const payload: PendingSession = { rid, exp: Math.floor((Date.now() + ttlMs) / 1000) }
+  return sign(toBase64Url(enc.encode(JSON.stringify(payload))))
+}
+
+export async function verifyPendingToken(token: string): Promise<string | null> {
+  try {
+    const raw = await unsign(token)
+    if (!raw) return null
+    const s = JSON.parse(raw) as PendingSession
+    if (Date.now() / 1000 > s.exp) return null
+    return s.rid
+  } catch {
+    return null
+  }
+}
+
 // ── Seller session ────────────────────────────────────────────────
 
 export const SELLER_COOKIE = '__pos_seller'

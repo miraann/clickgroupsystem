@@ -39,6 +39,7 @@ export function EditRestaurantModal({ plans, restaurant, onClose, onSaved }: Pro
     phone:     restaurant.phone ?? '',
     plan:      restaurant.plan,
     password:  '',
+    ownerPin:  '',
   })
   const [modules, setModules]           = useState<Record<string, boolean>>(
     (s?.modules as Record<string, boolean>) ?? {}
@@ -69,10 +70,14 @@ export function EditRestaurantModal({ plans, restaurant, onClose, onSaved }: Pro
     if (form.password.length > 0 && form.password.length < 8) {
       setSaveError('Password must be at least 8 characters.'); return
     }
+    if (form.ownerPin.length > 0 && !/^\d{6}$/.test(form.ownerPin)) {
+      setSaveError('Owner PIN must be exactly 6 digits.'); return
+    }
     setSaving(true); setSaveError(null)
     const settings: Record<string, unknown> = { ...(restaurant.settings ?? {}) }
     if (form.ownerName.trim()) settings.owner_name = form.ownerName.trim()
     if (form.password.trim())  settings.password   = form.password.trim()
+    if (form.ownerPin.trim())  settings.owner_pin  = form.ownerPin.trim()
     settings.modules = modules
     const { error } = await supabase.from('restaurants').update({
       name:  form.name.trim(),
@@ -140,6 +145,22 @@ export function EditRestaurantModal({ plans, restaurant, onClose, onSaved }: Pro
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-white/50 mb-1.5">
+                  Owner PIN <span className="text-white/25 font-normal">(6 digits — leave blank to keep current)</span>
+                </label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="\d*"
+                  maxLength={6}
+                  placeholder="e.g. 123456"
+                  value={form.ownerPin}
+                  onChange={e => set('ownerPin', e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm text-white placeholder-white/25 focus:outline-none focus:border-indigo-500/50 focus:bg-white/8 transition-all tracking-[0.25em]"
+                />
               </div>
 
               <div>

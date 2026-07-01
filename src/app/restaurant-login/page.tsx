@@ -26,7 +26,16 @@ export default function RestaurantLoginPage() {
     })
 
     if (res.ok) {
-      const { restaurant } = await res.json()
+      const data = await res.json()
+
+      if (data.requirePin) {
+        // Password verified — PIN step required. Pass restaurant name for display.
+        sessionStorage.setItem('pending_restaurant_name', data.restaurant?.name ?? '')
+        router.push('/restaurant-login/pin')
+        return
+      }
+
+      const { restaurant } = data
       // Clear any stale POS staff session before starting owner session
       const posKeys = ['pos_staff_id', 'pos_staff_name', 'pos_staff_role', 'pos_staff_color', 'pos_role_permissions', 'pos_role_name']
       posKeys.forEach(k => localStorage.removeItem(k))
