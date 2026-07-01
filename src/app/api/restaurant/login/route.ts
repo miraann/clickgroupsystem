@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
 
     const { data: restaurant } = await supabase
       .from('restaurants')
-      .select('id, name, menu_slug, settings')
+      .select('id, name, menu_slug, settings, email')
       .eq('email', email.trim().toLowerCase())
       .maybeSingle()
 
@@ -114,7 +114,7 @@ export async function POST(req: NextRequest) {
       const pendingToken = await createPendingToken(restaurant.id)
       const res = NextResponse.json({
         requirePin: true,
-        restaurant: { name: restaurant.name },
+        restaurant: { name: restaurant.name, menu_slug: restaurant.menu_slug },
       })
       res.cookies.set(RESTAURANT_PENDING_COOKIE, pendingToken, {
         httpOnly: true,

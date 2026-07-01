@@ -29,9 +29,8 @@ export default function RestaurantLoginPage() {
       const data = await res.json()
 
       if (data.requirePin) {
-        // Password verified — PIN step required. Pass restaurant name for display.
         sessionStorage.setItem('pending_restaurant_name', data.restaurant?.name ?? '')
-        router.push('/restaurant-login/pin')
+        router.push(`/restaurant-login/${data.restaurant?.menu_slug}/pin`)
         return
       }
 

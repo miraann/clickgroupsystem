@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useParams } from 'next/navigation'
 import { ChefHat, Delete, CheckCircle2, Loader2, ArrowLeft } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -9,6 +9,7 @@ type Key = typeof KEYS[number]
 
 export default function RestaurantPinPage() {
   const router = useRouter()
+  const { slug } = useParams() as { slug: string }
 
   const [restaurantName, setRestaurantName] = useState('')
   const [pin, setPin]       = useState('')
@@ -18,7 +19,6 @@ export default function RestaurantPinPage() {
   useEffect(() => {
     const name = sessionStorage.getItem('pending_restaurant_name') ?? ''
     if (!name) {
-      // No pending session — send back to login
       router.replace('/restaurant-login')
       return
     }
@@ -49,12 +49,12 @@ export default function RestaurantPinPage() {
     posKeys.forEach(k => localStorage.removeItem(k))
     localStorage.setItem('restaurant_id',   restaurant.id)
     localStorage.setItem('restaurant_name', restaurant.name)
-    localStorage.setItem('restaurant_slug', restaurant.menu_slug ?? '')
+    localStorage.setItem('restaurant_slug', restaurant.menu_slug ?? slug)
     localStorage.setItem('owner_session',   'true')
 
     setStatus('success')
     setTimeout(() => router.push('/dashboard'), 900)
-  }, [router])
+  }, [router, slug])
 
   const handleKey = useCallback((key: Key) => {
     if (status === 'checking' || status === 'success') return
@@ -78,7 +78,6 @@ export default function RestaurantPinPage() {
 
   return (
     <div className="min-h-screen bg-[#080b14] flex items-center justify-center px-4 relative overflow-hidden select-none">
-      {/* Background glows */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-amber-600/15 rounded-full blur-3xl" />
         <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-orange-600/10 rounded-full blur-3xl" />
@@ -99,7 +98,7 @@ export default function RestaurantPinPage() {
           </div>
           <h1 className="text-2xl font-black text-white">Enter Owner PIN</h1>
           <p className="text-white/40 text-sm mt-1">
-            {restaurantName ? restaurantName : '6-digit PIN to access your panel'}
+            {restaurantName || '6-digit PIN to access your panel'}
           </p>
         </div>
 
@@ -108,10 +107,10 @@ export default function RestaurantPinPage() {
           {[0, 1, 2, 3, 4, 5].map(i => (
             <div key={i} className={cn(
               'w-4 h-4 rounded-full border-2 transition-all duration-150',
-              status === 'success'   ? 'bg-emerald-400 border-emerald-400 scale-110'
-              : status === 'error'  ? 'bg-rose-400 border-rose-400'
+              status === 'success'    ? 'bg-emerald-400 border-emerald-400 scale-110'
+              : status === 'error'   ? 'bg-rose-400 border-rose-400'
               : status === 'checking' && i < pin.length ? 'bg-amber-400 border-amber-400 scale-110 animate-pulse'
-              : i < pin.length      ? 'bg-amber-400 border-amber-400 scale-110'
+              : i < pin.length       ? 'bg-amber-400 border-amber-400 scale-110'
               : 'bg-transparent border-white/20'
             )} />
           ))}
