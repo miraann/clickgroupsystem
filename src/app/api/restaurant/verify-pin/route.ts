@@ -49,7 +49,11 @@ export async function POST(req: NextRequest) {
     const settings = (restaurant.settings ?? {}) as Record<string, unknown>
     const ownerPin = settings.owner_pin as string | undefined
 
-    if (!ownerPin || pin !== ownerPin) {
+    if (!ownerPin) {
+      return NextResponse.json({ error: 'No PIN configured. Ask your seller administrator to set an owner PIN.' }, { status: 403 })
+    }
+
+    if (pin !== ownerPin) {
       return NextResponse.json({ error: 'Incorrect PIN.' }, { status: 401 })
     }
 

@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { rateLimit } from '@/lib/rate-limit'
-import {
-  createRestaurantToken, RESTAURANT_COOKIE,
-  createPendingToken, RESTAURANT_PENDING_COOKIE,
-} from '@/lib/session'
+import { createPendingToken, RESTAURANT_PENDING_COOKIE } from '@/lib/session'
 
 const enc = new TextEncoder()
 
@@ -107,45 +104,19 @@ export async function POST(req: NextRequest) {
         .eq('id', restaurant.id)
     }
 
-    const ownerPin = settings.owner_pin as string | undefined
-
-    // If a PIN is configured, issue a short-lived pending token and prompt for PIN
-    if (ownerPin) {
-      const pendingToken = await createPendingToken(restaurant.id)
-      const res = NextResponse.json({
-        requirePin: true,
-        restaurant: { name: restaurant.name, menu_slug: restaurant.menu_slug },
-      })
-      res.cookies.set(RESTAURANT_PENDING_COOKIE, pendingToken, {
-        httpOnly: true,
-        secure:   process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        path:     '/',
-        maxAge:   5 * 60,
-      })
-      return res
-    }
-
-    // No PIN — grant full session immediately (backward-compatible)
-    const token = await createRestaurantToken(restaurant.id, 'owner')
-
+    // Always require PIN step — issue a 5-min pending token and redirect to PIN page
+    const pendingToken = await createPendingToken(restaurant.id)
     const res = NextResponse.json({
-      ok: true,
-      restaurant: {
-        id:       restaurant.id,
-        name:     restaurant.name,
-        menu_slug: restaurant.menu_slug,
-      },
+      requirePin: true,
+      restaurant: { name: restaurant.name, menu_slug: restaurant.menu_slug },
     })
-
-    res.cookies.set(RESTAURANT_COOKIE, token, {
+    res.cookies.set(RESTAURANT_PENDING_COOKIE, pendingToken, {
       httpOnly: true,
       secure:   process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path:     '/',
-      maxAge:   8 * 3600,
+      maxAge:   5 * 60,
     })
-
     return res
   } catch {
     return NextResponse.json({ error: 'Internal error.' }, { status: 500 })
