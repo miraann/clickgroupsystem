@@ -126,6 +126,7 @@ function buildWhatsAppUrl(order: DeliveryOrder, formatPrice: (n: number) => stri
       `سڵاو بەڕێز ${order.customer_name}`,
       `داواکارییەکەت ژمارە #${order.order_num ?? ''}`,
       `بۆ پشتڕاستیکردنەوەی داواکرییەکەت تکایە *بەڵێ* بنووسە بۆ پشتڕاستکردنەوەی داواکارییەکەت، یان ئەگەر دەتەوێت گۆڕانکارییەک بکەی ئاگامانداربکە. سوپاس!`,
+      ...(order.delivery_fee > 0 ? [`گەیاندن: ${formatPrice(order.delivery_fee)}`] : []),
       `کۆی گشتی نرخ : ${formatPrice(order.order_total)}`,
     ].join('\n')
   }
