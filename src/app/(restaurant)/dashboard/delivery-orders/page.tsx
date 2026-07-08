@@ -123,14 +123,10 @@ function buildWhatsAppUrl(order: DeliveryOrder, formatPrice: (n: number) => stri
     ].join('\n')
   } else {
     msg = [
-      `سڵاو ${order.customer_name}! 👋`,
-      `داواکارییەکەت${order.order_num ? ` ژمارە #${order.order_num}` : ''} وەرگرتین و دەمانەوێت پشتڕاستیکردنەوەی لەگەڵت بکەین.`,
-      '', `🛍️ بڕگەکانت:`, itemLines, '',
-      `💳 کۆی بڕگەکان: ${formatPrice(itemsSubtotal)}`,
-      ...(order.delivery_fee > 0 ? [`🚚 کرێی گەیاندن: ${formatPrice(order.delivery_fee)}`] : []),
-      ...(discount > 0 ? [`🎉 داشکاندن: −${formatPrice(discount)}`] : []),
-      `💰 کۆی دەبێت بدەیت: ${formatPrice(order.order_total)}`, '',
-      `تکایە *بەڵێ* بنووسە بۆ پشتڕاستکردنەوەی داواکارییەکەت، یان ئەگەر دەتەوێت گۆڕانکارییەک بکەی ئاگامانداربکە. سوپاس! 🙏`,
+      `سڵاو بەڕێز ${order.customer_name}`,
+      `داواکارییەکەت ژمارە #${order.order_num ?? ''}`,
+      `بۆ پشتڕاستیکردنەوەی داواکرییەکەت تکایە *بەڵێ* بنووسە بۆ پشتڕاستکردنەوەی داواکارییەکەت، یان ئەگەر دەتەوێت گۆڕانکارییەک بکەی ئاگامانداربکە. سوپاس!`,
+      `کۆی گشتی نرخ : ${formatPrice(order.order_total)}`,
     ].join('\n')
   }
 
