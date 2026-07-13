@@ -1013,6 +1013,24 @@ const ku: Record<keyof typeof en, string> = {
   mem_points_history:   'مێژووی پووینت',
   mem_reason:           'هۆکار',
 
+  // ── Menu: Item modal ─────────────────────────────────────────
+  item_no_category:    'بێ پۆل',
+  item_cost:           'تێچوو',
+  item_margin:         'سوود',
+  item_photo_label:    'وێنەی کاڵا',
+  item_photo_change:   'گۆڕین',
+  item_photo_tap:      'کرتە بکە بۆ بارکردنی وێنە',
+  item_desc_ph:        'باسکردنی ئارەزووی',
+  item_avail_inhouse:  'بەردەستە (ناوخۆ)',
+  item_avail_delivery: 'بەردەستە لە مێنیوی گەیاندن',
+  item_avail_guest:    'بەردەستە لە مێنیوی QR',
+  item_mod_selected:   'هەڵبژێردرا',
+  item_ing_title:      'پێکهاتەکانی کۆگا',
+  item_ing_linked:     'بەستراوە',
+  item_ing_select_ph:  'کاڵایەکی کۆگا هەڵبژێرە…',
+  item_upload_fail:    'بارکردن شکست هێنا',
+  item_save_fail:      'پاشەکەوتکردن شکست هێنا',
+
   // ── Menu settings tab labels ─────────────────────────────────
   menu_tab_table_group:    'گرووپی مێز',
   menu_tab_table:          'مێز',

@@ -998,6 +998,24 @@ const en = {
   app_shape_round:      'Round',
   app_shape_rect:       'Rectangle',
 
+  // ── Menu: Item modal ─────────────────────────────────────────
+  item_no_category:    'No Category',
+  item_cost:           'Cost',
+  item_margin:         'Margin',
+  item_photo_label:    'Item Photo',
+  item_photo_change:   'Change',
+  item_photo_tap:      'Tap to upload photo',
+  item_desc_ph:        'Optional description',
+  item_avail_inhouse:  'Available (in-house)',
+  item_avail_delivery: 'Available on Delivery Menu',
+  item_avail_guest:    'Available on Guest QR Menu',
+  item_mod_selected:   'selected',
+  item_ing_title:      'Inventory Ingredients',
+  item_ing_linked:     'linked',
+  item_ing_select_ph:  'Select inventory item…',
+  item_upload_fail:    'Upload failed',
+  item_save_fail:      'Failed to save',
+
   // ── Menu settings tab labels ─────────────────────────────────
   menu_tab_table_group:    'Table Group',
   menu_tab_table:          'Table',

@@ -325,7 +325,7 @@ export default function ItemPage() {
           className={cn('px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all active:scale-95 shrink-0',
             filterCatId === 'all' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-white/5 text-white/40 hover:bg-white/8 hover:text-white/70')}
         >
-          All ({items.length})
+          {t.all} ({items.length})
         </button>
         {categories.map(c => (
           <button key={c.id} onClick={() => setFilterCatId(filterCatId === c.id ? 'all' : c.id)}
@@ -380,7 +380,7 @@ export default function ItemPage() {
               {/* Name */}
               <div>
                 <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.item_name} *</label>
-                <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Item name"
+                <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder={t.item_name}
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500/50 transition-colors" />
               </div>
 
@@ -390,23 +390,23 @@ export default function ItemPage() {
                   <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.item_category}</label>
                   <select value={form.category_id} onChange={e => setForm(f => ({ ...f, category_id: e.target.value }))}
                     className="w-full bg-[#0d1220] border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500/50 transition-colors">
-                    <option value="">No Category</option>
+                    <option value="">{t.item_no_category}</option>
                     {categories.map(c => <option key={c.id} value={c.id} className="bg-[#0d1220]">{c.name}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs text-white/50 mb-1.5 font-medium">Price ({cur})</label>
+                  <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.item_price} ({cur})</label>
                   <input type="number" min="0" step="0.5" value={form.price} onChange={e => setForm(f => ({ ...f, price: parseFloat(e.target.value) || 0 }))}
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500/50 transition-colors" />
                 </div>
                 <div>
-                  <label className="block text-xs text-white/50 mb-1.5 font-medium">Cost ({cur})</label>
+                  <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.item_cost} ({cur})</label>
                   <input type="number" min="0" step="0.5" value={form.cost} onChange={e => setForm(f => ({ ...f, cost: parseFloat(e.target.value) || 0 }))}
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500/50 transition-colors" />
                 </div>
                 {form.price > 0 && form.cost > 0 && (
                   <div className="flex flex-col justify-end pb-2.5">
-                    <p className="text-xs text-white/40">Margin</p>
+                    <p className="text-xs text-white/40">{t.item_margin}</p>
                     <p className={form.price > form.cost ? 'text-sm font-semibold text-emerald-400' : 'text-sm font-semibold text-rose-400'}>
                       {Math.round(((form.price - form.cost) / form.price) * 100)}%
                     </p>
@@ -416,7 +416,7 @@ export default function ItemPage() {
 
               {/* Image Upload */}
               <div>
-                <label className="block text-xs text-white/50 mb-1.5 font-medium">Item Photo</label>
+                <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.item_photo_label}</label>
                 <div className="relative">
                   {form.image_url ? (
                     <div className="relative rounded-xl overflow-hidden border border-white/10 w-32 h-40 mx-auto">
@@ -428,14 +428,14 @@ export default function ItemPage() {
                         <X className="w-3.5 h-3.5" />
                       </button>
                       <label className="absolute bottom-2 right-2 px-2.5 py-1.5 rounded-lg bg-black/60 backdrop-blur-sm border border-white/15 flex items-center gap-1.5 text-xs text-white/70 hover:text-white cursor-pointer transition-all">
-                        <ImageIcon className="w-3 h-3" />Change
+                        <ImageIcon className="w-3 h-3" />{t.item_photo_change}
                         <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
                       </label>
                     </div>
                   ) : (
                     <label className="flex flex-col items-center justify-center h-20 rounded-xl bg-white/3 border border-dashed border-white/15 hover:bg-white/5 hover:border-amber-500/30 cursor-pointer transition-all group">
                       <ImageIcon className="w-5 h-5 text-white/20 mb-1 group-hover:text-amber-400/40 transition-colors" />
-                      <span className="text-xs text-white/30 group-hover:text-white/50 transition-colors">Tap to upload photo</span>
+                      <span className="text-xs text-white/30 group-hover:text-white/50 transition-colors">{t.item_photo_tap}</span>
                       <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
                     </label>
                   )}
@@ -446,14 +446,14 @@ export default function ItemPage() {
                   )}
                 </div>
                 {uploadError && (
-                  <p className="mt-1.5 text-xs text-rose-400 font-mono break-all">Upload failed: {uploadError}</p>
+                  <p className="mt-1.5 text-xs text-rose-400 font-mono break-all">{t.item_upload_fail}: {uploadError}</p>
                 )}
               </div>
 
               {/* Description */}
               <div>
-                <label className="block text-xs text-white/50 mb-1.5 font-medium">Description</label>
-                <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={2} placeholder="Optional description"
+                <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.item_description}</label>
+                <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={2} placeholder={t.item_desc_ph}
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500/50 transition-colors resize-none" />
               </div>
 
@@ -461,15 +461,15 @@ export default function ItemPage() {
               <div className="space-y-2">
                 <button onClick={() => setForm(f => ({ ...f, available: !f.available }))} className="flex items-center gap-2 text-sm w-full">
                   {form.available ? <ToggleRight className="w-6 h-6 text-amber-400" /> : <ToggleLeft className="w-6 h-6 text-white/25" />}
-                  <span className={form.available ? 'text-white' : 'text-white/40'}>Available (in-house)</span>
+                  <span className={form.available ? 'text-white' : 'text-white/40'}>{t.item_avail_inhouse}</span>
                 </button>
                 <button onClick={() => setForm(f => ({ ...f, available_delivery: !f.available_delivery }))} className="flex items-center gap-2 text-sm w-full">
                   {form.available_delivery ? <ToggleRight className="w-6 h-6 text-sky-400" /> : <ToggleLeft className="w-6 h-6 text-white/25" />}
-                  <span className={form.available_delivery ? 'text-white' : 'text-white/40'}>Available on Delivery Menu</span>
+                  <span className={form.available_delivery ? 'text-white' : 'text-white/40'}>{t.item_avail_delivery}</span>
                 </button>
                 <button onClick={() => setForm(f => ({ ...f, available_guest: !f.available_guest }))} className="flex items-center gap-2 text-sm w-full">
                   {form.available_guest ? <ToggleRight className="w-6 h-6 text-violet-400" /> : <ToggleLeft className="w-6 h-6 text-white/25" />}
-                  <span className={form.available_guest ? 'text-white' : 'text-white/40'}>Available on Guest QR Menu</span>
+                  <span className={form.available_guest ? 'text-white' : 'text-white/40'}>{t.item_avail_guest}</span>
                 </button>
               </div>
 
@@ -477,8 +477,8 @@ export default function ItemPage() {
               {modifiers.length > 0 && (
                 <div>
                   <label className="block text-xs text-white/50 mb-2 font-medium">
-                    Modifiers
-                    {selectedModIds.length > 0 && <span className="ml-1.5 text-violet-400">{selectedModIds.length} selected</span>}
+                    {t.item_modifiers}
+                    {selectedModIds.length > 0 && <span className="ml-1.5 text-violet-400">{selectedModIds.length} {t.item_mod_selected}</span>}
                   </label>
                   <div className="flex flex-wrap gap-2">
                     {modifiers.map(m => {
@@ -510,8 +510,8 @@ export default function ItemPage() {
                   <div className="flex items-center gap-2 mb-2">
                     <Package className="w-3.5 h-3.5 text-emerald-400" />
                     <label className="text-xs text-white/50 font-medium">
-                      Inventory Ingredients
-                      {ingredients.length > 0 && <span className="ml-1.5 text-emerald-400">{ingredients.length} linked</span>}
+                      {t.item_ing_title}
+                      {ingredients.length > 0 && <span className="ml-1.5 text-emerald-400">{ingredients.length} {t.item_ing_linked}</span>}
                     </label>
                   </div>
 
@@ -550,7 +550,7 @@ export default function ItemPage() {
                       onChange={e => setAddIngId(e.target.value)}
                       className="flex-1 bg-[#0d1220] border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500/50 transition-colors"
                     >
-                      <option value="">Select inventory item…</option>
+                      <option value="">{t.item_ing_select_ph}</option>
                       {invItems.filter(i => !ingredients.find(g => g.inventory_item_id === i.id)).map(i => (
                         <option key={i.id} value={i.id}>{i.name}{i.sku ? ` (${i.sku})` : ''}</option>
                       ))}
@@ -564,7 +564,7 @@ export default function ItemPage() {
                       disabled={!addIngId}
                       className="px-3 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 disabled:opacity-30 text-white text-xs font-medium transition-all active:scale-95 flex items-center gap-1 shrink-0"
                     >
-                      <Plus className="w-3.5 h-3.5" /> Add
+                      <Plus className="w-3.5 h-3.5" /> {t.add}
                     </button>
                   </div>
                 </div>
@@ -573,19 +573,19 @@ export default function ItemPage() {
 
             {saveError && (
               <div className="mt-4 px-3 py-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20">
-                <p className="text-xs text-rose-400 font-medium">Failed to save</p>
+                <p className="text-xs text-rose-400 font-medium">{t.item_save_fail}</p>
                 <p className="text-xs text-white/40 mt-0.5 font-mono break-all">{saveError}</p>
               </div>
             )}
 
             <div className="flex gap-3 mt-4">
               <button onClick={() => { setModal(false); setSaveError(null) }} className="flex-1 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 text-sm font-medium transition-all active:scale-95">
-                Cancel
+                {t.cancel}
               </button>
               <button onClick={handleSave} disabled={!form.name.trim() || saving}
                 className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium transition-all active:scale-95 flex items-center justify-center gap-2">
                 {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-                {editId ? 'Save Changes' : 'Add Item'}
+                {editId ? t.save_changes : t.item_add}
               </button>
             </div>
           </div>
@@ -608,6 +608,7 @@ function SortableItemRow({
   onEdit: (item: Item) => void
   onDelete: (id: string) => void
 }) {
+  const { t } = useLanguage()
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: item.id })
 
@@ -670,7 +671,7 @@ function SortableItemRow({
 
       <button onClick={() => onDelete(item.id)} className={cn('h-8 rounded-lg flex items-center justify-center transition-all active:scale-95 shrink-0 text-xs font-medium',
         deleteId === item.id ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30 px-2' : 'w-8 bg-white/5 hover:bg-rose-500/10 text-white/40 hover:text-rose-400')}>
-        {deleteId === item.id ? 'Confirm?' : <Trash2 className="w-3.5 h-3.5" />}
+        {deleteId === item.id ? t.confirm_delete : <Trash2 className="w-3.5 h-3.5" />}
       </button>
     </div>
   )

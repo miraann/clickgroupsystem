@@ -1013,6 +1013,24 @@ const ar: Record<keyof typeof en, string> = {
   mem_points_history:   'سجل النقاط',
   mem_reason:           'السبب',
 
+  // ── Menu: Item modal ─────────────────────────────────────────
+  item_no_category:    'بدون فئة',
+  item_cost:           'التكلفة',
+  item_margin:         'هامش الربح',
+  item_photo_label:    'صورة الصنف',
+  item_photo_change:   'تغيير',
+  item_photo_tap:      'اضغط لرفع صورة',
+  item_desc_ph:        'وصف اختياري',
+  item_avail_inhouse:  'متاح (في المطعم)',
+  item_avail_delivery: 'متاح في قائمة التوصيل',
+  item_avail_guest:    'متاح في قائمة QR للضيوف',
+  item_mod_selected:   'محدد',
+  item_ing_title:      'مكونات المخزون',
+  item_ing_linked:     'مرتبط',
+  item_ing_select_ph:  'حدد عنصر مخزون…',
+  item_upload_fail:    'فشل الرفع',
+  item_save_fail:      'فشل الحفظ',
+
   // ── Menu settings tab labels ─────────────────────────────────
   menu_tab_table_group:    'مجموعة الطاولات',
   menu_tab_table:          'الطاولة',

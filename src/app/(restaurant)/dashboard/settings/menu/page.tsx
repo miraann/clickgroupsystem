@@ -77,7 +77,7 @@ export default function MenuSettingsPage() {
                 )}
               >
                 <Icon size={15} className="shrink-0" />
-                <span className="hidden sm:inline">{t(labelKey as any)}</span>
+                <span className="hidden sm:inline">{t[labelKey as keyof typeof t]}</span>
               </button>
             ))}
           </div>
