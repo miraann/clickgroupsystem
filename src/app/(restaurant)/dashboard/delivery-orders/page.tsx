@@ -100,7 +100,7 @@ function resolveTemplate(tpl: string, order: DeliveryOrder, formatPrice: (n: num
     .replace(/\{\{subtotal\}\}/g,       formatPrice(subtotal))
     .replace(/\{\{delivery_fee\}\}/g,   order.delivery_fee > 0 ? formatPrice(order.delivery_fee) : '')
     .replace(/\{\{total_price\}\}/g,    formatPrice(order.order_total))
-    .replace(/\{\{address\}\}/g,        order.address ?? '')
+    .replace(/\{\{address\}\}/g,        order.address_text ?? '')
 }
 
 function buildWhatsAppUrl(order: DeliveryOrder, resolvedMsg: string): string {
