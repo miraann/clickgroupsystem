@@ -1,5 +1,5 @@
 ﻿'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import {
@@ -75,6 +75,25 @@ export default function PaymentMethodPage() {
   const methods    = (swrData?.methods    ?? []) as PayMethod[]
   const currencies = swrData?.currencies ?? []
   const error      = swrError ? (swrError as Error).message : null
+
+  // Auto-seed IQD currency and Cash payment method for restaurants that have none
+  useEffect(() => {
+    if (!swrData || !restaurantId) return
+    const toInsert: Promise<unknown>[] = []
+    if ((swrData.currencies ?? []).length === 0) {
+      toInsert.push(supabase.from('currencies').insert({
+        restaurant_id: restaurantId, name: 'Iraqi Dinar', symbol: 'IQD',
+        decimal_places: 0, is_default: true, sort_order: 0,
+      }))
+    }
+    if ((swrData.methods ?? []).length === 0) {
+      toInsert.push(supabase.from('payment_methods').insert({
+        restaurant_id: restaurantId, name: 'کاش', icon_type: 'cash',
+        active: true, is_default: true, sort_order: 0,
+      }))
+    }
+    if (toInsert.length > 0) Promise.all(toInsert).then(() => mutate())
+  }, [swrData]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const [payModal, setPayModal]       = useState(false)
   const [editPayId, setEditPayId]     = useState<string | null>(null)

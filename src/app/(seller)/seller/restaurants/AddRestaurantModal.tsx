@@ -49,16 +49,30 @@ export function AddRestaurantModal({ plans, onClose, onSaved }: Props) {
     const selectedPlan = plans.find(p => p.slug === form.plan)
     if (selectedPlan) settings.modules = selectedPlan.modules
 
-    const { error } = await supabase.from('restaurants').insert({
+    const { data: newRest, error } = await supabase.from('restaurants').insert({
       name:   form.name.trim(),
       email:  form.email.trim() || null,
       phone:  form.phone.trim() || null,
       plan:   form.plan,
       status: 'active',
       settings,
-    })
+    }).select('id').single()
     setSaving(false)
     if (error) { setSaveError(error.message); return }
+
+    if (newRest?.id) {
+      await Promise.all([
+        supabase.from('currencies').insert({
+          restaurant_id: newRest.id, name: 'Iraqi Dinar', symbol: 'IQD',
+          decimal_places: 0, is_default: true, sort_order: 0,
+        }),
+        supabase.from('payment_methods').insert({
+          restaurant_id: newRest.id, name: 'کاش', icon_type: 'cash',
+          active: true, is_default: true, sort_order: 0,
+        }),
+      ])
+    }
+
     onSaved()
   }
 
