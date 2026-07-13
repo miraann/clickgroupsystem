@@ -1013,6 +1013,20 @@ const ar: Record<keyof typeof en, string> = {
   mem_points_history:   'سجل النقاط',
   mem_reason:           'السبب',
 
+  // ── Menu settings tab labels ─────────────────────────────────
+  menu_tab_table_group:    'مجموعة الطاولات',
+  menu_tab_table:          'الطاولة',
+  menu_tab_category:       'الفئة',
+  menu_tab_item:           'الصنف',
+  menu_tab_modifier:       'المعدِّل',
+  menu_tab_kitchen_note:   'ملاحظة المطبخ',
+  menu_tab_void_reason:    'سبب الإلغاء',
+  menu_tab_event_offer:    'الفعاليات والعروض',
+  menu_tab_discount:       'الخصم',
+  menu_tab_combo_discount: 'خصم الكومبو',
+  menu_tab_surcharge:      'رسوم إضافية',
+  menu_tab_payment_method: 'طريقة الدفع',
+
   // ── Activity toast action labels ──────────────────────────────
   toast_sent_to_kitchen:    'أُرسل للمطبخ',
   toast_payment:            'الدفع',

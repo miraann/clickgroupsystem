@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { AnimatePresence, motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 import {
   Layers, LayoutGrid, Tag, UtensilsCrossed, Sliders, ChefHat,
   XCircle, Percent, Gift, Plus, CreditCard, CalendarDays,
@@ -26,23 +27,24 @@ type TabKey =
   | 'kitchen-note' | 'void-reason' | 'event-offer' | 'discount'
   | 'combo-discount' | 'surcharge' | 'payment-method'
 
-const TABS: { key: TabKey; label: string; icon: React.ElementType; color: string; activeColor: string }[] = [
-  { key: 'table-group',    label: 'Table Group',    icon: Layers,          color: 'bg-violet-500/70 text-white',  activeColor: 'bg-violet-500 text-white shadow-lg shadow-violet-500/30' },
-  { key: 'table',          label: 'Table',          icon: LayoutGrid,      color: 'bg-blue-500/70 text-white',    activeColor: 'bg-blue-500 text-white shadow-lg shadow-blue-500/30' },
-  { key: 'category',       label: 'Category',       icon: Tag,             color: 'bg-cyan-500/70 text-white',    activeColor: 'bg-cyan-500 text-white shadow-lg shadow-cyan-500/30' },
-  { key: 'item',           label: 'Item',           icon: UtensilsCrossed, color: 'bg-amber-500/70 text-white',   activeColor: 'bg-amber-500 text-white shadow-lg shadow-amber-500/30' },
-  { key: 'modifier',       label: 'Modifier',       icon: Sliders,         color: 'bg-orange-500/70 text-white',  activeColor: 'bg-orange-500 text-white shadow-lg shadow-orange-500/30' },
-  { key: 'kitchen-note',   label: 'Kitchen Note',   icon: ChefHat,         color: 'bg-rose-500/70 text-white',    activeColor: 'bg-rose-500 text-white shadow-lg shadow-rose-500/30' },
-  { key: 'void-reason',    label: 'Void Reason',    icon: XCircle,         color: 'bg-red-500/70 text-white',     activeColor: 'bg-red-500 text-white shadow-lg shadow-red-500/30' },
-  { key: 'event-offer',    label: 'Event & Offer',  icon: CalendarDays,    color: 'bg-pink-500/70 text-white',    activeColor: 'bg-pink-500 text-white shadow-lg shadow-pink-500/30' },
-  { key: 'discount',       label: 'Discount',       icon: Percent,         color: 'bg-emerald-500/70 text-white', activeColor: 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30' },
-  { key: 'combo-discount', label: 'Combo Discount', icon: Gift,            color: 'bg-teal-500/70 text-white',    activeColor: 'bg-teal-500 text-white shadow-lg shadow-teal-500/30' },
-  { key: 'surcharge',      label: 'Surcharge',      icon: Plus,            color: 'bg-lime-600/70 text-white',    activeColor: 'bg-lime-600 text-white shadow-lg shadow-lime-500/30' },
-  { key: 'payment-method', label: 'Payment Method', icon: CreditCard,      color: 'bg-indigo-500/70 text-white',  activeColor: 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/30' },
+const TABS: { key: TabKey; labelKey: string; icon: React.ElementType; color: string; activeColor: string }[] = [
+  { key: 'table-group',    labelKey: 'menu_tab_table_group',    icon: Layers,          color: 'bg-violet-500/70 text-white',  activeColor: 'bg-violet-500 text-white shadow-lg shadow-violet-500/30' },
+  { key: 'table',          labelKey: 'menu_tab_table',          icon: LayoutGrid,      color: 'bg-blue-500/70 text-white',    activeColor: 'bg-blue-500 text-white shadow-lg shadow-blue-500/30' },
+  { key: 'category',       labelKey: 'menu_tab_category',       icon: Tag,             color: 'bg-cyan-500/70 text-white',    activeColor: 'bg-cyan-500 text-white shadow-lg shadow-cyan-500/30' },
+  { key: 'item',           labelKey: 'menu_tab_item',           icon: UtensilsCrossed, color: 'bg-amber-500/70 text-white',   activeColor: 'bg-amber-500 text-white shadow-lg shadow-amber-500/30' },
+  { key: 'modifier',       labelKey: 'menu_tab_modifier',       icon: Sliders,         color: 'bg-orange-500/70 text-white',  activeColor: 'bg-orange-500 text-white shadow-lg shadow-orange-500/30' },
+  { key: 'kitchen-note',   labelKey: 'menu_tab_kitchen_note',   icon: ChefHat,         color: 'bg-rose-500/70 text-white',    activeColor: 'bg-rose-500 text-white shadow-lg shadow-rose-500/30' },
+  { key: 'void-reason',    labelKey: 'menu_tab_void_reason',    icon: XCircle,         color: 'bg-red-500/70 text-white',     activeColor: 'bg-red-500 text-white shadow-lg shadow-red-500/30' },
+  { key: 'event-offer',    labelKey: 'menu_tab_event_offer',    icon: CalendarDays,    color: 'bg-pink-500/70 text-white',    activeColor: 'bg-pink-500 text-white shadow-lg shadow-pink-500/30' },
+  { key: 'discount',       labelKey: 'menu_tab_discount',       icon: Percent,         color: 'bg-emerald-500/70 text-white', activeColor: 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30' },
+  { key: 'combo-discount', labelKey: 'menu_tab_combo_discount', icon: Gift,            color: 'bg-teal-500/70 text-white',    activeColor: 'bg-teal-500 text-white shadow-lg shadow-teal-500/30' },
+  { key: 'surcharge',      labelKey: 'menu_tab_surcharge',      icon: Plus,            color: 'bg-lime-600/70 text-white',    activeColor: 'bg-lime-600 text-white shadow-lg shadow-lime-500/30' },
+  { key: 'payment-method', labelKey: 'menu_tab_payment_method', icon: CreditCard,      color: 'bg-indigo-500/70 text-white',  activeColor: 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/30' },
 ]
 
 export default function MenuSettingsPage() {
   const router = useRouter()
+  const { t } = useLanguage()
   const [tab, setTab] = useState<TabKey>('table-group')
 
   useEffect(() => {
@@ -65,7 +67,7 @@ export default function MenuSettingsPage() {
       <div className="shrink-0 sticky top-0 z-20 backdrop-blur-xl border-b border-white/8 w-full" style={{ background: 'var(--app-anchor-90, rgba(2,38,88,0.9))' }}>
         <div className="overflow-x-auto scrollbar-touch">
           <div className="flex gap-1 px-6 md:px-12 2xl:px-24 3xl:px-44 pt-4 pb-0 min-w-max">
-            {TABS.map(({ key, label, icon: Icon, color, activeColor }) => (
+            {TABS.map(({ key, labelKey, icon: Icon, color, activeColor }) => (
               <button
                 key={key}
                 onClick={() => switchTab(key)}
@@ -75,7 +77,7 @@ export default function MenuSettingsPage() {
                 )}
               >
                 <Icon size={15} className="shrink-0" />
-                <span className="hidden sm:inline">{label}</span>
+                <span className="hidden sm:inline">{t(labelKey as any)}</span>
               </button>
             ))}
           </div>

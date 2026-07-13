@@ -458,7 +458,7 @@ const ku: Record<keyof typeof en, string> = {
   tbl_subtitle:         'بەڕێوەبردنی شێوەی مێز و QR',
   tbl_add:              'مێز زیاد بکە',
   tbl_label:            'ناو',
-  tbl_capacity:         'ظرفیت',
+  tbl_capacity:         'کەس',
   tbl_shape:            'شێوە',
   tbl_group:            'گرووپ',
   tbl_qr:               'QR',
@@ -1012,6 +1012,20 @@ const ku: Record<keyof typeof en, string> = {
   mem_deduct_points:    'پووینت کەمبکەرەوە',
   mem_points_history:   'مێژووی پووینت',
   mem_reason:           'هۆکار',
+
+  // ── Menu settings tab labels ─────────────────────────────────
+  menu_tab_table_group:    'گرووپی مێز',
+  menu_tab_table:          'مێز',
+  menu_tab_category:       'پۆل',
+  menu_tab_item:           'کاڵا',
+  menu_tab_modifier:       'گۆڕانکاری',
+  menu_tab_kitchen_note:   'تێبینی چێشتخانە',
+  menu_tab_void_reason:    'هۆکاری بەتاڵکردن',
+  menu_tab_event_offer:    'ئیڤینت و پێشکەش',
+  menu_tab_discount:       'داشکاندن',
+  menu_tab_combo_discount: 'داشکاندنی کۆمبۆ',
+  menu_tab_surcharge:      'زیادە',
+  menu_tab_payment_method: 'شێوازی پارەدان',
 
   // ── Activity toast action labels ──────────────────────────────
   toast_sent_to_kitchen:    'نێردرا بۆ چێشتخانە',

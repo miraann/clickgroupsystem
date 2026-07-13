@@ -998,6 +998,20 @@ const en = {
   app_shape_round:      'Round',
   app_shape_rect:       'Rectangle',
 
+  // ── Menu settings tab labels ─────────────────────────────────
+  menu_tab_table_group:    'Table Group',
+  menu_tab_table:          'Table',
+  menu_tab_category:       'Category',
+  menu_tab_item:           'Item',
+  menu_tab_modifier:       'Modifier',
+  menu_tab_kitchen_note:   'Kitchen Note',
+  menu_tab_void_reason:    'Void Reason',
+  menu_tab_event_offer:    'Event & Offer',
+  menu_tab_discount:       'Discount',
+  menu_tab_combo_discount: 'Combo Discount',
+  menu_tab_surcharge:      'Surcharge',
+  menu_tab_payment_method: 'Payment Method',
+
   // ── Activity toast action labels ──────────────────────────────
   toast_sent_to_kitchen:    'Sent to Kitchen',
   toast_payment:            'Payment',
