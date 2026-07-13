@@ -494,7 +494,7 @@ const ku: Record<keyof typeof en, string> = {
   kn_no_data:           'هێشتا هیچ تێبینیێکی چێشتخانەیێکی نییە',
 
   // ── Menu: Modifier ────────────────────────────────
-  mod_title:            'گۆڕانکاریەکان',
+  mod_title:            'زیادکراوەکان',
   mod_subtitle:         'بژاردەکانی کاڵا و زیادەکان',
   mod_add:              'گرووپی گۆڕانکاری زیاد بکە',
   mod_group_name:       'ناوی گرووپ',
@@ -589,7 +589,7 @@ const ku: Record<keyof typeof en, string> = {
   item_image:           'وێنە',
   item_available:       'بەردەستە',
   item_no_data:         'هێشتا هیچ کاڵایەکی نییە',
-  item_modifiers:       'گۆڕانکاریەکان',
+  item_modifiers:       'زیادکراوەکان',
 
   // ── WhatsApp Marketing ────────────────────────────
   wa_title:             'مارکێتینگی واتسئەپ',
