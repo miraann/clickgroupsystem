@@ -537,7 +537,7 @@ const ku: Record<keyof typeof en, string> = {
 
   // ── Menu: Event & Offer ───────────────────────────
   evt_title:            'ئۆفەر و بۆنەکان',
-  evt_subtitle:         'تەشویقەکانی نیشاندراو لە مێنیوی QR',
+  evt_subtitle:         'تایبەت بە مێنیوی ئۆنلاین',
   evt_add:              'ئیڤینت زیاد بکە',
   evt_name:             'سەرنووسە',
   evt_description:      'باسکردن',
