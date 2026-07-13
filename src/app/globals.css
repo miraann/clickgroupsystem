@@ -119,32 +119,26 @@ input[type="time"]::-webkit-calendar-picker-indicator {
   animation: shimmer 1.8s ease-in-out infinite;
 }
 
-/* ── text-white → --app-text override ────────────────────────────
-   Declared in a named layer AFTER @import "tailwindcss", so this layer
-   sits above Tailwind's 'utilities' layer in cascade priority — no
-   !important needed. --app-text defaults to #ffffff (white) so every
-   non-restaurant page is unaffected. Only when AppearanceBgProvider
-   changes --app-text (e.g. to #0f172a for light backgrounds) do these
-   rules produce visible colour changes.
+/* ── text-white → --app-text / --app-text-muted override ─────────
+   @layer overrides sits above Tailwind's 'utilities' layer (declared
+   after @import "tailwindcss") so these rules win without !important.
+
+   Design-token mapping:
+     /55 → /90   "near-primary" text  → --app-text   (strong, content)
+     /40 → /50   "subtitle" text      → --app-text-muted (the muted token)
+     /10 → /38   "hint" text          → --app-text-muted at reduced opacity
+   hover: always resolves to --app-text (hover = revealing primary text)
+   placeholder: resolves to --app-text-muted (placeholder = secondary)
+
+   Defaults: --app-text #ffffff, --app-text-muted #94a3b8, so every
+   non-restaurant page looks exactly as before.
    ---------------------------------------------------------------- */
 @layer overrides {
 
-  /* ── Base text-white ── */
+  /* ── Base ── */
   .text-white { color: var(--app-text, #ffffff); }
 
-  /* ── Static opacity variants (all values used in the codebase) ── */
-  .text-white\/10 { color: color-mix(in srgb, var(--app-text, #ffffff)  10%, transparent); }
-  .text-white\/12 { color: color-mix(in srgb, var(--app-text, #ffffff)  12%, transparent); }
-  .text-white\/15 { color: color-mix(in srgb, var(--app-text, #ffffff)  15%, transparent); }
-  .text-white\/18 { color: color-mix(in srgb, var(--app-text, #ffffff)  18%, transparent); }
-  .text-white\/20 { color: color-mix(in srgb, var(--app-text, #ffffff)  20%, transparent); }
-  .text-white\/25 { color: color-mix(in srgb, var(--app-text, #ffffff)  25%, transparent); }
-  .text-white\/30 { color: color-mix(in srgb, var(--app-text, #ffffff)  30%, transparent); }
-  .text-white\/35 { color: color-mix(in srgb, var(--app-text, #ffffff)  35%, transparent); }
-  .text-white\/38 { color: color-mix(in srgb, var(--app-text, #ffffff)  38%, transparent); }
-  .text-white\/40 { color: color-mix(in srgb, var(--app-text, #ffffff)  40%, transparent); }
-  .text-white\/45 { color: color-mix(in srgb, var(--app-text, #ffffff)  45%, transparent); }
-  .text-white\/50 { color: color-mix(in srgb, var(--app-text, #ffffff)  50%, transparent); }
+  /* ── Near-primary zone (/55–/90): strong, content-level text ── */
   .text-white\/55 { color: color-mix(in srgb, var(--app-text, #ffffff)  55%, transparent); }
   .text-white\/60 { color: color-mix(in srgb, var(--app-text, #ffffff)  60%, transparent); }
   .text-white\/65 { color: color-mix(in srgb, var(--app-text, #ffffff)  65%, transparent); }
@@ -154,23 +148,39 @@ input[type="time"]::-webkit-calendar-picker-indicator {
   .text-white\/85 { color: color-mix(in srgb, var(--app-text, #ffffff)  85%, transparent); }
   .text-white\/90 { color: color-mix(in srgb, var(--app-text, #ffffff)  90%, transparent); }
 
-  /* ── hover: variants ── */
-  .hover\:text-white:hover         { color: var(--app-text, #ffffff); }
-  .hover\:text-white\/45:hover     { color: color-mix(in srgb, var(--app-text, #ffffff)  45%, transparent); }
-  .hover\:text-white\/50:hover     { color: color-mix(in srgb, var(--app-text, #ffffff)  50%, transparent); }
-  .hover\:text-white\/55:hover     { color: color-mix(in srgb, var(--app-text, #ffffff)  55%, transparent); }
-  .hover\:text-white\/60:hover     { color: color-mix(in srgb, var(--app-text, #ffffff)  60%, transparent); }
-  .hover\:text-white\/65:hover     { color: color-mix(in srgb, var(--app-text, #ffffff)  65%, transparent); }
-  .hover\:text-white\/70:hover     { color: color-mix(in srgb, var(--app-text, #ffffff)  70%, transparent); }
-  .hover\:text-white\/75:hover     { color: color-mix(in srgb, var(--app-text, #ffffff)  75%, transparent); }
-  .hover\:text-white\/80:hover     { color: color-mix(in srgb, var(--app-text, #ffffff)  80%, transparent); }
-  .hover\:text-white\/90:hover     { color: color-mix(in srgb, var(--app-text, #ffffff)  90%, transparent); }
+  /* ── Subtitle/muted zone (/40–/50): secondary text → --app-text-muted ── */
+  .text-white\/40 { color: var(--app-text-muted, #94a3b8); }
+  .text-white\/45 { color: var(--app-text-muted, #94a3b8); }
+  .text-white\/50 { color: var(--app-text-muted, #94a3b8); }
 
-  /* ── placeholder: variants ── */
-  .placeholder\:text-white\/20::placeholder { color: color-mix(in srgb, var(--app-text, #ffffff) 20%, transparent); }
-  .placeholder\:text-white\/25::placeholder { color: color-mix(in srgb, var(--app-text, #ffffff) 25%, transparent); }
+  /* ── Hint zone (/10–/38): faint hints → --app-text-muted at low opacity ── */
+  .text-white\/38 { color: color-mix(in srgb, var(--app-text-muted, #94a3b8)  92%, transparent); }
+  .text-white\/35 { color: color-mix(in srgb, var(--app-text-muted, #94a3b8)  85%, transparent); }
+  .text-white\/30 { color: color-mix(in srgb, var(--app-text-muted, #94a3b8)  72%, transparent); }
+  .text-white\/25 { color: color-mix(in srgb, var(--app-text-muted, #94a3b8)  60%, transparent); }
+  .text-white\/20 { color: color-mix(in srgb, var(--app-text-muted, #94a3b8)  48%, transparent); }
+  .text-white\/18 { color: color-mix(in srgb, var(--app-text-muted, #94a3b8)  43%, transparent); }
+  .text-white\/15 { color: color-mix(in srgb, var(--app-text-muted, #94a3b8)  36%, transparent); }
+  .text-white\/12 { color: color-mix(in srgb, var(--app-text-muted, #94a3b8)  28%, transparent); }
+  .text-white\/10 { color: color-mix(in srgb, var(--app-text-muted, #94a3b8)  23%, transparent); }
 
-  /* ── focus: variants ── */
+  /* ── hover: → always --app-text (hover = revealing primary content) ── */
+  .hover\:text-white:hover      { color: var(--app-text, #ffffff); }
+  .hover\:text-white\/45:hover  { color: color-mix(in srgb, var(--app-text, #ffffff)  45%, transparent); }
+  .hover\:text-white\/50:hover  { color: color-mix(in srgb, var(--app-text, #ffffff)  50%, transparent); }
+  .hover\:text-white\/55:hover  { color: color-mix(in srgb, var(--app-text, #ffffff)  55%, transparent); }
+  .hover\:text-white\/60:hover  { color: color-mix(in srgb, var(--app-text, #ffffff)  60%, transparent); }
+  .hover\:text-white\/65:hover  { color: color-mix(in srgb, var(--app-text, #ffffff)  65%, transparent); }
+  .hover\:text-white\/70:hover  { color: color-mix(in srgb, var(--app-text, #ffffff)  70%, transparent); }
+  .hover\:text-white\/75:hover  { color: color-mix(in srgb, var(--app-text, #ffffff)  75%, transparent); }
+  .hover\:text-white\/80:hover  { color: color-mix(in srgb, var(--app-text, #ffffff)  80%, transparent); }
+  .hover\:text-white\/90:hover  { color: color-mix(in srgb, var(--app-text, #ffffff)  90%, transparent); }
+
+  /* ── placeholder: → --app-text-muted (placeholder = secondary/hint) ── */
+  .placeholder\:text-white\/20::placeholder { color: color-mix(in srgb, var(--app-text-muted, #94a3b8) 48%, transparent); }
+  .placeholder\:text-white\/25::placeholder { color: color-mix(in srgb, var(--app-text-muted, #94a3b8) 60%, transparent); }
+
+  /* ── focus: → --app-text ── */
   .focus\:text-white:focus { color: var(--app-text, #ffffff); }
 
 }
