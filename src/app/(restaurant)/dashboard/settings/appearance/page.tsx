@@ -18,6 +18,8 @@ interface AppearanceSettings {
   sidebar_custom_type:  'gradient' | 'solid'
   table_design:         'glass' | 'vibrant' | 'glow' | 'minimal'
   nav_button_style:     'glass' | 'vibrant' | 'neon' | 'crystal'
+  text_color:           string
+  text_muted_color:     string
 }
 
 const DEFAULTS: AppearanceSettings = {
@@ -27,6 +29,8 @@ const DEFAULTS: AppearanceSettings = {
   sidebar_custom_type:  'solid',
   table_design:         'glass',
   nav_button_style:     'glass',
+  text_color:           '#ffffff',
+  text_muted_color:     '#94a3b8',
 }
 
 // ── Options ─────────────────────────────────────────────────────
@@ -264,6 +268,29 @@ function MiniNavPreview({ style, primary }: { style: string; primary: string }) 
 }
 
 // ── Live mini-dashboard preview ─────────────────────────────────
+function ColorPickerRow({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <div className="flex items-center gap-3">
+      <div className="w-5 h-5 rounded-md border border-white/20 shrink-0" style={{ background: value }} />
+      <span className="text-sm text-white/60 w-28 shrink-0">{label}</span>
+      <input
+        type="color"
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        className="w-9 h-9 rounded-xl cursor-pointer border-0 bg-transparent p-0 shrink-0"
+      />
+      <input
+        type="text"
+        value={value.toUpperCase()}
+        onChange={e => { const v = e.target.value; if (/^#[0-9a-fA-F]{0,6}$/.test(v)) onChange(v) }}
+        className="flex-1 px-3 py-2 rounded-xl bg-white/6 border border-white/10 text-sm text-white font-mono focus:outline-none focus:border-white/30 transition-colors"
+        placeholder="#ffffff"
+        maxLength={7}
+      />
+    </div>
+  )
+}
+
 function DashboardPreview({
   primaryColor,
   sidebarStyle,
@@ -271,6 +298,8 @@ function DashboardPreview({
   sidebarCustomType,
   tableDesign,
   navButtonStyle,
+  textColor,
+  textMutedColor,
 }: {
   primaryColor:       string
   sidebarStyle:       string
@@ -278,6 +307,8 @@ function DashboardPreview({
   sidebarCustomType:  'gradient' | 'solid'
   tableDesign:        'glass' | 'vibrant' | 'glow' | 'minimal'
   navButtonStyle:     'glass' | 'vibrant' | 'neon' | 'crystal'
+  textColor:          string
+  textMutedColor:     string
 }) {
   const bg     = computeBg(sidebarStyle, sidebarCustomColor, sidebarCustomType)
   const anchor = anchorColor(sidebarStyle, sidebarCustomColor, sidebarCustomType)
@@ -335,10 +366,10 @@ function DashboardPreview({
           </svg>
         </div>
         <div className="flex-1 min-w-0">
-          <div className="h-2 w-20 rounded-full bg-white/30" />
-          <div className="h-1.5 w-12 rounded-full bg-white/15 mt-1" />
+          <div className="h-2 w-20 rounded-full" style={{ background: textColor, opacity: 0.35 }} />
+          <div className="h-1.5 w-12 rounded-full mt-1" style={{ background: textMutedColor, opacity: 0.35 }} />
         </div>
-        <div className="text-[10px] font-bold text-white/50 tabular-nums mr-1">12:30</div>
+        <div className="text-[10px] font-bold tabular-nums mr-1" style={{ color: textMutedColor, opacity: 0.7 }}>12:30</div>
         {[0, 1, 2].map(i => <div key={i} className="w-6 h-6 rounded-lg" style={nbs(i)} />)}
       </div>
 
@@ -346,7 +377,7 @@ function DashboardPreview({
       <div className="p-3">
         <div className="flex items-center gap-2 mb-2.5">
           <div className="h-px flex-1 bg-white/8" />
-          <span className="text-[9px] font-semibold text-white/25 uppercase tracking-widest">Tables</span>
+          <span className="text-[9px] font-semibold uppercase tracking-widest" style={{ color: textMutedColor, opacity: 0.5 }}>Tables</span>
           <div className="h-px flex-1 bg-white/8" />
         </div>
 
@@ -369,7 +400,7 @@ function DashboardPreview({
                 {isGlow ? (
                   <MiniTableSvg shape={shape} color={glowColor[status] ?? '#10b981'} />
                 ) : (
-                  <span className="text-[9px] font-bold leading-none text-white/80">{n}</span>
+                  <span className="text-[9px] font-bold leading-none" style={{ color: textColor, opacity: 0.85 }}>{n}</span>
                 )}
               </motion.div>
             )
@@ -385,7 +416,7 @@ function DashboardPreview({
           ].map(({ label, color }) => (
             <div key={label} className="flex items-center gap-1">
               <div className="w-1.5 h-1.5 rounded-full" style={{ background: color }} />
-              <span className="text-[8px] text-white/35">{label}</span>
+              <span className="text-[8px]" style={{ color: textMutedColor, opacity: 0.7 }}>{label}</span>
             </div>
           ))}
         </div>
@@ -422,15 +453,22 @@ export default function AppearancePage() {
     const bg     = computeBg(cfg.sidebar_style, cfg.sidebar_custom_color, cfg.sidebar_custom_type)
     const anchor = anchorColor(cfg.sidebar_style, cfg.sidebar_custom_color, cfg.sidebar_custom_type)
     const root   = document.documentElement
-    root.style.setProperty('--app-bg',        bg)
-    root.style.setProperty('--app-anchor',    anchor)
-    root.style.setProperty('--app-anchor-80', hexAlpha(anchor, 0.80))
-    root.style.setProperty('--app-anchor-90', hexAlpha(anchor, 0.90))
-    root.style.setProperty('--app-anchor-95', hexAlpha(anchor, 0.95))
-    root.style.setProperty('--app-primary',   cfg.primary_color)
+    root.style.setProperty('--app-bg',         bg)
+    root.style.setProperty('--app-anchor',     anchor)
+    root.style.setProperty('--app-anchor-80',  hexAlpha(anchor, 0.80))
+    root.style.setProperty('--app-anchor-90',  hexAlpha(anchor, 0.90))
+    root.style.setProperty('--app-anchor-95',  hexAlpha(anchor, 0.95))
+    root.style.setProperty('--app-primary',    cfg.primary_color)
+    root.style.setProperty('--app-text',       cfg.text_color)
+    root.style.setProperty('--app-text-muted', cfg.text_muted_color)
     const id = localStorage.getItem('restaurant_id')
-    if (id) localStorage.setItem('_app_bg_cache', JSON.stringify({ forId: id, bg, anchor, primary: cfg.primary_color }))
-  }, [cfg.sidebar_style, cfg.sidebar_custom_color, cfg.sidebar_custom_type, cfg.primary_color, loading])
+    if (id) localStorage.setItem('_app_bg_cache', JSON.stringify({
+      forId: id, bg, anchor,
+      primary: cfg.primary_color,
+      text: cfg.text_color,
+      textMuted: cfg.text_muted_color,
+    }))
+  }, [cfg.sidebar_style, cfg.sidebar_custom_color, cfg.sidebar_custom_type, cfg.primary_color, cfg.text_color, cfg.text_muted_color, loading])
 
   return (
     <motion.div variants={PAGE} initial="hidden" animate="show"
@@ -572,6 +610,65 @@ export default function AppearancePage() {
           </div>
         </SettingsSection>
 
+        {/* ── Font Color ── */}
+        <SettingsSection
+          title="Font Color"
+          icon={<div className="w-4 h-4 rounded-full border-2 border-white/60" style={{ background: cfg.text_color }} />}
+          color="bg-violet-500/70"
+        >
+          <div className="space-y-4">
+            <p className="text-xs text-white/40">Adjust text colors when using light or custom backgrounds</p>
+
+            {/* Quick presets */}
+            <div className="flex gap-2 flex-wrap">
+              <button
+                onClick={() => setCfg(c => ({ ...c, text_color: '#ffffff', text_muted_color: '#94a3b8' }))}
+                className={cn(
+                  'flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all active:scale-95',
+                  cfg.text_color === '#ffffff' && cfg.text_muted_color === '#94a3b8'
+                    ? 'border-white/30 bg-white/10 text-white'
+                    : 'border-white/10 bg-white/4 text-white/50 hover:bg-white/8'
+                )}
+              >
+                <div className="flex gap-1">
+                  <div className="w-3 h-3 rounded-full bg-white border border-white/30" />
+                  <div className="w-3 h-3 rounded-full bg-slate-400 border border-white/20" />
+                </div>
+                Light Text
+              </button>
+              <button
+                onClick={() => setCfg(c => ({ ...c, text_color: '#0f172a', text_muted_color: '#64748b' }))}
+                className={cn(
+                  'flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all active:scale-95',
+                  cfg.text_color === '#0f172a' && cfg.text_muted_color === '#64748b'
+                    ? 'border-white/30 bg-white/10 text-white'
+                    : 'border-white/10 bg-white/4 text-white/50 hover:bg-white/8'
+                )}
+              >
+                <div className="flex gap-1">
+                  <div className="w-3 h-3 rounded-full bg-slate-900 border border-white/30" />
+                  <div className="w-3 h-3 rounded-full bg-slate-500 border border-white/20" />
+                </div>
+                Dark Text
+              </button>
+            </div>
+
+            {/* Color pickers */}
+            <div className="space-y-3">
+              <ColorPickerRow
+                label="Primary Text"
+                value={cfg.text_color}
+                onChange={v => setCfg(c => ({ ...c, text_color: v }))}
+              />
+              <ColorPickerRow
+                label="Muted Text"
+                value={cfg.text_muted_color}
+                onChange={v => setCfg(c => ({ ...c, text_muted_color: v }))}
+              />
+            </div>
+          </div>
+        </SettingsSection>
+
         {/* ── Table Design ── */}
         <SettingsSection
           title={t.app_table_design}
@@ -666,6 +763,8 @@ export default function AppearancePage() {
               sidebarCustomType={cfg.sidebar_custom_type}
               tableDesign={cfg.table_design}
               navButtonStyle={cfg.nav_button_style}
+              textColor={cfg.text_color}
+              textMutedColor={cfg.text_muted_color}
             />
         }
       </div>

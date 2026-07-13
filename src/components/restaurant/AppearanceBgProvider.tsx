@@ -2,7 +2,7 @@
 import { useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
-let _cache: { bg: string; anchor: string; primary: string } | null = null
+let _cache: { bg: string; anchor: string; primary: string; text: string; textMuted: string } | null = null
 let _cacheFor: string | null = null
 
 function hexToRgb(hex: string) {
@@ -46,15 +46,17 @@ function computeAnchor(style: string, cc: string, ct: string): string {
   return ct === 'solid' ? cc : '#0d0d0d'
 }
 
-function applyVars(anchor: string, bg: string, primary: string) {
+function applyVars(anchor: string, bg: string, primary: string, text = '#ffffff', textMuted = '#94a3b8') {
   const { r, g, b } = hexToRgb(anchor)
   const root = document.documentElement
-  root.style.setProperty('--app-bg',        bg)
-  root.style.setProperty('--app-anchor',     anchor)
-  root.style.setProperty('--app-anchor-80',  `rgba(${r},${g},${b},0.80)`)
-  root.style.setProperty('--app-anchor-90',  `rgba(${r},${g},${b},0.90)`)
-  root.style.setProperty('--app-anchor-95',  `rgba(${r},${g},${b},0.95)`)
-  root.style.setProperty('--app-primary',    primary)
+  root.style.setProperty('--app-bg',         bg)
+  root.style.setProperty('--app-anchor',      anchor)
+  root.style.setProperty('--app-anchor-80',   `rgba(${r},${g},${b},0.80)`)
+  root.style.setProperty('--app-anchor-90',   `rgba(${r},${g},${b},0.90)`)
+  root.style.setProperty('--app-anchor-95',   `rgba(${r},${g},${b},0.95)`)
+  root.style.setProperty('--app-primary',     primary)
+  root.style.setProperty('--app-text',        text)
+  root.style.setProperty('--app-text-muted',  textMuted)
 }
 
 export default function AppearanceBgProvider({ children }: { children: React.ReactNode }) {
@@ -67,29 +69,31 @@ export default function AppearanceBgProvider({ children }: { children: React.Rea
     if (stored) {
       try {
         const c = JSON.parse(stored)
-        if (c.forId === id) applyVars(c.anchor, c.bg, c.primary || '#f59e0b')
+        if (c.forId === id) applyVars(c.anchor, c.bg, c.primary || '#f59e0b', c.text || '#ffffff', c.textMuted || '#94a3b8')
       } catch {}
     }
 
     if (_cache && _cacheFor === id) {
-      applyVars(_cache.anchor, _cache.bg, _cache.primary)
+      applyVars(_cache.anchor, _cache.bg, _cache.primary, _cache.text, _cache.textMuted)
       return
     }
 
     const supabase = createClient()
     supabase.from('restaurants').select('settings').eq('id', id).maybeSingle()
       .then(({ data }) => {
-        const s       = (data?.settings ?? {}) as Record<string, unknown>
-        const style   = (s.sidebar_style        as string) || 'default'
-        const cc      = (s.sidebar_custom_color as string) || '#022658'
-        const ct      = (s.sidebar_custom_type  as string) || 'solid'
-        const primary = (s.primary_color        as string) || '#f59e0b'
-        const bg      = computeBg(style, cc, ct)
-        const anchor  = computeAnchor(style, cc, ct)
-        _cache    = { bg, anchor, primary }
+        const s         = (data?.settings ?? {}) as Record<string, unknown>
+        const style     = (s.sidebar_style        as string) || 'default'
+        const cc        = (s.sidebar_custom_color as string) || '#022658'
+        const ct        = (s.sidebar_custom_type  as string) || 'solid'
+        const primary   = (s.primary_color        as string) || '#f59e0b'
+        const text      = (s.text_color           as string) || '#ffffff'
+        const textMuted = (s.text_muted_color     as string) || '#94a3b8'
+        const bg        = computeBg(style, cc, ct)
+        const anchor    = computeAnchor(style, cc, ct)
+        _cache    = { bg, anchor, primary, text, textMuted }
         _cacheFor = id
-        applyVars(anchor, bg, primary)
-        localStorage.setItem('_app_bg_cache', JSON.stringify({ forId: id, bg, anchor, primary }))
+        applyVars(anchor, bg, primary, text, textMuted)
+        localStorage.setItem('_app_bg_cache', JSON.stringify({ forId: id, bg, anchor, primary, text, textMuted }))
       })
   }, [])
 
