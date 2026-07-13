@@ -838,24 +838,50 @@ export default function WhatsAppPage() {
                     placeholder={t.wa_message_placeholder}
                     className="w-full px-4 py-3 rounded-2xl text-sm text-white bg-white/5 border border-white/10 focus:border-[#25D366]/50 outline-none transition-all resize-none placeholder:text-white/20"
                   />
-                  <div className="flex gap-1.5 flex-wrap">
-                    {[
-                      { label: '{{total}}',     display: 'Total Price' },
-                      { label: '{{table}}',     display: 'Table Number' },
-                      { label: '{{menu_link}}', display: 'Online Menu Link' },
-                    ].map(({ label, display }) => (
-                      <button
-                        key={label}
-                        type="button"
-                        title={`Insert ${label}`}
-                        onClick={() => insertVariable(label)}
-                        className="px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all active:scale-95"
-                        style={{ background: `${WA_GREEN}18`, border: `1px solid ${WA_GREEN}35`, color: WA_GREEN }}
-                      >
-                        {display}
-                      </button>
-                    ))}
-                    <span className="text-[10px] text-white/20 self-center ml-1">click to insert at cursor</span>
+                  <div className="space-y-2">
+                    <div className="flex gap-1.5 flex-wrap">
+                      <span className="text-[10px] font-bold text-white/25 uppercase tracking-wider self-center w-full">General</span>
+                      {[
+                        { label: '{{total}}',     display: 'Total' },
+                        { label: '{{table}}',     display: 'Table' },
+                        { label: '{{menu_link}}', display: 'Menu Link' },
+                      ].map(({ label, display }) => (
+                        <button
+                          key={label}
+                          type="button"
+                          title={`Insert ${label}`}
+                          onClick={() => insertVariable(label)}
+                          className="px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all active:scale-95"
+                          style={{ background: `${WA_GREEN}18`, border: `1px solid ${WA_GREEN}35`, color: WA_GREEN }}
+                        >
+                          {display}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex gap-1.5 flex-wrap">
+                      <span className="text-[10px] font-bold text-white/25 uppercase tracking-wider self-center w-full">Delivery</span>
+                      {[
+                        { label: '{{customer_name}}', display: 'Customer' },
+                        { label: '{{order_number}}',  display: 'Order #' },
+                        { label: '{{items}}',         display: 'Items' },
+                        { label: '{{subtotal}}',      display: 'Subtotal' },
+                        { label: '{{delivery_fee}}',  display: 'Delivery Fee' },
+                        { label: '{{total_price}}',   display: 'Total' },
+                        { label: '{{address}}',       display: 'Address' },
+                      ].map(({ label, display }) => (
+                        <button
+                          key={label}
+                          type="button"
+                          title={`Insert ${label}`}
+                          onClick={() => insertVariable(label)}
+                          className="px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all active:scale-95"
+                          style={{ background: 'rgba(99,102,241,0.18)', border: '1px solid rgba(99,102,241,0.35)', color: '#a5b4fc' }}
+                        >
+                          {display}
+                        </button>
+                      ))}
+                    </div>
+                    <span className="text-[10px] text-white/20">click to insert at cursor</span>
                   </div>
                   <p className="text-[11px] text-white/25">{templateMessage.length} chars</p>
                 </div>

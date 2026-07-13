@@ -88,50 +88,26 @@ function WhatsAppIcon({ className }: { className?: string }) {
   )
 }
 
-function buildWhatsAppUrl(order: DeliveryOrder, formatPrice: (n: number) => string, lang: 'en' | 'ar' | 'ku'): string {
+interface WaTemplate { id: string; name: string; message: string }
+
+function resolveTemplate(tpl: string, order: DeliveryOrder, formatPrice: (n: number) => string): string {
+  const subtotal   = order.items.reduce((s, i) => s + i.item_price * i.qty, 0)
+  const itemLines  = order.items.map(i => `• ${i.item_name} ×${i.qty} — ${formatPrice(i.item_price * i.qty)}`).join('\n')
+  return tpl
+    .replace(/\{\{customer_name\}\}/g,  order.customer_name)
+    .replace(/\{\{order_number\}\}/g,   order.order_num ? `#${order.order_num}` : '')
+    .replace(/\{\{items\}\}/g,          itemLines)
+    .replace(/\{\{subtotal\}\}/g,       formatPrice(subtotal))
+    .replace(/\{\{delivery_fee\}\}/g,   order.delivery_fee > 0 ? formatPrice(order.delivery_fee) : '')
+    .replace(/\{\{total_price\}\}/g,    formatPrice(order.order_total))
+    .replace(/\{\{address\}\}/g,        order.address ?? '')
+}
+
+function buildWhatsAppUrl(order: DeliveryOrder, resolvedMsg: string): string {
   let phone = order.customer_phone.replace(/\D/g, '')
   if (phone.startsWith('07') && phone.length === 11) phone = '964' + phone.slice(1)
   else if (phone.startsWith('7') && phone.length === 10) phone = '964' + phone
-
-  const itemsSubtotal = order.items.reduce((s, i) => s + i.item_price * i.qty, 0)
-  const discount = order.order_total > 0 && (itemsSubtotal + order.delivery_fee) > order.order_total
-    ? itemsSubtotal + order.delivery_fee - order.order_total : 0
-  const itemLines = order.items.map(i => `• ${i.item_name} ×${i.qty} — ${formatPrice(i.item_price * i.qty)}`).join('\n')
-
-  let msg = ''
-  if (lang === 'en') {
-    msg = [
-      `Hello ${order.customer_name}! 👋`,
-      `We received your order${order.order_num ? ` #${order.order_num}` : ''} and would like to confirm it with you.`,
-      '', `🛍️ Your items:`, itemLines, '',
-      `💳 Subtotal: ${formatPrice(itemsSubtotal)}`,
-      ...(order.delivery_fee > 0 ? [`🚚 Delivery fee: ${formatPrice(order.delivery_fee)}`] : []),
-      ...(discount > 0 ? [`🎉 Discount: −${formatPrice(discount)}`] : []),
-      `💰 Total to pay: ${formatPrice(order.order_total)}`, '',
-      `Please reply *YES* to confirm your order, or let us know if you'd like any changes. Thank you! 🙏`,
-    ].join('\n')
-  } else if (lang === 'ar') {
-    msg = [
-      `مرحباً ${order.customer_name}! 👋`,
-      `لقد استلمنا طلبك${order.order_num ? ` رقم #${order.order_num}` : ''} ونود تأكيده معك.`,
-      '', `🛍️ طلبك:`, itemLines, '',
-      `💳 المجموع الفرعي: ${formatPrice(itemsSubtotal)}`,
-      ...(order.delivery_fee > 0 ? [`🚚 رسوم التوصيل: ${formatPrice(order.delivery_fee)}`] : []),
-      ...(discount > 0 ? [`🎉 الخصم: −${formatPrice(discount)}`] : []),
-      `💰 الإجمالي للدفع: ${formatPrice(order.order_total)}`, '',
-      `يرجى الرد بـ *نعم* لتأكيد طلبك، أو أخبرنا إذا كنت تريد أي تغييرات. شكراً! 🙏`,
-    ].join('\n')
-  } else {
-    msg = [
-      `سڵاو بەڕێز ${order.customer_name}`,
-      `داواکارییەکەت ژمارە #${order.order_num ?? ''}`,
-      `بۆ پشتڕاستیکردنەوەی داواکرییەکەت تکایە *بەڵێ* بنووسە بۆ پشتڕاستکردنەوەی داواکارییەکەت، یان ئەگەر دەتەوێت گۆڕانکارییەک بکەی ئاگامانداربکە. سوپاس!`,
-      ...(order.delivery_fee > 0 ? [`گەیاندن: ${formatPrice(order.delivery_fee)}`] : []),
-      `کۆی گشتی نرخ : ${formatPrice(order.order_total)}`,
-    ].join('\n')
-  }
-
-  return `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`
+  return `https://wa.me/${phone}?text=${encodeURIComponent(resolvedMsg)}`
 }
 
 function TimeAgo({ dateStr }: { dateStr: string }) {
@@ -187,6 +163,7 @@ export default function DeliveryOrdersPage() {
   const [drivers, setDrivers]     = useState<Driver[]>([])
   const [driverPick, setDriverPick] = useState<Record<string, string>>({})
   const [whatsappDropdown, setWhatsappDropdown] = useState<string | null>(null)
+  const [waTemplates, setWaTemplates]           = useState<WaTemplate[]>([])
   // eslint-disable-next-line @typescript-eslint/no-empty-function
   const loadRef = useRef<() => void>(() => {})
 
@@ -225,6 +202,17 @@ export default function DeliveryOrdersPage() {
       .subscribe()
     return () => { supabase.removeChannel(channel) }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fetch WhatsApp templates
+  useEffect(() => {
+    if (!restaurantId) return
+    supabase
+      .from('whatsapp_templates')
+      .select('id, name, message')
+      .eq('restaurant_id', restaurantId)
+      .order('created_at', { ascending: false })
+      .then(({ data }) => setWaTemplates((data ?? []) as WaTemplate[]))
+  }, [restaurantId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch all active staff as assignable drivers
   useEffect(() => {
@@ -721,28 +709,26 @@ export default function DeliveryOrdersPage() {
                           WhatsApp
                         </button>
                         {whatsappDropdown === order.delivery_id && (
-                          <div className="absolute top-full left-0 mt-1.5 z-30 rounded-xl border border-white/10 shadow-2xl overflow-hidden min-w-[148px]" style={{ background: '#0d1630' }}>
-                            {([
-                              { lang: 'ku' as const, label: 'کوردی', sub: 'Kurdish' },
-                              { lang: 'ar' as const, label: 'عربی', sub: 'Arabic' },
-                              { lang: 'en' as const, label: 'English', sub: 'English' },
-                            ]).map(({ lang, label, sub }, i, arr) => (
+                          <div className="absolute top-full left-0 mt-1.5 z-30 rounded-xl border border-white/10 shadow-2xl overflow-hidden min-w-[190px]" style={{ background: '#0d1630' }}>
+                            {waTemplates.length === 0 ? (
+                              <div className="px-4 py-3 text-xs text-white/40 text-center">
+                                No templates yet.<br />
+                                <span className="text-[#25D366]">Settings → WhatsApp</span>
+                              </div>
+                            ) : waTemplates.map((tpl, i) => (
                               <a
-                                key={lang}
-                                href={buildWhatsAppUrl(order, formatPrice, lang)}
+                                key={tpl.id}
+                                href={buildWhatsAppUrl(order, resolveTemplate(tpl.message, order, formatPrice))}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 onClick={() => setWhatsappDropdown(null)}
                                 className={cn(
                                   'flex items-center gap-2.5 px-3 py-2.5 hover:bg-white/8 transition-colors',
-                                  i < arr.length - 1 ? 'border-b border-white/6' : ''
+                                  i < waTemplates.length - 1 ? 'border-b border-white/6' : ''
                                 )}
                               >
                                 <WhatsAppIcon className="w-3.5 h-3.5 text-[#25D366] shrink-0" />
-                                <div>
-                                  <p className="text-xs font-semibold text-white leading-none">{label}</p>
-                                  <p className="text-[10px] text-white/35 mt-0.5">{sub}</p>
-                                </div>
+                                <p className="text-xs font-semibold text-white truncate">{tpl.name}</p>
                               </a>
                             ))}
                           </div>
