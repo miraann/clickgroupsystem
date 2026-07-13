@@ -32,8 +32,8 @@ const DECIMAL_OPTIONS = [
 ]
 
 const PRESET_CURRENCIES = [
-  { name: 'US Dollar',       symbol: '$',   decimal_places: 2 },
   { name: 'Iraqi Dinar',     symbol: 'IQD', decimal_places: 0 },
+  { name: 'US Dollar',       symbol: '$',   decimal_places: 2 },
   { name: 'Euro',            symbol: '€',   decimal_places: 2 },
   { name: 'British Pound',   symbol: '£',   decimal_places: 2 },
   { name: 'Turkish Lira',    symbol: '₺',   decimal_places: 2 },
@@ -41,6 +41,7 @@ const PRESET_CURRENCIES = [
 ]
 
 const EMPTY_PAY  = { name: '', icon_type: 'cash' as IconType, active: true, is_default: false }
+const IQD_DEFAULT = { name: 'Iraqi Dinar', symbol: 'IQD', decimal_places: 0, is_default: true }
 const EMPTY_CUR  = { name: '', symbol: '', decimal_places: 2, is_default: false }
 
 function getEmoji(type: IconType) { return ICONS.find(i => i.value === type)?.emoji ?? '💳' }
@@ -88,7 +89,7 @@ export default function PaymentMethodPage() {
   const [deleteCurId, setDeleteCurId] = useState<string | null>(null)
 
   // ── Currency CRUD ──────────────────────────────────────────
-  const openAddCur = () => { setEditCurId(null); setCurForm(EMPTY_CUR); setCurModal(true) }
+  const openAddCur = () => { setEditCurId(null); setCurForm(currencies.length === 0 ? IQD_DEFAULT : EMPTY_CUR); setCurModal(true) }
   const openEditCur = (c: Currency) => {
     setEditCurId(c.id)
     setCurForm({ name: c.name, symbol: c.symbol, decimal_places: c.decimal_places, is_default: c.is_default })
@@ -155,7 +156,13 @@ export default function PaymentMethodPage() {
   }
 
   // ── Payment Method CRUD ────────────────────────────────────
-  const openAddPay = () => { setEditPayId(null); setPayForm(EMPTY_PAY); setPayModal(true) }
+  const openAddPay = () => {
+    setEditPayId(null)
+    setPayForm(methods.length === 0
+      ? { name: t.pm_cash, icon_type: 'cash', active: true, is_default: true }
+      : EMPTY_PAY)
+    setPayModal(true)
+  }
   const openEditPay = (m: PayMethod) => {
     setEditPayId(m.id)
     setPayForm({ name: m.name, icon_type: m.icon_type, active: m.active, is_default: m.is_default })
