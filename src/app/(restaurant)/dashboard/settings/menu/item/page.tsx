@@ -123,8 +123,8 @@ export default function ItemPage() {
 
   const compressImage = (file: File): Promise<File> =>
     new Promise((resolve, reject) => {
-      const MAX_PX = 1400
-      const QUALITY = 0.92
+      const MAX_PX = 800
+      const QUALITY = 0.82
       const img = new Image()
       const blobUrl = URL.createObjectURL(file)
       img.onload = () => {

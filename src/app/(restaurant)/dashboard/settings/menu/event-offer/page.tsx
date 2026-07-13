@@ -212,16 +212,42 @@ export default function EventOfferPage() {
 
   const closeModal = () => { setModal(false); setSaveError(null); setUploadError(null) }
 
-  // ── Image upload ──────────────────────────────────────────────
+  // ── Image compression + upload ────────────────────────────────
+  const compressImage = (file: File): Promise<File> =>
+    new Promise((resolve, reject) => {
+      const MAX_PX = 1200
+      const QUALITY = 0.82
+      const img = new Image()
+      const blobUrl = URL.createObjectURL(file)
+      img.onload = () => {
+        URL.revokeObjectURL(blobUrl)
+        let { width, height } = img
+        if (width > MAX_PX || height > MAX_PX) {
+          if (width >= height) { height = Math.round(height * MAX_PX / width); width = MAX_PX }
+          else                 { width = Math.round(width * MAX_PX / height);  height = MAX_PX }
+        }
+        const canvas = document.createElement('canvas')
+        canvas.width = width; canvas.height = height
+        canvas.getContext('2d')!.drawImage(img, 0, 0, width, height)
+        const mime = canvas.toDataURL('image/webp').startsWith('data:image/webp') ? 'image/webp' : 'image/jpeg'
+        canvas.toBlob(blob => {
+          if (!blob) { reject(new Error('Compression failed')); return }
+          resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.webp'), { type: mime }))
+        }, mime, QUALITY)
+      }
+      img.onerror = () => { URL.revokeObjectURL(blobUrl); resolve(file) }
+      img.src = blobUrl
+    })
+
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file || !restaurantId) return
+    const raw = e.target.files?.[0]
+    if (!raw || !restaurantId) return
+    const file = await compressImage(raw)
     const localUrl = URL.createObjectURL(file)
     setForm(f => ({ ...f, image_url: localUrl }))
     setUploading(true); setUploadError(null)
-    const ext = file.name.split('.').pop()
-    const path = `events/${restaurantId}/${Date.now()}.${ext}`
-    const { data, error } = await supabase.storage.from('menu-images').upload(path, file, { upsert: true })
+    const path = `events/${restaurantId}/${Date.now()}.webp`
+    const { data, error } = await supabase.storage.from('menu-images').upload(path, file, { upsert: true, contentType: file.type })
     if (!error && data) {
       const { data: { publicUrl } } = supabase.storage.from('menu-images').getPublicUrl(data.path)
       setForm(f => ({ ...f, image_url: publicUrl }))
