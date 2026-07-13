@@ -2,8 +2,18 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useInactivityLogout } from '@/hooks/useInactivityLogout'
+import { createClient } from '@/lib/supabase/client'
 
 const EIGHT_HOURS = 8 * 60 * 60 * 1000
+
+function clearLocalSession() {
+  const keys = [
+    'pos_staff_id', 'pos_staff_name', 'pos_staff_role', 'pos_staff_color',
+    'pos_role_permissions', 'pos_role_name', 'owner_session',
+    'restaurant_id', 'restaurant_name', 'restaurant_slug', '_app_bg_cache',
+  ]
+  keys.forEach(k => localStorage.removeItem(k))
+}
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter()
@@ -15,6 +25,18 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     // Fast path: localStorage session present
     if (restaurantId && (localStorage.getItem('pos_staff_id') || localStorage.getItem('owner_session') === 'true')) {
       setReady(true)
+      // Background: verify the restaurant still exists in the DB.
+      // Catches stale sessions left over when a restaurant is deleted from the seller console.
+      const supabase = createClient()
+      supabase.from('restaurants').select('id').eq('id', restaurantId).maybeSingle()
+        .then(({ data }) => {
+          if (!data) {
+            const slug = localStorage.getItem('restaurant_slug')
+            clearLocalSession()
+            fetch('/api/restaurant/logout', { method: 'POST' }).catch(() => {})
+            router.replace(slug ? `/pos/${slug}/login` : '/restaurant-login')
+          }
+        })
       return
     }
 
@@ -39,16 +61,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(async () => {
     const slug = localStorage.getItem('restaurant_slug')
-    localStorage.removeItem('pos_staff_id')
-    localStorage.removeItem('pos_staff_name')
-    localStorage.removeItem('pos_staff_role')
-    localStorage.removeItem('pos_staff_color')
-    localStorage.removeItem('pos_role_permissions')
-    localStorage.removeItem('pos_role_name')
-    localStorage.removeItem('owner_session')
-    localStorage.removeItem('restaurant_id')
-    localStorage.removeItem('restaurant_name')
-    localStorage.removeItem('restaurant_slug')
+    clearLocalSession()
     await fetch('/api/restaurant/logout', { method: 'POST' }).catch(() => {})
     router.replace(slug ? `/pos/${slug}/login` : '/restaurant-login')
   }, [router])
