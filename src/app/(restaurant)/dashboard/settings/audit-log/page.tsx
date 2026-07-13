@@ -162,7 +162,7 @@ const PAGE_SIZE = 50
 // ── Page ──────────────────────────────────────────────────────────
 export default function AuditLogPage() {
   const supabase = useMemo(() => createClient(), [])
-  const { t } = useLanguage()
+  const { t, isRTL } = useLanguage()
 
   const [entries,      setEntries]      = useState<AuditEntry[]>([])
   const [loading,      setLoading]      = useState(true)
@@ -346,22 +346,41 @@ export default function AuditLogPage() {
       {/* Table */}
       <motion.div variants={ITEM} className="rounded-2xl border border-white/10 bg-white/3 backdrop-blur-xl overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse" style={{ minWidth: 680 }}>
+          <table className="w-full border-collapse" style={{ minWidth: 680 }} dir={isRTL ? 'rtl' : 'ltr'}>
             {/* Head */}
             <thead>
               <tr className="border-b border-white/8">
-                <th className="text-left px-5 py-3 text-[10px] font-bold uppercase tracking-widest text-white/30 whitespace-nowrap w-[130px]">
-                  ⏰ {t.al_col_time}
-                </th>
-                <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-white/30 whitespace-nowrap w-[180px]">
-                  👤 {t.al_col_user}
-                </th>
-                <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-white/30 whitespace-nowrap w-[170px]">
-                  🎯 {t.al_col_action}
-                </th>
-                <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-white/30">
-                  ℹ️ {t.al_col_details}
-                </th>
+                {isRTL ? (
+                  <>
+                    <th className="text-start px-5 py-3 text-[10px] font-bold uppercase tracking-widest text-white/30 whitespace-nowrap w-[130px]">
+                      {t.al_col_time} ⏰
+                    </th>
+                    <th className="text-start px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-white/30 whitespace-nowrap w-[160px]">
+                      {t.al_col_user} 👤
+                    </th>
+                    <th className="text-start px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-white/30 whitespace-nowrap w-[170px]">
+                      {t.al_col_action} 🎯
+                    </th>
+                    <th className="text-start px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-white/30">
+                      {t.al_col_details} ℹ️
+                    </th>
+                  </>
+                ) : (
+                  <>
+                    <th className="text-start px-5 py-3 text-[10px] font-bold uppercase tracking-widest text-white/30 whitespace-nowrap w-[130px]">
+                      ⏰ {t.al_col_time}
+                    </th>
+                    <th className="text-start px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-white/30 whitespace-nowrap w-[160px]">
+                      👤 {t.al_col_user}
+                    </th>
+                    <th className="text-start px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-white/30 whitespace-nowrap w-[170px]">
+                      🎯 {t.al_col_action}
+                    </th>
+                    <th className="text-start px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-white/30">
+                      ℹ️ {t.al_col_details}
+                    </th>
+                  </>
+                )}
               </tr>
             </thead>
 
@@ -408,7 +427,7 @@ export default function AuditLogPage() {
 
                       {/* User */}
                       <td className="px-4 py-3.5 align-middle">
-                        <div className="flex items-center gap-2.5">
+                        <div className={cn('flex items-center gap-2.5', isRTL && 'flex-row-reverse')}>
                           <div className={cn(
                             'w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0',
                             avatarColor(entry.staff_name)
@@ -416,11 +435,11 @@ export default function AuditLogPage() {
                             {initials(entry.staff_name)}
                           </div>
                           <div className="min-w-0">
-                            <p className="text-sm font-medium text-white/85 truncate leading-tight">
+                            <p className={cn('text-sm font-medium text-white/85 truncate leading-tight', isRTL && 'text-right')}>
                               {entry.staff_name ?? '—'}
                             </p>
                             {entry.staff_role && (
-                              <p className="text-[10px] text-white/35 capitalize">{entry.staff_role}</p>
+                              <p className={cn('text-[10px] text-white/35 capitalize', isRTL && 'text-right')}>{entry.staff_role}</p>
                             )}
                           </div>
                         </div>
@@ -439,7 +458,7 @@ export default function AuditLogPage() {
 
                       {/* Details */}
                       <td className="px-4 py-3.5 align-middle">
-                        <p className="text-sm text-white/55">{detail || '—'}</p>
+                        <p className={cn('text-sm text-white/55', isRTL && 'text-right')}>{detail || '—'}</p>
                       </td>
                     </tr>
                   )
