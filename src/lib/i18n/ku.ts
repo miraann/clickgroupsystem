@@ -25,7 +25,7 @@ const ku: Record<keyof typeof en, string> = {
   si_preference:        'ئامادەکاری',
   si_device:            'ئامێر',
   si_menu:              'مێنیو',
-  si_dine_in:           'نان خواردن لە ناو',
+  si_dine_in:           'نان خواردن لە ناو چێشتخانە',
   si_delivery:          'گەیاندن',
   si_takeout:           'بردن',
   si_coffee_bar:        'بارە قاوەخانە',
@@ -117,7 +117,7 @@ const ku: Record<keyof typeof en, string> = {
   ri_location_link:     'شوێن',
 
   // ── Dine In page ──────────────────────────────────
-  di_title:             'نان خواردن لە ناو',
+  di_title:             'نان خواردن لە ناو چێشتخانە',
   di_subtitle:          'مێز، مێنیوی QR، و ڕێکخستنی میوان',
   di_qr_section:        'مێنیوی QR',
   di_qr_ordering:       'فەرمانکردن بە QR',
