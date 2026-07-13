@@ -536,7 +536,7 @@ const ku: Record<keyof typeof en, string> = {
   combo_no_data:        'هێشتا هیچ داشکاندنی کۆمبۆیەکی نییە',
 
   // ── Menu: Event & Offer ───────────────────────────
-  evt_title:            'ئیڤینت و پێشکەشەکان',
+  evt_title:            'ئۆفەر و بۆنەکان',
   evt_subtitle:         'تەشویقەکانی نیشاندراو لە مێنیوی QR',
   evt_add:              'ئیڤینت زیاد بکە',
   evt_name:             'سەرنووسە',
@@ -1039,7 +1039,7 @@ const ku: Record<keyof typeof en, string> = {
   menu_tab_modifier:       'گۆڕانکاری',
   menu_tab_kitchen_note:   'تێبینی چێشتخانە',
   menu_tab_void_reason:    'هۆکاری بەتاڵکردن',
-  menu_tab_event_offer:    'ئیڤینت و پێشکەش',
+  menu_tab_event_offer:    'ئۆفەر و بۆنەکان',
   menu_tab_discount:       'داشکاندن',
   menu_tab_combo_discount: 'داشکاندنی کۆمبۆ',
   menu_tab_surcharge:      'زیادە',
