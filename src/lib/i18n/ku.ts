@@ -595,7 +595,7 @@ const ku: Record<keyof typeof en, string> = {
 
   // ── Menu: Item ────────────────────────────────────
   item_title:           'کاڵاکانی مێنیو',
-  item_subtitle:        'مێنیوی خۆت زیاد بکە و بەڕێوەببە',
+  item_subtitle:        'خواردنەکان زیاد بکە',
   item_add:             'کاڵا زیاد بکە',
   item_name:            'ناوی کاڵا',
   item_price:           'نرخ',
