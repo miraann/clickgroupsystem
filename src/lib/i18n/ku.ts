@@ -544,7 +544,7 @@ const ku: Record<keyof typeof en, string> = {
   evt_image:            'وێنە',
   evt_start:            'بەرواری دەستپێکردن',
   evt_end:              'بەرواری کۆتایی',
-  evt_no_data:          'هێشتا هیچ ئیڤینت یان پێشکەشێکی نییە',
+  evt_no_data:          'هیچ ئۆفەرێک بەردەست نییە',
   evt_active:           'چالاک',
 
   // ── Menu: Order Number ────────────────────────────
