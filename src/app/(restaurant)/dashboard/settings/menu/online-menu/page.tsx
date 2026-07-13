@@ -61,13 +61,13 @@ const DEFAULT: MenuSettings = {
 }
 
 // ── Preset quick-starts ────────────────────────────────────────
-const PRESETS: { id: TemplateId; label: string; bg: string; dot: string; settings: Partial<MenuSettings> }[] = [
-  { id: 'classic',  label: 'Classic',      bg: '#ffffff',  dot: '#f59e0b', settings: { primary_color: '#f59e0b', surface_style: 'solid',  category_style: 'circles',    item_style: 'grid',    event_style: 'cards',  social_style: 'pills' } },
-  { id: 'dark',     label: 'Dark',         bg: '#080c14',  dot: '#f59e0b', settings: { primary_color: '#f59e0b', surface_style: 'glass',  category_style: 'circles',    item_style: 'grid',    event_style: 'cards',  social_style: 'pills' } },
-  { id: 'warm',     label: 'Warm Café',    bg: '#fdf6ec',  dot: '#d97706', settings: { primary_color: '#d97706', surface_style: 'card',   category_style: 'circles',    item_style: 'grid',    event_style: 'banner', social_style: 'pills' } },
-  { id: 'bold',     label: 'Bold',         bg: '#ffffff',  dot: '#7c3aed', settings: { primary_color: '#7c3aed', surface_style: 'solid',  category_style: 'pills',      item_style: 'list',    event_style: 'story',  social_style: 'grid'  } },
-  { id: 'elegant',  label: 'Elegant',      bg: '#f7f4f0',  dot: '#a8896c', settings: { primary_color: '#a8896c', surface_style: 'card',   category_style: 'horizontal', item_style: 'list',    event_style: 'cards',  social_style: 'icons' } },
-  { id: 'neon',     label: 'Neon',         bg: '#0a0a0f',  dot: '#39ff14', settings: { primary_color: '#39ff14', surface_style: 'glass',  category_style: 'square',     item_style: 'grid',    event_style: 'cards',  social_style: 'icons' } },
+const PRESETS: { id: TemplateId; labelKey: string; bg: string; dot: string; settings: Partial<MenuSettings> }[] = [
+  { id: 'classic',  labelKey: 'om_preset_classic', bg: '#ffffff',  dot: '#f59e0b', settings: { primary_color: '#f59e0b', surface_style: 'solid',  category_style: 'circles',    item_style: 'grid',    event_style: 'cards',  social_style: 'pills' } },
+  { id: 'dark',     labelKey: 'om_preset_dark',    bg: '#080c14',  dot: '#f59e0b', settings: { primary_color: '#f59e0b', surface_style: 'glass',  category_style: 'circles',    item_style: 'grid',    event_style: 'cards',  social_style: 'pills' } },
+  { id: 'warm',     labelKey: 'om_preset_warm',    bg: '#fdf6ec',  dot: '#d97706', settings: { primary_color: '#d97706', surface_style: 'card',   category_style: 'circles',    item_style: 'grid',    event_style: 'banner', social_style: 'pills' } },
+  { id: 'bold',     labelKey: 'om_preset_bold',    bg: '#ffffff',  dot: '#7c3aed', settings: { primary_color: '#7c3aed', surface_style: 'solid',  category_style: 'pills',      item_style: 'list',    event_style: 'story',  social_style: 'grid'  } },
+  { id: 'elegant',  labelKey: 'om_preset_elegant', bg: '#f7f4f0',  dot: '#a8896c', settings: { primary_color: '#a8896c', surface_style: 'card',   category_style: 'horizontal', item_style: 'list',    event_style: 'cards',  social_style: 'icons' } },
+  { id: 'neon',     labelKey: 'om_preset_neon',    bg: '#0a0a0f',  dot: '#39ff14', settings: { primary_color: '#39ff14', surface_style: 'glass',  category_style: 'square',     item_style: 'grid',    event_style: 'cards',  social_style: 'icons' } },
 ]
 
 // ── Color presets ──────────────────────────────────────────────
@@ -371,9 +371,9 @@ function StyleCard({ label, desc, active, onClick, preview }: {
 }
 
 // ── Category style previews ────────────────────────────────────
-const CAT_PREVIEWS: { id: CategoryStyle; label: string; desc: string; preview: React.ReactNode }[] = [
+const CAT_PREVIEWS: { id: CategoryStyle; labelKey: string; descKey: string; preview: React.ReactNode }[] = [
   {
-    id: 'circles', label: 'Circles', desc: 'Round icons with emoji',
+    id: 'circles', labelKey: 'om_cat_circles', descKey: 'om_cat_circles_desc',
     preview: (
       <div className="flex gap-2 px-1 py-2">
         {['#3b82f6','#ef4444','#10b981','#f59e0b'].map((c,i) => (
@@ -386,7 +386,7 @@ const CAT_PREVIEWS: { id: CategoryStyle; label: string; desc: string; preview: R
     ),
   },
   {
-    id: 'pills', label: 'Pills', desc: 'Text + icon pill tabs',
+    id: 'pills', labelKey: 'om_cat_pills', descKey: 'om_cat_pills_desc',
     preview: (
       <div className="flex flex-wrap gap-1.5 px-1 py-2">
         {[['#3b82f6','Pizza'],['#ef4444','Steak'],['#10b981','Drinks']].map(([c,l],i) => (
@@ -397,7 +397,7 @@ const CAT_PREVIEWS: { id: CategoryStyle; label: string; desc: string; preview: R
     ),
   },
   {
-    id: 'square', label: 'Square Glass', desc: 'Rounded square with glow',
+    id: 'square', labelKey: 'om_cat_square', descKey: 'om_cat_square_desc',
     preview: (
       <div className="flex gap-2 px-1 py-2">
         {['#3b82f6','#ef4444','#10b981','#f59e0b'].map((c,i) => (
@@ -410,7 +410,7 @@ const CAT_PREVIEWS: { id: CategoryStyle; label: string; desc: string; preview: R
     ),
   },
   {
-    id: 'horizontal', label: 'Horizontal List', desc: 'Simple text tabs',
+    id: 'horizontal', labelKey: 'om_cat_horizontal', descKey: 'om_cat_horizontal_desc',
     preview: (
       <div className="flex gap-1.5 px-1 py-3 items-center">
         {['Pizza','Steak','Drinks','Pasta'].map((l,i) => (
@@ -423,9 +423,9 @@ const CAT_PREVIEWS: { id: CategoryStyle; label: string; desc: string; preview: R
 ]
 
 // ── Item style previews ────────────────────────────────────────
-const ITEM_PREVIEWS: { id: ItemStyle; label: string; desc: string; preview: React.ReactNode }[] = [
+const ITEM_PREVIEWS: { id: ItemStyle; labelKey: string; descKey: string; preview: React.ReactNode }[] = [
   {
-    id: 'grid', label: 'Visual Grid', desc: '2-column cards with images',
+    id: 'grid', labelKey: 'om_item_grid', descKey: 'om_item_grid_desc',
     preview: (
       <div className="grid grid-cols-2 gap-1.5 p-1">
         {[0,1,2,3].map(i => (
@@ -441,7 +441,7 @@ const ITEM_PREVIEWS: { id: ItemStyle; label: string; desc: string; preview: Reac
     ),
   },
   {
-    id: 'list', label: 'Classic List', desc: 'Image left, details right',
+    id: 'list', labelKey: 'om_item_list', descKey: 'om_item_list_desc',
     preview: (
       <div className="space-y-1.5 p-1">
         {[0,1,2].map(i => (
@@ -457,7 +457,7 @@ const ITEM_PREVIEWS: { id: ItemStyle; label: string; desc: string; preview: Reac
     ),
   },
   {
-    id: 'compact', label: 'Compact', desc: 'Name + price, no images',
+    id: 'compact', labelKey: 'om_item_compact', descKey: 'om_item_compact_desc',
     preview: (
       <div className="space-y-0.5 p-1">
         {[0,1,2,3].map(i => (
@@ -476,9 +476,9 @@ const ITEM_PREVIEWS: { id: ItemStyle; label: string; desc: string; preview: Reac
 ]
 
 // ── Event style previews ───────────────────────────────────────
-const EVENT_PREVIEWS: { id: EventStyle; label: string; desc: string; preview: React.ReactNode }[] = [
+const EVENT_PREVIEWS: { id: EventStyle; labelKey: string; descKey: string; preview: React.ReactNode }[] = [
   {
-    id: 'cards', label: 'Scroll Cards', desc: 'Horizontal cards with image',
+    id: 'cards', labelKey: 'om_event_cards', descKey: 'om_event_cards_desc',
     preview: (
       <div className="flex gap-2 p-1 overflow-hidden">
         {[0,1,2].map(i => (
@@ -494,7 +494,7 @@ const EVENT_PREVIEWS: { id: EventStyle; label: string; desc: string; preview: Re
     ),
   },
   {
-    id: 'banner', label: 'Full Banner', desc: 'Wide auto-sliding banner',
+    id: 'banner', labelKey: 'om_event_banner', descKey: 'om_event_banner_desc',
     preview: (
       <div className="p-1">
         <div className="w-full h-16 rounded-xl bg-white/8 relative overflow-hidden">
@@ -511,7 +511,7 @@ const EVENT_PREVIEWS: { id: EventStyle; label: string; desc: string; preview: Re
     ),
   },
   {
-    id: 'story', label: 'Story Style', desc: 'Instagram-style circles',
+    id: 'story', labelKey: 'om_event_story', descKey: 'om_event_story_desc',
     preview: (
       <div className="flex gap-2 p-1 py-2">
         {[0,1,2,3].map(i => (
@@ -529,9 +529,9 @@ const EVENT_PREVIEWS: { id: EventStyle; label: string; desc: string; preview: Re
 ]
 
 // ── Social style previews ──────────────────────────────────────
-const SOCIAL_PREVIEWS: { id: SocialStyle; label: string; desc: string; preview: React.ReactNode }[] = [
+const SOCIAL_PREVIEWS: { id: SocialStyle; labelKey: string; descKey: string; preview: React.ReactNode }[] = [
   {
-    id: 'pills', label: 'Pill Buttons', desc: 'Icon + label in pill shape',
+    id: 'pills', labelKey: 'om_social_pills', descKey: 'om_social_pills_desc',
     preview: (
       <div className="flex flex-wrap gap-1.5 p-1">
         {[['#1877f2','F'],['#e1306c','I'],['#25d366','W'],['#010101','T']].map(([c,l],i) => (
@@ -544,7 +544,7 @@ const SOCIAL_PREVIEWS: { id: SocialStyle; label: string; desc: string; preview: 
     ),
   },
   {
-    id: 'grid', label: 'Icon Grid', desc: '2-column grid with labels',
+    id: 'grid', labelKey: 'om_social_grid', descKey: 'om_social_grid_desc',
     preview: (
       <div className="grid grid-cols-4 gap-1.5 p-1">
         {[['#1877f2','F'],['#e1306c','I'],['#25d366','W'],['#010101','T'],['#ff0000','Y'],['#fffc00','S'],['#14171a','X'],['#10b981','📍']].map(([c,l],i) => (
@@ -557,7 +557,7 @@ const SOCIAL_PREVIEWS: { id: SocialStyle; label: string; desc: string; preview: 
     ),
   },
   {
-    id: 'icons', label: 'Icons Only', desc: 'Minimal icon circles',
+    id: 'icons', labelKey: 'om_social_icons', descKey: 'om_social_icons_desc',
     preview: (
       <div className="flex gap-2 p-1 justify-center">
         {[['#1877f2','F'],['#e1306c','I'],['#25d366','W'],['#010101','T'],['#ff0000','Y']].map(([c,l],i) => (
@@ -569,10 +569,10 @@ const SOCIAL_PREVIEWS: { id: SocialStyle; label: string; desc: string; preview: 
 ]
 
 // ── Surface style previews ─────────────────────────────────────
-const SURFACE_PREVIEWS: { id: SurfaceStyle; label: string; desc: string }[] = [
-  { id: 'solid',  label: 'Solid',          desc: 'Clean solid background' },
-  { id: 'glass',  label: 'Glassmorphism',  desc: 'Frosted glass effect' },
-  { id: 'card',   label: 'Card',           desc: 'Elevated card surfaces' },
+const SURFACE_PREVIEWS: { id: SurfaceStyle; labelKey: string; descKey: string }[] = [
+  { id: 'solid',  labelKey: 'om_surface_solid',  descKey: 'om_surface_solid_desc' },
+  { id: 'glass',  labelKey: 'om_surface_glass',  descKey: 'om_surface_glass_desc' },
+  { id: 'card',   labelKey: 'om_surface_card',   descKey: 'om_surface_card_desc'  },
 ]
 
 const PAGE: Variants = {
@@ -839,7 +839,7 @@ export default function OnlineMenuTemplatePage({ linksSlot }: { linksSlot?: Reac
                   <label className="block text-xs font-semibold text-white/40 uppercase tracking-wider mb-1.5">{t.om_welcome_label}</label>
                   <input type="text" value={settings.welcome_text ?? ''}
                     onChange={e => set('welcome_text', e.target.value || null)}
-                    placeholder="Welcome! Browse our menu and order from your table."
+                    placeholder={t.om_welcome_placeholder}
                     maxLength={120}
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-amber-500/50 transition-all" />
                 </div>
@@ -856,8 +856,8 @@ export default function OnlineMenuTemplatePage({ linksSlot }: { linksSlot?: Reac
             className="space-y-5">
             {/* Quick presets */}
             <div className="rounded-2xl bg-white/4 border border-white/10 p-4">
-              <p className="text-sm font-semibold text-white mb-1">Quick Start Presets</p>
-              <p className="text-xs text-white/30 mb-3">Pick a preset then fine-tune below</p>
+              <p className="text-sm font-semibold text-white mb-1">{t.om_presets_title}</p>
+              <p className="text-xs text-white/30 mb-3">{t.om_presets_sub}</p>
               <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
                 {PRESETS.map(p => (
                   <button key={p.id} onClick={() => applyPreset(p)}
@@ -869,7 +869,7 @@ export default function OnlineMenuTemplatePage({ linksSlot }: { linksSlot?: Reac
                         <div className="w-3 h-3 rounded-full" style={{ background: p.dot }} />
                       </div>
                     </div>
-                    <p className="text-[9px] font-semibold text-white/60">{p.label}</p>
+                    <p className="text-[9px] font-semibold text-white/60">{t[p.labelKey as keyof typeof t]}</p>
                   </button>
                 ))}
               </div>
@@ -878,8 +878,8 @@ export default function OnlineMenuTemplatePage({ linksSlot }: { linksSlot?: Reac
             {/* Theme color + surface */}
             <div className="rounded-2xl bg-white/4 border border-white/10 p-4 space-y-4">
               <div>
-                <p className="text-sm font-semibold text-white">Theme Color</p>
-                <p className="text-xs text-white/30">Primary accent for buttons, rings, prices</p>
+                <p className="text-sm font-semibold text-white">{t.om_theme_color}</p>
+                <p className="text-xs text-white/30">{t.om_theme_color_desc}</p>
               </div>
               <div className="flex flex-wrap gap-2">
                 {COLOR_PRESETS.map(c => (
@@ -899,14 +899,14 @@ export default function OnlineMenuTemplatePage({ linksSlot }: { linksSlot?: Reac
                 <span className="text-xs text-white/40 font-mono">{settings.primary_color}</span>
               </div>
               <div>
-                <p className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">Surface Style</p>
+                <p className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">{t.om_surface_style}</p>
                 <div className="grid grid-cols-3 gap-2">
                   {SURFACE_PREVIEWS.map(s => (
                     <button key={s.id} onClick={() => set('surface_style', s.id)}
                       className={cn('rounded-xl border p-3 text-left transition-all active:scale-95',
                         settings.surface_style === s.id ? 'border-amber-500/70 bg-amber-500/8' : 'border-white/10 bg-white/3 hover:border-white/20')}>
-                      <p className={cn('text-xs font-bold', settings.surface_style === s.id ? 'text-amber-400' : 'text-white/70')}>{s.label}</p>
-                      <p className="text-[9px] text-white/30 mt-0.5">{s.desc}</p>
+                      <p className={cn('text-xs font-bold', settings.surface_style === s.id ? 'text-amber-400' : 'text-white/70')}>{t[s.labelKey as keyof typeof t]}</p>
+                      <p className="text-[9px] text-white/30 mt-0.5">{t[s.descKey as keyof typeof t]}</p>
                     </button>
                   ))}
                 </div>
@@ -920,11 +920,11 @@ export default function OnlineMenuTemplatePage({ linksSlot }: { linksSlot?: Reac
           <motion.div key="layout" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.18 }}
             className="space-y-5">
             <div className="rounded-2xl bg-white/4 border border-white/10 p-4">
-              <p className="text-sm font-semibold text-white mb-1">Category Style</p>
-              <p className="text-xs text-white/30 mb-3">How menu categories are displayed</p>
+              <p className="text-sm font-semibold text-white mb-1">{t.om_cat_style}</p>
+              <p className="text-xs text-white/30 mb-3">{t.om_cat_style_desc}</p>
               <div className="grid grid-cols-2 gap-3">
                 {CAT_PREVIEWS.map(c => (
-                  <StyleCard key={c.id} label={c.label} desc={c.desc}
+                  <StyleCard key={c.id} label={t[c.labelKey as keyof typeof t] as string} desc={t[c.descKey as keyof typeof t] as string}
                     active={settings.category_style === c.id}
                     onClick={() => set('category_style', c.id)}
                     preview={<div className="rounded-lg bg-white/5 border border-white/8 overflow-hidden">{c.preview}</div>} />
@@ -932,11 +932,11 @@ export default function OnlineMenuTemplatePage({ linksSlot }: { linksSlot?: Reac
               </div>
             </div>
             <div className="rounded-2xl bg-white/4 border border-white/10 p-4">
-              <p className="text-sm font-semibold text-white mb-1">Item Card Style</p>
-              <p className="text-xs text-white/30 mb-3">How menu items appear inside a category</p>
+              <p className="text-sm font-semibold text-white mb-1">{t.om_item_style}</p>
+              <p className="text-xs text-white/30 mb-3">{t.om_item_style_desc}</p>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {ITEM_PREVIEWS.map(c => (
-                  <StyleCard key={c.id} label={c.label} desc={c.desc}
+                  <StyleCard key={c.id} label={t[c.labelKey as keyof typeof t] as string} desc={t[c.descKey as keyof typeof t] as string}
                     active={settings.item_style === c.id}
                     onClick={() => set('item_style', c.id)}
                     preview={<div className="rounded-lg bg-white/5 border border-white/8 overflow-hidden">{c.preview}</div>} />
@@ -944,11 +944,11 @@ export default function OnlineMenuTemplatePage({ linksSlot }: { linksSlot?: Reac
               </div>
             </div>
             <div className="rounded-2xl bg-white/4 border border-white/10 p-4">
-              <p className="text-sm font-semibold text-white mb-1">Events &amp; Offers Style</p>
-              <p className="text-xs text-white/30 mb-3">How promotions and events are showcased</p>
+              <p className="text-sm font-semibold text-white mb-1">{t.om_event_style}</p>
+              <p className="text-xs text-white/30 mb-3">{t.om_event_style_desc}</p>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {EVENT_PREVIEWS.map(c => (
-                  <StyleCard key={c.id} label={c.label} desc={c.desc}
+                  <StyleCard key={c.id} label={t[c.labelKey as keyof typeof t] as string} desc={t[c.descKey as keyof typeof t] as string}
                     active={settings.event_style === c.id}
                     onClick={() => set('event_style', c.id)}
                     preview={<div className="rounded-lg bg-white/5 border border-white/8 overflow-hidden">{c.preview}</div>} />
@@ -956,11 +956,11 @@ export default function OnlineMenuTemplatePage({ linksSlot }: { linksSlot?: Reac
               </div>
             </div>
             <div className="rounded-2xl bg-white/4 border border-white/10 p-4">
-              <p className="text-sm font-semibold text-white mb-1">Social Media Style</p>
-              <p className="text-xs text-white/30 mb-3">How social links appear at the bottom</p>
+              <p className="text-sm font-semibold text-white mb-1">{t.om_social_style}</p>
+              <p className="text-xs text-white/30 mb-3">{t.om_social_style_desc}</p>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {SOCIAL_PREVIEWS.map(c => (
-                  <StyleCard key={c.id} label={c.label} desc={c.desc}
+                  <StyleCard key={c.id} label={t[c.labelKey as keyof typeof t] as string} desc={t[c.descKey as keyof typeof t] as string}
                     active={settings.social_style === c.id}
                     onClick={() => set('social_style', c.id)}
                     preview={<div className="rounded-lg bg-white/5 border border-white/8 overflow-hidden">{c.preview}</div>} />

@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils'
 import { Plus, Trash2, Pencil, Ticket, Check, X, Loader2, AlertCircle, ToggleLeft, ToggleRight } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { motion, AnimatePresence, type Variants } from 'framer-motion'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 interface DiscountCode {
   id: string
@@ -55,6 +56,7 @@ const ITEM_VAR: Variants = {
 
 export default function DiscountCodePage() {
   const supabase = createClient()
+  const { t } = useLanguage()
   const [restaurantId] = useState<string | null>(() =>
     typeof window !== 'undefined' ? localStorage.getItem('restaurant_id') : null
   )
@@ -190,13 +192,13 @@ export default function DiscountCodePage() {
       <motion.div variants={ITEM_VAR} className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-base font-bold text-white flex items-center gap-2">
-            <Ticket className="w-4 h-4 text-amber-400" /> Discount Coupon Codes
+            <Ticket className="w-4 h-4 text-amber-400" /> {t.dc_title}
           </h2>
-          <p className="text-xs text-white/40 mt-0.5">Create codes that customers enter at checkout to get a discount on delivery orders</p>
+          <p className="text-xs text-white/40 mt-0.5">{t.dc_subtitle}</p>
         </div>
         <button onClick={openAdd}
           className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold transition-all active:scale-95 shadow-lg shadow-amber-500/25">
-          <Plus className="w-4 h-4" /> Add Code
+          <Plus className="w-4 h-4" /> {t.dc_add}
         </button>
       </motion.div>
 
@@ -205,8 +207,8 @@ export default function DiscountCodePage() {
         <motion.div variants={ITEM_VAR}
           className="rounded-2xl border border-white/10 bg-white/3 px-6 py-14 text-center">
           <Ticket className="w-10 h-10 text-white/15 mx-auto mb-3" />
-          <p className="text-white/40 text-sm font-medium">No coupon codes yet</p>
-          <p className="text-white/25 text-xs mt-1">Add your first discount code to get started</p>
+          <p className="text-white/40 text-sm font-medium">{t.dc_no_data}</p>
+          <p className="text-white/25 text-xs mt-1">{t.dc_no_data_desc}</p>
         </motion.div>
       ) : (
         <motion.div variants={LIST} initial="hidden" animate="visible" className="space-y-2">
@@ -235,23 +237,23 @@ export default function DiscountCodePage() {
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className={cn('text-sm font-bold',
                       c.discount_type === 'percentage' ? 'text-sky-400' : 'text-emerald-400')}>
-                      {c.discount_type === 'percentage' ? `${c.discount_value}% off` : `${c.discount_value} off`}
+                      {c.discount_type === 'percentage' ? `${c.discount_value}${t.dc_pct_off}` : `${c.discount_value} ${t.dc_pct_off}`}
                     </span>
                     {c.min_order_amount > 0 && (
                       <span className="text-[11px] text-white/40">· Min {c.min_order_amount}</span>
                     )}
                     {c.max_uses !== null && (
-                      <span className="text-[11px] text-white/40">· {c.used_count}/{c.max_uses} used</span>
+                      <span className="text-[11px] text-white/40">· {c.used_count}/{c.max_uses} {t.dc_used}</span>
                     )}
                     {c.used_count > 0 && c.max_uses === null && (
-                      <span className="text-[11px] text-white/30">· Used {c.used_count}×</span>
+                      <span className="text-[11px] text-white/30">· {t.dc_used_times} {c.used_count}×</span>
                     )}
                     {c.expires_at && (
                       <span className={cn('text-[11px]', expired ? 'text-rose-400' : 'text-white/40')}>
-                        · {expired ? 'Expired' : 'Expires'} {new Date(c.expires_at).toLocaleDateString()}
+                        · {expired ? t.dc_expired : t.dc_expires_label} {new Date(c.expires_at).toLocaleDateString()}
                       </span>
                     )}
-                    {exhausted && <span className="text-[11px] text-rose-400">· Limit reached</span>}
+                    {exhausted && <span className="text-[11px] text-rose-400">· {t.dc_limit}</span>}
                   </div>
                 </div>
 
@@ -302,7 +304,7 @@ export default function DiscountCodePage() {
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-bold text-white flex items-center gap-2">
                   <Ticket className="w-4 h-4 text-amber-400" />
-                  {editId ? 'Edit Coupon Code' : 'New Coupon Code'}
+                  {editId ? t.dc_edit_code : t.dc_new}
                 </h3>
                 <button onClick={() => setShowModal(false)}
                   className="w-7 h-7 rounded-lg bg-white/6 hover:bg-white/10 flex items-center justify-center transition-all">
@@ -312,7 +314,7 @@ export default function DiscountCodePage() {
 
               {/* Code */}
               <div>
-                <label className="text-[11px] font-semibold text-white/50 uppercase tracking-wider mb-1.5 block">Code</label>
+                <label className="text-[11px] font-semibold text-white/50 uppercase tracking-wider mb-1.5 block">{t.dc_code}</label>
                 <input
                   type="text"
                   value={form.code}
@@ -324,7 +326,7 @@ export default function DiscountCodePage() {
 
               {/* Discount type */}
               <div>
-                <label className="text-[11px] font-semibold text-white/50 uppercase tracking-wider mb-1.5 block">Discount Type</label>
+                <label className="text-[11px] font-semibold text-white/50 uppercase tracking-wider mb-1.5 block">{t.dc_type}</label>
                 <div className="grid grid-cols-2 gap-2">
                   {(['percentage', 'fixed'] as const).map(type => (
                     <button key={type} onClick={() => setForm(f => ({ ...f, discount_type: type }))}
@@ -332,7 +334,7 @@ export default function DiscountCodePage() {
                         form.discount_type === type
                           ? 'border-amber-500/60 bg-amber-500/12 text-amber-400'
                           : 'border-white/10 bg-white/4 text-white/50 hover:border-white/20')}>
-                      {type === 'percentage' ? '% Percentage' : '# Fixed Amount'}
+                      {type === 'percentage' ? t.dc_pct : t.dc_fixed}
                     </button>
                   ))}
                 </div>
@@ -342,7 +344,7 @@ export default function DiscountCodePage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-[11px] font-semibold text-white/50 uppercase tracking-wider mb-1.5 block">
-                    {form.discount_type === 'percentage' ? 'Discount (%)' : 'Discount Amount'}
+                    {form.discount_type === 'percentage' ? t.dc_value_pct : t.dc_value_fixed}
                   </label>
                   <input
                     type="number"
@@ -354,7 +356,7 @@ export default function DiscountCodePage() {
                   />
                 </div>
                 <div>
-                  <label className="text-[11px] font-semibold text-white/50 uppercase tracking-wider mb-1.5 block">Min Order (0 = any)</label>
+                  <label className="text-[11px] font-semibold text-white/50 uppercase tracking-wider mb-1.5 block">{t.dc_min_order}</label>
                   <input
                     type="number"
                     value={form.min_order_amount}
@@ -368,18 +370,18 @@ export default function DiscountCodePage() {
               {/* Max uses + Expiry */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[11px] font-semibold text-white/50 uppercase tracking-wider mb-1.5 block">Max Uses (blank = ∞)</label>
+                  <label className="text-[11px] font-semibold text-white/50 uppercase tracking-wider mb-1.5 block">{t.dc_max_uses}</label>
                   <input
                     type="number"
                     value={form.max_uses}
                     onChange={e => setForm(f => ({ ...f, max_uses: e.target.value }))}
                     min={1}
-                    placeholder="Unlimited"
+                    placeholder={t.dc_unlimited}
                     className="w-full bg-white/6 border border-white/12 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-amber-500/50 transition-all"
                   />
                 </div>
                 <div>
-                  <label className="text-[11px] font-semibold text-white/50 uppercase tracking-wider mb-1.5 block">Expires (blank = never)</label>
+                  <label className="text-[11px] font-semibold text-white/50 uppercase tracking-wider mb-1.5 block">{t.dc_expires}</label>
                   <input
                     type="date"
                     value={form.expires_at}
@@ -392,8 +394,8 @@ export default function DiscountCodePage() {
               {/* Active toggle */}
               <div className="flex items-center justify-between py-1">
                 <div>
-                  <p className="text-sm text-white/80 font-medium">Active</p>
-                  <p className="text-xs text-white/30">Customers can use this code</p>
+                  <p className="text-sm text-white/80 font-medium">{t.active}</p>
+                  <p className="text-xs text-white/30">{t.dc_active_desc}</p>
                 </div>
                 <button onClick={() => setForm(f => ({ ...f, active: !f.active }))}>
                   {form.active
@@ -413,12 +415,12 @@ export default function DiscountCodePage() {
               <div className="flex gap-2 pt-1">
                 <button onClick={() => setShowModal(false)}
                   className="flex-1 py-2.5 rounded-xl border border-white/10 bg-white/4 text-white/60 text-sm font-medium hover:bg-white/8 transition-all">
-                  Cancel
+                  {t.cancel}
                 </button>
                 <button onClick={save} disabled={!form.code.trim() || saving}
                   className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2">
                   {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                  {editId ? 'Update' : 'Create'}
+                  {editId ? t.dc_update : t.dc_create}
                 </button>
               </div>
 

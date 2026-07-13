@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 // ── Types ─────────────────────────────────────────────────────────
 interface AuditEntry {
@@ -29,40 +30,41 @@ const ITEM: Variants = {
   show:   { opacity: 1, y: 0, transition: { duration: 0.4, ease: 'circOut' as const } },
 }
 
-// ── Action config ─────────────────────────────────────────────────
-const ACTION_CFG: Record<string, { emoji: string; label: string; color: string }> = {
-  send_to_kitchen:    { emoji: '🍽️', label: 'Sent to Kitchen',    color: 'bg-amber-500/20 text-amber-300 border-amber-500/30' },
-  payment:            { emoji: '💰', label: 'Payment',            color: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' },
-  pay_later:          { emoji: '🗒️', label: 'Pay Later',          color: 'bg-amber-500/20 text-amber-300 border-amber-500/30' },
-  void_item:          { emoji: '❌', label: 'Void Item',          color: 'bg-rose-500/20 text-rose-300 border-rose-500/30' },
-  edit_price:         { emoji: '✏️', label: 'Edit Price',         color: 'bg-blue-500/20 text-blue-300 border-blue-500/30' },
-  apply_discount:     { emoji: '🏷️', label: 'Discount Applied',   color: 'bg-purple-500/20 text-purple-300 border-purple-500/30' },
-  add:                { emoji: '📦', label: 'Add Item',           color: 'bg-teal-500/20 text-teal-300 border-teal-500/30' },
-  edit:               { emoji: '✏️', label: 'Edit',               color: 'bg-sky-500/20 text-sky-300 border-sky-500/30' },
-  delete:             { emoji: '🗑️', label: 'Delete',             color: 'bg-rose-500/20 text-rose-300 border-rose-500/30' },
-  toggle:             { emoji: '🔄', label: 'Toggle',             color: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30' },
-  update_settings:    { emoji: '⚙️', label: 'Settings Updated',   color: 'bg-violet-500/20 text-violet-300 border-violet-500/30' },
-  print:              { emoji: '🖨️', label: 'Print',              color: 'bg-slate-400/20 text-slate-300 border-slate-400/25' },
-  print_bill:         { emoji: '🧾', label: 'Print Bill',         color: 'bg-slate-400/20 text-slate-300 border-slate-400/25' },
-  transfer_item:      { emoji: '🔀', label: 'Transfer Item',      color: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30' },
-  kds_cooking:        { emoji: '🔥', label: 'KDS Cooking',        color: 'bg-orange-500/20 text-orange-300 border-orange-500/30' },
-  kds_ready:          { emoji: '✅', label: 'KDS Ready',          color: 'bg-green-500/20 text-green-300 border-green-500/30' },
-  delivery_confirmed: { emoji: '📦', label: 'Delivery Confirmed', color: 'bg-sky-500/20 text-sky-300 border-sky-500/30' },
-  delivery_out:       { emoji: '🚚', label: 'Out for Delivery',   color: 'bg-blue-500/20 text-blue-300 border-blue-500/30' },
-  delivery_delivered: { emoji: '🎉', label: 'Delivered',          color: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' },
-  delivery_cancelled: { emoji: '🚫', label: 'Delivery Cancelled', color: 'bg-rose-500/20 text-rose-300 border-rose-500/30' },
-  pending_approved:   { emoji: '✅', label: 'Order Approved',     color: 'bg-teal-500/20 text-teal-300 border-teal-500/30' },
-  pending_declined:   { emoji: '❌', label: 'Order Declined',     color: 'bg-rose-500/20 text-rose-300 border-rose-500/30' },
-  guest_order:        { emoji: '📱', label: 'Guest QR Order',     color: 'bg-violet-500/20 text-violet-300 border-violet-500/30' },
-  waiter_call:        { emoji: '🔔', label: 'Waiter Called',      color: 'bg-amber-500/20 text-amber-300 border-amber-500/30' },
-  delivery_order:     { emoji: '🛵', label: 'Delivery Order',     color: 'bg-blue-500/20 text-blue-300 border-blue-500/30' },
+// ── Action config — uses labelKey instead of hardcoded label ──────
+const ACTION_CFG: Record<string, { emoji: string; labelKey: string; color: string }> = {
+  send_to_kitchen:    { emoji: '🍽️', labelKey: 'al_act_sent_kitchen',  color: 'bg-amber-500/20 text-amber-300 border-amber-500/30' },
+  payment:            { emoji: '💰', labelKey: 'al_act_payment',        color: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' },
+  pay_later:          { emoji: '🗒️', labelKey: 'al_act_pay_later',      color: 'bg-amber-500/20 text-amber-300 border-amber-500/30' },
+  void_item:          { emoji: '❌', labelKey: 'al_act_void_item',      color: 'bg-rose-500/20 text-rose-300 border-rose-500/30' },
+  edit_price:         { emoji: '✏️', labelKey: 'al_act_edit_price',     color: 'bg-blue-500/20 text-blue-300 border-blue-500/30' },
+  apply_discount:     { emoji: '🏷️', labelKey: 'al_act_discount',       color: 'bg-purple-500/20 text-purple-300 border-purple-500/30' },
+  add:                { emoji: '📦', labelKey: 'al_act_add',            color: 'bg-teal-500/20 text-teal-300 border-teal-500/30' },
+  edit:               { emoji: '✏️', labelKey: 'al_act_edit',           color: 'bg-sky-500/20 text-sky-300 border-sky-500/30' },
+  delete:             { emoji: '🗑️', labelKey: 'al_act_delete',         color: 'bg-rose-500/20 text-rose-300 border-rose-500/30' },
+  toggle:             { emoji: '🔄', labelKey: 'al_act_toggle',         color: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30' },
+  update_settings:    { emoji: '⚙️', labelKey: 'al_act_settings',       color: 'bg-violet-500/20 text-violet-300 border-violet-500/30' },
+  print:              { emoji: '🖨️', labelKey: 'al_act_print',          color: 'bg-slate-400/20 text-slate-300 border-slate-400/25' },
+  print_bill:         { emoji: '🧾', labelKey: 'al_act_print_bill',     color: 'bg-slate-400/20 text-slate-300 border-slate-400/25' },
+  transfer_item:      { emoji: '🔀', labelKey: 'al_act_transfer',       color: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30' },
+  kds_cooking:        { emoji: '🔥', labelKey: 'al_act_kds_cooking',    color: 'bg-orange-500/20 text-orange-300 border-orange-500/30' },
+  kds_ready:          { emoji: '✅', labelKey: 'al_act_kds_ready',      color: 'bg-green-500/20 text-green-300 border-green-500/30' },
+  delivery_confirmed: { emoji: '📦', labelKey: 'al_act_del_confirmed',  color: 'bg-sky-500/20 text-sky-300 border-sky-500/30' },
+  delivery_out:       { emoji: '🚚', labelKey: 'al_act_del_out',        color: 'bg-blue-500/20 text-blue-300 border-blue-500/30' },
+  delivery_delivered: { emoji: '🎉', labelKey: 'al_act_delivered',      color: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' },
+  delivery_cancelled: { emoji: '🚫', labelKey: 'al_act_del_cancelled',  color: 'bg-rose-500/20 text-rose-300 border-rose-500/30' },
+  pending_approved:   { emoji: '✅', labelKey: 'al_act_approved',       color: 'bg-teal-500/20 text-teal-300 border-teal-500/30' },
+  pending_declined:   { emoji: '❌', labelKey: 'al_act_declined',       color: 'bg-rose-500/20 text-rose-300 border-rose-500/30' },
+  guest_order:        { emoji: '📱', labelKey: 'al_act_guest_order',    color: 'bg-violet-500/20 text-violet-300 border-violet-500/30' },
+  waiter_call:        { emoji: '🔔', labelKey: 'al_act_waiter_call',    color: 'bg-amber-500/20 text-amber-300 border-amber-500/30' },
+  delivery_order:     { emoji: '🛵', labelKey: 'al_act_del_order',      color: 'bg-blue-500/20 text-blue-300 border-blue-500/30' },
 }
 
 function getActionCfg(action: string) {
   return ACTION_CFG[action] ?? {
     emoji: '📋',
-    label: action.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+    labelKey: null as null,
     color: 'bg-white/8 text-white/50 border-white/10',
+    _raw: action.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
   }
 }
 
@@ -82,53 +84,59 @@ function initials(name: string | null) {
   return name.split(' ').map(p => p[0]?.toUpperCase()).filter(Boolean).slice(0, 2).join('')
 }
 
-// ── Detail text ───────────────────────────────────────────────────
-function buildDetail(action: string, meta: Record<string, unknown>): string {
+// ── Detail text (accepts translations for template words) ─────────
+type TWords = {
+  al_table: string; al_reason: string; al_via: string; al_added: string
+  al_updated: string; al_deleted: string; al_toggled: string; al_printed: string
+  al_items_count: string; al_waiter_req: string; al_customer: string
+  al_item_word: string; al_settings_word: string; al_record_word: string
+}
+function buildDetail(action: string, meta: Record<string, unknown>, tw: TWords): string {
   const m = meta as Record<string, string | number | unknown>
   switch (action) {
     case 'send_to_kitchen':
       if (Array.isArray(m.items) && m.items.length)
-        return `Table ${m.table ?? '?'} — ${(m.items as {name:string;qty:number}[]).slice(0,3).map(i=>`${i.qty}× ${i.name}`).join(', ')}`
-      return `Table ${m.table ?? '?'}${m.item_name ? ` — ${m.item_name}` : ''}`
+        return `${tw.al_table} ${m.table ?? '?'} — ${(m.items as {name:string;qty:number}[]).slice(0,3).map(i=>`${i.qty}× ${i.name}`).join(', ')}`
+      return `${tw.al_table} ${m.table ?? '?'}${m.item_name ? ` — ${m.item_name}` : ''}`
     case 'payment':
-      return `Table ${m.table ?? '?'}${m.method ? ` via ${m.method}` : ''}${m.total ? ` — ${m.total}` : ''}`
+      return `${tw.al_table} ${m.table ?? '?'}${m.method ? ` ${tw.al_via} ${m.method}` : ''}${m.total ? ` — ${m.total}` : ''}`
     case 'void_item':
-      return `${m.item_name ?? 'Item'}${m.reason ? ` — Reason: ${m.reason}` : ''}`
+      return `${m.item_name ?? tw.al_item_word}${m.reason ? ` — ${tw.al_reason}: ${m.reason}` : ''}`
     case 'edit_price':
-      return `${m.item_name ?? 'Item'}${m.new_price !== undefined ? ` → ${m.new_price}` : ''}`
+      return `${m.item_name ?? tw.al_item_word}${m.new_price !== undefined ? ` → ${m.new_price}` : ''}`
     case 'apply_discount':
-      return `${m.item_name ?? 'Item'}${m.discounted_price !== undefined ? ` → ${m.discounted_price}` : ''}`
+      return `${m.item_name ?? tw.al_item_word}${m.discounted_price !== undefined ? ` → ${m.discounted_price}` : ''}`
     case 'add':
-      return `Added new ${m.entity ?? 'record'}${m.name ? `: ${m.name}` : ''}`
+      return `${tw.al_added} ${m.entity ?? tw.al_record_word}${m.name ? `: ${m.name}` : ''}`
     case 'edit':
-      return `Updated ${m.entity ?? 'record'}${m.name ? `: ${m.name}` : ''}`
+      return `${tw.al_updated} ${m.entity ?? tw.al_record_word}${m.name ? `: ${m.name}` : ''}`
     case 'delete':
-      return `Deleted ${m.entity ?? 'record'}${m.name ? `: ${m.name}` : ''}`
+      return `${tw.al_deleted} ${m.entity ?? tw.al_record_word}${m.name ? `: ${m.name}` : ''}`
     case 'toggle':
-      return `Toggled ${m.entity ?? m.field ?? 'setting'}${m.value !== undefined ? ` → ${m.value}` : ''}`
+      return `${tw.al_toggled} ${m.entity ?? m.field ?? tw.al_settings_word}${m.value !== undefined ? ` → ${m.value}` : ''}`
     case 'update_settings':
-      return `Updated ${m.section ?? 'settings'}${m.field ? `: ${m.field}` : ''}`
+      return `${tw.al_updated} ${m.section ?? tw.al_settings_word}${m.field ? `: ${m.field}` : ''}`
     case 'print': case 'print_bill':
-      return `Printed ${m.type ?? 'bill'}${m.table ? ` for Table ${m.table}` : ''}`
+      return `${tw.al_printed} ${m.type ?? 'bill'}${m.table ? ` — ${tw.al_table} ${m.table}` : ''}`
     case 'transfer_item':
-      return `${m.item_name ?? 'Item'} → Table ${m.to_table ?? '?'}`
+      return `${m.item_name ?? tw.al_item_word} → ${tw.al_table} ${m.to_table ?? '?'}`
     case 'pay_later':
-      return `${m.customer ?? 'Customer'}${m.table ? ` — Table ${m.table}` : ''}${m.amount ? ` — ${m.amount}` : ''}`
+      return `${m.customer ?? tw.al_customer}${m.table ? ` — ${tw.al_table} ${m.table}` : ''}${m.amount ? ` — ${m.amount}` : ''}`
     case 'kds_cooking': case 'kds_ready':
-      return `Table ${m.table ?? '?'}${m.item_name ? ` — ${m.item_name}` : (m.items_count ? ` — ${m.items_count} items` : '')}`
+      return `${tw.al_table} ${m.table ?? '?'}${m.item_name ? ` — ${m.item_name}` : (m.items_count ? ` — ${m.items_count} ${tw.al_items_count}` : '')}`
     case 'delivery_confirmed': case 'delivery_out': case 'delivery_delivered': case 'delivery_cancelled':
-      return `${m.customer ?? 'Customer'}${m.order_num ? ` #${m.order_num}` : ''}`
+      return `${m.customer ?? tw.al_customer}${m.order_num ? ` #${m.order_num}` : ''}`
     case 'pending_approved': case 'pending_declined':
-      return `Table ${m.table ?? '?'}${m.item_name ? ` — ${m.item_name}` : (m.items_count ? ` — ${m.items_count} items` : '')}`
+      return `${tw.al_table} ${m.table ?? '?'}${m.item_name ? ` — ${m.item_name}` : (m.items_count ? ` — ${m.items_count} ${tw.al_items_count}` : '')}`
     case 'guest_order':
-      return `Table ${m.table ?? '?'}${m.table_name ? ` (${m.table_name})` : ''}${m.items ? ` — ${m.items}` : (m.items_count ? ` — ${m.items_count} items` : '')}`
+      return `${tw.al_table} ${m.table ?? '?'}${m.table_name ? ` (${m.table_name})` : ''}${m.items ? ` — ${m.items}` : (m.items_count ? ` — ${m.items_count} ${tw.al_items_count}` : '')}`
     case 'waiter_call':
-      return `Table ${m.table ?? '?'}${m.table_name ? ` (${m.table_name})` : ''} — Waiter requested`
+      return `${tw.al_table} ${m.table ?? '?'}${m.table_name ? ` (${m.table_name})` : ''} — ${tw.al_waiter_req}`
     case 'delivery_order':
-      return `${m.customer ?? 'Customer'}${m.phone ? ` · ${m.phone}` : ''}${m.items ? ` — ${m.items}` : (m.items_count ? ` — ${m.items_count} items` : '')}${m.address ? ` · ${m.address}` : ''}`
+      return `${m.customer ?? tw.al_customer}${m.phone ? ` · ${m.phone}` : ''}${m.items ? ` — ${m.items}` : (m.items_count ? ` — ${m.items_count} ${tw.al_items_count}` : '')}${m.address ? ` · ${m.address}` : ''}`
     default: {
       const parts: string[] = []
-      if (m.table)     parts.push(`Table ${m.table}`)
+      if (m.table)     parts.push(`${tw.al_table} ${m.table}`)
       if (m.name)      parts.push(String(m.name))
       if (m.item_name) parts.push(String(m.item_name))
       if (m.entity)    parts.push(String(m.entity))
@@ -150,6 +158,7 @@ const PAGE_SIZE = 50
 // ── Page ──────────────────────────────────────────────────────────
 export default function AuditLogPage() {
   const supabase = useMemo(() => createClient(), [])
+  const { t } = useLanguage()
 
   const [entries,      setEntries]      = useState<AuditEntry[]>([])
   const [loading,      setLoading]      = useState(true)
@@ -163,6 +172,15 @@ export default function AuditLogPage() {
   const [allActions,   setAllActions]   = useState<string[]>([])
 
   const restaurantId = typeof window !== 'undefined' ? (localStorage.getItem('restaurant_id') ?? '') : ''
+
+  const tw: TWords = {
+    al_table: t.al_table, al_reason: t.al_reason, al_via: t.al_via,
+    al_added: t.al_added, al_updated: t.al_updated, al_deleted: t.al_deleted,
+    al_toggled: t.al_toggled, al_printed: t.al_printed,
+    al_items_count: t.al_items_count, al_waiter_req: t.al_waiter_req,
+    al_customer: t.al_customer, al_item_word: t.al_item_word,
+    al_settings_word: t.al_settings_word, al_record_word: t.al_record_word,
+  }
 
   const fetchEntries = async (reset = false) => {
     if (!restaurantId) return
@@ -206,9 +224,15 @@ export default function AuditLogPage() {
         const q = search.toLowerCase()
         return e.action.toLowerCase().includes(q)
           || (e.staff_name?.toLowerCase().includes(q) ?? false)
-          || buildDetail(e.action, e.metadata).toLowerCase().includes(q)
+          || buildDetail(e.action, e.metadata, tw).toLowerCase().includes(q)
       })
     : entries
+
+  const getLabel = (action: string) => {
+    const cfg = getActionCfg(action)
+    if (cfg.labelKey) return t[cfg.labelKey as keyof typeof t] as string
+    return (cfg as { _raw?: string })._raw ?? action
+  }
 
   const exportCsv = async () => {
     if (!restaurantId) return
@@ -224,10 +248,10 @@ export default function AuditLogPage() {
     const header = 'Timestamp,Action,Staff,Role,Details\n'
     const rows = data.map(r => [
       `"${r.created_at}"`,
-      `"${getActionCfg(r.action).label}"`,
+      `"${getLabel(r.action)}"`,
       `"${r.staff_name ?? ''}"`,
       `"${r.staff_role ?? ''}"`,
-      `"${buildDetail(r.action, r.metadata as Record<string,unknown>)}"`,
+      `"${buildDetail(r.action, r.metadata as Record<string,unknown>, tw)}"`,
     ].join(','))
     const blob = new Blob([header + rows.join('\n')], { type: 'text/csv' })
     const url = URL.createObjectURL(blob)
@@ -245,8 +269,8 @@ export default function AuditLogPage() {
           <ActivitySquare className="w-5 h-5 text-sky-400" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-white">Audit Log</h1>
-          <p className="text-sm text-white/40 mt-1">Complete trail of staff actions across your restaurant.</p>
+          <h1 className="text-2xl font-bold text-white">{t.aud_title}</h1>
+          <p className="text-sm text-white/40 mt-1">{t.al_subtitle}</p>
         </div>
       </motion.div>
 
@@ -259,7 +283,7 @@ export default function AuditLogPage() {
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Search actions, staff, details…"
+            placeholder={t.al_search}
             className="bg-transparent text-sm text-white placeholder-white/25 outline-none flex-1"
           />
         </div>
@@ -268,8 +292,8 @@ export default function AuditLogPage() {
           <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/30 pointer-events-none" />
           <select value={actionFilter} onChange={e => setActionFilter(e.target.value)}
             className="pl-7 pr-7 py-2 rounded-xl bg-white/5 border border-white/10 text-sm text-white/70 outline-none appearance-none cursor-pointer hover:bg-white/8 transition-colors">
-            <option value="all">All actions</option>
-            {allActions.map(a => <option key={a} value={a}>{getActionCfg(a).label}</option>)}
+            <option value="all">{t.aud_all_actions}</option>
+            {allActions.map(a => <option key={a} value={a}>{getLabel(a)}</option>)}
           </select>
           <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/30 pointer-events-none" />
         </div>
@@ -278,20 +302,20 @@ export default function AuditLogPage() {
           <User className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/30 pointer-events-none" />
           <select value={staffFilter} onChange={e => setStaffFilter(e.target.value)}
             className="pl-7 pr-7 py-2 rounded-xl bg-white/5 border border-white/10 text-sm text-white/70 outline-none appearance-none cursor-pointer hover:bg-white/8 transition-colors">
-            <option value="all">All staff</option>
+            <option value="all">{t.al_all_staff}</option>
             {staffNames.map(n => <option key={n} value={n}>{n}</option>)}
           </select>
           <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/30 pointer-events-none" />
         </div>
 
         <button onClick={() => fetchEntries(true)} disabled={loading}
-          className="p-2 rounded-xl bg-white/5 border border-white/10 text-white/45 hover:bg-white/8 hover:text-white/70 transition-all disabled:opacity-50" title="Refresh">
+          className="p-2 rounded-xl bg-white/5 border border-white/10 text-white/45 hover:bg-white/8 hover:text-white/70 transition-all disabled:opacity-50" title={t.aud_title}>
           <RefreshCw className={cn('w-4 h-4', loading && 'animate-spin')} />
         </button>
 
         <button onClick={exportCsv}
           className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-sky-500/10 border border-sky-500/20 text-sky-400 text-sm font-medium hover:bg-sky-500/20 transition-all">
-          <Download className="w-3.5 h-3.5" /> Export CSV
+          <Download className="w-3.5 h-3.5" /> {t.al_export_csv}
         </button>
       </motion.div>
 
@@ -303,16 +327,16 @@ export default function AuditLogPage() {
             <thead>
               <tr className="border-b border-white/8">
                 <th className="text-left px-5 py-3 text-[10px] font-bold uppercase tracking-widest text-white/30 whitespace-nowrap w-[130px]">
-                  ⏰ Time
+                  ⏰ {t.al_col_time}
                 </th>
                 <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-white/30 whitespace-nowrap w-[180px]">
-                  👤 User
+                  👤 {t.al_col_user}
                 </th>
                 <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-white/30 whitespace-nowrap w-[170px]">
-                  🎯 Action
+                  🎯 {t.al_col_action}
                 </th>
                 <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-white/30">
-                  ℹ️ Details
+                  ℹ️ {t.al_col_details}
                 </th>
               </tr>
             </thead>
@@ -324,7 +348,7 @@ export default function AuditLogPage() {
                   <td colSpan={4} className="py-20 text-center">
                     <div className="flex items-center justify-center gap-3 text-white/30">
                       <Loader2 className="w-5 h-5 animate-spin" />
-                      <span className="text-sm">Loading audit log…</span>
+                      <span className="text-sm">{t.al_loading}</span>
                     </div>
                   </td>
                 </tr>
@@ -333,15 +357,16 @@ export default function AuditLogPage() {
                   <td colSpan={4} className="py-20 text-center">
                     <div className="flex flex-col items-center gap-3 text-white/25">
                       <ActivitySquare className="w-10 h-10 opacity-30" />
-                      <p className="text-sm">No log entries found</p>
+                      <p className="text-sm">{t.al_no_entries}</p>
                     </div>
                   </td>
                 </tr>
               ) : (
                 filtered.map((entry, idx) => {
                   const cfg    = getActionCfg(entry.action)
-                  const detail = buildDetail(entry.action, entry.metadata)
+                  const detail = buildDetail(entry.action, entry.metadata, tw)
                   const { time, date } = formatTimeParts(entry.created_at)
+                  const label  = getLabel(entry.action)
 
                   return (
                     <tr
@@ -384,7 +409,7 @@ export default function AuditLogPage() {
                           cfg.color
                         )}>
                           <span>{cfg.emoji}</span>
-                          {cfg.label}
+                          {label}
                         </span>
                       </td>
 
@@ -409,7 +434,7 @@ export default function AuditLogPage() {
               className="flex items-center gap-2 px-5 py-2 rounded-xl bg-white/5 border border-white/10 text-white/45 text-sm hover:bg-white/8 hover:text-white/65 transition-all disabled:opacity-50"
             >
               {loadingMore && <Loader2 className="w-4 h-4 animate-spin" />}
-              {loadingMore ? 'Loading…' : 'Load more'}
+              {loadingMore ? t.loading : t.aud_load_more}
             </button>
           </div>
         )}
@@ -417,7 +442,7 @@ export default function AuditLogPage() {
 
       {!loading && filtered.length > 0 && (
         <motion.p variants={ITEM} className="text-center text-xs text-white/20">
-          {filtered.length} entries{hasMore ? '+' : ''}
+          {filtered.length} {t.al_entries}{hasMore ? '+' : ''}
         </motion.p>
       )}
 
