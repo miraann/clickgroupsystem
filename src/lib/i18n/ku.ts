@@ -524,7 +524,7 @@ const ku: Record<keyof typeof en, string> = {
   sur_name:             'ناو',
   sur_type:             'جۆر',
   sur_value:            'بەها',
-  sur_no_data:          'هێشتا هیچ زیادەیەکی نییە',
+  sur_no_data:          'هێشتا هیچ زیادەیەک نییە',
 
   // ── Menu: Combo Discount ──────────────────────────
   combo_title:          'داشکاندنی کۆمبۆ',
