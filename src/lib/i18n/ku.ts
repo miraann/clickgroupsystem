@@ -496,7 +496,7 @@ const ku: Record<keyof typeof en, string> = {
   // ── Menu: Modifier ────────────────────────────────
   mod_title:            'زیادکراوەکان',
   mod_subtitle:         'بژاردەکانی کاڵا و زیادەکان',
-  mod_add:              'گرووپی گۆڕانکاری زیاد بکە',
+  mod_add:              'دانانی زیادکراوی نوێ',
   mod_group_name:       'ناوی گرووپ',
   mod_option:           'بژاردە',
   mod_price:            'نرخی زیادە',
