@@ -1021,7 +1021,7 @@ const ku: Record<keyof typeof en, string> = {
   item_photo_change:   'گۆڕین',
   item_photo_tap:      'کرتە بکە بۆ بارکردنی وێنە',
   item_desc_ph:        'باسکردنی ئارەزووی',
-  item_avail_inhouse:  'بەردەستە (ناوخۆ)',
+  item_avail_inhouse:  'بەردەستە (ناو چێشتخانە)',
   item_avail_delivery: 'بەردەستە لە مێنیوی گەیاندن',
   item_avail_guest:    'بەردەستە لە مێنیوی QR',
   item_mod_selected:   'هەڵبژێردرا',
