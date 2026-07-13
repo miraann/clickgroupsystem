@@ -519,7 +519,7 @@ const ku: Record<keyof typeof en, string> = {
 
   // ── Menu: Surcharge ───────────────────────────────
   sur_title:            'زیادەکان',
-  sur_subtitle:         'تێچووی زیادەی لەسەر فەرمانەکان',
+  sur_subtitle:         'تێچوی زیادە وەک باج ، کرێی گەیاندن',
   sur_add:              'زیادە زیاد بکە',
   sur_name:             'ناو',
   sur_type:             'جۆر',
