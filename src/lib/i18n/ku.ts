@@ -506,7 +506,7 @@ const ku: Record<keyof typeof en, string> = {
 
   // ── Menu: Discount ────────────────────────────────
   disc_title:           'داشکاندنەکان',
-  disc_subtitle:        'داشکاندنی گەشتیاری و کووپۆن',
+  disc_subtitle:        'داشکاندی ناو چێشتخانە',
   disc_add:             'داشکاندن زیاد بکە',
   disc_name:            'ناو',
   disc_type:            'جۆر',
