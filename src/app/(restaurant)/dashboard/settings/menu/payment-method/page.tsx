@@ -79,7 +79,7 @@ export default function PaymentMethodPage() {
   // Auto-seed IQD currency and Cash payment method for restaurants that have none
   useEffect(() => {
     if (!swrData || !restaurantId) return
-    const toInsert: Promise<unknown>[] = []
+    const toInsert: PromiseLike<unknown>[] = []
     if ((swrData.currencies ?? []).length === 0) {
       toInsert.push(supabase.from('currencies').insert({
         restaurant_id: restaurantId, name: 'Iraqi Dinar', symbol: 'IQD',
