@@ -16,7 +16,7 @@ interface AppearanceSettings {
                         | 'gradient-aurora' | 'gradient-rose'
   sidebar_custom_color: string
   sidebar_custom_type:  'gradient' | 'solid'
-  table_design:         'glass' | 'vibrant' | 'glow' | 'minimal'
+  table_design:         'glass' | 'vibrant' | 'glow' | 'neon' | 'minimal' | 'cyberpunk'
   nav_button_style:     'glass' | 'vibrant' | 'neon' | 'crystal'
   text_color:           string
   text_muted_color:     string
@@ -68,9 +68,19 @@ const TABLE_DESIGNS = [
     desc:  'Real top-down table view',
   },
   {
-    id: 'minimal',
+    id: 'neon',
     label: 'Neon',
-    desc:  'Glowing neon accent borders',
+    desc:  'Spinning neon accent border',
+  },
+  {
+    id: 'minimal',
+    label: 'Minimal',
+    desc:  'Borderless with soft colored shadow',
+  },
+  {
+    id: 'cyberpunk',
+    label: 'Cyberpunk',
+    desc:  'Dark card with vibrant outer glow',
   },
 ] as const
 
@@ -216,13 +226,27 @@ function MiniDesignPreview({ design, primary }: { design: string; primary: strin
         ? { background: '#059669' }
         : { background: '#4338ca' },
     }
-    // neon
-    return {
+    if (design === 'neon') return {
       style: s === 'occupied'
         ? { background: 'rgba(0,0,0,0.30)', border: `1.5px solid ${bgOcc(0.90)}`, boxShadow: `0 0 6px ${bgOcc(0.40)}` }
         : s === 'available'
         ? { background: 'rgba(0,0,0,0.30)', border: '1.5px solid rgba(16,185,129,0.90)', boxShadow: '0 0 6px rgba(16,185,129,0.40)' }
         : { background: 'rgba(0,0,0,0.30)', border: '1.5px solid rgba(129,140,248,0.90)', boxShadow: '0 0 6px rgba(129,140,248,0.40)' },
+    }
+    if (design === 'minimal') return {
+      style: s === 'occupied'
+        ? { background: 'rgba(255,255,255,0.04)', boxShadow: `0 3px 14px ${bgOcc(0.22)}` }
+        : s === 'available'
+        ? { background: 'rgba(255,255,255,0.04)', boxShadow: '0 3px 14px rgba(16,185,129,0.22)' }
+        : { background: 'rgba(255,255,255,0.04)', boxShadow: '0 3px 14px rgba(129,140,248,0.22)' },
+    }
+    // cyberpunk
+    return {
+      style: s === 'occupied'
+        ? { background: 'rgba(6,6,18,0.92)', boxShadow: `0 0 0 1px ${bgOcc(0.85)}, 0 0 10px ${bgOcc(0.50)}` }
+        : s === 'available'
+        ? { background: 'rgba(6,6,18,0.92)', boxShadow: '0 0 0 1px rgba(16,185,129,0.85), 0 0 10px rgba(16,185,129,0.50)' }
+        : { background: 'rgba(6,6,18,0.92)', boxShadow: '0 0 0 1px rgba(129,140,248,0.85), 0 0 10px rgba(129,140,248,0.50)' },
     }
   })
 
@@ -305,7 +329,7 @@ function DashboardPreview({
   sidebarStyle:       string
   sidebarCustomColor: string
   sidebarCustomType:  'gradient' | 'solid'
-  tableDesign:        'glass' | 'vibrant' | 'glow' | 'minimal'
+  tableDesign:        'glass' | 'vibrant' | 'glow' | 'neon' | 'minimal' | 'cyberpunk'
   navButtonStyle:     'glass' | 'vibrant' | 'neon' | 'crystal'
   textColor:          string
   textMutedColor:     string
@@ -322,7 +346,7 @@ function DashboardPreview({
     if (tableDesign === 'glow') {
       return { background: 'transparent' }
     }
-    if (tableDesign === 'minimal') {
+    if (tableDesign === 'neon') {
       const borders: Record<string, string> = {
         occupied: hexAlpha(pc, 0.90), available: 'rgba(16,185,129,0.90)',
         reserved: 'rgba(99,102,241,0.90)', bill: 'rgba(239,68,68,0.90)', dirty: 'rgba(251,113,133,0.70)',
@@ -334,6 +358,27 @@ function DashboardPreview({
       const c  = borders[status] ?? borders.available
       const gl = glows[status]   ?? glows.available
       return { background: 'rgba(0,0,0,0.30)', border: `1.5px solid ${c}`, boxShadow: `0 0 10px ${gl}` }
+    }
+    if (tableDesign === 'minimal') {
+      const shadows: Record<string, string> = {
+        occupied: hexAlpha(pc, 0.22), available: 'rgba(16,185,129,0.22)',
+        reserved: 'rgba(99,102,241,0.22)', bill: 'rgba(239,68,68,0.22)', dirty: 'rgba(251,113,133,0.18)',
+      }
+      const sh = shadows[status] ?? shadows.available
+      return { background: 'rgba(255,255,255,0.04)', boxShadow: `0 4px 18px ${sh}` }
+    }
+    if (tableDesign === 'cyberpunk') {
+      const borders: Record<string, string> = {
+        occupied: hexAlpha(pc, 0.85), available: 'rgba(16,185,129,0.85)',
+        reserved: 'rgba(99,102,241,0.85)', bill: 'rgba(239,68,68,0.90)', dirty: 'rgba(251,113,133,0.75)',
+      }
+      const glows: Record<string, string> = {
+        occupied: hexAlpha(pc, 0.50), available: 'rgba(16,185,129,0.50)',
+        reserved: 'rgba(99,102,241,0.50)', bill: 'rgba(239,68,68,0.55)', dirty: 'rgba(251,113,133,0.40)',
+      }
+      const c  = borders[status] ?? borders.available
+      const gl = glows[status]   ?? glows.available
+      return { background: 'rgba(6,6,18,0.92)', boxShadow: `0 0 0 1.5px ${c}, 0 0 18px ${gl}` }
     }
     // glass
     if (status === 'occupied') return { background: hexAlpha(pc, 0.18), border: `1px solid ${hexAlpha(pc, 0.5)}`, color: pc }

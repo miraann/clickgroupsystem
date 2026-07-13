@@ -469,7 +469,7 @@ function hexAlpha(hex: string, a: number): string {
 }
 
 // ── Enhanced Table Card ────────────────────────────────────────
-type TableDesign = 'glass' | 'vibrant' | 'glow' | 'minimal'
+type TableDesign = 'glass' | 'vibrant' | 'glow' | 'neon' | 'minimal' | 'cyberpunk'
 
 // Status colors used by non-glass designs (using CSS var for occupied so primary color applies)
 const VIBRANT_BG: Record<TableStatus, string> = {
@@ -486,7 +486,7 @@ const GLOW_COLOR: Record<TableStatus, string> = {
   dirty:          '#fb7185',
   bill_requested: '#f87171',
 }
-const MINIMAL_BORDER: Record<TableStatus, string> = {
+const NEON_SPIN_BORDER: Record<TableStatus, string> = {
   available:      'rgba(16,185,129,0.90)',
   occupied:       'rgba(245,158,11,0.90)',
   reserved:       'rgba(129,140,248,0.90)',
@@ -507,12 +507,40 @@ const NEON_TINT: Record<TableStatus, string> = {
   dirty:          'rgba(251,113,133,0.05)',
   bill_requested: 'rgba(248,113,113,0.08)',
 }
-const MINIMAL_ACCENT: Record<TableStatus, string> = {
+const NEON_ACCENT: Record<TableStatus, string> = {
   available:      '#34d399',
   occupied:       'var(--app-primary, #f59e0b)',
   reserved:       '#818cf8',
   dirty:          '#fb7185',
   bill_requested: '#f87171',
+}
+const MINIMAL_COLOR: Record<TableStatus, string> = {
+  available:      '#10b981',
+  occupied:       'var(--app-primary, #f59e0b)',
+  reserved:       '#818cf8',
+  dirty:          '#fb7185',
+  bill_requested: '#f87171',
+}
+const MINIMAL_SHADOW: Record<TableStatus, string> = {
+  available:      '0 4px 24px rgba(16,185,129,0.22), 0 1px 6px rgba(0,0,0,0.18)',
+  occupied:       '0 4px 24px rgba(245,158,11,0.22), 0 1px 6px rgba(0,0,0,0.18)',
+  reserved:       '0 4px 24px rgba(129,140,248,0.22), 0 1px 6px rgba(0,0,0,0.18)',
+  dirty:          '0 4px 24px rgba(251,113,133,0.18), 0 1px 6px rgba(0,0,0,0.18)',
+  bill_requested: '0 4px 24px rgba(248,113,113,0.26), 0 1px 6px rgba(0,0,0,0.18)',
+}
+const CYBER_GLOW: Record<TableStatus, string> = {
+  available:      '0 0 0 1.5px rgba(16,185,129,0.85), 0 0 28px rgba(16,185,129,0.55)',
+  occupied:       '0 0 0 1.5px rgba(245,158,11,0.85), 0 0 28px rgba(245,158,11,0.55)',
+  reserved:       '0 0 0 1.5px rgba(129,140,248,0.85), 0 0 28px rgba(129,140,248,0.55)',
+  dirty:          '0 0 0 1.5px rgba(251,113,133,0.75), 0 0 22px rgba(251,113,133,0.45)',
+  bill_requested: '0 0 0 1.5px rgba(248,113,113,0.90), 0 0 32px rgba(248,113,113,0.65)',
+}
+const CYBER_COLOR: Record<TableStatus, string> = {
+  available:      '#34d399',
+  occupied:       'var(--app-primary, #fbbf24)',
+  reserved:       '#a5b4fc',
+  dirty:          '#fda4af',
+  bill_requested: '#fca5a5',
 }
 
 const TableCard = memo(function TableCard({ table, onSelect, onLongPress, formatPrice, hasWaiterCall, design = 'glass' }: {
@@ -573,12 +601,28 @@ const TableCard = memo(function TableCard({ table, onSelect, onLongPress, format
       cardW = 'min(120px, 29vw)'
       cardH = isOccupied ? 'min(165px, 40vw)' : 'min(148px, 36vw)'
     }
-  } else { // minimal
+  } else if (design === 'neon') {
     if (isRect) {
       cardW = isOccupied ? 'min(190px, 46vw)' : 'min(175px, 42vw)'
       cardH = isOccupied ? 'min(110px, 27vw)' : 'min(92px, 23vw)'
     } else {
       cardW = isOccupied ? 'min(110px, 27vw)' : 'min(92px, 23vw)'
+      cardH = cardW
+    }
+  } else if (design === 'minimal') {
+    if (isRect) {
+      cardW = isOccupied ? 'min(190px, 46vw)' : 'min(170px, 41vw)'
+      cardH = isOccupied ? 'min(108px, 26vw)' : 'min(88px, 22vw)'
+    } else {
+      cardW = isOccupied ? 'min(108px, 26vw)' : 'min(88px, 22vw)'
+      cardH = cardW
+    }
+  } else { // cyberpunk
+    if (isRect) {
+      cardW = isOccupied ? 'min(190px, 46vw)' : 'min(175px, 42vw)'
+      cardH = isOccupied ? 'min(115px, 28vw)' : 'min(96px, 24vw)'
+    } else {
+      cardW = isOccupied ? 'min(115px, 28vw)' : 'min(96px, 24vw)'
       cardH = cardW
     }
   }
@@ -702,9 +746,9 @@ const TableCard = memo(function TableCard({ table, onSelect, onLongPress, format
   }
 
   // ════════════════════════════════════════════════════════════════
-  // DESIGN: NEON — glowing accent borders with deep dark fill
+  // DESIGN: NEON — spinning neon accent border with deep dark fill
   // ════════════════════════════════════════════════════════════════
-  if (design === 'minimal') {
+  if (design === 'neon') {
     return (
       <div
         className="relative shrink-0"
@@ -716,7 +760,7 @@ const TableCard = memo(function TableCard({ table, onSelect, onLongPress, format
           style={{
             position: 'absolute', top: '50%', left: '50%',
             width: '200%', height: '200%',
-            background: `conic-gradient(from 0deg, transparent 0%, ${MINIMAL_BORDER[table.status]} 18%, transparent 36%)`,
+            background: `conic-gradient(from 0deg, transparent 0%, ${NEON_SPIN_BORDER[table.status]} 18%, transparent 36%)`,
             animation: 'neon-border-spin 2.5s linear infinite',
           }}
         />
@@ -742,12 +786,12 @@ const TableCard = memo(function TableCard({ table, onSelect, onLongPress, format
           )}
           {/* Label row */}
           <div className="relative flex items-center justify-between mb-auto">
-            <span className="text-[11px] font-bold" style={{ color: MINIMAL_ACCENT[table.status] }}>{table.label}</span>
+            <span className="text-[11px] font-bold" style={{ color: NEON_ACCENT[table.status] }}>{table.label}</span>
             <motion.div
               animate={{ scale:[1,1.4,1], opacity:[0.7,1,0.7] }}
               transition={{ repeat: Infinity, duration: isBillReq ? 0.8 : 2.5 }}
               className="w-1.5 h-1.5 rounded-full"
-              style={{ background: MINIMAL_ACCENT[table.status], boxShadow: `0 0 4px ${MINIMAL_ACCENT[table.status]}` }}
+              style={{ background: NEON_ACCENT[table.status], boxShadow: `0 0 4px ${NEON_ACCENT[table.status]}` }}
             />
           </div>
           {/* Center status */}
@@ -761,7 +805,7 @@ const TableCard = memo(function TableCard({ table, onSelect, onLongPress, format
                 <Clock className="w-2.5 h-2.5" /><TableTimer openedAt={table.openedAt!} />
               </span>
               {table.orderTotal != null && (
-                <p className="text-[13px] font-bold tabular-nums" style={{ color: MINIMAL_ACCENT[table.status] }}>
+                <p className="text-[13px] font-bold tabular-nums" style={{ color: NEON_ACCENT[table.status] }}>
                   {formatPrice(table.orderTotal)}
                 </p>
               )}
@@ -775,6 +819,134 @@ const TableCard = memo(function TableCard({ table, onSelect, onLongPress, format
           )}
         </motion.button>
       </div>
+    )
+  }
+
+  // ════════════════════════════════════════════════════════════════
+  // DESIGN: MINIMAL — borderless flat card, soft colored shadow
+  // ════════════════════════════════════════════════════════════════
+  if (design === 'minimal') {
+    const mc = MINIMAL_COLOR[table.status]
+    return (
+      <motion.button
+        {...motionBase}
+        whileTap={{ scale: 0.94 }}
+        style={{
+          width: cardW, height: cardH, borderRadius: shapeRadius,
+          background: 'rgba(255,255,255,0.04)',
+          boxShadow: MINIMAL_SHADOW[table.status],
+        }}
+        className={cn(
+          'relative p-3 text-left shrink-0 touch-manipulation flex flex-col overflow-hidden',
+          isRound && 'items-center justify-center text-center',
+          isBillReq && 'animate-pulse',
+        )}
+      >
+        {hasWaiterCall && (
+          <div className="absolute -top-1.5 -right-1.5 z-10 w-5 h-5 rounded-full bg-violet-500/90 flex items-center justify-center shadow-lg animate-bounce">
+            <BellRing className="w-2.5 h-2.5 text-white" />
+          </div>
+        )}
+        <div className="relative flex items-center justify-between mb-auto">
+          <span className="text-[11px] font-bold" style={{ color: mc }}>{table.label}</span>
+          <motion.div
+            animate={{ opacity: [0.5, 1, 0.5] }}
+            transition={{ repeat: Infinity, duration: isBillReq ? 0.7 : 2.5 }}
+            className="w-1.5 h-1.5 rounded-full"
+            style={{ background: mc }}
+          />
+        </div>
+        <p className="relative text-[8px] font-semibold uppercase tracking-widest text-white/35 leading-none mb-1.5">
+          {STATUS_LABELS[table.status]}
+        </p>
+        {isOccupied && (
+          <div className="relative space-y-0.5">
+            <span className="text-[9px] text-white/30 tabular-nums flex items-center gap-1">
+              <Clock className="w-2.5 h-2.5" /><TableTimer openedAt={table.openedAt!} />
+            </span>
+            {table.orderTotal != null && (
+              <p className="text-[13px] font-bold tabular-nums" style={{ color: mc }}>
+                {formatPrice(table.orderTotal)}
+              </p>
+            )}
+          </div>
+        )}
+        {table.status === 'available' && (
+          <div className="relative flex items-center gap-1">
+            <Users className="w-2.5 h-2.5 text-white/20" />
+            <span className="text-[10px] text-white/25">{table.capacity}</span>
+          </div>
+        )}
+      </motion.button>
+    )
+  }
+
+  // ════════════════════════════════════════════════════════════════
+  // DESIGN: CYBERPUNK — dark card with vibrant outer status glow
+  // ════════════════════════════════════════════════════════════════
+  if (design === 'cyberpunk') {
+    const cc = CYBER_COLOR[table.status]
+    return (
+      <motion.button
+        {...motionBase}
+        whileTap={{ scale: 0.93 }}
+        style={{
+          width: cardW, height: cardH, borderRadius: shapeRadius,
+          background: 'rgba(6,6,18,0.92)',
+          boxShadow: CYBER_GLOW[table.status],
+        }}
+        className={cn(
+          'relative p-3 text-left shrink-0 touch-manipulation flex flex-col overflow-hidden',
+          isRound && 'items-center justify-center text-center',
+          isBillReq && 'animate-pulse',
+        )}
+      >
+        {/* Scanline overlay */}
+        <div
+          className="absolute inset-0 pointer-events-none opacity-[0.035]"
+          style={{ backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,1) 2px, rgba(255,255,255,1) 3px)', borderRadius: shapeRadius }}
+        />
+        {/* Corner accents */}
+        {!isRound && <>
+          <div className="absolute top-0 left-0 w-3.5 h-3.5 pointer-events-none" style={{ borderTop: `1.5px solid ${cc}`, borderLeft: `1.5px solid ${cc}`, borderRadius: '10px 0 0 0', opacity: 0.75 }} />
+          <div className="absolute bottom-0 right-0 w-3.5 h-3.5 pointer-events-none" style={{ borderBottom: `1.5px solid ${cc}`, borderRight: `1.5px solid ${cc}`, borderRadius: '0 0 10px 0', opacity: 0.75 }} />
+        </>}
+        {hasWaiterCall && (
+          <div className="absolute -top-1.5 -right-1.5 z-10 w-5 h-5 rounded-full bg-violet-500/90 flex items-center justify-center shadow-lg animate-bounce">
+            <BellRing className="w-2.5 h-2.5 text-white" />
+          </div>
+        )}
+        <div className="relative flex items-center justify-between mb-auto">
+          <span className="text-[11px] font-black tracking-widest" style={{ color: cc, textShadow: `0 0 8px ${cc}` }}>{table.label}</span>
+          <motion.div
+            animate={{ opacity: [1, 0.3, 1] }}
+            transition={{ repeat: Infinity, duration: isBillReq ? 0.6 : 1.8 }}
+            className="w-1.5 h-1.5 rounded-full"
+            style={{ background: cc, boxShadow: `0 0 6px ${cc}` }}
+          />
+        </div>
+        <p className="relative text-[7px] font-bold uppercase tracking-[0.2em] leading-none mb-1.5" style={{ color: cc, opacity: 0.65 }}>
+          {STATUS_LABELS[table.status]}
+        </p>
+        {isOccupied && (
+          <div className="relative space-y-0.5">
+            <span className="text-[9px] text-white/30 tabular-nums flex items-center gap-1">
+              <Clock className="w-2.5 h-2.5" style={{ color: cc, opacity: 0.5 }} /><TableTimer openedAt={table.openedAt!} />
+            </span>
+            {table.orderTotal != null && (
+              <p className="text-[13px] font-black tabular-nums" style={{ color: cc, textShadow: `0 0 10px ${cc}` }}>
+                {formatPrice(table.orderTotal)}
+              </p>
+            )}
+          </div>
+        )}
+        {table.status === 'available' && (
+          <div className="relative flex items-center gap-1">
+            <Users className="w-2.5 h-2.5" style={{ color: cc, opacity: 0.5 }} />
+            <span className="text-[10px]" style={{ color: cc, opacity: 0.6 }}>{table.capacity}</span>
+          </div>
+        )}
+      </motion.button>
     )
   }
 
@@ -1065,11 +1237,11 @@ export default function TablesPage() {
       guestPendingRes,
       { data: waiterCallsData },
     ] = await Promise.all([
-      supabase.from('order_items').select('id, orders!inner(source)', { count: 'exact', head: true }).eq('status', 'pending').not('orders.source', 'eq', 'delivery'),
+      supabase.from('order_items').select('id, orders!inner(source, restaurant_id)', { count: 'exact', head: true }).eq('status', 'pending').eq('orders.restaurant_id', storedId).not('orders.source', 'eq', 'delivery'),
       supabase.from('orders').select('id, table_number, guests, total, created_at').eq('restaurant_id', storedId).eq('status', 'active'),
       supabase.from('reservations').select('table_id').eq('restaurant_id', storedId).eq('date', today).in('status', ['pending', 'confirmed']),
       supabase.from('delivery_orders').select('id', { count: 'exact', head: true }).eq('restaurant_id', storedId).eq('status', 'pending'),
-      supabase.from('order_items').select('id, orders!inner(source)', { count: 'exact', head: true }).eq('status', 'pending').eq('orders.source', 'guest'),
+      supabase.from('order_items').select('id, orders!inner(source, restaurant_id)', { count: 'exact', head: true }).eq('status', 'pending').eq('orders.restaurant_id', storedId).eq('orders.source', 'guest'),
       supabase.from('waiter_calls').select('id, table_number, table_name, created_at').eq('restaurant_id', storedId).eq('status', 'pending').order('created_at'),
     ])
 
