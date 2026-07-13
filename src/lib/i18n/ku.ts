@@ -600,7 +600,7 @@ const ku: Record<keyof typeof en, string> = {
   om_settings_heading:  'ڕێکخستنەکانی مێنیوی ئۆنلاین',
   om_enable:            'مێنیوی ئۆنلاین چالاک بکە',
   om_enable_desc:       'مێنیوی QR گشتی بەردەست بکە بۆ میوانەکان',
-  om_face_scan:         'سکانی دەم بۆ گەیاندن',
+  om_face_scan:         'سکانی ڕوخسار  بەشی گەیاندن',
   om_face_scan_desc:    'سێلفی پێویستە پێش داواکردنی گەیاندن',
   om_show_prices:       'نرخەکان نیشان بدە',
   om_show_prices_desc:  'نرخی کاڵاکان نیشان بدە بۆ میوانەکان',
