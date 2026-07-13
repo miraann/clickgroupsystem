@@ -613,10 +613,10 @@ export default function OnlineMenuTemplatePage({ linksSlot }: { linksSlot?: Reac
   const [showPreview, setShowPreview] = useState(false)
 
   const SUB_TABS = [
-    { key: 'links'   as const, label: 'Settings', icon: Link2 },
-    { key: 'design'  as const, label: 'Design',  icon: Palette },
-    { key: 'layout'  as const, label: 'Layout',  icon: LayoutGrid },
-    { key: 'coupons' as const, label: 'Coupons', icon: Ticket },
+    { key: 'links'   as const, label: t.om_tab_settings, icon: Link2 },
+    { key: 'design'  as const, label: t.om_tab_design,   icon: Palette },
+    { key: 'layout'  as const, label: t.om_tab_layout,   icon: LayoutGrid },
+    { key: 'coupons' as const, label: t.om_tab_coupons,  icon: Ticket },
   ]
 
   // Initialise settings once when SWR data first arrives
@@ -758,7 +758,7 @@ export default function OnlineMenuTemplatePage({ linksSlot }: { linksSlot?: Reac
               <div className="border-t border-white/8" />
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wider text-white/30 mb-1.5 flex items-center gap-1.5">
-                  <ExternalLink className="w-3 h-3" /> Delivery Order Menu
+                  <ExternalLink className="w-3 h-3" /> {t.om_delivery_link}
                 </p>
                 <div className="flex items-center gap-2">
                   <div className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded-xl px-3 py-2 flex items-center gap-2 overflow-hidden">
@@ -786,12 +786,12 @@ export default function OnlineMenuTemplatePage({ linksSlot }: { linksSlot?: Reac
 
             {/* Enable Online Menu toggle */}
             <div className="rounded-2xl bg-white/4 border border-white/10 p-4">
-              <p className="text-sm font-semibold text-white mb-3">Online Menu Settings</p>
+              <p className="text-sm font-semibold text-white mb-3">{t.om_settings_heading}</p>
               <div className="space-y-4">
                 <div className="flex items-center justify-between gap-4">
                   <div className="min-w-0">
-                    <p className="text-sm text-white/80 font-medium">Enable Online Menu</p>
-                    <p className="text-xs text-white/30 mt-0.5">Make the public QR menu accessible to guests</p>
+                    <p className="text-sm text-white/80 font-medium">{t.om_enable}</p>
+                    <p className="text-xs text-white/30 mt-0.5">{t.om_enable_desc}</p>
                   </div>
                   <button onClick={() => set('menu_enabled', !settings.menu_enabled)}
                     className={cn('relative w-11 h-6 rounded-full border transition-all duration-200 shrink-0',
@@ -805,8 +805,8 @@ export default function OnlineMenuTemplatePage({ linksSlot }: { linksSlot?: Reac
                   <div className="min-w-0 flex items-start gap-2.5">
                     <ScanFace className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
                     <div>
-                      <p className="text-sm text-white/80 font-medium">Face Scan for Delivery</p>
-                      <p className="text-xs text-white/30 mt-0.5">Require liveness selfie before placing a delivery order</p>
+                      <p className="text-sm text-white/80 font-medium">{t.om_face_scan}</p>
+                      <p className="text-xs text-white/30 mt-0.5">{t.om_face_scan_desc}</p>
                     </div>
                   </div>
                   <button onClick={() => set('face_scan_enabled', !settings.face_scan_enabled)}
@@ -818,8 +818,8 @@ export default function OnlineMenuTemplatePage({ linksSlot }: { linksSlot?: Reac
                 </div>
                 <div className="border-t border-white/8" />
                 {[
-                  { k: 'show_prices'       as const, label: 'Show Prices',       desc: 'Display item prices to guests' },
-                  { k: 'show_descriptions' as const, label: 'Show Descriptions', desc: 'Show item descriptions below name' },
+                  { k: 'show_prices'       as const, label: t.om_show_prices, desc: t.om_show_prices_desc },
+                  { k: 'show_descriptions' as const, label: t.om_show_descs,  desc: t.om_show_descs_desc },
                 ].map(opt => (
                   <div key={opt.k} className="flex items-center justify-between gap-4">
                     <div className="min-w-0">
@@ -836,7 +836,7 @@ export default function OnlineMenuTemplatePage({ linksSlot }: { linksSlot?: Reac
                 ))}
                 <div className="border-t border-white/8" />
                 <div>
-                  <label className="block text-xs font-semibold text-white/40 uppercase tracking-wider mb-1.5">Welcome Message</label>
+                  <label className="block text-xs font-semibold text-white/40 uppercase tracking-wider mb-1.5">{t.om_welcome_label}</label>
                   <input type="text" value={settings.welcome_text ?? ''}
                     onChange={e => set('welcome_text', e.target.value || null)}
                     placeholder="Welcome! Browse our menu and order from your table."
@@ -984,7 +984,7 @@ export default function OnlineMenuTemplatePage({ linksSlot }: { linksSlot?: Reac
       <div className="hidden lg:flex lg:col-span-5 xl:col-span-4 flex-col items-center gap-4 sticky top-10 xl:top-12">
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="text-xs text-white/40 font-medium">Live Preview</span>
+          <span className="text-xs text-white/40 font-medium">{t.om_live_preview}</span>
         </div>
         {/* container reserves the scaled height so sticky column stays correct */}
         <div className="relative w-[260px] h-[520px] 2xl:w-[312px] 2xl:h-[624px]">
@@ -993,7 +993,7 @@ export default function OnlineMenuTemplatePage({ linksSlot }: { linksSlot?: Reac
           </div>
         </div>
         <p className="text-[10px] text-white/20 text-center px-4">
-          Updates instantly as you change styles
+          {t.om_preview_hint}
         </p>
       </div>
 
@@ -1006,7 +1006,7 @@ export default function OnlineMenuTemplatePage({ linksSlot }: { linksSlot?: Reac
       onClick={() => setShowPreview(true)}
       className="lg:hidden fixed bottom-6 right-6 z-40 flex items-center gap-2 px-4 py-3 rounded-2xl bg-amber-500 text-white shadow-xl shadow-amber-500/30 text-sm font-semibold active:scale-95 transition-all"
     >
-      <Eye className="w-4 h-4" /> Preview
+      <Eye className="w-4 h-4" /> {t.om_preview}
     </button>
 
     {/* Mobile preview modal */}
@@ -1028,14 +1028,14 @@ export default function OnlineMenuTemplatePage({ linksSlot }: { linksSlot?: Reac
           >
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-xs text-white/60 font-medium">Live Preview</span>
+              <span className="text-xs text-white/60 font-medium">{t.om_live_preview}</span>
             </div>
             <PhonePreview s={settings} data={preview} />
             <button
               onClick={() => setShowPreview(false)}
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white/70 hover:text-white text-sm font-medium transition-all active:scale-95"
             >
-              <X className="w-4 h-4" /> Close Preview
+              <X className="w-4 h-4" /> {t.om_close_preview}
             </button>
           </motion.div>
         </motion.div>
