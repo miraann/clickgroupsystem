@@ -822,6 +822,21 @@ const en = {
   pm_cash:              'Cash',
   pm_card:              'Card',
   pm_online:            'Online',
+  pm_set_default:       'Set default',
+  // ── Menu: Currency ────────────────────────────────────────────
+  cur_title:            'Currencies',
+  cur_subtitle:         'Supported currencies and formats',
+  cur_tab:              'Currency',
+  cur_add:              'Add Currency',
+  cur_modal_add:        'Add Currency',
+  cur_modal_edit:       'Edit Currency',
+  cur_presets:          'Quick Presets',
+  cur_name:             'Currency Name',
+  cur_symbol:           'Symbol',
+  cur_decimal_places:   'Decimal Places',
+  cur_set_default:      'Set default',
+  cur_default_badge:    'Default',
+  set_as_default:       'Set as Default',
 
   // ── Menu: Void Reason ─────────────────────────────────────────
   vr_title:             'Void Reasons',

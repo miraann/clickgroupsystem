@@ -263,9 +263,9 @@ export default function PaymentMethodPage() {
       {/* ── Tab bar ── */}
       <div className="flex gap-1 mb-6 p-1 rounded-2xl bg-white/4 border border-white/8 w-fit">
         {([
-          { key: 'currency', icon: <Coins className="w-4 h-4" />,     label: 'Currency' },
-          { key: 'payment',  icon: <CreditCard className="w-4 h-4" />, label: 'Payment Methods' },
-        ] as const).map(({ key, icon, label }) => (
+          { key: 'currency' as const, icon: <Coins className="w-4 h-4" />,     label: t.cur_tab },
+          { key: 'payment'  as const, icon: <CreditCard className="w-4 h-4" />, label: t.pm_title },
+        ]).map(({ key, icon, label }) => (
           <button key={key} onClick={() => setTab(key)}
             className={cn('flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all',
               tab === key ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20' : 'text-white/50 hover:text-white/70')}>
@@ -283,14 +283,14 @@ export default function PaymentMethodPage() {
                 <Coins className="w-5 h-5 text-amber-400" />
               </div>
               <div>
-                <h1 className="text-lg font-semibold text-white">Currencies</h1>
-                <p className="text-xs text-white/40">Supported currencies and formats</p>
+                <h1 className="text-lg font-semibold text-white">{t.cur_title}</h1>
+                <p className="text-xs text-white/40">{t.cur_subtitle}</p>
               </div>
               <span className="px-2 py-0.5 rounded-full bg-white/8 text-xs text-white/50">{currencies.length}</span>
             </div>
             <button onClick={openAddCur}
               className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-xl active:scale-95 transition-all">
-              <Plus className="w-4 h-4" /> Add Currency
+              <Plus className="w-4 h-4" /> {t.cur_add}
             </button>
           </div>
 
@@ -307,19 +307,19 @@ export default function PaymentMethodPage() {
                     <p className="text-sm font-medium text-white">{c.name}</p>
                     {c.is_default && (
                       <span className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-400">
-                        <Star className="w-2.5 h-2.5" />Default
+                        <Star className="w-2.5 h-2.5" />{t.cur_default_badge}
                       </span>
                     )}
                   </div>
                   <p className="text-xs text-white/35 mt-0.5">
-                    {c.decimal_places} decimal place{c.decimal_places !== 1 ? 's' : ''} · e.g. {c.symbol}{(1234).toFixed(c.decimal_places)}
+                    {c.decimal_places} {t.cur_decimal_places} · {c.symbol}{(1234).toFixed(c.decimal_places)}
                   </p>
                 </div>
 
                 {!c.is_default && (
                   <button onClick={() => setDefaultCurrency(c)}
                     className="text-xs text-white/30 hover:text-amber-400 px-2 py-1 rounded-lg hover:bg-amber-500/10 transition-all active:scale-95 shrink-0">
-                    Set default
+                    {t.cur_set_default}
                   </button>
                 )}
                 <button onClick={() => openEditCur(c)}
@@ -373,7 +373,7 @@ export default function PaymentMethodPage() {
                     <p className="text-sm font-medium text-white">{m.name}</p>
                     {m.is_default && (
                       <span className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-400">
-                        <Star className="w-2.5 h-2.5" />Default
+                        <Star className="w-2.5 h-2.5" />{t.cur_default_badge}
                       </span>
                     )}
                   </div>
@@ -382,7 +382,7 @@ export default function PaymentMethodPage() {
                 {!m.is_default && (
                   <button onClick={() => setDefaultPay(m)}
                     className="text-xs text-white/30 hover:text-amber-400 px-2 py-1 rounded-lg hover:bg-amber-500/10 transition-all active:scale-95 shrink-0">
-                    Set default
+                    {t.pm_set_default}
                   </button>
                 )}
                 <button onClick={() => toggleActive(m)} className="active:scale-95 shrink-0">
@@ -411,7 +411,7 @@ export default function PaymentMethodPage() {
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="w-full max-w-md bg-[#0d1220]/95 backdrop-blur-2xl border border-white/15 rounded-3xl p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-base font-semibold text-white">{editCurId ? 'Edit Currency' : 'Add Currency'}</h2>
+              <h2 className="text-base font-semibold text-white">{editCurId ? t.cur_modal_edit : t.cur_modal_add}</h2>
               <button onClick={() => setCurModal(false)}
                 className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-all active:scale-95">
                 <X className="w-4 h-4" />
@@ -422,7 +422,7 @@ export default function PaymentMethodPage() {
               {/* Presets */}
               {!editCurId && (
                 <div>
-                  <label className="block text-xs text-white/50 mb-2 font-medium">Quick Presets</label>
+                  <label className="block text-xs text-white/50 mb-2 font-medium">{t.cur_presets}</label>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     {PRESET_CURRENCIES.map(p => (
                       <button key={p.symbol} onClick={() => applyPreset(p)}
@@ -441,21 +441,21 @@ export default function PaymentMethodPage() {
               )}
 
               <div>
-                <label className="block text-xs text-white/50 mb-1.5 font-medium">Currency Name *</label>
+                <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.cur_name} *</label>
                 <input value={curForm.name} onChange={e => setCurForm(f => ({ ...f, name: e.target.value }))}
                   placeholder="e.g. Iraqi Dinar"
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500/50 transition-colors" />
               </div>
 
               <div>
-                <label className="block text-xs text-white/50 mb-1.5 font-medium">Symbol *</label>
+                <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.cur_symbol} *</label>
                 <input value={curForm.symbol} onChange={e => setCurForm(f => ({ ...f, symbol: e.target.value }))}
                   placeholder="e.g. IQD or $"
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500/50 transition-colors font-mono" />
               </div>
 
               <div>
-                <label className="block text-xs text-white/50 mb-2 font-medium">Decimal Places</label>
+                <label className="block text-xs text-white/50 mb-2 font-medium">{t.cur_decimal_places}</label>
                 <div className="grid grid-cols-3 sm:grid-cols-3 gap-2">
                   {DECIMAL_OPTIONS.map(opt => (
                     <button key={opt.value} onClick={() => setCurForm(f => ({ ...f, decimal_places: opt.value }))}
@@ -471,7 +471,7 @@ export default function PaymentMethodPage() {
               </div>
 
               <div className="flex items-center justify-between p-3 bg-white/3 rounded-xl">
-                <span className="text-sm text-white/70">Set as Default</span>
+                <span className="text-sm text-white/70">{t.set_as_default}</span>
                 <button onClick={() => setCurForm(f => ({ ...f, is_default: !f.is_default }))} className="active:scale-95">
                   {curForm.is_default ? <ToggleRight className="w-6 h-6 text-amber-400" /> : <ToggleLeft className="w-6 h-6 text-white/25" />}
                 </button>
@@ -481,12 +481,12 @@ export default function PaymentMethodPage() {
             <div className="flex gap-3 mt-6">
               <button onClick={() => setCurModal(false)}
                 className="flex-1 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 text-sm font-medium transition-all active:scale-95">
-                Cancel
+                {t.cancel}
               </button>
               <button onClick={saveCurrency} disabled={!curForm.name.trim() || !curForm.symbol.trim() || curSaving}
                 className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white text-sm font-medium transition-all active:scale-95 flex items-center justify-center gap-2">
                 {curSaving && <Loader2 className="w-4 h-4 animate-spin" />}
-                {editCurId ? 'Save Changes' : 'Add Currency'}
+                {editCurId ? t.save_changes : t.cur_add}
               </button>
             </div>
           </div>
@@ -527,7 +527,7 @@ export default function PaymentMethodPage() {
                 </div>
               </div>
 
-              {([{ k: 'active', label: 'Active' }, { k: 'is_default', label: 'Set as Default' }] as const).map(({ k, label }) => (
+              {([{ k: 'active', label: t.active }, { k: 'is_default', label: t.set_as_default }] as const).map(({ k, label }) => (
                 <div key={k} className="flex items-center justify-between p-3 bg-white/3 rounded-xl">
                   <span className="text-sm text-white/70">{label}</span>
                   <button onClick={() => setPayForm(f => ({ ...f, [k]: !f[k] }))} className="active:scale-95">
@@ -540,12 +540,12 @@ export default function PaymentMethodPage() {
             <div className="flex gap-3 mt-6">
               <button onClick={() => setPayModal(false)}
                 className="flex-1 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 text-sm font-medium transition-all active:scale-95">
-                Cancel
+                {t.cancel}
               </button>
               <button onClick={savePay} disabled={!payForm.name.trim() || paySaving}
                 className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white text-sm font-medium transition-all active:scale-95 flex items-center justify-center gap-2">
                 {paySaving && <Loader2 className="w-4 h-4 animate-spin" />}
-                {editPayId ? 'Save Changes' : 'Add Method'}
+                {editPayId ? t.save_changes : t.pm_add}
               </button>
             </div>
           </div>

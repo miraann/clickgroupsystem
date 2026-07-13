@@ -478,6 +478,21 @@ const ar: Record<keyof typeof en, string> = {
   pm_cash:              'نقداً',
   pm_card:              'بطاقة',
   pm_online:            'إلكتروني',
+  pm_set_default:       'تعيين افتراضياً',
+  // ── Menu: Currency ────────────────────────────────
+  cur_title:            'العملات',
+  cur_subtitle:         'العملات المدعومة وتنسيقاتها',
+  cur_tab:              'العملة',
+  cur_add:              'إضافة عملة',
+  cur_modal_add:        'إضافة عملة',
+  cur_modal_edit:       'تعديل العملة',
+  cur_presets:          'عملات جاهزة',
+  cur_name:             'اسم العملة',
+  cur_symbol:           'الرمز',
+  cur_decimal_places:   'الخانات العشرية',
+  cur_set_default:      'تعيين افتراضياً',
+  cur_default_badge:    'افتراضي',
+  set_as_default:       'تعيين افتراضياً',
 
   // ── Menu: Void Reason ─────────────────────────────
   vr_title:             'أسباب الإلغاء',

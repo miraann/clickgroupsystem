@@ -478,6 +478,21 @@ const ku: Record<keyof typeof en, string> = {
   pm_cash:              'کاش',
   pm_card:              'کارت',
   pm_online:            'ئۆنلاین',
+  pm_set_default:       'بکە بە پێشکەوت',
+  // ── Menu: Currency ────────────────────────────────
+  cur_title:            'دراوەکان',
+  cur_subtitle:         'دراوە پشتگیریکراوەکان و فۆرماتەکان',
+  cur_tab:              'دراو',
+  cur_add:              'دراو زیاد بکە',
+  cur_modal_add:        'دراو زیاد بکە',
+  cur_modal_edit:       'دراو دەستکاری بکە',
+  cur_presets:          'دراوە ئامادەکراوەکان',
+  cur_name:             'ناوی دراو',
+  cur_symbol:           'نیشانە',
+  cur_decimal_places:   'ژمارەی دەیی',
+  cur_set_default:      'بکە بە پێشکەوت',
+  cur_default_badge:    'پێشکەوت',
+  set_as_default:       'بکە بە پێشکەوت',
 
   // ── Menu: Void Reason ─────────────────────────────
   vr_title:             'هۆکارەکانی بەتاڵکردن',
