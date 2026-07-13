@@ -504,7 +504,7 @@ const ku: Record<keyof typeof en, string> = {
   // ── Menu: Kitchen Note ────────────────────────────
   kn_title:             'تێبینیەکانی چێشتخانە',
   kn_subtitle:          'تێبینی و داواکاری میوان',
-  kn_add:               'تێبینی زیاد بکە',
+  kn_add:               'زیادکردن',
   kn_name:              'دەقی تێبینی',
   kn_no_data:           'هێشتا هیچ تێبینیێکی چێشتخانەیێکی نییە',
 
