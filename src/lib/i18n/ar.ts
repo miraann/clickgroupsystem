@@ -1238,6 +1238,25 @@ const ar: Record<keyof typeof en, string> = {
   al_item_word:             'صنف',
   al_settings_word:         'الإعدادات',
   al_record_word:           'سجل',
+  // Entity name translations
+  al_ent_menu_item:          'صنف المنيو',
+  al_ent_menu_category:      'تصنيف المنيو',
+  al_ent_modifier:           'إضافة',
+  al_ent_table:              'طاولة',
+  al_ent_staff:              'موظف',
+  al_ent_staff_pin:          'رمز الموظف',
+  al_ent_staff_status:       'حالة الموظف',
+  al_ent_role:               'دور',
+  al_ent_role_permissions:   'صلاحيات الدور',
+  al_ent_kds_station:        'شاشة KDS',
+  al_ent_printer:            'طابعة',
+  al_ent_inventory_item:     'صنف المخزون',
+  al_ent_inventory_category: 'تصنيف المخزون',
+  al_ent_inventory_unit:     'وحدة المخزون',
+  al_ent_expense:            'مصروف',
+  al_ent_reservation:        'حجز',
+  al_ent_receipt_settings:   'إعدادات الفاتورة',
+  al_ent_restaurant_info:    'معلومات المطعم',
 }
 
 export default ar

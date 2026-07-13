@@ -1238,6 +1238,25 @@ const ku: Record<keyof typeof en, string> = {
   al_item_word:             'کاڵا',
   al_settings_word:         'ڕێکخستنەکان',
   al_record_word:           'تۆمار',
+  // Entity name translations
+  al_ent_menu_item:          'خواردن مێنیو',
+  al_ent_menu_category:      'پۆل مێنیو',
+  al_ent_modifier:           'زیادکراو',
+  al_ent_table:              'مێز',
+  al_ent_staff:              'ستاف',
+  al_ent_staff_pin:          'ستاف پین',
+  al_ent_staff_status:       'دۆخی چالاکی ستاف',
+  al_ent_role:               'ڕۆل',
+  al_ent_role_permissions:   'ڕێگەپێدانی ڕۆل',
+  al_ent_kds_station:        'شاشەی ناو چێشتخانە',
+  al_ent_printer:            'پرینتەر',
+  al_ent_inventory_item:     'کاڵای کۆگا',
+  al_ent_inventory_category: 'پۆلی کۆگا',
+  al_ent_inventory_unit:     'یەکە - کۆگا',
+  al_ent_expense:            'خەرجی',
+  al_ent_reservation:        'حجزکردن',
+  al_ent_receipt_settings:   'ڕێکخستنەکانی پسوڵە',
+  al_ent_restaurant_info:    'زانیاری ڕێستۆرانت',
 }
 
 export default ku

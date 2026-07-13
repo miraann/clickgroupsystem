@@ -1225,6 +1225,25 @@ const en = {
   al_item_word:             'Item',
   al_settings_word:         'settings',
   al_record_word:           'record',
+  // Entity name translations
+  al_ent_menu_item:          'Menu Item',
+  al_ent_menu_category:      'Menu Category',
+  al_ent_modifier:           'Modifier',
+  al_ent_table:              'Table',
+  al_ent_staff:              'Staff',
+  al_ent_staff_pin:          'Staff PIN',
+  al_ent_staff_status:       'Staff Status',
+  al_ent_role:               'Role',
+  al_ent_role_permissions:   'Role Permissions',
+  al_ent_kds_station:        'KDS Station',
+  al_ent_printer:            'Printer',
+  al_ent_inventory_item:     'Inventory Item',
+  al_ent_inventory_category: 'Inventory Category',
+  al_ent_inventory_unit:     'Inventory Unit',
+  al_ent_expense:            'Expense',
+  al_ent_reservation:        'Reservation',
+  al_ent_receipt_settings:   'Receipt Settings',
+  al_ent_restaurant_info:    'Restaurant Info',
 
 } as const
 

@@ -90,6 +90,10 @@ type TWords = {
   al_updated: string; al_deleted: string; al_toggled: string; al_printed: string
   al_items_count: string; al_waiter_req: string; al_customer: string
   al_item_word: string; al_settings_word: string; al_record_word: string
+  entityMap: Record<string, string>
+}
+function ent(tw: TWords, val: unknown): string {
+  return (val && tw.entityMap[val as string]) ? tw.entityMap[val as string] : (val ? String(val) : tw.al_record_word)
 }
 function buildDetail(action: string, meta: Record<string, unknown>, tw: TWords): string {
   const m = meta as Record<string, string | number | unknown>
@@ -107,15 +111,15 @@ function buildDetail(action: string, meta: Record<string, unknown>, tw: TWords):
     case 'apply_discount':
       return `${m.item_name ?? tw.al_item_word}${m.discounted_price !== undefined ? ` → ${m.discounted_price}` : ''}`
     case 'add':
-      return `${tw.al_added} ${m.entity ?? tw.al_record_word}${m.name ? `: ${m.name}` : ''}`
+      return `${tw.al_added} ${ent(tw, m.entity)}${m.name ? `: ${m.name}` : ''}`
     case 'edit':
-      return `${tw.al_updated} ${m.entity ?? tw.al_record_word}${m.name ? `: ${m.name}` : ''}`
+      return `${tw.al_updated} ${ent(tw, m.entity)}${m.name ? `: ${m.name}` : ''}`
     case 'delete':
-      return `${tw.al_deleted} ${m.entity ?? tw.al_record_word}${m.name ? `: ${m.name}` : ''}`
+      return `${tw.al_deleted} ${ent(tw, m.entity)}${m.name ? `: ${m.name}` : ''}`
     case 'toggle':
-      return `${tw.al_toggled} ${m.entity ?? m.field ?? tw.al_settings_word}${m.value !== undefined ? ` → ${m.value}` : ''}`
+      return `${tw.al_toggled} ${ent(tw, m.entity ?? m.field)}${m.value !== undefined ? ` → ${m.value}` : ''}`
     case 'update_settings':
-      return `${tw.al_updated} ${m.section ?? tw.al_settings_word}${m.field ? `: ${m.field}` : ''}`
+      return `${tw.al_updated} ${ent(tw, m.section ?? m.entity) ?? tw.al_settings_word}${m.field ? `: ${m.field}` : ''}`
     case 'print': case 'print_bill':
       return `${tw.al_printed} ${m.type ?? 'bill'}${m.table ? ` — ${tw.al_table} ${m.table}` : ''}`
     case 'transfer_item':
@@ -139,7 +143,7 @@ function buildDetail(action: string, meta: Record<string, unknown>, tw: TWords):
       if (m.table)     parts.push(`${tw.al_table} ${m.table}`)
       if (m.name)      parts.push(String(m.name))
       if (m.item_name) parts.push(String(m.item_name))
-      if (m.entity)    parts.push(String(m.entity))
+      if (m.entity)    parts.push(ent(tw, m.entity))
       return parts.join(' — ') || JSON.stringify(meta).slice(0, 80)
     }
   }
@@ -180,6 +184,26 @@ export default function AuditLogPage() {
     al_items_count: t.al_items_count, al_waiter_req: t.al_waiter_req,
     al_customer: t.al_customer, al_item_word: t.al_item_word,
     al_settings_word: t.al_settings_word, al_record_word: t.al_record_word,
+    entityMap: {
+      menu_item:          t.al_ent_menu_item,
+      menu_category:      t.al_ent_menu_category,
+      modifier:           t.al_ent_modifier,
+      table:              t.al_ent_table,
+      staff:              t.al_ent_staff,
+      staff_pin:          t.al_ent_staff_pin,
+      staff_status:       t.al_ent_staff_status,
+      role:               t.al_ent_role,
+      role_permissions:   t.al_ent_role_permissions,
+      kds_station:        t.al_ent_kds_station,
+      printer:            t.al_ent_printer,
+      inventory_item:     t.al_ent_inventory_item,
+      inventory_category: t.al_ent_inventory_category,
+      inventory_unit:     t.al_ent_inventory_unit,
+      expense:            t.al_ent_expense,
+      reservation:        t.al_ent_reservation,
+      receipt_settings:   t.al_ent_receipt_settings,
+      restaurant_info:    t.al_ent_restaurant_info,
+    },
   }
 
   const fetchEntries = async (reset = false) => {
