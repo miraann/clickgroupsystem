@@ -3,13 +3,14 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
-function clearLocalSession() {
-  const keys = [
-    'pos_staff_id', 'pos_staff_name', 'pos_staff_role', 'pos_staff_color',
-    'pos_role_permissions', 'pos_role_name', 'owner_session',
-    'restaurant_id', 'restaurant_name', 'restaurant_slug', '_app_bg_cache',
-  ]
-  keys.forEach(k => localStorage.removeItem(k))
+const STAFF_KEYS = [
+  'pos_staff_id', 'pos_staff_name', 'pos_staff_role', 'pos_staff_color',
+  'pos_role_permissions', 'pos_role_name', 'owner_session', '_app_bg_cache',
+]
+
+function clearStaffSession() {
+  STAFF_KEYS.forEach(k => localStorage.removeItem(k))
+  sessionStorage.removeItem('pos_session_active')
 }
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
@@ -18,50 +19,46 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const restaurantId = localStorage.getItem('restaurant_id')
+    const slug         = localStorage.getItem('restaurant_slug')
 
-    // Fast path: localStorage session present
-    if (restaurantId && (localStorage.getItem('pos_staff_id') || localStorage.getItem('owner_session') === 'true')) {
+    // No restaurant bound to this device yet → first-time email login
+    if (!restaurantId || !slug) {
+      router.replace('/restaurant-login')
+      return
+    }
+
+    // Restaurant is bound. Check if this app session is already authenticated.
+    const sessionActive = sessionStorage.getItem('pos_session_active') === '1'
+
+    if (sessionActive && (localStorage.getItem('pos_staff_id') || localStorage.getItem('owner_session') === 'true')) {
+      // Active session — verify the restaurant still exists in the background
       setReady(true)
-      // Background: verify the restaurant still exists in the DB.
-      // Catches stale sessions left over when a restaurant is deleted from the seller console.
       const supabase = createClient()
       supabase.from('restaurants').select('id').eq('id', restaurantId).maybeSingle()
         .then(({ data }) => {
           if (!data) {
-            const slug = localStorage.getItem('restaurant_slug')
-            clearLocalSession()
+            clearStaffSession()
             fetch('/api/restaurant/logout', { method: 'POST' }).catch(() => {})
-            router.replace(slug ? `/pos/${slug}/login` : '/restaurant-login')
+            router.replace(`/pos/${slug}/login`)
           }
         })
       return
     }
 
-    // Fallback: localStorage was cleared but the HTTP-only session cookie may still be valid.
-    // Ask the server to verify and restore session data.
-    fetch('/api/restaurant/verify')
-      .then(r => r.ok ? r.json() : null)
-      .then(data => {
-        if (!data?.ok) {
-          router.replace('/restaurant-login')
-          return
-        }
-        const { restaurant, role } = data
-        localStorage.setItem('restaurant_id',   restaurant.id)
-        localStorage.setItem('restaurant_name', restaurant.name)
-        localStorage.setItem('restaurant_slug', restaurant.menu_slug ?? '')
-        if (role === 'owner') localStorage.setItem('owner_session', 'true')
-        setReady(true)
-      })
-      .catch(() => router.replace('/restaurant-login'))
+    // No active session (fresh app open or session expired) → PIN screen
+    clearStaffSession()
+    router.replace(`/pos/${slug}/login`)
   }, [router])
 
   const logout = useCallback(async () => {
     const slug = localStorage.getItem('restaurant_slug')
-    clearLocalSession()
+    clearStaffSession()
     await fetch('/api/restaurant/logout', { method: 'POST' }).catch(() => {})
     router.replace(slug ? `/pos/${slug}/login` : '/restaurant-login')
   }, [router])
+
+  // expose logout so children can call it (kept for compatibility)
+  void logout
 
   if (!ready) return null
   return <>{children}</>

@@ -95,6 +95,7 @@ export default function POSLoginPage() {
       localStorage.setItem('restaurant_name', restaurant.name)
       localStorage.setItem('restaurant_slug', restaurant.menu_slug ?? slug)
       localStorage.setItem('owner_session',   'true')
+      sessionStorage.setItem('pos_session_active', '1')
       setStatus('success')
       setTimeout(() => router.push('/dashboard'), 1100)
       return
@@ -111,6 +112,7 @@ export default function POSLoginPage() {
     localStorage.setItem('pos_role_permissions',  JSON.stringify(staff.permissions ?? {}))
     if (staff.roleName) localStorage.setItem('pos_role_name', staff.roleName)
     else localStorage.removeItem('pos_role_name')
+    sessionStorage.setItem('pos_session_active', '1')
 
     setStatus('success')
     setTimeout(() => router.push(getStaffHome(staff.permissions ?? {}, restaurant.menu_slug ?? slug)), 1100)

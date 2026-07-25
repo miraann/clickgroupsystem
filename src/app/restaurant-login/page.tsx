@@ -34,15 +34,15 @@ export default function RestaurantLoginPage() {
       }
 
       const { restaurant } = data
-      // Clear any stale POS staff session before starting owner session
-      const posKeys = ['pos_staff_id', 'pos_staff_name', 'pos_staff_role', 'pos_staff_color', 'pos_role_permissions', 'pos_role_name']
-      posKeys.forEach(k => localStorage.removeItem(k))
-      // Store for UI use (session authority comes from the HTTP-only cookie set by the API)
+      // Permanently bind this restaurant to the device (survives app restarts)
       localStorage.setItem('restaurant_id',   restaurant.id)
       localStorage.setItem('restaurant_name', restaurant.name)
       localStorage.setItem('restaurant_slug', restaurant.menu_slug ?? '')
-      localStorage.setItem('owner_session',   'true')
-      router.push('/dashboard')
+      // Clear any stale staff session — owner must enter PIN each session
+      const posKeys = ['pos_staff_id', 'pos_staff_name', 'pos_staff_role', 'pos_staff_color', 'pos_role_permissions', 'pos_role_name', 'owner_session']
+      posKeys.forEach(k => localStorage.removeItem(k))
+      sessionStorage.removeItem('pos_session_active')
+      router.push(`/pos/${restaurant.menu_slug}/login`)
     } else {
       const body = await res.json().catch(() => ({ error: 'Login failed.' }))
       setError(body.error ?? 'Login failed.')
