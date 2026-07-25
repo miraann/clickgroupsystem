@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, shell } = require(
 const net  = require('net')
 const os   = require('os')
 const path = require('path')
+const fs   = require('fs')
 const { exec } = require('child_process')
 
 const APP_URL      = 'https://clickgroupsystem.vercel.app/dashboard'
@@ -163,49 +164,85 @@ function scanSystemPrinters() {
 }
 
 // ── Windows raw USB/printer print ────────────────────────────────────────────
-// Sends raw ESC/POS bytes to a Windows-installed printer by name.
-// Uses WMI to find the port (USB001, COM3, etc.) then writes directly to it.
+// Sends raw ESC/POS bytes to a Windows-installed printer using the Windows
+// Spooler API (WritePrinter RAW). Writes temp files to avoid cmd-line limits.
 function printWindowsPrinter(base64Bytes, printerName) {
   return new Promise((resolve, reject) => {
     const bytes   = Buffer.from(base64Bytes, 'base64')
-    const b64     = bytes.toString('base64')
-    const safeName = printerName.replace(/'/g, "''")
+    const ts      = Date.now()
+    const binFile = path.join(os.tmpdir(), `pos-${ts}.bin`)
+    const ps1File = path.join(os.tmpdir(), `pos-${ts}.ps1`)
 
-    // PowerShell script: find the printer port via WMI, write bytes directly
-    const ps = `
-$name  = '${safeName}'
-$b64   = '${b64}'
-$bytes = [Convert]::FromBase64String($b64)
-$prn   = Get-WmiObject Win32_Printer -Filter "Name='$name'"
-if (-not $prn) { Write-Error "Printer not found: $name"; exit 1 }
-$port  = $prn.PortName
-# Try direct port write (USB001, COM3, etc.)
-try {
-  $s = [System.IO.File]::OpenWrite("\\\\.\\" + $port)
-  $s.Write($bytes, 0, $bytes.Length); $s.Flush(); $s.Close()
-  Write-Output "OK"
-} catch {
-  # Fallback: write to UNC printer share
-  try {
-    $tmp = [System.IO.Path]::GetTempFileName()
-    [System.IO.File]::WriteAllBytes($tmp, $bytes)
-    cmd /c copy /b $tmp "\\\\localhost\\$name" | Out-Null
-    Remove-Item $tmp -Force
-    Write-Output "OK-SHARE"
-  } catch {
-    Write-Error $_.Exception.Message; exit 1
+    // Write raw bytes to a temp binary file
+    fs.writeFile(binFile, bytes, err => {
+      if (err) { reject(err); return }
+
+      // PowerShell script using Windows Spooler API for true RAW printing
+      const safeName = printerName.replace(/'/g, "''")
+      const safeBin  = binFile.replace(/\\/g, '\\\\').replace(/'/g, "''")
+
+      const ps1 = `
+Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+public class WinPrint {
+  [DllImport("winspool.drv", CharSet=CharSet.Auto, SetLastError=true)]
+  public static extern bool OpenPrinter(string pPrinterName, out IntPtr phPrinter, IntPtr pDefault);
+  [DllImport("winspool.drv", SetLastError=true, ExactSpelling=true)]
+  public static extern bool ClosePrinter(IntPtr hPrinter);
+  [StructLayout(LayoutKind.Sequential, CharSet=CharSet.Auto)]
+  public class DOCINFO { public string pDocName; public string pOutputFile; public string pDataType; }
+  [DllImport("winspool.drv", CharSet=CharSet.Auto, SetLastError=true)]
+  public static extern int StartDocPrinter(IntPtr hPrinter, int level, [In] DOCINFO pDocInfo);
+  [DllImport("winspool.drv", SetLastError=true, ExactSpelling=true)]
+  public static extern bool EndDocPrinter(IntPtr hPrinter);
+  [DllImport("winspool.drv", SetLastError=true, ExactSpelling=true)]
+  public static extern bool StartPagePrinter(IntPtr hPrinter);
+  [DllImport("winspool.drv", SetLastError=true, ExactSpelling=true)]
+  public static extern bool EndPagePrinter(IntPtr hPrinter);
+  [DllImport("winspool.drv", SetLastError=true, ExactSpelling=true)]
+  public static extern bool WritePrinter(IntPtr hPrinter, byte[] pBytes, int dwCount, out int dwWritten);
+  public static bool RawPrint(string printer, byte[] data) {
+    IntPtr h; int w;
+    if (!OpenPrinter(printer, out h, IntPtr.Zero)) return false;
+    var di = new DOCINFO { pDocName="RAW", pDataType="RAW" };
+    if (StartDocPrinter(h, 1, di) == 0) { ClosePrinter(h); return false; }
+    StartPagePrinter(h);
+    WritePrinter(h, data, data.Length, out w);
+    EndPagePrinter(h);
+    EndDocPrinter(h);
+    ClosePrinter(h);
+    return w > 0;
   }
-}`
+}
+"@ -ErrorAction Stop
 
-    exec(
-      `powershell -NoProfile -NonInteractive -Command "${ps.replace(/"/g, '\\"')}"`,
-      { timeout: 12000, windowsHide: true },
-      (err, stdout, stderr) => {
-        if (err) reject(new Error(stderr?.trim() || err.message))
-        else if (stdout?.includes('OK')) resolve({ ok: true })
-        else reject(new Error(stderr?.trim() || 'Print failed'))
-      }
-    )
+\$bytes = [System.IO.File]::ReadAllBytes('${safeBin}')
+\$ok    = [WinPrint]::RawPrint('${safeName}', \$bytes)
+Remove-Item '${safeBin}' -Force -ErrorAction SilentlyContinue
+if (\$ok) { Write-Output "OK" } else { Write-Error "WritePrinter returned false"; exit 1 }
+`
+
+      fs.writeFile(ps1File, ps1, 'utf8', err2 => {
+        if (err2) { fs.unlink(binFile, () => {}); reject(err2); return }
+
+        exec(
+          `powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "${ps1File}"`,
+          { timeout: 15000, windowsHide: true },
+          (err3, stdout, stderr) => {
+            fs.unlink(ps1File, () => {})
+            fs.unlink(binFile, () => {})  // cleanup in case PS didn't
+            if (err3) {
+              reject(new Error(stderr?.trim() || err3.message))
+            } else if (stdout?.includes('OK')) {
+              resolve({ ok: true })
+            } else {
+              reject(new Error(stderr?.trim() || stdout?.trim() || 'Print failed — check printer name'))
+            }
+          }
+        )
+      })
+    })
   })
 }
 
