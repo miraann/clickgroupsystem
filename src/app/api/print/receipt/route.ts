@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { buildReceiptBytes, ReceiptPayload } from '@/lib/escpos'
 import sharp from 'sharp'
 import QRCode from 'qrcode'
-import { requireRestaurantAccess } from '@/lib/supabase/api-guard'
+import { requireRestaurantId } from '@/lib/supabase/api-guard'
 import { rateLimit } from '@/lib/rate-limit'
 
 export const runtime = 'nodejs'
@@ -114,7 +114,7 @@ export async function POST(req: NextRequest) {
 
     const { restaurantId } = body
 
-    const { error: authError } = await requireRestaurantAccess(restaurantId)
+    const { error: authError } = await requireRestaurantId(restaurantId)
     if (authError) return authError
 
     const { data: printer } = await supabase

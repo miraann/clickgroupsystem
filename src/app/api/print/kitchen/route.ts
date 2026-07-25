@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { buildKitchenBytes } from '@/lib/escpos'
-import { requireRestaurantAccess } from '@/lib/supabase/api-guard'
+import { requireRestaurantId } from '@/lib/supabase/api-guard'
 import { rateLimit } from '@/lib/rate-limit'
 
 export const runtime = 'nodejs'
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
       note?:        string | null
     }
 
-    const { error: authError } = await requireRestaurantAccess(body.restaurantId)
+    const { error: authError } = await requireRestaurantId(body.restaurantId)
     if (authError) return authError
 
     const { data: printer } = await supabase

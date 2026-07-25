@@ -781,7 +781,7 @@ export default function DevicePage() {
           const res  = await fetch('/api/printer/test-escpos', {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
-            body:    JSON.stringify({ name: p.name, paper_width: p.paper_width ?? 80 }),
+            body:    JSON.stringify({ restaurantId, name: p.name, paper_width: p.paper_width ?? 80 }),
           })
           const json = await res.json()
           if (!json.ok) throw new Error(json.error ?? 'Failed to build test page')
