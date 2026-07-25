@@ -744,14 +744,25 @@ export default function DevicePage() {
       try {
         const ea = (window as any).electronAPI
         if (ea?.isElectron) {
-          // Electron desktop: test TCP connection locally (Vercel can't reach LAN printers)
-          const result = await ea.testConnection(p.ip_address, p.port ?? 9100)
-          setTestResults(prev => ({ ...prev, [p.id]: {
-            status: result.ok ? 'ok' : 'fail',
-            message: result.ok
-              ? `Connected to ${p.ip_address}:${p.port ?? 9100}`
-              : (result.error ?? 'TCP connection failed'),
-          } }))
+          // Electron: send an actual ESC/POS test page via TCP (same as USB — no popup)
+          try {
+            const tRes  = await fetch('/api/printer/test-escpos', {
+              method:  'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body:    JSON.stringify({ restaurantId, name: p.name, paper_width: p.paper_width ?? 80 }),
+            })
+            const tJson = await tRes.json()
+            if (!tJson.ok) throw new Error(tJson.error ?? 'Failed to build test page')
+            const result = await ea.printBytes(tJson.bytes, p.ip_address, p.port ?? 9100)
+            setTestResults(prev => ({ ...prev, [p.id]: {
+              status:  result?.ok ? 'ok' : 'fail',
+              message: result?.ok
+                ? `Test page sent to ${p.ip_address}:${p.port ?? 9100}`
+                : (result?.error ?? 'TCP print failed'),
+            } }))
+          } catch (e2: any) {
+            setTestResults(prev => ({ ...prev, [p.id]: { status: 'fail', message: e2?.message ?? 'Print error' } }))
+          }
         } else {
           // Web/Android: route through server-side socket
           const res = await fetch('/api/printer/print-test', {
@@ -804,17 +815,38 @@ export default function DevicePage() {
       }
 
     } else if (p.connection_type === 'bluetooth') {
-      if (!('bluetooth' in navigator)) {
-        setTestResults(prev => ({ ...prev, [p.id]: { status: 'fail', message: 'Web Bluetooth not supported (use Chrome)' } }))
-        return
-      }
-      try {
-        const msg = await sendBtTestPage(p.name, p.paper_width ?? 80)
-        setTestResults(prev => ({ ...prev, [p.id]: { status: 'ok', message: msg } }))
-      } catch (e: any) {
-        const raw = e?.message ?? ''
-        const msg = raw.includes('cancelled') || raw.includes('cancel') ? 'Pairing cancelled' : raw
-        setTestResults(prev => ({ ...prev, [p.id]: { status: 'fail', message: msg } }))
+      const ea3 = (window as any).electronAPI
+      if (ea3?.isElectron) {
+        // Electron: Bluetooth printers paired in Windows appear in Win32_Printer list
+        try {
+          const res  = await fetch('/api/printer/test-escpos', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ restaurantId, name: p.name, paper_width: p.paper_width ?? 80 }),
+          })
+          const json = await res.json()
+          if (!json.ok) throw new Error(json.error ?? 'Failed to build test page')
+          const result = await ea3.printWindowsPrinter(json.bytes, p.name)
+          setTestResults(prev => ({ ...prev, [p.id]: {
+            status:  result?.ok ? 'ok' : 'fail',
+            message: result?.ok ? `Test page sent to "${p.name}"` : (result?.error ?? 'Print failed'),
+          } }))
+        } catch (e: any) {
+          setTestResults(prev => ({ ...prev, [p.id]: { status: 'fail', message: e?.message ?? 'Print error' } }))
+        }
+      } else {
+        if (!('bluetooth' in navigator)) {
+          setTestResults(prev => ({ ...prev, [p.id]: { status: 'fail', message: 'Web Bluetooth not supported (use Chrome)' } }))
+          return
+        }
+        try {
+          const msg = await sendBtTestPage(p.name, p.paper_width ?? 80)
+          setTestResults(prev => ({ ...prev, [p.id]: { status: 'ok', message: msg } }))
+        } catch (e: any) {
+          const raw = e?.message ?? ''
+          const msg = raw.includes('cancelled') || raw.includes('cancel') ? 'Pairing cancelled' : raw
+          setTestResults(prev => ({ ...prev, [p.id]: { status: 'fail', message: msg } }))
+        }
       }
     }
   }

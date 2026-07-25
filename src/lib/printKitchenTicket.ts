@@ -57,9 +57,10 @@ export async function printKitchenTicket(params: {
       }
     }
 
-    // USB printer in Electron — use Windows raw print (no dialog)
-    if ((connectionType === 'usb' || connectionType === 'serial') && ea?.isElectron) {
-      const target = printerName  // Windows printer name e.g. "POS-58"
+    // USB / Bluetooth printer in Electron — Windows printer list (no dialog)
+    // Bluetooth printers paired in Windows appear in Win32_Printer just like USB
+    if ((connectionType === 'usb' || connectionType === 'serial' || connectionType === 'bluetooth') && ea?.isElectron) {
+      const target = printerName
       if (target) {
         const result = await ea.printWindowsPrinter(bytes, target)
         if (result?.ok) return
@@ -74,6 +75,45 @@ export async function printKitchenTicket(params: {
         await browserPrint(rawBytes)
         return
       } catch { /* fall through to popup */ }
+    }
+
+    // Bluetooth printer in browser — Web Bluetooth (auto-connect to last paired device)
+    if (connectionType === 'bluetooth' && !ea?.isElectron) {
+      if (typeof navigator !== 'undefined' && 'bluetooth' in (navigator as any)) {
+        try {
+          const rawBytes = Uint8Array.from(atob(bytes), c => c.charCodeAt(0))
+          const bt   = (navigator as any).bluetooth
+          const devs = await bt.getDevices()
+          const dev  = devs[0] ?? null
+          if (dev) {
+            const server = await dev.gatt.connect()
+            let sent = false
+            try {
+              for (const uuid of [
+                '000018f0-0000-1000-8000-00805f9b34fb',
+                '0000ffe0-0000-1000-8000-00805f9b34fb',
+                'e7810a71-73ae-499d-8c15-faa9aef0c3f2',
+                '49535343-fe7d-4ae5-8fa9-9fafd205e455',
+              ]) {
+                try {
+                  const svc   = await server.getPrimaryService(uuid)
+                  const chars = await svc.getCharacteristics()
+                  const w = chars.find((c: any) => c.properties.write || c.properties.writeWithoutResponse)
+                  if (!w) continue
+                  for (let i = 0; i < rawBytes.length; i += 512) {
+                    const chunk = rawBytes.slice(i, Math.min(i + 512, rawBytes.length))
+                    w.properties.writeWithoutResponse
+                      ? await w.writeValueWithoutResponse(chunk)
+                      : await w.writeValue(chunk)
+                  }
+                  sent = true; break
+                } catch { /* try next service UUID */ }
+              }
+            } finally { server.disconnect() }
+            if (sent) return
+          }
+        } catch { /* fall through to popup */ }
+      }
     }
   }
 
