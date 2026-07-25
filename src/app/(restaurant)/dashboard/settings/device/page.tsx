@@ -774,12 +774,33 @@ export default function DevicePage() {
         setTestResults(prev => ({ ...prev, [p.id]: { status: 'fail', message: 'USB not supported on Android — use IP or Bluetooth' } }))
         return
       }
-      // Desktop: browser print dialog
-      try {
-        triggerTestPrint(p.name, p.paper_width ?? 80)
-        setTestResults(prev => ({ ...prev, [p.id]: { status: 'ok', message: 'Print dialog opened — select your printer.' } }))
-      } catch (e: any) {
-        setTestResults(prev => ({ ...prev, [p.id]: { status: 'fail', message: e?.message ?? 'Failed to open print dialog' } }))
+      const ea2 = (window as any).electronAPI
+      if (ea2?.isElectron) {
+        // Electron: send a raw ESC/POS test page silently via Windows printer API
+        try {
+          const res  = await fetch('/api/printer/test-escpos', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ name: p.name, paper_width: p.paper_width ?? 80 }),
+          })
+          const json = await res.json()
+          if (!json.ok) throw new Error(json.error ?? 'Failed to build test page')
+          const result = await ea2.printWindowsPrinter(json.bytes, p.name)
+          setTestResults(prev => ({ ...prev, [p.id]: {
+            status:  result?.ok ? 'ok' : 'fail',
+            message: result?.ok ? `Test page sent to "${p.name}"` : (result?.error ?? 'Print failed'),
+          } }))
+        } catch (e: any) {
+          setTestResults(prev => ({ ...prev, [p.id]: { status: 'fail', message: e?.message ?? 'Print error' } }))
+        }
+      } else {
+        // Browser: show print dialog popup
+        try {
+          triggerTestPrint(p.name, p.paper_width ?? 80)
+          setTestResults(prev => ({ ...prev, [p.id]: { status: 'ok', message: 'Print dialog opened — select your printer.' } }))
+        } catch (e: any) {
+          setTestResults(prev => ({ ...prev, [p.id]: { status: 'fail', message: e?.message ?? 'Failed to open print dialog' } }))
+        }
       }
 
     } else if (p.connection_type === 'bluetooth') {

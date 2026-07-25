@@ -312,7 +312,7 @@ export function useOrderState(table: string, guestCount: number) {
           table,
           order_id:   oid,
           item_count: rows.length,
-          items:      rows.map(r => ({ name: r.item_name, qty: r.qty })),
+          items:      rows.map(r => `${r.qty}× ${r.item_name}`).join(', '),
         })
         printKitchenTicket({
           restaurantId,

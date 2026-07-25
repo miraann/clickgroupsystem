@@ -39,8 +39,11 @@ function createWindow() {
     }
   })
 
-  // Open external links in the default browser
+  // blob:/about:/data: stay inside Electron; everything else opens in the default browser
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith('blob:') || url.startsWith('about:') || url.startsWith('data:')) {
+      return { action: 'allow' }
+    }
     shell.openExternal(url)
     return { action: 'deny' }
   })
@@ -161,33 +164,48 @@ function scanSystemPrinters() {
 
 // ── Windows raw USB/printer print ────────────────────────────────────────────
 // Sends raw ESC/POS bytes to a Windows-installed printer by name.
-// Works for USB thermal printers that accept raw mode (no dialog shown).
+// Uses WMI to find the port (USB001, COM3, etc.) then writes directly to it.
 function printWindowsPrinter(base64Bytes, printerName) {
   return new Promise((resolve, reject) => {
     const bytes   = Buffer.from(base64Bytes, 'base64')
-    const tmpFile = path.join(os.tmpdir(), `pos-ticket-${Date.now()}.bin`)
-    require('fs').writeFile(tmpFile, bytes, err => {
-      if (err) { reject(err); return }
-      // PowerShell raw print via .NET RawPrint helper — most reliable for USB thermal printers
-      const ps = [
-        `$bytes = [System.IO.File]::ReadAllBytes('${tmpFile.replace(/'/g, "''")}')`,
-        `$prn = New-Object System.IO.StreamWriter("\\\\\\\\localhost\\\\${printerName.replace(/'/g, "''")}",`,
-        `  $false, [System.Text.Encoding]::Default)`,
-        `$prn.BaseStream.Write($bytes, 0, $bytes.Length)`,
-        `$prn.Flush(); $prn.Close()`,
-      ].join('; ')
+    const b64     = bytes.toString('base64')
+    const safeName = printerName.replace(/'/g, "''")
 
-      // Simpler: use copy /b which works for most raw-mode printers
-      const copyCmd = `cmd /c copy /b "${tmpFile}" "\\\\\\\\localhost\\\\${printerName}"`
-      exec(copyCmd, { timeout: 10000, windowsHide: true }, (err2, _stdout, stderr) => {
-        require('fs').unlink(tmpFile, () => {})
-        if (err2) {
-          reject(new Error(stderr?.trim() || err2.message))
-        } else {
-          resolve({ ok: true })
-        }
-      })
-    })
+    // PowerShell script: find the printer port via WMI, write bytes directly
+    const ps = `
+$name  = '${safeName}'
+$b64   = '${b64}'
+$bytes = [Convert]::FromBase64String($b64)
+$prn   = Get-WmiObject Win32_Printer -Filter "Name='$name'"
+if (-not $prn) { Write-Error "Printer not found: $name"; exit 1 }
+$port  = $prn.PortName
+# Try direct port write (USB001, COM3, etc.)
+try {
+  $s = [System.IO.File]::OpenWrite("\\\\.\\" + $port)
+  $s.Write($bytes, 0, $bytes.Length); $s.Flush(); $s.Close()
+  Write-Output "OK"
+} catch {
+  # Fallback: write to UNC printer share
+  try {
+    $tmp = [System.IO.Path]::GetTempFileName()
+    [System.IO.File]::WriteAllBytes($tmp, $bytes)
+    cmd /c copy /b $tmp "\\\\localhost\\$name" | Out-Null
+    Remove-Item $tmp -Force
+    Write-Output "OK-SHARE"
+  } catch {
+    Write-Error $_.Exception.Message; exit 1
+  }
+}`
+
+    exec(
+      `powershell -NoProfile -NonInteractive -Command "${ps.replace(/"/g, '\\"')}"`,
+      { timeout: 12000, windowsHide: true },
+      (err, stdout, stderr) => {
+        if (err) reject(new Error(stderr?.trim() || err.message))
+        else if (stdout?.includes('OK')) resolve({ ok: true })
+        else reject(new Error(stderr?.trim() || 'Print failed'))
+      }
+    )
   })
 }
 
