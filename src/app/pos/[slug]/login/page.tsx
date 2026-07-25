@@ -27,10 +27,11 @@ export default function POSLoginPage() {
   const [time, setTime]     = useState(new Date())
   const [deferredInstall, setDeferredInstall] = useState<any>(null)
   const [installed, setInstalled]             = useState(false)
+  const [isAndroid, setIsAndroid]             = useState(false)
 
-  // PWA install prompt — fires with the staff manifest (start_url = /pos/slug/login)
   useEffect(() => {
     if (typeof window === 'undefined') return
+    setIsAndroid(/Android/i.test(navigator.userAgent))
     if (window.matchMedia('(display-mode: standalone)').matches) { setInstalled(true); return }
     const handler = (e: Event) => { e.preventDefault(); setDeferredInstall(e) }
     window.addEventListener('beforeinstallprompt', handler)
@@ -270,9 +271,25 @@ export default function POSLoginPage() {
           </button>
         </div>
 
-        {/* Install App button — only shown when browser offers install prompt */}
-        {(deferredInstall || installed) && (
-          <div className="mt-5 flex justify-center">
+        {/* Install App button */}
+        <div className="mt-5 flex justify-center">
+          {isAndroid ? (
+            // Android: download and install the native APK
+            installed ? (
+              <div className="flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-semibold border bg-emerald-500/15 border-emerald-500/25 text-emerald-400">
+                <CheckCircle2 className="w-4 h-4" /> App Installed
+              </div>
+            ) : (
+              <a
+                href="/clickgroup-pos.apk"
+                download="ClickGroup-POS.apk"
+                className="flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-semibold transition-all active:scale-95 border bg-amber-500/15 border-amber-500/25 text-amber-400 hover:bg-amber-500/25"
+              >
+                <Download className="w-4 h-4" /> Install Android App
+              </a>
+            )
+          ) : (deferredInstall || installed) ? (
+            // Desktop/iOS: PWA install prompt
             <button
               onClick={handleInstall}
               disabled={installed}
@@ -287,8 +304,8 @@ export default function POSLoginPage() {
                 ? <><CheckCircle2 className="w-4 h-4" /> App Installed</>
                 : <><Download className="w-4 h-4" /> Install App</>}
             </button>
-          </div>
-        )}
+          ) : null}
+        </div>
       </div>
 
       <style jsx>{`
