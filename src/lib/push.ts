@@ -1,4 +1,4 @@
-export function sendPush(restaurantId: string, type: 'delivery' | 'waiter' | 'kds' | 'guest') {
+export function sendPush(restaurantId: string, type: 'delivery' | 'waiter' | 'guest') {
   fetch('/api/push/send', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

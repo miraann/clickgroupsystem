@@ -314,7 +314,6 @@ export function useOrderState(table: string, guestCount: number) {
           item_count: rows.length,
           items:      rows.map(r => ({ name: r.item_name, qty: r.qty })),
         })
-        sendPush(restaurantId, 'kds')
         printKitchenTicket({
           restaurantId,
           tableNum: table,
@@ -409,7 +408,6 @@ export function useOrderState(table: string, guestCount: number) {
       setDraft(prev => { const m = new Map(prev); m.delete(menuItem.id); return m })
       setActiveTab('ordered')
       if (restaurantId) {
-        sendPush(restaurantId, 'kds')
         logAudit(restaurantId, 'send_to_kitchen', {
           table,
           order_id:  oid,

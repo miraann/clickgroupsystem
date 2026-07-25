@@ -4,7 +4,7 @@ import { motion, AnimatePresence, type Variants } from 'framer-motion'
 import {
   SlidersHorizontal,
   Volume2, VolumeX, Clock, Globe, Bell, Play, Bike, Hand,
-  Smartphone, Truck, ChefHat, QrCode, BellRing, CheckCircle2, XCircle, AlertCircle,
+  Smartphone, Truck, QrCode, BellRing, CheckCircle2, XCircle, AlertCircle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
@@ -28,7 +28,6 @@ interface PrefSettings {
   waiter_alert_repeat_seconds:   number
   push_notif_delivery:           boolean
   push_notif_waiter:             boolean
-  push_notif_kds:                boolean
   push_notif_guest:              boolean
   toast_dismiss_mode:            'auto' | 'manual'
   toast_dismiss_seconds:         number
@@ -48,7 +47,6 @@ const DEFAULTS: PrefSettings = {
   waiter_alert_repeat_seconds: 30,
   push_notif_delivery:         true,
   push_notif_waiter:           true,
-  push_notif_kds:              true,
   push_notif_guest:            true,
   toast_dismiss_mode:          'auto',
   toast_dismiss_seconds:       7,
@@ -286,7 +284,6 @@ function FadeSwitch({ id, children }: { id: string; children: React.ReactNode })
 const PUSH_ITEMS = [
   { key: 'push_notif_delivery' as const, icon: Truck,    label: 'Delivery Orders',    desc: 'New delivery order received'          },
   { key: 'push_notif_waiter'   as const, icon: BellRing, label: 'Waiter Calls',       desc: 'Guest requesting assistance at table' },
-  { key: 'push_notif_kds'      as const, icon: ChefHat,  label: 'Kitchen Orders',     desc: 'New order sent to KDS screen'         },
   { key: 'push_notif_guest'    as const, icon: QrCode,   label: 'Guest Menu Orders',  desc: 'Order from QR code guest menu'        },
 ] as const
 
