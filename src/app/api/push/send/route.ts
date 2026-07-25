@@ -103,7 +103,7 @@ export type NotifType = 'delivery' | 'waiter' | 'kds' | 'guest'
 
 const NOTIF_META: Record<NotifType, { title: string; body: string; url: string }> = {
   delivery: { title: '🚚 New Delivery Order',  body: 'A new delivery order has been received.',       url: '/dashboard/delivery-orders' },
-  waiter:   { title: '🔔 Waiter Call',          body: 'A guest is requesting assistance at a table.',  url: '/dashboard/order'           },
+  waiter:   { title: '🔔 Waiter Call',          body: 'A guest is requesting assistance at a table.',  url: '/dashboard'                 },
   kds:      { title: '👨‍🍳 New Kitchen Order',   body: 'A new order has been sent to the KDS screen.',  url: '/dashboard/kds'             },
   guest:    { title: '📱 Guest Menu Order',     body: 'A new order arrived from the QR code menu.',    url: '/dashboard/pending-orders'  },
 }
