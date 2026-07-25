@@ -159,6 +159,38 @@ function scanSystemPrinters() {
   })
 }
 
+// ── Windows raw USB/printer print ────────────────────────────────────────────
+// Sends raw ESC/POS bytes to a Windows-installed printer by name.
+// Works for USB thermal printers that accept raw mode (no dialog shown).
+function printWindowsPrinter(base64Bytes, printerName) {
+  return new Promise((resolve, reject) => {
+    const bytes   = Buffer.from(base64Bytes, 'base64')
+    const tmpFile = path.join(os.tmpdir(), `pos-ticket-${Date.now()}.bin`)
+    require('fs').writeFile(tmpFile, bytes, err => {
+      if (err) { reject(err); return }
+      // PowerShell raw print via .NET RawPrint helper — most reliable for USB thermal printers
+      const ps = [
+        `$bytes = [System.IO.File]::ReadAllBytes('${tmpFile.replace(/'/g, "''")}')`,
+        `$prn = New-Object System.IO.StreamWriter("\\\\\\\\localhost\\\\${printerName.replace(/'/g, "''")}",`,
+        `  $false, [System.Text.Encoding]::Default)`,
+        `$prn.BaseStream.Write($bytes, 0, $bytes.Length)`,
+        `$prn.Flush(); $prn.Close()`,
+      ].join('; ')
+
+      // Simpler: use copy /b which works for most raw-mode printers
+      const copyCmd = `cmd /c copy /b "${tmpFile}" "\\\\\\\\localhost\\\\${printerName}"`
+      exec(copyCmd, { timeout: 10000, windowsHide: true }, (err2, _stdout, stderr) => {
+        require('fs').unlink(tmpFile, () => {})
+        if (err2) {
+          reject(new Error(stderr?.trim() || err2.message))
+        } else {
+          resolve({ ok: true })
+        }
+      })
+    })
+  })
+}
+
 // ── TCP print ─────────────────────────────────────────────────────────────────
 function printBytes(base64Bytes, ip, port) {
   return new Promise((resolve, reject) => {
@@ -201,6 +233,14 @@ app.whenReady().then(() => {
       return { devices: await scanSystemPrinters() }
     } catch (e) {
       return { devices: [], error: e.message }
+    }
+  })
+
+  ipcMain.handle('print-windows-printer', async (_, { base64Bytes, printerName }) => {
+    try {
+      return await printWindowsPrinter(base64Bytes, printerName)
+    } catch (e) {
+      return { ok: false, error: e.message }
     }
   })
 

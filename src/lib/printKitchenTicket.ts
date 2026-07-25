@@ -1,14 +1,26 @@
+import { browserPrint } from '@/lib/webusb-print'
+
 export async function printKitchenTicket(params: {
   restaurantId: string
   tableNum:     string
   orderNum?:    string | null
   items:        { name: string; qty: number; note?: string | null }[]
+  note?:        string | null
 }) {
   const now     = new Date()
   const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
   const dateStr = now.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })
 
-  let paperWidth = 80
+  // ── 1. Get ESC/POS bytes + printer config from server ────────────────
+  let bytes:          string | null = null
+  let connectionType: string        = ''
+  let printerName:    string        = ''
+  let ipAddress:      string | null = null
+  let port:           number        = 9100
+  let usbPath:        string | null = null
+  let paperWidth:     number        = 80
+  let apiOk = false
+
   try {
     const res  = await fetch('/api/print/kitchen', {
       method:  'POST',
@@ -16,10 +28,67 @@ export async function printKitchenTicket(params: {
       body:    JSON.stringify({ ...params, timeStr, dateStr }),
     })
     const json = await res.json()
-    if (json.ok && json.paperWidth) paperWidth = json.paperWidth
-  } catch { /* silent — popup still opens with default width */ }
+    if (json.ok) {
+      apiOk         = true
+      bytes         = json.bytes
+      connectionType = json.connectionType ?? ''
+      printerName   = json.printerName   ?? ''
+      ipAddress     = json.ipAddress     ?? null
+      port          = json.port          ?? 9100
+      usbPath       = json.usbPath       ?? null
+      paperWidth    = json.paperWidth    ?? 80
+    }
+  } catch { /* fall through to popup */ }
 
+  // ── 2. Try silent ESC/POS print ──────────────────────────────────────
+  const ea = typeof window !== 'undefined' ? (window as any).electronAPI : null
 
+  if (apiOk && bytes) {
+    // IP/Network printer — Electron handles TCP directly, Vercel cannot reach LAN
+    if (connectionType === 'ip' && ipAddress) {
+      if (ea?.isElectron) {
+        const result = await ea.printBytes(bytes, ipAddress, port)
+        if (result?.ok) return
+        // Fall through to popup on failure
+      } else {
+        // Non-Electron web: server already sent the bytes via /api/print/kitchen
+        // (the API only returns bytes; actual TCP send is client-side for IP printers)
+        // Fall through to popup
+      }
+    }
+
+    // USB printer in Electron — use Windows raw print (no dialog)
+    if ((connectionType === 'usb' || connectionType === 'serial') && ea?.isElectron) {
+      const target = printerName  // Windows printer name e.g. "POS-58"
+      if (target) {
+        const result = await ea.printWindowsPrinter(bytes, target)
+        if (result?.ok) return
+        // Fall through to popup on failure
+      }
+    }
+
+    // USB printer in browser — WebUSB (requires prior authorization)
+    if ((connectionType === 'usb' || connectionType === 'serial') && !ea?.isElectron) {
+      try {
+        const rawBytes = Uint8Array.from(atob(bytes), c => c.charCodeAt(0))
+        await browserPrint(rawBytes)
+        return
+      } catch { /* fall through to popup */ }
+    }
+  }
+
+  // ── 3. Fallback: popup window with manual print button ───────────────
+  openKitchenPopup({ ...params, paperWidth, timeStr, dateStr })
+}
+
+function openKitchenPopup(params: {
+  tableNum:   string
+  orderNum?:  string | null
+  items:      { name: string; qty: number; note?: string | null }[]
+  paperWidth: number
+  timeStr:    string
+  dateStr:    string
+}) {
   const screenItems = params.items.map(it => `
     <div class="item">
       <div class="item-row">
@@ -35,6 +104,7 @@ export async function printKitchenTicket(params: {
   ).join('')
 
   const orderRef = params.orderNum ? ` &nbsp;·&nbsp; ${params.orderNum}` : ''
+  const pw       = params.paperWidth
 
   const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
 <title>Kitchen — Table ${params.tableNum}</title>
@@ -63,10 +133,10 @@ export async function printKitchenTicket(params: {
 @media print{
   body{background:#fff;color:#000}
   .card{display:none!important}
-  #receipt{display:block!important;font-family:'Courier New',monospace;font-size:28pt;font-weight:900;color:#000;width:${paperWidth}mm;padding:4px}
+  #receipt{display:block!important;font-family:'Courier New',monospace;font-size:28pt;font-weight:900;color:#000;width:${pw}mm;padding:4px}
   #receipt p{font-size:28pt;font-weight:900;color:#000;line-height:1.6;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   #receipt hr{border:none;border-top:3px solid #000;margin:6px 0}
-  @page{size:${paperWidth}mm auto;margin:2mm}
+  @page{size:${pw}mm auto;margin:2mm}
 }
 </style></head><body>
 <button class="closebtn" onclick="window.close()">&times;</button>
@@ -74,7 +144,7 @@ export async function printKitchenTicket(params: {
   <div class="brand">ClickGroup POS · Kitchen</div>
   <div class="table-num">Table ${params.tableNum}</div>
   <div class="order-ref">${orderRef}</div>
-  <div class="time">${dateStr} &nbsp; ${timeStr}</div>
+  <div class="time">${params.dateStr} &nbsp; ${params.timeStr}</div>
   <div class="divider"></div>
   ${screenItems}
   <button class="printbtn" onclick="window.print();setTimeout(function(){window.close()},3000)">🖨&nbsp; Print Kitchen Ticket</button>
@@ -84,7 +154,7 @@ export async function printKitchenTicket(params: {
   <p style="text-align:center;font-size:44pt;font-weight:900;color:#000;letter-spacing:.05em">KITCHEN ORDER</p>
   <p style="text-align:center;font-size:32pt;font-weight:900;color:#000">Table ${params.tableNum}${params.orderNum ? '  ' + params.orderNum : ''}</p>
   <hr>
-  <p>${dateStr} &nbsp; ${timeStr}</p>
+  <p>${params.dateStr} &nbsp; ${params.timeStr}</p>
   <hr>
   ${receiptItems}
   <hr>

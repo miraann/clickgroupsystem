@@ -16,4 +16,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Enumerate OS-installed printers (USB + network) via WMI — Windows only
   scanUsb: () => ipcRenderer.invoke('scan-usb'),
+
+  // Print raw ESC/POS bytes to a Windows-installed USB printer by name (no dialog)
+  printWindowsPrinter: (base64Bytes, printerName) =>
+    ipcRenderer.invoke('print-windows-printer', { base64Bytes, printerName }),
 })

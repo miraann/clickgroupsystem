@@ -428,7 +428,7 @@ export default function DevicePage() {
             id:              d.id,
             name:            d.name,
             connection_type: d.connection_type as 'usb' | 'network',
-            address:         d.connection_type === 'network' ? (d.port_name || '') : '',
+            address:         d.port_name || d.address || '',   // USB001 / COM3 for usb, IP for network
             status:          d.status as 'online' | 'offline',
           })
         }
