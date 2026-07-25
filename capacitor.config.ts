@@ -5,7 +5,7 @@ const config: CapacitorConfig = {
   appName: 'ClickGroup POS',
   webDir: 'public',
   server: {
-    url: 'https://clickgroupsystem.vercel.app/restaurant-login',
+    url: 'https://clickgroupsystem.vercel.app/dashboard',
     cleartext: false,
   },
   android: {
