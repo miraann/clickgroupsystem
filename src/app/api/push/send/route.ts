@@ -67,7 +67,7 @@ async function getFcmAccessToken(sa: ServiceAccount): Promise<string> {
   return data.access_token
 }
 
-async function sendFcmV1(fcmToken: string, title: string, body: string): Promise<boolean> {
+async function sendFcmV1(fcmToken: string, title: string, body: string, url: string): Promise<boolean> {
   const raw = process.env.FIREBASE_SERVICE_ACCOUNT
   if (!raw) return false
   try {
@@ -85,6 +85,7 @@ async function sendFcmV1(fcmToken: string, title: string, body: string): Promise
           message: {
             token: fcmToken,
             notification: { title, body },
+            data: { url },
             android: {
               priority: 'high',
               notification: { sound: 'default', channel_id: 'pos_alerts' },
@@ -100,11 +101,11 @@ async function sendFcmV1(fcmToken: string, title: string, body: string): Promise
 // ── Notification types ────────────────────────────────────────────
 export type NotifType = 'delivery' | 'waiter' | 'kds' | 'guest'
 
-const NOTIF_META: Record<NotifType, { title: string; body: string }> = {
-  delivery: { title: '🚚 New Delivery Order',  body: 'A new delivery order has been received.'      },
-  waiter:   { title: '🔔 Waiter Call',          body: 'A guest is requesting assistance at a table.' },
-  kds:      { title: '👨‍🍳 New Kitchen Order',   body: 'A new order has been sent to the KDS screen.' },
-  guest:    { title: '📱 Guest Menu Order',     body: 'A new order arrived from the QR code menu.'   },
+const NOTIF_META: Record<NotifType, { title: string; body: string; url: string }> = {
+  delivery: { title: '🚚 New Delivery Order',  body: 'A new delivery order has been received.',       url: '/dashboard/delivery-orders' },
+  waiter:   { title: '🔔 Waiter Call',          body: 'A guest is requesting assistance at a table.',  url: '/dashboard/order'           },
+  kds:      { title: '👨‍🍳 New Kitchen Order',   body: 'A new order has been sent to the KDS screen.',  url: '/dashboard/kds'             },
+  guest:    { title: '📱 Guest Menu Order',     body: 'A new order arrived from the QR code menu.',    url: '/dashboard/pending-orders'  },
 }
 
 const ICON  = '/logo/android/launchericon-192x192.png'
@@ -152,7 +153,7 @@ export async function POST(req: NextRequest) {
 
     if (!subs?.length) return NextResponse.json({ ok: true, sent: 0 })
 
-    const { title } = NOTIF_META[type]
+    const { title, url } = NOTIF_META[type]
     const body = customBody ?? NOTIF_META[type].body
 
     const staleEndpoints: string[] = []
@@ -163,14 +164,14 @@ export async function POST(req: NextRequest) {
     await Promise.allSettled(
       subs.map(async (row) => {
         if (row.type === 'fcm') {
-          const ok = await sendFcmV1(row.endpoint, title, body)
+          const ok = await sendFcmV1(row.endpoint, title, body, url)
           if (ok) sent++
           else staleEndpoints.push(row.endpoint)
         } else {
           try {
             await webpush.sendNotification(
               row.subscription as webpush.PushSubscription,
-              JSON.stringify({ title, body, icon: ICON, badge: BADGE, data: { type, restaurant_id } }),
+              JSON.stringify({ title, body, icon: ICON, badge: BADGE, data: { type, restaurant_id, url } }),
             )
             sent++
           } catch (err: unknown) {
