@@ -43,16 +43,11 @@ export default function InvoiceModal({
     setTimeout(() => document.getElementById('__receipt_page_size__')?.remove(), 500)
   }
 
-  // Auto-print once data has loaded (caller sets autoPrint=true)
-  useEffect(() => {
-    if (!loading && autoPrint) handlePrint()
-  }, [loading]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ── ESC/POS hardware print (WebUSB) ──────────────────────────
+  // ── ESC/POS hardware print ───────────────────────────────────
   const [printStatus, setPrintStatus] = useState<'idle' | 'sending' | 'ok' | 'error'>('idle')
   const [printError,  setPrintError]  = useState('')
 
-  const handleHardwarePrint = async () => {
+  const handleHardwarePrint = async (): Promise<boolean> => {
     setPrintStatus('sending')
     setPrintError('')
     const ts = new Date()
@@ -74,27 +69,76 @@ export default function InvoiceModal({
       const json = await res.json()
       if (!json.ok) throw new Error(json.error ?? 'Print failed')
 
-      const bytes = Uint8Array.from(atob(json.bytes), c => c.charCodeAt(0))
+      const rawBytes = Uint8Array.from(atob(json.bytes), c => c.charCodeAt(0))
       const ea = (window as any).electronAPI
-      if (ea?.isElectron && json.connectionType !== 'usb' && json.ipAddress) {
-        // Electron desktop: send raw ESC/POS bytes directly over TCP — no dialog
-        const result = await ea.printBytes(json.bytes, json.ipAddress, json.port ?? 9100)
-        if (!result?.ok) throw new Error(result?.error ?? 'TCP print failed')
-      } else if (json.connectionType === 'usb') {
-        await browserPrint(bytes)
+
+      if (ea?.isElectron) {
+        if (json.connectionType === 'ip' && json.ipAddress) {
+          const result = await ea.printBytes(json.bytes, json.ipAddress, json.port ?? 9100)
+          if (!result?.ok) throw new Error(result?.error ?? 'TCP print failed')
+        } else if ((json.connectionType === 'usb' || json.connectionType === 'bluetooth') && json.printerName) {
+          // USB and Bluetooth printers paired in Windows appear in Win32_Printer
+          const result = await ea.printWindowsPrinter(json.bytes, json.printerName)
+          if (!result?.ok) throw new Error(result?.error ?? 'Print failed')
+        } else {
+          throw new Error('Printer not configured correctly')
+        }
       } else {
-        throw new Error(
-          'IP printers require the ClickGroup POS desktop app. ' +
-          'Download it or switch to a USB printer.'
-        )
+        // Browser / Android
+        if (json.connectionType === 'usb') {
+          await browserPrint(rawBytes)
+        } else if (json.connectionType === 'bluetooth') {
+          const bt = (navigator as any).bluetooth
+          if (!bt) throw new Error('Bluetooth not supported — use Chrome')
+          const devs = await bt.getDevices()
+          const dev  = devs[0] ?? null
+          if (!dev) throw new Error('No Bluetooth printer paired')
+          let sent = false
+          const server = await dev.gatt.connect()
+          try {
+            for (const uuid of [
+              '000018f0-0000-1000-8000-00805f9b34fb',
+              '0000ffe0-0000-1000-8000-00805f9b34fb',
+              'e7810a71-73ae-499d-8c15-faa9aef0c3f2',
+              '49535343-fe7d-4ae5-8fa9-9fafd205e455',
+            ]) {
+              try {
+                const svc   = await server.getPrimaryService(uuid)
+                const chars = await svc.getCharacteristics()
+                const w = chars.find((c: any) => c.properties.write || c.properties.writeWithoutResponse)
+                if (!w) continue
+                for (let i = 0; i < rawBytes.length; i += 512) {
+                  const chunk = rawBytes.slice(i, Math.min(i + 512, rawBytes.length))
+                  w.properties.writeWithoutResponse
+                    ? await w.writeValueWithoutResponse(chunk)
+                    : await w.writeValue(chunk)
+                }
+                sent = true; break
+              } catch { /* try next service UUID */ }
+            }
+          } finally { server.disconnect() }
+          if (!sent) throw new Error('No writable Bluetooth characteristic found')
+        } else {
+          throw new Error('IP printers require the ClickGroup POS desktop app')
+        }
       }
+
       setPrintStatus('ok')
       setTimeout(() => setPrintStatus('idle'), 3000)
+      return true
     } catch (e: unknown) {
       setPrintError(e instanceof Error ? e.message : 'Print failed')
       setPrintStatus('error')
+      return false
     }
   }
+
+  // Auto-print once data has loaded — try ESC/POS first, fall back to browser dialog
+  useEffect(() => {
+    if (!loading && autoPrint) {
+      handleHardwarePrint().then(ok => { if (!ok) handlePrint() })
+    }
+  }, [loading]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Loading screen ────────────────────────────────────────────
   if (loading) return (
