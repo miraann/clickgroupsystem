@@ -1,10 +1,7 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { useInactivityLogout } from '@/hooks/useInactivityLogout'
 import { createClient } from '@/lib/supabase/client'
-
-const EIGHT_HOURS = 8 * 60 * 60 * 1000
 
 function clearLocalSession() {
   const keys = [
@@ -65,8 +62,6 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     await fetch('/api/restaurant/logout', { method: 'POST' }).catch(() => {})
     router.replace(slug ? `/pos/${slug}/login` : '/restaurant-login')
   }, [router])
-
-  useInactivityLogout(EIGHT_HOURS, logout, ready)
 
   if (!ready) return null
   return <>{children}</>
