@@ -9,4 +9,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Send raw ESC/POS bytes to a network printer (TCP)
   printBytes: (base64Bytes, ip, port) =>
     ipcRenderer.invoke('print-bytes', { base64Bytes, ip, port }),
+
+  // Test TCP connectivity to a printer IP:port
+  testConnection: (ip, port) =>
+    ipcRenderer.invoke('test-connection', { ip, port }),
 })

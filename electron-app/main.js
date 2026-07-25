@@ -19,7 +19,7 @@ function createWindow() {
     minWidth:  900,
     minHeight: 600,
     title: 'ClickGroup POS',
-    icon: path.join(__dirname, 'build', 'icon.ico'),
+    icon: path.join(__dirname, 'build', 'icon.png'),
     webPreferences: {
       preload:         path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -47,7 +47,7 @@ function createWindow() {
 
 // ── System tray ───────────────────────────────────────────────────────────────
 function createTray() {
-  const icon = nativeImage.createFromPath(path.join(__dirname, 'build', 'icon.ico'))
+  const icon = nativeImage.createFromPath(path.join(__dirname, 'build', 'icon.png'))
   tray = new Tray(icon)
   tray.setToolTip('ClickGroup POS')
 
@@ -145,25 +145,43 @@ function printBytes(base64Bytes, ip, port) {
   })
 }
 
-// ── IPC handlers ──────────────────────────────────────────────────────────────
-ipcMain.handle('scan-network', async () => {
-  try {
-    return { devices: await scanNetwork() }
-  } catch (e) {
-    return { devices: [], error: e.message }
-  }
-})
-
-ipcMain.handle('print-bytes', async (_, { base64Bytes, ip, port }) => {
-  try {
-    return await printBytes(base64Bytes, ip, port)
-  } catch (e) {
-    return { ok: false, error: e.message }
-  }
-})
-
 // ── App lifecycle ─────────────────────────────────────────────────────────────
 app.whenReady().then(() => {
+  // Register IPC handlers inside whenReady to ensure main process context
+  ipcMain.handle('scan-network', async () => {
+    try {
+      return { devices: await scanNetwork() }
+    } catch (e) {
+      return { devices: [], error: e.message }
+    }
+  })
+
+  ipcMain.handle('print-bytes', async (_, { base64Bytes, ip, port }) => {
+    try {
+      return await printBytes(base64Bytes, ip, port)
+    } catch (e) {
+      return { ok: false, error: e.message }
+    }
+  })
+
+  ipcMain.handle('test-connection', async (_, { ip, port }) => {
+    return new Promise(resolve => {
+      const sock = new net.Socket()
+      let done = false
+      const finish = (ok, err) => {
+        if (done) return
+        done = true
+        sock.destroy()
+        resolve(ok ? { ok: true } : { ok: false, error: err })
+      }
+      sock.setTimeout(5000)
+      sock.on('connect', () => finish(true))
+      sock.on('error',   (e) => finish(false, e.message))
+      sock.on('timeout', ()  => finish(false, `Connection timed out (${ip}:${port})`))
+      sock.connect(port, ip)
+    })
+  })
+
   createWindow()
   createTray()
 })

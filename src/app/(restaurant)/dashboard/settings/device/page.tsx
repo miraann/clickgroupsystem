@@ -724,22 +724,34 @@ export default function DevicePage() {
     setTestResults(prev => ({ ...prev, [p.id]: { status: 'testing' } }))
 
     if (p.connection_type === 'ip') {
-      // IP/TCP: send ESC/POS bytes directly via server-side socket — works on all platforms including Android
       if (!p.ip_address) {
         setTestResults(prev => ({ ...prev, [p.id]: { status: 'fail', message: 'No IP address configured' } }))
         return
       }
       try {
-        const res = await fetch('/api/printer/print-test', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ip: p.ip_address, port: p.port ?? 9100, name: p.name, paper_width: p.paper_width ?? 80 }),
-        })
-        const json = await res.json()
-        setTestResults(prev => ({ ...prev, [p.id]: {
-          status: json.ok ? 'ok' : 'fail',
-          message: json.ok ? `Test page sent to ${p.ip_address}:${p.port ?? 9100}` : (json.error ?? 'TCP print failed'),
-        } }))
+        const ea = (window as any).electronAPI
+        if (ea?.isElectron) {
+          // Electron desktop: test TCP connection locally (Vercel can't reach LAN printers)
+          const result = await ea.testConnection(p.ip_address, p.port ?? 9100)
+          setTestResults(prev => ({ ...prev, [p.id]: {
+            status: result.ok ? 'ok' : 'fail',
+            message: result.ok
+              ? `Connected to ${p.ip_address}:${p.port ?? 9100}`
+              : (result.error ?? 'TCP connection failed'),
+          } }))
+        } else {
+          // Web/Android: route through server-side socket
+          const res = await fetch('/api/printer/print-test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ip: p.ip_address, port: p.port ?? 9100, name: p.name, paper_width: p.paper_width ?? 80 }),
+          })
+          const json = await res.json()
+          setTestResults(prev => ({ ...prev, [p.id]: {
+            status: json.ok ? 'ok' : 'fail',
+            message: json.ok ? `Test page sent to ${p.ip_address}:${p.port ?? 9100}` : (json.error ?? 'TCP print failed'),
+          } }))
+        }
       } catch (e: any) {
         setTestResults(prev => ({ ...prev, [p.id]: { status: 'fail', message: e?.message ?? 'Network error' } }))
       }

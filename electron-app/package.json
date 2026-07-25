@@ -4,7 +4,7 @@
   "description": "ClickGroup POS — Desktop App",
   "main": "main.js",
   "scripts": {
-    "start": "electron .",
+    "start": "SET ELECTRON_RUN_AS_NODE=&& electron .",
     "build:win": "electron-builder --win"
   },
   "build": {
@@ -12,7 +12,9 @@
     "productName": "ClickGroup POS",
     "win": {
       "target": "nsis",
-      "icon": "build/icon.ico"
+      "icon": "build/icon.png",
+      "signAndEditExecutable": false,
+      "sign": null
     },
     "nsis": {
       "oneClick": false,
@@ -21,11 +23,14 @@
       "createStartMenuShortcut": true,
       "runAfterFinish": true
     },
-    "files": ["main.js", "preload.js", "build/**"]
+    "files": [
+      "main.js",
+      "preload.js",
+      "build/**"
+    ]
   },
-  "dependencies": {},
   "devDependencies": {
-    "electron": "^33.0.0",
+    "electron": "^33.4.11",
     "electron-builder": "^25.0.0"
   }
 }
