@@ -255,6 +255,21 @@ export default function POSLoginPage() {
           Contact your manager if you forgot your PIN.
         </p>
 
+        <div className="mt-3 flex justify-center">
+          <button
+            onClick={() => {
+              ['restaurant_id','restaurant_name','restaurant_slug','owner_session',
+               'pos_staff_id','pos_staff_name','pos_staff_role','pos_staff_color',
+               'pos_role_permissions','pos_role_name'].forEach(k => localStorage.removeItem(k))
+              sessionStorage.removeItem('pos_session_active')
+              router.replace('/restaurant-login')
+            }}
+            className="text-xs text-white/15 hover:text-white/40 transition-colors underline underline-offset-2"
+          >
+            Change restaurant account
+          </button>
+        </div>
+
         {/* Install App button — only shown when browser offers install prompt */}
         {(deferredInstall || installed) && (
           <div className="mt-5 flex justify-center">
