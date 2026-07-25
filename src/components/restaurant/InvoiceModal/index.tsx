@@ -75,12 +75,17 @@ export default function InvoiceModal({
       if (!json.ok) throw new Error(json.error ?? 'Print failed')
 
       const bytes = Uint8Array.from(atob(json.bytes), c => c.charCodeAt(0))
-      if (json.connectionType === 'usb') {
+      const ea = (window as any).electronAPI
+      if (ea?.isElectron && json.connectionType !== 'usb' && json.ipAddress) {
+        // Electron desktop: send raw ESC/POS bytes directly over TCP — no dialog
+        const result = await ea.printBytes(json.bytes, json.ipAddress, json.port ?? 9100)
+        if (!result?.ok) throw new Error(result?.error ?? 'TCP print failed')
+      } else if (json.connectionType === 'usb') {
         await browserPrint(bytes)
       } else {
         throw new Error(
-          'IP/Bluetooth printers require a direct network connection. ' +
-          'Use "Browser Print" or switch to a USB printer.'
+          'IP printers require the ClickGroup POS desktop app. ' +
+          'Download it or switch to a USB printer.'
         )
       }
       setPrintStatus('ok')

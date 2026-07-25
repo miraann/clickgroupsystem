@@ -1,0 +1,31 @@
+{
+  "name": "clickgroup-pos",
+  "version": "1.0.0",
+  "description": "ClickGroup POS — Desktop App",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build:win": "electron-builder --win"
+  },
+  "build": {
+    "appId": "com.clickgroup.pos",
+    "productName": "ClickGroup POS",
+    "win": {
+      "target": "nsis",
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "runAfterFinish": true
+    },
+    "files": ["main.js", "preload.js", "build/**"]
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  }
+}

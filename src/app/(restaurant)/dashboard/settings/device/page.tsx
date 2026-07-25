@@ -470,24 +470,33 @@ export default function DevicePage() {
     }
     setScanProgress(70)
 
-    // ── Network (server-side LAN scan — works when server is on same network) ──
+    // ── Network scan ──────────────────────────────────────────────
     setScanPhase('network')
     try {
-      const res = await fetch('/api/devices/scan', { method: 'POST', signal: AbortSignal.timeout(20000) })
-      const { devices: netDevs, cloudDeployment } = await res.json()
-      if (!cloudDeployment) {
-        for (const d of (netDevs ?? [])) {
-          found.push({
-            id:              d.id,
-            name:            d.name,
-            connection_type: 'network',
-            address:         d.ip,
-            port:            d.port,
-            status:          'online',
-          })
-        }
+      const ea = (window as any).electronAPI
+      let netDevs: any[] = []
+
+      if (ea?.isElectron) {
+        // Desktop app: Electron scans the local network directly via TCP
+        const result = await ea.scanNetwork()
+        netDevs = result?.devices ?? []
+      } else {
+        const res = await fetch('/api/devices/scan', { method: 'POST', signal: AbortSignal.timeout(20000) })
+        const json = await res.json()
+        if (!json.cloudDeployment) netDevs = json.devices ?? []
       }
-    } catch { /* silent — expected on cloud deployment or slow network */ }
+
+      for (const d of netDevs) {
+        found.push({
+          id:              d.id,
+          name:            d.name,
+          connection_type: 'network',
+          address:         d.ip,
+          port:            d.port,
+          status:          'online',
+        })
+      }
+    } catch { /* silent */ }
 
     setScanProgress(100)
     setScanPhase(null)
