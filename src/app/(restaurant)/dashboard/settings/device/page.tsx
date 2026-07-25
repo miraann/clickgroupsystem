@@ -415,12 +415,26 @@ export default function DevicePage() {
     setShowDetected(false)
     const found: DetectedDevice[] = []
 
-    // ── USB (WebUSB — silently lists already-authorized devices) ──
-    // Note: HID-class devices (barcode scanners, mice) are excluded by Chrome security.
-    // Use the USB button to authorize a new non-HID device (printer, card reader, etc.)
+    // ── USB scan ──────────────────────────────────────────────────
     setScanPhase('usb')
     setScanProgress(20)
-    if (typeof navigator !== 'undefined' && 'usb' in navigator) {
+    const ea = (window as any).electronAPI
+    if (ea?.isElectron) {
+      // Electron: enumerate all OS-installed printers via WMI (USB + network)
+      try {
+        const result = await ea.scanUsb()
+        for (const d of (result?.devices ?? [])) {
+          found.push({
+            id:              d.id,
+            name:            d.name,
+            connection_type: d.connection_type as 'usb' | 'network',
+            address:         d.connection_type === 'network' ? (d.port_name || '') : '',
+            status:          d.status as 'online' | 'offline',
+          })
+        }
+      } catch {}
+    } else if (typeof navigator !== 'undefined' && 'usb' in navigator) {
+      // Web/Android: WebUSB (only previously authorized devices)
       try {
         const usbDevs = await (navigator as any).usb.getDevices()
         for (const d of usbDevs) {
@@ -473,7 +487,6 @@ export default function DevicePage() {
     // ── Network scan ──────────────────────────────────────────────
     setScanPhase('network')
     try {
-      const ea = (window as any).electronAPI
       let netDevs: any[] = []
 
       if (ea?.isElectron) {

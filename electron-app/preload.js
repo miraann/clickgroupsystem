@@ -13,4 +13,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Test TCP connectivity to a printer IP:port
   testConnection: (ip, port) =>
     ipcRenderer.invoke('test-connection', { ip, port }),
+
+  // Enumerate OS-installed printers (USB + network) via WMI — Windows only
+  scanUsb: () => ipcRenderer.invoke('scan-usb'),
 })

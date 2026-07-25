@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, shell } = require(
 const net  = require('net')
 const os   = require('os')
 const path = require('path')
+const { exec } = require('child_process')
 
 const APP_URL      = 'https://clickgroupsystem.vercel.app/dashboard'
 const PRINTER_PORTS = [9100, 631, 515]
@@ -127,6 +128,37 @@ async function scanNetwork() {
   }))
 }
 
+// ── USB / system printer scan (Windows WMI) ───────────────────────────────────
+function scanSystemPrinters() {
+  return new Promise(resolve => {
+    const ps = `powershell -NoProfile -NonInteractive -Command "` +
+      `Get-WmiObject Win32_Printer | ` +
+      `Select-Object Name,PortName,PrinterStatus,Shared | ` +
+      `ConvertTo-Json -Compress"`
+    exec(ps, { timeout: 10000, windowsHide: true }, (err, stdout) => {
+      if (err || !stdout.trim()) { resolve([]); return }
+      try {
+        let list = JSON.parse(stdout.trim())
+        if (!Array.isArray(list)) list = [list]
+        const devices = list.map(p => {
+          const port    = (p.PortName || '').toUpperCase()
+          const isUsb   = port.startsWith('USB')
+          const isNet   = port.startsWith('IP_') || port.includes('.')
+          const ready   = p.PrinterStatus === 3  // 3 = Idle/Ready
+          return {
+            id:              `sys-${(p.Name || '').replace(/[^a-z0-9]/gi, '-')}`,
+            name:            p.Name || 'Unknown Printer',
+            connection_type: isUsb ? 'usb' : isNet ? 'network' : 'usb',
+            port_name:       p.PortName || '',
+            status:          ready ? 'online' : 'offline',
+          }
+        })
+        resolve(devices)
+      } catch { resolve([]) }
+    })
+  })
+}
+
 // ── TCP print ─────────────────────────────────────────────────────────────────
 function printBytes(base64Bytes, ip, port) {
   return new Promise((resolve, reject) => {
@@ -161,6 +193,14 @@ app.whenReady().then(() => {
       return await printBytes(base64Bytes, ip, port)
     } catch (e) {
       return { ok: false, error: e.message }
+    }
+  })
+
+  ipcMain.handle('scan-usb', async () => {
+    try {
+      return { devices: await scanSystemPrinters() }
+    } catch (e) {
+      return { devices: [], error: e.message }
     }
   })
 
