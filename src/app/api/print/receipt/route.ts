@@ -140,7 +140,7 @@ export async function POST(req: NextRequest) {
     ])
 
     const rsAny = rs as Record<string, unknown> | null
-    const p = printer as { name: string; connection_type: string; ip_address?: string; port?: number; paper_width?: number }
+    const p = printer as { name: string; connection_type: string; ip_address?: string; port?: number; bt_address?: string; paper_width?: number }
     const paperWidth = p.paper_width ?? 80
     const logoUrl = (rsAny?.logo_url as string | null) ?? null
     const qrUrl   = body.mode !== 'payment' ? ((rsAny?.qr_url as string | null) ?? null) : null
@@ -189,7 +189,8 @@ export async function POST(req: NextRequest) {
       connectionType: p.connection_type,
       printerName:    p.name,
       ipAddress:      p.ip_address ?? null,
-      port:           p.port ?? 9100,
+      port:           p.port       ?? 9100,
+      btAddress:      p.bt_address ?? null,
     })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error'

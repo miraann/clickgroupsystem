@@ -1,4 +1,5 @@
 import { browserPrint } from '@/lib/webusb-print'
+import { getAndroidTcp } from '@/lib/android-tcp'
 
 export async function printKitchenTicket(params: {
   restaurantId: string
@@ -16,6 +17,7 @@ export async function printKitchenTicket(params: {
   let connectionType: string        = ''
   let printerName:    string        = ''
   let ipAddress:      string | null = null
+  let btAddress:      string | null = null
   let port:           number        = 9100
   let usbPath:        string | null = null
   let paperWidth:     number        = 80
@@ -34,6 +36,7 @@ export async function printKitchenTicket(params: {
       connectionType = json.connectionType ?? ''
       printerName   = json.printerName   ?? ''
       ipAddress     = json.ipAddress     ?? null
+      btAddress     = json.btAddress     ?? null
       port          = json.port          ?? 9100
       usbPath       = json.usbPath       ?? null
       paperWidth    = json.paperWidth    ?? 80
@@ -49,11 +52,16 @@ export async function printKitchenTicket(params: {
       if (ea?.isElectron) {
         const result = await ea.printBytes(bytes, ipAddress, port)
         if (result?.ok) return
-        // Fall through to popup on failure
       } else {
-        // Non-Electron web: server already sent the bytes via /api/print/kitchen
-        // (the API only returns bytes; actual TCP send is client-side for IP printers)
-        // Fall through to popup
+        // Android APK: use native TcpPlugin (device is on local network)
+        const androidTcp = getAndroidTcp()
+        if (androidTcp) {
+          try {
+            const result = await androidTcp.printBytes({ host: ipAddress, port, data: bytes })
+            if (result?.ok) return
+          } catch { /* fall through to popup */ }
+        }
+        // Plain web (Vercel): cannot reach LAN — fall through to popup
       }
     }
 
@@ -75,6 +83,17 @@ export async function printKitchenTicket(params: {
         await browserPrint(rawBytes)
         return
       } catch { /* fall through to popup */ }
+    }
+
+    // Bluetooth printer in Android APK — native SPP via TcpPlugin
+    if (connectionType === 'bluetooth' && !ea?.isElectron) {
+      const androidTcp = getAndroidTcp()
+      if (androidTcp && bytes && btAddress) {
+        try {
+          const result = await androidTcp.printBluetooth({ address: btAddress, data: bytes })
+          if (result?.ok) return
+        } catch { /* fall through to Web Bluetooth */ }
+      }
     }
 
     // Bluetooth printer in browser — Web Bluetooth (auto-connect to last paired device)

@@ -49,9 +49,10 @@ export async function POST(req: NextRequest) {
     const p = printer as {
       name:            string
       connection_type: string
-      ip_address?: string | null
-      port?: number | null
-      usb_path?: string | null
+      ip_address?:  string | null
+      port?:        number | null
+      bt_address?:  string | null
+      usb_path?:    string | null
       paper_width?: number | null
     }
 
@@ -72,9 +73,10 @@ export async function POST(req: NextRequest) {
       bytes:          Buffer.from(bytes).toString('base64'),
       connectionType: p.connection_type,
       printerName:    p.name,
-      ipAddress:      p.ip_address ?? null,
-      port:           p.port ?? 9100,
-      usbPath:        p.usb_path ?? null,
+      ipAddress:      p.ip_address  ?? null,
+      port:           p.port        ?? 9100,
+      btAddress:      p.bt_address  ?? null,
+      usbPath:        p.usb_path    ?? null,
       paperWidth,
     })
   } catch (err: unknown) {

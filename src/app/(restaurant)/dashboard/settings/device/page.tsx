@@ -6,6 +6,7 @@ import { logAudit } from '@/lib/logAudit'
 import { cn } from '@/lib/utils'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { motion, type Variants } from 'framer-motion'
+import { getAndroidTcp } from '@/lib/android-tcp'
 
 const PAGE: Variants = {
   hidden: { opacity: 0, y: 20 },
@@ -453,7 +454,25 @@ export default function DevicePage() {
 
     // ── Bluetooth ─────────────────────────────────────────
     setScanPhase('bluetooth')
-    if (typeof navigator !== 'undefined' && 'bluetooth' in navigator) {
+    const androidTcpForScan = getAndroidTcp()
+    if (androidTcpForScan) {
+      // Android APK: list bonded/paired devices via native plugin
+      try {
+        const result = await androidTcpForScan.getBluetoothDevices()
+        if (!result.permissionDenied) {
+          for (const d of result.devices) {
+            found.push({
+              id:              `bt-${d.address}`,
+              name:            d.name || 'Bluetooth Device',
+              connection_type: 'bluetooth',
+              address:         d.address,
+              status:          'online',
+            })
+          }
+        }
+      } catch {}
+    } else if (typeof navigator !== 'undefined' && 'bluetooth' in navigator) {
+      // Desktop browser: Web Bluetooth
       try {
         const btDevs = await (navigator as any).bluetooth.getDevices()
         for (const d of btDevs) {
@@ -490,9 +509,21 @@ export default function DevicePage() {
       let netDevs: any[] = []
 
       if (ea?.isElectron) {
-        // Desktop app: Electron scans the local network directly via TCP
+        // Desktop app: Electron scans local network via TCP
         const result = await ea.scanNetwork()
         netDevs = result?.devices ?? []
+      } else if (androidTcpForScan) {
+        // Android APK: native subnet scan (runs on device, can reach local LAN)
+        const { subnet } = await androidTcpForScan.getSubnet()
+        if (subnet) {
+          const result = await androidTcpForScan.scanNetwork({ subnet, port: 9100, timeout: 300 })
+          netDevs = (result?.devices ?? []).map((d: { ip: string; port: number; name: string }) => ({
+            id:   `net-${d.ip}-${d.port}`,
+            name: d.name || `Printer @ ${d.ip}`,
+            ip:   d.ip,
+            port: d.port,
+          }))
+        }
       } else {
         const res = await fetch('/api/devices/scan', { method: 'POST', signal: AbortSignal.timeout(20000) })
         const json = await res.json()
@@ -549,8 +580,32 @@ export default function DevicePage() {
     } catch {}
   }
 
-  // Request NEW Bluetooth device (shows OS picker)
+  // Request NEW Bluetooth device (shows OS picker on web; lists bonded on Android)
   const requestNewBt = async () => {
+    const androidTcp = getAndroidTcp()
+    if (androidTcp) {
+      // Android APK: return all bonded (already paired) devices
+      try {
+        const result = await androidTcp.getBluetoothDevices()
+        if (result.permissionDenied) {
+          alert('Bluetooth permission denied. Please grant permission in Android settings.')
+          return
+        }
+        const fresh: DetectedDevice[] = result.devices.map(d => ({
+          id:              `bt-${d.address}`,
+          name:            d.name || 'Bluetooth Device',
+          connection_type: 'bluetooth' as const,
+          address:         d.address,
+          status:          'online' as const,
+        }))
+        setDetectedDevices(prev => {
+          const ids = new Set(prev.map(x => x.id))
+          return [...prev, ...fresh.filter(x => !ids.has(x.id))]
+        })
+        setShowDetected(true)
+      } catch {}
+      return
+    }
     if (typeof navigator === 'undefined' || !('bluetooth' in navigator)) return
     try {
       const d = await (navigator as any).bluetooth.requestDevice({
@@ -596,13 +651,27 @@ export default function DevicePage() {
     if (d.connection_type !== 'network') return
     setDetectedTest(prev => ({ ...prev, [d.id]: 'testing' }))
     try {
-      const res = await fetch('/api/printer/print-test', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ip: d.address, port: d.port ?? 9100, name: d.name, paper_width: 80 }),
-      })
-      const json = await res.json()
-      setDetectedTest(prev => ({ ...prev, [d.id]: json.ok ? 'ok' : 'fail' }))
+      const androidTcp = getAndroidTcp()
+      if (androidTcp) {
+        // Android APK: get test bytes from server, send via native TCP
+        const tRes  = await fetch('/api/printer/test-escpos', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ restaurantId, name: d.name, paper_width: 80 }),
+        })
+        const tJson = await tRes.json()
+        if (!tJson.ok) throw new Error(tJson.error)
+        const result = await androidTcp.printBytes({ host: d.address, port: d.port ?? 9100, data: tJson.bytes })
+        setDetectedTest(prev => ({ ...prev, [d.id]: result?.ok ? 'ok' : 'fail' }))
+      } else {
+        const res = await fetch('/api/printer/print-test', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ip: d.address, port: d.port ?? 9100, name: d.name, paper_width: 80 }),
+        })
+        const json = await res.json()
+        setDetectedTest(prev => ({ ...prev, [d.id]: json.ok ? 'ok' : 'fail' }))
+      }
     } catch {
       setDetectedTest(prev => ({ ...prev, [d.id]: 'fail' }))
     }
@@ -764,17 +833,40 @@ export default function DevicePage() {
             setTestResults(prev => ({ ...prev, [p.id]: { status: 'fail', message: e2?.message ?? 'Print error' } }))
           }
         } else {
-          // Web/Android: route through server-side socket
-          const res = await fetch('/api/printer/print-test', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ip: p.ip_address, port: p.port ?? 9100, name: p.name, paper_width: p.paper_width ?? 80 }),
-          })
-          const json = await res.json()
-          setTestResults(prev => ({ ...prev, [p.id]: {
-            status: json.ok ? 'ok' : 'fail',
-            message: json.ok ? `Test page sent to ${p.ip_address}:${p.port ?? 9100}` : (json.error ?? 'TCP print failed'),
-          } }))
+          // Android APK: use native TCP (device is on local LAN)
+          const androidTcp = getAndroidTcp()
+          if (androidTcp) {
+            try {
+              const tRes  = await fetch('/api/printer/test-escpos', {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({ restaurantId, name: p.name, paper_width: p.paper_width ?? 80 }),
+              })
+              const tJson = await tRes.json()
+              if (!tJson.ok) throw new Error(tJson.error ?? 'Failed to build test page')
+              const result = await androidTcp.printBytes({ host: p.ip_address!, port: p.port ?? 9100, data: tJson.bytes })
+              setTestResults(prev => ({ ...prev, [p.id]: {
+                status:  result?.ok ? 'ok' : 'fail',
+                message: result?.ok
+                  ? `Test page sent to ${p.ip_address}:${p.port ?? 9100}`
+                  : 'TCP print failed',
+              } }))
+            } catch (e2: any) {
+              setTestResults(prev => ({ ...prev, [p.id]: { status: 'fail', message: e2?.message ?? 'Print error' } }))
+            }
+          } else {
+            // Plain web: route through server-side socket
+            const res = await fetch('/api/printer/print-test', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ip: p.ip_address, port: p.port ?? 9100, name: p.name, paper_width: p.paper_width ?? 80 }),
+            })
+            const json = await res.json()
+            setTestResults(prev => ({ ...prev, [p.id]: {
+              status: json.ok ? 'ok' : 'fail',
+              message: json.ok ? `Test page sent to ${p.ip_address}:${p.port ?? 9100}` : (json.error ?? 'TCP print failed'),
+            } }))
+          }
         }
       } catch (e: any) {
         setTestResults(prev => ({ ...prev, [p.id]: { status: 'fail', message: e?.message ?? 'Network error' } }))
@@ -835,17 +927,38 @@ export default function DevicePage() {
           setTestResults(prev => ({ ...prev, [p.id]: { status: 'fail', message: e?.message ?? 'Print error' } }))
         }
       } else {
-        if (!('bluetooth' in navigator)) {
-          setTestResults(prev => ({ ...prev, [p.id]: { status: 'fail', message: 'Web Bluetooth not supported (use Chrome)' } }))
-          return
-        }
-        try {
-          const msg = await sendBtTestPage(p.name, p.paper_width ?? 80)
-          setTestResults(prev => ({ ...prev, [p.id]: { status: 'ok', message: msg } }))
-        } catch (e: any) {
-          const raw = e?.message ?? ''
-          const msg = raw.includes('cancelled') || raw.includes('cancel') ? 'Pairing cancelled' : raw
-          setTestResults(prev => ({ ...prev, [p.id]: { status: 'fail', message: msg } }))
+        const androidTcp3 = getAndroidTcp()
+        if (androidTcp3 && p.bt_address) {
+          // Android APK: native Bluetooth SPP test print
+          try {
+            const tRes  = await fetch('/api/printer/test-escpos', {
+              method:  'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body:    JSON.stringify({ restaurantId, name: p.name, paper_width: p.paper_width ?? 80 }),
+            })
+            const tJson = await tRes.json()
+            if (!tJson.ok) throw new Error(tJson.error ?? 'Failed to build test page')
+            const result = await androidTcp3.printBluetooth({ address: p.bt_address, data: tJson.bytes })
+            setTestResults(prev => ({ ...prev, [p.id]: {
+              status:  result?.ok ? 'ok' : 'fail',
+              message: result?.ok ? `Test page sent to ${p.bt_address}` : 'Bluetooth print failed',
+            } }))
+          } catch (e: any) {
+            setTestResults(prev => ({ ...prev, [p.id]: { status: 'fail', message: e?.message ?? 'Print error' } }))
+          }
+        } else {
+          if (!('bluetooth' in navigator)) {
+            setTestResults(prev => ({ ...prev, [p.id]: { status: 'fail', message: 'Web Bluetooth not supported (use Chrome)' } }))
+            return
+          }
+          try {
+            const msg = await sendBtTestPage(p.name, p.paper_width ?? 80)
+            setTestResults(prev => ({ ...prev, [p.id]: { status: 'ok', message: msg } }))
+          } catch (e: any) {
+            const raw = e?.message ?? ''
+            const msg = raw.includes('cancelled') || raw.includes('cancel') ? 'Pairing cancelled' : raw
+            setTestResults(prev => ({ ...prev, [p.id]: { status: 'fail', message: msg } }))
+          }
         }
       }
     }

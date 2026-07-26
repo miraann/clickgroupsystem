@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { X, Printer, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import { browserPrint } from '@/lib/webusb-print'
+import { getAndroidTcp } from '@/lib/android-tcp'
 import { useInvoiceData } from './useInvoiceData'
 import { InvoicePrintTemplate } from './InvoicePrintTemplate'
 import type { InvoiceModalProps } from './types'
@@ -84,40 +85,57 @@ export default function InvoiceModal({
           throw new Error('Printer not configured correctly')
         }
       } else {
-        // Browser / Android
-        if (json.connectionType === 'usb') {
+        // Browser / Android APK
+        const androidTcp = getAndroidTcp()
+
+        if (json.connectionType === 'ip' && json.ipAddress) {
+          // IP — Android handles TCP natively; plain web cannot reach LAN
+          if (androidTcp) {
+            const result = await androidTcp.printBytes({ host: json.ipAddress, port: json.port ?? 9100, data: json.bytes })
+            if (!result?.ok) throw new Error('IP print failed on device')
+          } else {
+            throw new Error('IP printers require the ClickGroup POS desktop app')
+          }
+        } else if (json.connectionType === 'usb') {
           await browserPrint(rawBytes)
         } else if (json.connectionType === 'bluetooth') {
-          const bt = (navigator as any).bluetooth
-          if (!bt) throw new Error('Bluetooth not supported — use Chrome')
-          const devs = await bt.getDevices()
-          const dev  = devs[0] ?? null
-          if (!dev) throw new Error('No Bluetooth printer paired')
-          let sent = false
-          const server = await dev.gatt.connect()
-          try {
-            for (const uuid of [
-              '000018f0-0000-1000-8000-00805f9b34fb',
-              '0000ffe0-0000-1000-8000-00805f9b34fb',
-              'e7810a71-73ae-499d-8c15-faa9aef0c3f2',
-              '49535343-fe7d-4ae5-8fa9-9fafd205e455',
-            ]) {
-              try {
-                const svc   = await server.getPrimaryService(uuid)
-                const chars = await svc.getCharacteristics()
-                const w = chars.find((c: any) => c.properties.write || c.properties.writeWithoutResponse)
-                if (!w) continue
-                for (let i = 0; i < rawBytes.length; i += 512) {
-                  const chunk = rawBytes.slice(i, Math.min(i + 512, rawBytes.length))
-                  w.properties.writeWithoutResponse
-                    ? await w.writeValueWithoutResponse(chunk)
-                    : await w.writeValue(chunk)
-                }
-                sent = true; break
-              } catch { /* try next service UUID */ }
-            }
-          } finally { server.disconnect() }
-          if (!sent) throw new Error('No writable Bluetooth characteristic found')
+          if (androidTcp && json.btAddress) {
+            // Android APK — Bluetooth SPP via native plugin
+            const result = await androidTcp.printBluetooth({ address: json.btAddress, data: json.bytes })
+            if (!result?.ok) throw new Error('Bluetooth print failed on device')
+          } else {
+            // Desktop browser — Web Bluetooth
+            const bt = (navigator as any).bluetooth
+            if (!bt) throw new Error('Bluetooth not supported — use Chrome')
+            const devs = await bt.getDevices()
+            const dev  = devs[0] ?? null
+            if (!dev) throw new Error('No Bluetooth printer paired')
+            let sent = false
+            const server = await dev.gatt.connect()
+            try {
+              for (const uuid of [
+                '000018f0-0000-1000-8000-00805f9b34fb',
+                '0000ffe0-0000-1000-8000-00805f9b34fb',
+                'e7810a71-73ae-499d-8c15-faa9aef0c3f2',
+                '49535343-fe7d-4ae5-8fa9-9fafd205e455',
+              ]) {
+                try {
+                  const svc   = await server.getPrimaryService(uuid)
+                  const chars = await svc.getCharacteristics()
+                  const w = chars.find((c: any) => c.properties.write || c.properties.writeWithoutResponse)
+                  if (!w) continue
+                  for (let i = 0; i < rawBytes.length; i += 512) {
+                    const chunk = rawBytes.slice(i, Math.min(i + 512, rawBytes.length))
+                    w.properties.writeWithoutResponse
+                      ? await w.writeValueWithoutResponse(chunk)
+                      : await w.writeValue(chunk)
+                  }
+                  sent = true; break
+                } catch { /* try next service UUID */ }
+              }
+            } finally { server.disconnect() }
+            if (!sent) throw new Error('No writable Bluetooth characteristic found')
+          }
         } else {
           throw new Error('IP printers require the ClickGroup POS desktop app')
         }
