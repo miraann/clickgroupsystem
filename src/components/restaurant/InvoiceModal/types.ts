@@ -16,6 +16,7 @@ export interface ReceiptSettings {
   show_logo:       boolean
   show_address:    boolean
   show_phone:      boolean
+  language:        'ku' | 'en'
 }
 
 export const DEFAULT_RS: ReceiptSettings = {
@@ -30,6 +31,7 @@ export const DEFAULT_RS: ReceiptSettings = {
   show_logo:       true,
   show_address:    true,
   show_phone:      true,
+  language:        'ku',
 }
 
 export interface InvoiceModalProps {

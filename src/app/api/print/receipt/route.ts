@@ -157,6 +157,7 @@ export async function POST(req: NextRequest) {
       thankYouMsg:    (rsAny?.thank_you_msg  as string)       ?? 'Thank you for your visit!',
       currencySymbol: (rsAny?.currency_symbol as string)      ?? '',
       poweredBy:      (rsAny?.phone          as string | null) ?? null,
+      language:       (rsAny?.language as string) === 'en' ? 'en' : 'ku',
       paperWidth,
       tableNum:       body.tableNum,
       guests:         body.guests,

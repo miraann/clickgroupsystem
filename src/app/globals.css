@@ -9,6 +9,15 @@
   unicode-range: U+0600-06FF, U+0750-077F, U+FB50-FDFF, U+FE70-FEFF;
 }
 
+/* KurdishCustom — used by InvoicePrintTemplate for bilingual receipts */
+@font-face {
+  font-family: 'KurdishCustom';
+  src: url('/font/kurdish.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --background: #022658;
   --foreground: #ffffff;

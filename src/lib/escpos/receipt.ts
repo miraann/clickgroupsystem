@@ -1,4 +1,5 @@
 import { escpos, cols, enc, divBytes, rowBytes, threeColBytes, concat } from './commands'
+import { KU, kuTableLabel } from './kurdish'
 
 export interface ReceiptPayload {
   restaurantName: string
@@ -22,6 +23,7 @@ export interface ReceiptPayload {
   currencySymbol: string
   thankYouMsg:    string
   paperWidth:     number
+  language?:      'ku' | 'en'
   note?:          string | null
   mode?:          'receipt' | 'payment'
   poweredBy?:     string | null
@@ -30,14 +32,40 @@ export interface ReceiptPayload {
 }
 
 export function buildReceiptBytes(d: ReceiptPayload): Uint8Array {
-  const W   = cols(d.paperWidth)
-  const fmt = (n: number) => `${n.toLocaleString('en-US')}${d.currencySymbol ? ' ' + d.currencySymbol : ''}`
-  const div = (ch = '-')  => divBytes(W, ch)
-  const row = (l: string, r: string) => rowBytes(l, r, W)
+  const W      = cols(d.paperWidth)
+  const isKu   = (d.language ?? 'ku') === 'ku'
+  const fmt    = (n: number) => `${n.toLocaleString('en-US')}${d.currencySymbol ? ' ' + d.currencySymbol : ''}`
+  const div    = (ch = '-') => divBytes(W, ch)
 
-  const tableLabel = d.guests
-    ? `Table ${d.tableNum} - ${d.guests} guests`
-    : `Table ${d.tableNum}`
+  // In Kurdish mode: swap columns so label is on right, value on left (RTL reading order)
+  const row = (label: string, value: string) =>
+    isKu ? rowBytes(value, label, W) : rowBytes(label, value, W)
+
+  const L = {
+    invoiceNo:      isKu ? KU.invoiceNo      : 'Invoice No.',
+    cashier:        isKu ? KU.cashier        : 'Cashier',
+    employee:       isKu ? KU.employee       : 'Employee',
+    paymentMethod:  isKu ? KU.paymentMethod  : 'Payment Method',
+    item:           isKu ? KU.item           : 'Item',
+    qty:            isKu ? KU.qty            : 'Qty',
+    price:          isKu ? KU.price          : 'Price',
+    subtotal:       isKu ? KU.subtotal       : 'Subtotal',
+    discount:       isKu ? KU.discount       : 'Discount',
+    surcharge:      isKu ? KU.surcharge      : 'Surcharge',
+    total:          isKu ? KU.total          : 'Total',
+    totalAmount:    isKu ? KU.totalAmount    : 'Total Amount',
+    amountTendered: isKu ? KU.amountTendered : 'Amount Tendered',
+    change:         isKu ? KU.change         : 'Change',
+    paid:           isKu ? KU.paid           : '*** PAID ***',
+    yourFeedback:   isKu ? KU.yourFeedback   : 'YOUR FEEDBACK',
+    nameLine:       isKu ? KU.name           : 'NAME:',
+    phoneLine:      isKu ? KU.phoneEmail     : 'PHONE / EMAIL:',
+    feedbackLine:   isKu ? KU.feedback       : 'FEEDBACK:',
+  }
+
+  const tableLabel = isKu
+    ? kuTableLabel(d.tableNum, d.guests)
+    : d.guests ? `Table ${d.tableNum} - ${d.guests} guests` : `Table ${d.tableNum}`
 
   const parts: Uint8Array[] = [
     escpos.init(),
@@ -57,10 +85,10 @@ export function buildReceiptBytes(d: ReceiptPayload): Uint8Array {
     // ── Date | Invoice two-column header ──────────────────
     escpos.alignLeft(),
     div(),
-    row(d.dateStr,  'Invoice No.'),
-    row(d.timeStr,  d.invoiceNum),
-    row('Cashier',  'Employee'),
-    row(d.cashier,  d.cashier),
+    row(d.dateStr,   L.invoiceNo),
+    row(d.timeStr,   d.invoiceNum),
+    row(L.cashier,   L.employee),
+    row(d.cashier,   d.cashier),
     div(),
 
     // ── Table - guests | Order number ─────────────────────
@@ -69,7 +97,7 @@ export function buildReceiptBytes(d: ReceiptPayload): Uint8Array {
 
     // ── Payment method (centered) ─────────────────────────
     escpos.alignCenter(),
-    enc('Payment Method\n'),
+    enc(L.paymentMethod + '\n'),
     escpos.boldOn(),
     enc(d.paymentMethod + '\n'),
     escpos.boldOff(),
@@ -78,28 +106,32 @@ export function buildReceiptBytes(d: ReceiptPayload): Uint8Array {
 
     // ── Items header ──────────────────────────────────────
     escpos.boldOn(),
-    threeColBytes('Item', 'Qty', 'Price', W),
+    isKu
+      ? threeColBytes(L.price, L.qty, L.item, W)
+      : threeColBytes(L.item,  L.qty, L.price, W),
     escpos.boldOff(),
     div(),
 
     // ── Items ─────────────────────────────────────────────
     ...d.items.map(item =>
-      threeColBytes(item.name, String(item.qty), fmt(item.price * item.qty), W)
+      isKu
+        ? threeColBytes(fmt(item.price * item.qty), String(item.qty), item.name, W)
+        : threeColBytes(item.name, String(item.qty), fmt(item.price * item.qty), W)
     ),
     div(),
 
     // ── Totals ────────────────────────────────────────────
-    row('Subtotal', fmt(d.subtotal)),
-    ...(d.discount  > 0 ? [row('Discount',  `-${fmt(d.discount)}`)]  : []),
-    ...(d.surcharge > 0 ? [row('Surcharge', `+${fmt(d.surcharge)}`)] : []),
+    row(L.subtotal, fmt(d.subtotal)),
+    ...(d.discount  > 0 ? [row(L.discount,  `-${fmt(d.discount)}`)]  : []),
+    ...(d.surcharge > 0 ? [row(L.surcharge, `+${fmt(d.surcharge)}`)] : []),
     escpos.boldOn(),
-    row('Total', fmt(d.total)),
+    row(L.total, fmt(d.total)),
     escpos.boldOff(),
 
     // ── Total Amount box ──────────────────────────────────
     div('='),
     escpos.alignCenter(),
-    enc('Total Amount\n'),
+    enc(L.totalAmount + '\n'),
     escpos.boldOn(), escpos.doubleHeight(),
     enc(fmt(d.total) + '\n'),
     escpos.normalSize(), escpos.boldOff(),
@@ -110,7 +142,7 @@ export function buildReceiptBytes(d: ReceiptPayload): Uint8Array {
     parts.push(
       enc('\n'),
       escpos.boldOn(),
-      enc('*** PAID ***\n'),
+      enc(L.paid + '\n'),
       escpos.boldOff(),
       enc(`${d.dateStr}  ${d.timeStr}\n`),
     )
@@ -129,15 +161,15 @@ export function buildReceiptBytes(d: ReceiptPayload): Uint8Array {
     parts.push(
       escpos.alignCenter(),
       escpos.boldOn(),
-      enc('YOUR FEEDBACK\n'),
+      enc(L.yourFeedback + '\n'),
       escpos.boldOff(),
       escpos.alignLeft(),
       div(),
-      enc('NAME:\n'),
+      enc(L.nameLine + '\n'),
       enc(line + '\n\n'),
-      enc('PHONE / EMAIL:\n'),
+      enc(L.phoneLine + '\n'),
       enc(line + '\n\n'),
-      enc('FEEDBACK:\n'),
+      enc(L.feedbackLine + '\n'),
       enc(line + '\n\n'),
       enc(line + '\n\n'),
       enc(line + '\n\n'),

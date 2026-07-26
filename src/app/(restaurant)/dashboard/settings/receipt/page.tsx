@@ -16,6 +16,8 @@ import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import InvoiceViewModal from '@/components/restaurant/invoice-view-modal'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch'
+import { InvoicePrintTemplate } from '@/components/restaurant/InvoiceModal/InvoicePrintTemplate'
+import type { ReceiptSettings } from '@/components/restaurant/InvoiceModal/types'
 
 const PAGE: Variants = {
   hidden: { opacity: 0, y: 22 },
@@ -45,6 +47,7 @@ interface RS {
   show_logo: boolean
   show_address: boolean
   show_phone: boolean
+  language: string
 }
 
 const DEFAULTS: RS = {
@@ -59,6 +62,7 @@ const DEFAULTS: RS = {
   show_logo: true,
   show_address: true,
   show_phone: true,
+  language: 'ku',
 }
 
 const SAMPLE_ITEMS = [
@@ -69,137 +73,54 @@ const SAMPLE_SUBTOTAL = SAMPLE_ITEMS.reduce((s, i) => s + i.price * i.qty, 0)
 const SAMPLE_DISCOUNT = 2.00
 const SAMPLE_TOTAL = SAMPLE_SUBTOTAL - SAMPLE_DISCOUNT
 
-// ── Live Preview ───────────────────────────────────────────────
+// ── Live Preview — uses the real InvoicePrintTemplate so it always matches ──
 function InvoicePreview({ s, restaurantName }: { s: RS; restaurantName: string }) {
-  const now = new Date()
-  const dateStr = now.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '/')
-  const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
+  const now         = new Date()
+  const dateStr     = now.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  const timeStr     = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
   const displayName = s.shop_name || restaurantName || 'Restaurant Name'
+  const sym         = s.currency_symbol || '$'
+
+  const rs: ReceiptSettings = {
+    shop_name:       s.shop_name    || null,
+    logo_url:        s.logo_url     || null,
+    phone:           s.phone        || null,
+    address:         s.address      || null,
+    thank_you_msg:   s.thank_you_msg || null,
+    currency_symbol: sym,
+    show_qr:         s.show_qr,
+    qr_url:          s.qr_url       || null,
+    show_logo:       s.show_logo,
+    show_address:    s.show_address,
+    show_phone:      s.show_phone,
+    language:        (s.language === 'en' ? 'en' : 'ku'),
+  }
+
+  const fmtSample = (n: number) => `${n.toFixed(2)} ${sym}`
 
   return (
-    <div className="bg-white rounded-2xl shadow-2xl shadow-black/40 w-[320px] text-[11px] font-sans overflow-hidden border border-gray-100 select-none">
-
-      {/* Header */}
-      <div className="px-4 pt-4 pb-3">
-        <div className="flex items-start justify-between mb-3">
-          {/* Left: date/time/cashier */}
-          <div className="space-y-0.5 text-[10px]">
-            <div className="font-bold text-black">{dateStr}</div>
-            <div className="font-bold text-black">{timeStr}</div>
-            <div className="font-bold text-black mt-1">Cashier</div>
-            <div className="font-bold text-black">Staff</div>
-          </div>
-
-          {/* Center: logo + name */}
-          <div className="flex flex-col items-center gap-1.5 px-2">
-            {s.show_logo && s.logo_url ? (
-              <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-gray-200 shadow-sm shrink-0">
-                <img src={s.logo_url} alt="logo" className="w-full h-full object-cover" />
-              </div>
-            ) : s.show_logo ? (
-              <div className="w-14 h-14 rounded-full bg-gray-100 border-2 border-gray-200 flex items-center justify-center shrink-0">
-                <ImageIcon className="w-6 h-6 text-gray-300" />
-              </div>
-            ) : null}
-            <div className="text-center">
-              <p className="font-extrabold text-black text-[13px] leading-tight">{displayName}</p>
-            </div>
-          </div>
-
-          {/* Right: invoice number + employee */}
-          <div className="space-y-0.5 text-[10px] text-right">
-            <div className="font-bold text-black">Invoice No.</div>
-            <div className="font-extrabold text-black">#12345</div>
-            <div className="font-bold text-black mt-1">Employee</div>
-            <div className="font-bold text-black">Sample User</div>
-          </div>
-        </div>
-
-        {/* Contact info */}
-        {(s.show_phone && s.phone) || (s.show_address && s.address) ? (
-          <div className="text-center text-[10px] mt-1 space-y-0.5 pb-2 border-b border-dashed border-gray-300">
-            {s.show_phone && s.phone && <div className="font-bold text-black">{s.phone}</div>}
-            {s.show_address && s.address && <div className="font-semibold text-black/70">{s.address}</div>}
-          </div>
-        ) : (
-          <div className="border-b border-dashed border-gray-300 mb-1" />
-        )}
-      </div>
-
-      {/* Payment method */}
-      <div className="px-4 py-2 text-center border-b border-dashed border-gray-300">
-        <p className="text-[10px] font-bold text-black">Payment Method</p>
-        <p className="font-extrabold text-black text-[13px]">Cash</p>
-      </div>
-
-      {/* Items table */}
-      <div className="px-4 py-2">
-        <table className="w-full text-[10px]">
-          <thead>
-            <tr className="border-b border-gray-300">
-              <th className="text-left py-1 font-extrabold text-black">Item</th>
-              <th className="text-center py-1 font-extrabold text-black w-8">Qty</th>
-              <th className="text-right py-1 font-extrabold text-black">Price</th>
-            </tr>
-          </thead>
-          <tbody>
-            {SAMPLE_ITEMS.map((item, i) => (
-              <tr key={i} className="border-b border-gray-100">
-                <td className="py-1.5 font-bold text-black">{item.name}</td>
-                <td className="py-1.5 text-center font-bold text-black">{item.qty}</td>
-                <td className="py-1.5 text-right font-bold text-black tabular-nums">
-                  {s.currency_symbol}{(item.price * item.qty).toFixed(2)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Totals */}
-      <div className="px-4 py-2 space-y-1 border-t border-dashed border-gray-300">
-        <div className="flex justify-between font-bold text-black">
-          <span>Subtotal</span>
-          <span className="tabular-nums">{s.currency_symbol}{SAMPLE_SUBTOTAL.toFixed(2)}</span>
-        </div>
-        <div className="flex justify-between font-bold text-red-600">
-          <span>Discount</span>
-          <span className="tabular-nums">-{s.currency_symbol}{SAMPLE_DISCOUNT.toFixed(2)}</span>
-        </div>
-        <div className="flex justify-between font-extrabold text-black text-[12px]">
-          <span>Total</span>
-          <span className="tabular-nums">{s.currency_symbol}{SAMPLE_TOTAL.toFixed(2)}</span>
-        </div>
-      </div>
-
-      {/* Big total box */}
-      <div className="mx-4 my-2 rounded-xl bg-gray-50 border border-gray-200 py-3 text-center">
-        <p className="text-[10px] font-bold text-black mb-0.5">Total Amount</p>
-        <p className="text-[17px] font-extrabold text-black tabular-nums">
-          {s.currency_symbol}{SAMPLE_TOTAL.toFixed(2)}
-        </p>
-      </div>
-
-      {/* QR */}
-      {s.show_qr && (
-        <div className="flex justify-center py-3 border-t border-dashed border-gray-300">
-          {s.qr_url ? (
-            <img src={s.qr_url} alt="QR" className="w-16 h-16 object-contain" />
-          ) : (
-            <div className="w-16 h-16 rounded-lg bg-gray-100 border border-dashed border-gray-300 flex items-center justify-center">
-              <QrCode className="w-8 h-8 text-gray-300" />
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Thank you + footer */}
-      <div className="px-4 pb-4 text-center border-t border-dashed border-gray-300 pt-3 space-y-1">
-        {s.thank_you_msg && (
-          <p className="font-extrabold text-black text-[12px]">{s.thank_you_msg}</p>
-        )}
-        <p className="text-[9px] font-bold text-black">Powered by ClickGroup · 07701466787</p>
-      </div>
+    <div className="select-none">
+      <InvoicePrintTemplate
+        mode="receipt"
+        rs={rs}
+        displayName={displayName}
+        dateStr={dateStr}
+        timeStr={timeStr}
+        cashier="Staff"
+        tableNum="5"
+        guests={2}
+        invoiceNum="#12345"
+        orderNum="ORD-007"
+        paymentMethod="Cash"
+        items={SAMPLE_ITEMS}
+        subtotal={SAMPLE_SUBTOTAL}
+        discount={SAMPLE_DISCOUNT}
+        surcharge={0}
+        total={SAMPLE_TOTAL}
+        amountPaid={0}
+        changeAmount={0}
+        formatPrice={fmtSample}
+      />
     </div>
   )
 }
@@ -996,6 +917,7 @@ export default function ReceiptSettingsPage() {
         show_logo:        data.show_logo        ?? true,
         show_address:     data.show_address     ?? true,
         show_phone:       data.show_phone       ?? true,
+        language:         data.language         ?? 'ku',
       })
     }
     setLoading(false)
@@ -1061,6 +983,7 @@ export default function ReceiptSettingsPage() {
       show_logo:       form.show_logo,
       show_address:    form.show_address,
       show_phone:      form.show_phone,
+      language:        form.language || 'ku',
       updated_at:      new Date().toISOString(),
     }
 
@@ -1182,6 +1105,26 @@ export default function ReceiptSettingsPage() {
                   placeholder="$"
                   className={cn(INPUT, 'max-w-[100px]')}
                 />
+              </Field>
+
+              <Field label="Receipt Language">
+                <div className="flex gap-2">
+                  {(['ku', 'en'] as const).map(lang => (
+                    <button
+                      key={lang}
+                      type="button"
+                      onClick={() => set('language', lang)}
+                      className={cn(
+                        'flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all border active:scale-95',
+                        form.language === lang
+                          ? 'bg-amber-500 border-amber-500 text-white shadow-lg shadow-amber-500/20'
+                          : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10 hover:text-white/80',
+                      )}
+                    >
+                      {lang === 'ku' ? 'کوردی' : 'English'}
+                    </button>
+                  ))}
+                </div>
               </Field>
             </motion.section>
 
