@@ -34,6 +34,7 @@ import java.util.concurrent.Future;
 public class TcpPlugin extends Plugin {
 
     private static final UUID SPP_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
+    private final ExecutorService executor = Executors.newCachedThreadPool();
 
     // ── TCP / IP printer ──────────────────────────────────────────────────────
 
@@ -52,7 +53,7 @@ public class TcpPlugin extends Plugin {
         final int finalPort = port;
         final String finalData = data;
 
-        getBridge().getExecutorService().submit(() -> {
+        executor.submit(() -> {
             Socket socket = null;
             try {
                 byte[] bytes = android.util.Base64.decode(finalData, android.util.Base64.DEFAULT);
@@ -132,7 +133,7 @@ public class TcpPlugin extends Plugin {
         final int fp    = port;
         final int ft    = timeout;
 
-        getBridge().getExecutorService().submit(() -> {
+        executor.submit(() -> {
             List<String> found = Collections.synchronizedList(new ArrayList<>());
             ExecutorService pool = Executors.newFixedThreadPool(50);
             List<Future<?>> futures = new ArrayList<>();
@@ -212,7 +213,7 @@ public class TcpPlugin extends Plugin {
         final String finalAddr = address.toUpperCase();
         final String finalData = data;
 
-        getBridge().getExecutorService().submit(() -> {
+        executor.submit(() -> {
             BluetoothSocket socket = null;
             try {
                 BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
