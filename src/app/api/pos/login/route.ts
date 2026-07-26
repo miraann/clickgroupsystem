@@ -95,6 +95,25 @@ export async function POST(req: NextRequest) {
       .maybeSingle()
 
     if (!staffRow) {
+      // Fallback: check owner PIN directly (no pending cookie required on re-login)
+      const settings = (restaurant.settings ?? {}) as Record<string, unknown>
+      const ownerPin = settings.owner_pin as string | undefined
+      if (ownerPin && pin.trim() === ownerPin) {
+        const token = await createRestaurantToken(restaurant.id, 'owner')
+        const res = NextResponse.json({
+          ok: true,
+          isOwner: true,
+          restaurant: { id: restaurant.id, name: restaurant.name, menu_slug: restaurant.menu_slug },
+        })
+        res.cookies.set(RESTAURANT_COOKIE, token, {
+          httpOnly: true,
+          secure:   process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          path:     '/',
+          maxAge:   8 * 3600,
+        })
+        return res
+      }
       return NextResponse.json({ error: 'Incorrect PIN.' }, { status: 401 })
     }
 

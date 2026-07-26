@@ -6,11 +6,20 @@ import { createClient } from '@/lib/supabase/client'
 const STAFF_KEYS = [
   'pos_staff_id', 'pos_staff_name', 'pos_staff_role', 'pos_staff_color',
   'pos_role_permissions', 'pos_role_name', 'owner_session', '_app_bg_cache',
+  'pos_session_ts',
 ]
 
 function clearStaffSession() {
   STAFF_KEYS.forEach(k => localStorage.removeItem(k))
   sessionStorage.removeItem('pos_session_active')
+}
+
+// Session is valid if timestamp was set within the last 8 hours (matching cookie TTL)
+const SESSION_TTL_MS = 8 * 60 * 60 * 1000
+function isSessionFresh(): boolean {
+  const ts = localStorage.getItem('pos_session_ts')
+  if (!ts) return false
+  return Date.now() - parseInt(ts, 10) < SESSION_TTL_MS
 }
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
@@ -28,7 +37,9 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     }
 
     // Restaurant is bound. Check if this app session is already authenticated.
-    const sessionActive = sessionStorage.getItem('pos_session_active') === '1'
+    // Use localStorage timestamp so the session survives app restarts (unlike sessionStorage).
+    const sessionActive =
+      sessionStorage.getItem('pos_session_active') === '1' || isSessionFresh()
 
     if (sessionActive && (localStorage.getItem('pos_staff_id') || localStorage.getItem('owner_session') === 'true')) {
       // Active session — verify the restaurant still exists in the background
