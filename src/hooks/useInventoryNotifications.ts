@@ -18,6 +18,7 @@ export interface InventoryNotification {
   metadata:          Record<string, unknown>
   is_read:           boolean
   created_at:        string
+  item_name:         string | null
 }
 
 const PAGE_SIZE = 50
@@ -26,13 +27,14 @@ async function fetchNotifications(restaurantId: string): Promise<InventoryNotifi
   const supabase = createClient()
   const { data, error } = await supabase
     .from('inventory_notifications')
-    .select('*')
+    .select('*, inventory_items(name)')
     .eq('restaurant_id', restaurantId)
     .order('created_at', { ascending: false })
     .limit(PAGE_SIZE)
 
   if (error) throw error
-  return (data ?? []) as InventoryNotification[]
+  return ((data ?? []) as Array<InventoryNotification & { inventory_items: { name: string } | null }>)
+    .map(({ inventory_items, ...rest }) => ({ ...rest, item_name: inventory_items?.name ?? null }))
 }
 
 export function useInventoryNotifications(restaurantId: string | null) {
@@ -54,16 +56,19 @@ export function useInventoryNotifications(restaurantId: string | null) {
       .on('postgres_changes', {
         event: 'INSERT', schema: 'public', table: 'inventory_notifications',
         filter: `restaurant_id=eq.${restaurantId}`,
-      }, payload => {
-        const row = payload.new as InventoryNotification
-        mutate(prev => prev ? [row, ...prev].slice(0, PAGE_SIZE) : [row], { revalidate: false })
+      }, () => {
+        // Revalidate (rather than splicing payload.new) so the joined
+        // inventory_items.name is populated for the new row.
+        mutate()
       })
       .on('postgres_changes', {
         event: 'UPDATE', schema: 'public', table: 'inventory_notifications',
         filter: `restaurant_id=eq.${restaurantId}`,
       }, payload => {
         const row = payload.new as InventoryNotification
-        mutate(prev => prev?.map(n => n.id === row.id ? row : n), { revalidate: false })
+        // Merge only the raw columns — payload.new has no joined item_name,
+        // so keep whatever is already cached for that field.
+        mutate(prev => prev?.map(n => n.id === row.id ? { ...n, ...row, item_name: n.item_name } : n), { revalidate: false })
       })
       .subscribe()
 

@@ -362,6 +362,22 @@ const ku: Record<keyof typeof en, string> = {
   inv_unit_name_req:    'ناوی یەکە *',
   inv_abbreviation_req: 'کورتکراوە *',
 
+  // ── Inventory notifications ────────────────────────────────────
+  notif_title:              'ئاگاداری کۆگا',
+  notif_mark_all_read:      'هەمووی وەک خوێندراوە نیشان بدە',
+  notif_empty:              'هیچ ئاگاداریەکی کۆگا نییە',
+  notif_out_of_stock:       '{item} لە کۆگا نەماوە',
+  notif_low_stock:          'کۆگای {item} کەمە ({qty} ماوە)',
+  notif_restocked:          '{item} پڕکرایەوە (+{qty})',
+  notif_rapid_depletion:    '{item} خێراتر لە ئاسایی کەم دەبێتەوە',
+  notif_expiring_soon:      'بەرواری بەسەرچوونی {item} لە {date}ە',
+  notif_expired:            '{item} لە {date} بەسەرچووە',
+  notif_manual_adjustment:  'گۆڕانکاری بۆ {item} کرا',
+  notif_just_now:           'ئێستا',
+  notif_minutes_ago:        '{n} خولەک لەمەوپێش',
+  notif_hours_ago:          '{n} کاتژمێر لەمەوپێش',
+  notif_days_ago:           '{n} ڕۆژ لەمەوپێش',
+
   // ── Sales page ────────────────────────────────────
   sales_title:          'فرۆشتن',
   sales_subtitle:       'مێژووی فرۆشتن و تۆماری فەرمانەکان',

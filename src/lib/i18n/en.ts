@@ -609,6 +609,22 @@ const en = {
   inv_unit_name_req:    'Unit Name *',
   inv_abbreviation_req: 'Abbreviation *',
 
+  // ── Inventory notifications ────────────────────────────────────
+  notif_title:              'Inventory Alerts',
+  notif_mark_all_read:      'Mark all read',
+  notif_empty:              'No inventory alerts',
+  notif_out_of_stock:       '{item} is now out of stock',
+  notif_low_stock:          '{item} is running low ({qty} left)',
+  notif_restocked:          '{item} was restocked (+{qty})',
+  notif_rapid_depletion:    '{item} is depleting faster than usual',
+  notif_expiring_soon:      '{item} expires on {date}',
+  notif_expired:            '{item} expired on {date}',
+  notif_manual_adjustment:  '{item} was adjusted',
+  notif_just_now:           'just now',
+  notif_minutes_ago:        '{n}m ago',
+  notif_hours_ago:          '{n}h ago',
+  notif_days_ago:           '{n}d ago',
+
   // ── Financial Overview page ───────────────────────────────────
   fin_title:            'Financial Overview',
   fin_subtitle:         'Sales · Expenses · Net Profit',

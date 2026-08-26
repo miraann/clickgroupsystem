@@ -362,6 +362,22 @@ const ar: Record<keyof typeof en, string> = {
   inv_unit_name_req:    'اسم الوحدة *',
   inv_abbreviation_req: 'الاختصار *',
 
+  // ── Inventory notifications ────────────────────────────────────
+  notif_title:              'تنبيهات المخزون',
+  notif_mark_all_read:      'تحديد الكل كمقروء',
+  notif_empty:              'لا توجد تنبيهات مخزون',
+  notif_out_of_stock:       'نفد مخزون {item}',
+  notif_low_stock:          'مخزون {item} منخفض ({qty} متبقٍ)',
+  notif_restocked:          'تمت إعادة تخزين {item} (+{qty})',
+  notif_rapid_depletion:    '{item} ينفد بشكل أسرع من المعتاد',
+  notif_expiring_soon:      '{item} تنتهي صلاحيته في {date}',
+  notif_expired:            '{item} انتهت صلاحيته في {date}',
+  notif_manual_adjustment:  'تم تعديل {item}',
+  notif_just_now:           'الآن',
+  notif_minutes_ago:        'قبل {n} د',
+  notif_hours_ago:          'قبل {n} س',
+  notif_days_ago:           'قبل {n} يوم',
+
   // ── Sales page ────────────────────────────────────
   sales_title:          'المبيعات',
   sales_subtitle:       'سجل المبيعات والطلبات',
