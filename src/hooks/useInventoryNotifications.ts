@@ -19,6 +19,7 @@ export interface InventoryNotification {
   is_read:           boolean
   created_at:        string
   item_name:         string | null
+  unit_abbr:         string | null
 }
 
 const PAGE_SIZE = 50
@@ -27,14 +28,19 @@ async function fetchNotifications(restaurantId: string): Promise<InventoryNotifi
   const supabase = createClient()
   const { data, error } = await supabase
     .from('inventory_notifications')
-    .select('*, inventory_items(name)')
+    .select('*, inventory_items(name, inventory_units(abbreviation))')
     .eq('restaurant_id', restaurantId)
     .order('created_at', { ascending: false })
     .limit(PAGE_SIZE)
 
   if (error) throw error
-  return ((data ?? []) as Array<InventoryNotification & { inventory_items: { name: string } | null }>)
-    .map(({ inventory_items, ...rest }) => ({ ...rest, item_name: inventory_items?.name ?? null }))
+  return ((data ?? []) as Array<InventoryNotification & {
+    inventory_items: { name: string; inventory_units: { abbreviation: string } | null } | null
+  }>).map(({ inventory_items, ...rest }) => ({
+    ...rest,
+    item_name: inventory_items?.name ?? null,
+    unit_abbr: inventory_items?.inventory_units?.abbreviation ?? null,
+  }))
 }
 
 export function useInventoryNotifications(restaurantId: string | null) {
@@ -66,9 +72,9 @@ export function useInventoryNotifications(restaurantId: string | null) {
         filter: `restaurant_id=eq.${restaurantId}`,
       }, payload => {
         const row = payload.new as InventoryNotification
-        // Merge only the raw columns — payload.new has no joined item_name,
-        // so keep whatever is already cached for that field.
-        mutate(prev => prev?.map(n => n.id === row.id ? { ...n, ...row, item_name: n.item_name } : n), { revalidate: false })
+        // Merge only the raw columns — payload.new has no joined item_name/unit,
+        // so keep whatever is already cached for those fields.
+        mutate(prev => prev?.map(n => n.id === row.id ? { ...n, ...row, item_name: n.item_name, unit_abbr: n.unit_abbr } : n), { revalidate: false })
       })
       .subscribe()
 

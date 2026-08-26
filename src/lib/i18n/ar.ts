@@ -367,7 +367,7 @@ const ar: Record<keyof typeof en, string> = {
   notif_mark_all_read:      'تحديد الكل كمقروء',
   notif_empty:              'لا توجد تنبيهات مخزون',
   notif_out_of_stock:       'نفد مخزون {item}',
-  notif_low_stock:          'مخزون {item} منخفض ({qty} متبقٍ)',
+  notif_low_stock:          '{item} منخفض ({qty} متبقٍ)',
   notif_restocked:          'تمت إعادة تخزين {item} (+{qty})',
   notif_rapid_depletion:    '{item} ينفد بشكل أسرع من المعتاد',
   notif_expiring_soon:      '{item} تنتهي صلاحيته في {date}',

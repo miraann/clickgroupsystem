@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Bell, Check, CheckCheck, PackageX, PackageMinus, CalendarClock, CalendarX2, TrendingDown, PackagePlus } from 'lucide-react'
 import {
@@ -32,15 +32,16 @@ function timeAgo(iso: string, t: Translations): string {
 
 function buildMessage(n: InventoryNotification, t: Translations): string {
   const item = n.item_name ?? ''
+  const unit = n.unit_abbr ? ` ${n.unit_abbr}` : ''
   const meta = n.metadata as Record<string, unknown>
   switch (n.type) {
     case 'out_of_stock':
       return t.notif_out_of_stock.replace('{item}', item)
     case 'low_stock':
-      return t.notif_low_stock.replace('{item}', item).replace('{qty}', String(meta.current_stock ?? ''))
+      return t.notif_low_stock.replace('{item}', item).replace('{qty}', String(meta.current_stock ?? '') + unit)
     case 'restock': {
       const qty = Number(meta.current_stock ?? 0) - Number(meta.previous_stock ?? 0)
-      return t.notif_restocked.replace('{item}', item).replace('{qty}', String(qty))
+      return t.notif_restocked.replace('{item}', item).replace('{qty}', String(qty) + unit)
     }
     case 'rapid_depletion':
       return t.notif_rapid_depletion.replace('{item}', item)
@@ -77,26 +78,53 @@ function NotificationRow({ n, t, onRead }: { n: InventoryNotification; t: Transl
   )
 }
 
+const DROPDOWN_MARGIN = 8
+
 export default function InventoryNotificationBell({ restaurantId }: { restaurantId: string | null }) {
   const { t, isRTL } = useLanguage()
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useInventoryNotifications(restaurantId)
   const [open, setOpen] = useState(false)
+  const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null)
   const ref = useRef<HTMLDivElement>(null)
+  const btnRef = useRef<HTMLButtonElement>(null)
+
+  const reposition = useCallback(() => {
+    const btn = btnRef.current
+    if (!btn) return
+    const rect  = btn.getBoundingClientRect()
+    const width = Math.min(340, window.innerWidth - DROPDOWN_MARGIN * 2)
+    // Anchor to the button's trailing edge (right in LTR, left in RTL), then
+    // clamp so the panel never runs off either side of the viewport.
+    const desiredLeft = isRTL ? rect.left : rect.right - width
+    const left = Math.min(
+      Math.max(desiredLeft, DROPDOWN_MARGIN),
+      window.innerWidth - width - DROPDOWN_MARGIN
+    )
+    setPos({ top: rect.bottom + DROPDOWN_MARGIN, left, width })
+  }, [isRTL])
 
   useEffect(() => {
     if (!open) return
+    reposition()
     const onClick = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+      if (ref.current && !ref.current.contains(e.target as Node) && !btnRef.current?.contains(e.target as Node)) setOpen(false)
     }
     document.addEventListener('mousedown', onClick)
-    return () => document.removeEventListener('mousedown', onClick)
-  }, [open])
+    window.addEventListener('resize', reposition)
+    window.addEventListener('scroll', reposition, true)
+    return () => {
+      document.removeEventListener('mousedown', onClick)
+      window.removeEventListener('resize', reposition)
+      window.removeEventListener('scroll', reposition, true)
+    }
+  }, [open, reposition])
 
   const hasCritical = notifications.some(n => !n.is_read && n.severity === 'critical')
 
   return (
     <div className="relative" ref={ref}>
       <button
+        ref={btnRef}
         onClick={() => setOpen(v => !v)}
         className="relative w-9 h-9 rounded-xl flex items-center justify-center text-white/70 hover:text-white hover:bg-white/8 transition-all active:scale-95"
         aria-label="Inventory notifications"
@@ -114,14 +142,20 @@ export default function InventoryNotificationBell({ restaurantId }: { restaurant
       </button>
 
       <AnimatePresence>
-        {open && (
+        {open && pos && (
           <motion.div
             initial={{ opacity: 0, y: -8, scale: 0.97 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -8, scale: 0.97, transition: { duration: 0.12 } }}
             transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
-            className={`absolute mt-2 w-[340px] max-h-[420px] rounded-2xl shadow-2xl shadow-black/60 overflow-hidden z-50 flex flex-col ${isRTL ? 'left-0' : 'right-0'}`}
-            style={{ border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(10,13,24,0.97)' }}
+            className="fixed max-h-[420px] rounded-2xl shadow-2xl shadow-black/60 overflow-hidden z-50 flex flex-col"
+            style={{
+              top:    pos.top,
+              left:   pos.left,
+              width:  pos.width,
+              border: '1px solid rgba(255,255,255,0.08)',
+              background: 'rgba(10,13,24,0.97)',
+            }}
             dir={isRTL ? 'rtl' : 'ltr'}
           >
             <div className="flex items-center justify-between px-4 py-3 border-b border-white/8 shrink-0">

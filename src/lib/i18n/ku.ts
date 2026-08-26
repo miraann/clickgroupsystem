@@ -367,7 +367,7 @@ const ku: Record<keyof typeof en, string> = {
   notif_mark_all_read:      'هەمووی وەک خوێندراوە نیشان بدە',
   notif_empty:              'هیچ ئاگاداریەکی کۆگا نییە',
   notif_out_of_stock:       '{item} لە کۆگا نەماوە',
-  notif_low_stock:          'کۆگای {item} کەمە ({qty} ماوە)',
+  notif_low_stock:          '{item} کەمە ({qty} ماوە)',
   notif_restocked:          '{item} پڕکرایەوە (+{qty})',
   notif_rapid_depletion:    '{item} خێراتر لە ئاسایی کەم دەبێتەوە',
   notif_expiring_soon:      'بەرواری بەسەرچوونی {item} لە {date}ە',
