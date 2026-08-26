@@ -151,10 +151,10 @@ export default function InvoiceModal({
     }
   }
 
-  // Auto-print once data has loaded — try ESC/POS first, fall back to browser dialog
+  // Auto-print once data has loaded — silent ESC/POS only, no browser print dialog fallback
   useEffect(() => {
     if (!loading && autoPrint) {
-      handleHardwarePrint().then(ok => { if (!ok) handlePrint() })
+      handleHardwarePrint()
     }
   }, [loading]) // eslint-disable-line react-hooks/exhaustive-deps
 

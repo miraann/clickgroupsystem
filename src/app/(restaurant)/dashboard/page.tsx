@@ -660,30 +660,30 @@ const TableCard = memo(function TableCard({ table, onSelect, onLongPress, format
         )}
         {/* Label + dot */}
         <div className="relative flex items-center justify-between mb-auto">
-          <span className="text-[11px] font-black text-white drop-shadow-sm">{table.label}</span>
+          <span className="text-sm font-black text-white drop-shadow-sm">{table.label}</span>
           <motion.div animate={{ scale: [1,1.5,1], opacity:[1,.5,1] }} transition={{ repeat: Infinity, duration: isBillReq ? 0.8 : 2.2 }}
             className="w-2 h-2 rounded-full bg-white/70" />
         </div>
         {/* Status */}
-        <p className="relative text-[8px] font-bold uppercase tracking-widest text-white/75 leading-none mb-1">
+        <p className="relative text-[11px] font-bold uppercase tracking-wide text-white/90 leading-none mb-1.5">
           {STATUS_LABELS[table.status]}
         </p>
         {/* Occupied info */}
         {isOccupied && (
-          <div className="relative space-y-0.5">
+          <div className="relative space-y-1">
             <div className="flex items-center gap-1">
-              <Clock className="w-2.5 h-2.5 text-white/70" />
-              <span className="text-[10px] text-white/80 font-semibold tabular-nums"><TableTimer openedAt={table.openedAt!} /></span>
+              <Clock className="w-3 h-3 text-white/80" />
+              <span className="text-xs text-white/90 font-semibold tabular-nums"><TableTimer openedAt={table.openedAt!} /></span>
             </div>
             {table.orderTotal != null && (
-              <p className="text-sm font-black text-white tabular-nums leading-none">{formatPrice(table.orderTotal)}</p>
+              <p className="text-base font-black text-white tabular-nums leading-none">{formatPrice(table.orderTotal)}</p>
             )}
           </div>
         )}
         {table.status === 'available' && (
           <div className="relative flex items-center gap-1">
-            <Users className="w-2.5 h-2.5 text-white/60" />
-            <span className="text-[10px] text-white/75">{table.capacity}</span>
+            <Users className="w-3 h-3 text-white/75" />
+            <span className="text-xs text-white/90 font-semibold">{table.capacity}</span>
           </div>
         )}
       </motion.button>
