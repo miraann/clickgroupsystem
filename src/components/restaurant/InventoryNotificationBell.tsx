@@ -126,13 +126,13 @@ export default function InventoryNotificationBell({ restaurantId }: { restaurant
       <button
         ref={btnRef}
         onClick={() => setOpen(v => !v)}
-        className="relative w-9 h-9 rounded-xl flex items-center justify-center text-white/70 hover:text-white hover:bg-white/8 transition-all active:scale-95"
+        className="relative w-11 h-11 sm:w-12 sm:h-12 lg:w-14 lg:h-14 rounded-xl flex items-center justify-center text-white/70 hover:text-white hover:bg-white/8 transition-all active:scale-95"
         aria-label="Inventory notifications"
       >
-        <Bell className="w-[18px] h-[18px]" />
+        <Bell className="w-6 h-6 sm:w-7 sm:h-7 lg:w-[26px] lg:h-[26px]" />
         {unreadCount > 0 && (
           <span
-            className={`absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full text-[10px] font-bold flex items-center justify-center text-white ${
+            className={`absolute -top-1 -right-1 min-w-[20px] h-5 px-1 rounded-full text-[11px] font-bold flex items-center justify-center text-white ${
               hasCritical ? 'bg-rose-500' : 'bg-amber-500'
             }`}
           >

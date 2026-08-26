@@ -22,6 +22,33 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
+
+    // ── Product flavors: two separately installable APKs from one project ──
+    // "cashier" keeps the existing com.clickgroup.pos applicationId (no
+    // suffix) — it's the original, already-registered-in-Firebase, already
+    // -deployed app, so existing installs/keystores/Firebase config are
+    // untouched. It boots to /dashboard via the capacitor.config.json that
+    // `npx cap sync android` regenerates in src/main/assets.
+    // "driver" is the new flavor: applicationId com.clickgroup.pos.driver,
+    // overriding that same-named asset file from
+    // src/driver/assets/capacitor.config.json to boot straight to
+    // /dashboard/driver instead. Registered in Firebase as a second Android
+    // app under the same project (see google-services.json).
+    flavorDimensions "role"
+    productFlavors {
+        cashier {
+            dimension "role"
+            resValue "string", "app_name", "ClickGroup Cashier"
+            resValue "string", "title_activity_main", "ClickGroup Cashier"
+        }
+        driver {
+            dimension "role"
+            applicationIdSuffix ".driver"
+            versionNameSuffix "-driver"
+            resValue "string", "app_name", "ClickGroup Driver"
+            resValue "string", "title_activity_main", "ClickGroup Driver"
+        }
+    }
 }
 
 repositories {

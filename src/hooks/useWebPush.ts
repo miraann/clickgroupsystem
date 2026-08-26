@@ -17,7 +17,7 @@ async function isCapacitorNative(): Promise<boolean> {
   } catch { return false }
 }
 
-export function useWebPush(restaurantId: string | null) {
+export function useWebPush(restaurantId: string | null, staffId: string | null = null) {
   const [status, setStatus]             = useState<SubStatus>('loading')
   const [subscription, setSubscription] = useState<PushSubscription | null>(null)
   const [busy, setBusy]                 = useState(false)
@@ -84,7 +84,7 @@ export function useWebPush(restaurantId: string | null) {
           const res = await fetch('/api/push/subscribe', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fcm_token: outcome.token, restaurant_id: restaurantId }),
+            body: JSON.stringify({ fcm_token: outcome.token, restaurant_id: restaurantId, staff_id: staffId }),
           })
           if (!res.ok) {
             const body = await res.text()
@@ -112,7 +112,7 @@ export function useWebPush(restaurantId: string | null) {
       await fetch('/api/push/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ subscription: sub.toJSON(), restaurant_id: restaurantId }),
+        body: JSON.stringify({ subscription: sub.toJSON(), restaurant_id: restaurantId, staff_id: staffId }),
       })
 
       setSubscription(sub)
@@ -121,7 +121,7 @@ export function useWebPush(restaurantId: string | null) {
       setError(String(err))
     }
     setBusy(false)
-  }, [restaurantId, busy])
+  }, [restaurantId, staffId, busy])
 
   const unsubscribe = useCallback(async () => {
     if (busy) return

@@ -64,7 +64,13 @@
       "PowerShell(git commit -m \"feat: add .well-known/assetlinks.json for TWA Android APK\")",
       "PowerShell(git add \"public/manifest.json\")",
       "PowerShell(git commit -m \"fix: separate maskable and any icon purposes in manifest for PWABuilder\")",
-      "PowerShell(git commit -m \"feat: use PWABuilder-generated icons for Android, iOS, and Windows\")"
+      "PowerShell(git commit -m \"feat: use PWABuilder-generated icons for Android, iOS, and Windows\")",
+      "PowerShell(git commit -m \"feat: add Install PWA button on users page for staff PIN login screen\")",
+      "Bash(npx cap *)",
+      "Bash(node -e \"const wp = require\\('web-push'\\); const keys = wp.generateVAPIDKeys\\(\\); console.log\\('PUBLIC:', keys.publicKey\\); console.log\\('PRIVATE:', keys.privateKey\\);\")",
+      "PowerShell(Get-ChildItem -Path \"g:\\\\clickgroupsystem\\\\src\" -Recurse -Directory | Select-Object -First 20 | ForEach-Object { $_.FullName })",
+      "Bash(git commit *)",
+      "Bash(Get-ChildItem -Path . -Depth 2)"
     ]
   }
 }

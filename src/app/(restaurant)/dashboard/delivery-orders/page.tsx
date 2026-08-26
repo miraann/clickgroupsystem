@@ -18,6 +18,7 @@ import { createClient } from '@/lib/supabase/client'
 import { logAudit, type AuditAction } from '@/lib/logAudit'
 import { motion, AnimatePresence, type Variants } from 'framer-motion'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
+import { notifyDriver, buildStatusWhatsAppMessage, buildWhatsAppDeepLink } from '@/lib/delivery/notify'
 
 const CONTAINER: Variants = {
   hidden: {},
@@ -164,6 +165,7 @@ export default function DeliveryOrdersPage() {
   const [driverPick, setDriverPick] = useState<Record<string, string>>({})
   const [whatsappDropdown, setWhatsappDropdown] = useState<string | null>(null)
   const [waTemplates, setWaTemplates]           = useState<WaTemplate[]>([])
+  const [autoWhatsAppUrl, setAutoWhatsAppUrl]   = useState<string | null>(null)
   // eslint-disable-next-line @typescript-eslint/no-empty-function
   const loadRef = useRef<() => void>(() => {})
 
@@ -431,6 +433,34 @@ export default function DeliveryOrdersPage() {
       if (auditAction) logAudit(restaurantId, auditAction, {
         delivery_id: deliveryId, order_id: orderId, customer: order?.customer_name, order_num: order?.order_num,
       })
+
+      // Real-time driver push: wake the assigned driver's device when there's
+      // a job to act on (preparing = newly assigned, out_for_delivery = ready
+      // for pickup). The delivery_notifications trigger also logs this
+      // server-side for anyone polling instead of subscribing to Realtime.
+      const driverId = extra?.driver_id ?? order?.driver_id ?? null
+      if (driverId && (newStatus === 'preparing' || newStatus === 'out_for_delivery')) {
+        notifyDriver(
+          restaurantId,
+          { staffId: driverId },
+          newStatus,
+          newStatus === 'out_for_delivery'
+            ? `Order ready for pickup — ${order?.customer_name ?? 'customer'}`
+            : `New delivery assigned — ${order?.customer_name ?? 'customer'}`,
+        )
+      }
+
+      // Automated customer WhatsApp status update (one-tap send, opened in a
+      // new tab so staff can review/edit before hitting send in WhatsApp).
+      if (order && ['confirmed', 'out_for_delivery', 'delivered', 'cancelled'].includes(newStatus)) {
+        const msg = buildStatusWhatsAppMessage({
+          status: newStatus,
+          orderNum: order.order_num,
+          customerName: order.customer_name,
+          driverName: extra?.driver_name ?? order.driver_name,
+        })
+        setAutoWhatsAppUrl(buildWhatsAppDeepLink(order.customer_phone, msg))
+      }
     }
 
     // Optimistic local state update
@@ -1114,6 +1144,26 @@ export default function DeliveryOrdersPage() {
           restaurantId={restaurantId}
           onClose={() => setViewInvoice(null)}
         />
+      )}
+
+      {/* ── Auto-generated WhatsApp status update toast ── */}
+      {autoWhatsAppUrl && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] flex items-center gap-3 rounded-2xl bg-emerald-600 text-white px-4 py-3 shadow-2xl">
+          <WhatsAppIcon className="w-5 h-5 shrink-0" />
+          <span className="text-sm">Status update ready to send</span>
+          <a
+            href={autoWhatsAppUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => setAutoWhatsAppUrl(null)}
+            className="text-sm font-bold underline underline-offset-2"
+          >
+            Send on WhatsApp
+          </a>
+          <button onClick={() => setAutoWhatsAppUrl(null)} className="ml-1 opacity-70 hover:opacity-100">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
       )}
     </div>
     </ModuleGate>

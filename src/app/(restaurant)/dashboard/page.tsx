@@ -1454,6 +1454,9 @@ export default function TablesPage() {
               <p className="text-[11px] sm:text-sm font-bold text-white leading-none truncate max-w-[70px] sm:max-w-none">{restaurant?.name ?? '...'}</p>
               <p className="hidden sm:block text-xs text-white/30 mt-0.5">POS System</p>
             </div>
+            {can('dashboard.btn_inventory_bell') && (
+              <InventoryNotificationBell restaurantId={cachedRestaurantId} />
+            )}
           </div>
 
           {/* Center: clock */}
@@ -1493,7 +1496,6 @@ export default function TablesPage() {
                 <Users size={26} />
               </Link>
             )}
-            <InventoryNotificationBell restaurantId={cachedRestaurantId} />
             {can('dashboard.btn_waiter') && (
               <button
                 onClick={() => setShowWaiterPanel(p => !p)}

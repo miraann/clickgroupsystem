@@ -59,6 +59,7 @@ const PERMISSION_TREE: PermNode[] = [
           { key: 'dashboard.cfd',           label: 'CFD Display'    },
           { key: 'dashboard.btn_guests',    label: 'Guests'         },
           { key: 'dashboard.btn_language',  label: 'Language'       },
+          { key: 'dashboard.btn_inventory_bell', label: 'Notification Bell' },
         ],
       },
       {
@@ -235,6 +236,7 @@ const PERM_MODULE_MAP: Record<string, string | null> = {
   'dashboard.cfd':             null,
   'dashboard.btn_guests':      'dine_in',
   'dashboard.btn_language':    null,
+  'dashboard.btn_inventory_bell': 'inventory',
   'dashboard.nav_buttons':     null,
   'dashboard.btn_new_order':   null,
   'dashboard.btn_qr_orders':   null,

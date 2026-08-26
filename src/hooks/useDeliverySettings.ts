@@ -1,5 +1,6 @@
 import useSWR from 'swr'
 import { createClient } from '@/lib/supabase/client'
+import type { KeyedMutator } from 'swr'
 
 export interface CachedDeliveryGeneral {
   delivery_enabled:        boolean
@@ -21,7 +22,13 @@ export interface CachedDeliveryZone {
   estimated_time: number
   active:         boolean
   sort_order:     number
+  center_lat?:    number | null
+  center_lng?:    number | null
+  radius_meters?: number | null
+  polygon?:       { lat: number; lng: number }[] | null
 }
+
+export type ZoneDraft = Omit<CachedDeliveryZone, 'id' | 'restaurant_id'>
 
 export interface DeliverySettingsData {
   general: CachedDeliveryGeneral
@@ -62,9 +69,44 @@ async function fetchDeliverySettings(restaurantId: string): Promise<DeliverySett
 }
 
 export function useDeliverySettings(restaurantId: string | null) {
-  return useSWR<DeliverySettingsData>(
+  const swr = useSWR<DeliverySettingsData>(
     restaurantId ? `delivery-settings-${restaurantId}` : null,
     () => fetchDeliverySettings(restaurantId!),
     { revalidateOnFocus: false, dedupingInterval: 60_000, keepPreviousData: true }
   )
+
+  return {
+    ...swr,
+    addZone:    (zone: ZoneDraft) => addDeliveryZone(restaurantId!, zone, swr.mutate),
+    updateZone: (id: string, patch: Partial<ZoneDraft>) => updateDeliveryZone(restaurantId!, id, patch, swr.mutate),
+    deleteZone: (id: string) => deleteDeliveryZone(restaurantId!, id, swr.mutate),
+    toggleZone: (id: string, active: boolean) => updateDeliveryZone(restaurantId!, id, { active }, swr.mutate),
+  }
+}
+
+async function addDeliveryZone(
+  restaurantId: string, zone: ZoneDraft, mutate: KeyedMutator<DeliverySettingsData>,
+) {
+  const supabase = createClient()
+  const { error } = await supabase.from('delivery_zones').insert({ ...zone, restaurant_id: restaurantId })
+  if (error) throw error
+  await mutate()
+}
+
+async function updateDeliveryZone(
+  restaurantId: string, id: string, patch: Partial<ZoneDraft>, mutate: KeyedMutator<DeliverySettingsData>,
+) {
+  const supabase = createClient()
+  const { error } = await supabase.from('delivery_zones').update(patch).eq('id', id).eq('restaurant_id', restaurantId)
+  if (error) throw error
+  await mutate()
+}
+
+async function deleteDeliveryZone(
+  restaurantId: string, id: string, mutate: KeyedMutator<DeliverySettingsData>,
+) {
+  const supabase = createClient()
+  const { error } = await supabase.from('delivery_zones').delete().eq('id', id).eq('restaurant_id', restaurantId)
+  if (error) throw error
+  await mutate()
 }

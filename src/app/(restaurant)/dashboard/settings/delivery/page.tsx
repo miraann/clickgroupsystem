@@ -14,6 +14,7 @@ import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { useDeliverySettings } from '@/hooks/useDeliverySettings'
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch'
+import DeliveryZoneManager from '@/components/restaurant/DeliveryZoneManager'
 import { motion, AnimatePresence, type Variants } from 'framer-motion'
 
 const PAGE: Variants = {
@@ -672,6 +673,9 @@ export default function DeliveryPage() {
                 rows={2} className={cn(inputCls, 'resize-none')}
                 placeholder="e.g. Please have your order ready at the door" />
             </Field>
+
+            <div className="border-t border-white/8" />
+            <DeliveryZoneManager restaurantId={restaurantId} />
           </div>
         } />
       )}

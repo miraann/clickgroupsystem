@@ -9,6 +9,7 @@ import {
   ShieldCheck, ChevronRight, User, Phone, Tag,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { matchDeliveryZone, type ZoneMatchResult } from '@/lib/delivery/zoneCalculator'
 
 // Lazy-load the map to avoid SSR
 const LocationPickerMap = dynamic(
@@ -59,7 +60,8 @@ export interface DeliveryCheckoutProps {
     address: string | null,
     discountAmount: number,
     couponId: string | null,
-    selfieUrl: string | null
+    selfieUrl: string | null,
+    resolvedFee?: number,
   ) => void
   placing: boolean
   placeError: string | null
@@ -976,6 +978,24 @@ export default function DeliveryCheckout({
   const [couponErr,     setCouponErr]     = useState<string | null>(null)
   const [couponLoading, setCouponLoading] = useState(false)
 
+  // ── Zone-based fee override ────────────────────────────────
+  // Recalculated whenever the pinned location changes; falls back to the
+  // restaurant-wide defaults (deliveryFee/minOrder/estimatedTime props)
+  // when no delivery_zones row matches the point (see zoneCalculator.ts).
+  const [zoneMatch, setZoneMatch] = useState<ZoneMatchResult | null>(null)
+  useEffect(() => {
+    if (lat == null || lng == null) { setZoneMatch(null); return }
+    let cancelled = false
+    matchDeliveryZone(restaurantId, lat, lng, { deliveryFee, minOrder, estimatedTime })
+      .then(res => { if (!cancelled) setZoneMatch(res) })
+      .catch(() => { if (!cancelled) setZoneMatch(null) })
+    return () => { cancelled = true }
+  }, [lat, lng, restaurantId, deliveryFee, minOrder, estimatedTime])
+
+  const effFee      = zoneMatch?.matched ? zoneMatch.deliveryFee   : deliveryFee
+  const effMinOrder = zoneMatch?.matched ? zoneMatch.minOrder      : minOrder
+  const effEta       = zoneMatch?.matched ? zoneMatch.estimatedTime : estimatedTime
+
   // Refs for cleanup
   const watchRef  = useRef<number | null>(null)
   const geocodeTO = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -1077,8 +1097,8 @@ export default function DeliveryCheckout({
   }
 
   const discountAmount = appliedCoupon?.discount ?? 0
-  const grandTotal     = cartTotal + deliveryFee - discountAmount
-  const belowMin       = minOrder > 0 && cartTotal < minOrder
+  const grandTotal     = cartTotal + effFee - discountAmount
+  const belowMin       = effMinOrder > 0 && cartTotal < effMinOrder
 
   // ── Liveness verified → store selfie URL → advance to step 2 ─
   const handleVerified = useCallback((url: string) => {
@@ -1089,7 +1109,7 @@ export default function DeliveryCheckout({
   // ── Submit (step 2 CTA — face already verified) ─────────────
   const submit = () => {
     if (!validateForm()) return
-    onConfirm(name.trim(), phone.trim(), lat, lng, address, discountAmount, appliedCoupon?.id ?? null, selfieUrl)
+    onConfirm(name.trim(), phone.trim(), lat, lng, address, discountAmount, appliedCoupon?.id ?? null, selfieUrl, effFee)
   }
 
   // ── Render ─────────────────────────────────────────────────
@@ -1155,7 +1175,7 @@ export default function DeliveryCheckout({
           >
             <div className="flex items-center gap-1.5 px-3 py-2">
               <Clock className="w-3 h-3 text-gray-400 shrink-0" />
-              <span className="text-[10px] text-gray-400">~{estimatedTime} min</span>
+              <span className="text-[10px] text-gray-400">~{effEta} min</span>
             </div>
             <div className="flex items-center gap-1.5 px-3 py-2">
               <Package className="w-3 h-3 text-gray-400 shrink-0" />
@@ -1396,7 +1416,7 @@ export default function DeliveryCheckout({
                 >
                   <AlertCircle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                   <p className="text-[11px] text-amber-400">
-                    Minimum order is {formatPrice(minOrder)} — add {formatPrice(minOrder - cartTotal)} more
+                    Minimum order is {formatPrice(effMinOrder)} — add {formatPrice(effMinOrder - cartTotal)} more
                   </p>
                 </div>
               )}
@@ -1407,7 +1427,12 @@ export default function DeliveryCheckout({
                 style={{ border: '1px solid rgba(0,0,0,0.08)', background: 'rgba(0,0,0,0.02)' }}
               >
                 <TotalRow label="Subtotal"     value={formatPrice(cartTotal)} />
-                <TotalRow label="Delivery Fee" value={deliveryFee === 0 ? 'Free' : formatPrice(deliveryFee)} accent={deliveryFee === 0} />
+                <TotalRow label="Delivery Fee" value={effFee === 0 ? 'Free' : formatPrice(effFee)} accent={effFee === 0} />
+                {zoneMatch?.matched && zoneMatch.zoneName && (
+                  <div className="px-4 py-1.5 text-[10px] text-emerald-500 flex items-center gap-1">
+                    <MapPin className="w-3 h-3" /> Zone: {zoneMatch.zoneName}
+                  </div>
+                )}
                 {discountAmount > 0 && <TotalRow label="Discount" value={`−${formatPrice(discountAmount)}`} accent />}
                 <div
                   className="flex justify-between items-center px-4 py-3.5"

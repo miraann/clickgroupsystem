@@ -3,6 +3,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useDeliveryOrders } from '@/hooks/useDeliveryOrders'
+import { useWebPush } from '@/hooks/useWebPush'
+import DriverOrderAlert from '@/components/delivery/DriverOrderAlert'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import { usePermissions } from '@/lib/permissions/PermissionsContext'
 import {
@@ -87,6 +89,14 @@ export default function DriverPage() {
   const [isOnline, setIsOnline]     = useState(true)
   const [payModal, setPayModal]     = useState<{ deliveryId: string; orderId: string } | null>(null)
 
+  // Register this driver's device for staff-targeted push (dispatch alerts
+  // on new assignment / ready-for-pickup — see notifyDriver() in the
+  // delivery-orders staff dashboard).
+  const { status: pushStatus, subscribe: subscribePush } = useWebPush(restaurantId, isPinStaff ? staffId : null)
+  useEffect(() => {
+    if (isPinStaff && staffId && pushStatus === 'unsubscribed') subscribePush()
+  }, [isPinStaff, staffId, pushStatus, subscribePush])
+
   // ── Online / Offline detection ──────────────────────────────
   useEffect(() => {
     const on  = () => setIsOnline(true)
@@ -165,6 +175,7 @@ export default function DriverPage() {
 
   return (
     <div className="min-h-screen bg-[#080c18] text-white">
+      <DriverOrderAlert staffId={isPinStaff ? staffId : null} />
 
       {/* ── Header ─────────────────────────────────────────────── */}
       <header className="sticky top-0 z-20 bg-[#080c18]/95 backdrop-blur-xl border-b border-white/8 px-4 py-3">

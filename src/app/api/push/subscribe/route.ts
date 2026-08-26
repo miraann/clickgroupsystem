@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 export async function POST(req: Request) {
   try {
     const body = await req.json()
-    const { restaurant_id } = body
+    const { restaurant_id, staff_id } = body
 
     if (!restaurant_id) return NextResponse.json({ error: 'Missing restaurant_id' }, { status: 400 })
 
@@ -15,7 +15,7 @@ export async function POST(req: Request) {
       const { error } = await supabase
         .from('push_subscriptions')
         .upsert(
-          { restaurant_id, endpoint: body.fcm_token, type: 'fcm', subscription: null },
+          { restaurant_id, endpoint: body.fcm_token, type: 'fcm', subscription: null, staff_id: staff_id ?? null },
           { onConflict: 'endpoint' }
         )
       if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -25,7 +25,7 @@ export async function POST(req: Request) {
       const { error } = await supabase
         .from('push_subscriptions')
         .upsert(
-          { restaurant_id, endpoint, type: 'web', subscription: body.subscription },
+          { restaurant_id, endpoint, type: 'web', subscription: body.subscription, staff_id: staff_id ?? null },
           { onConflict: 'endpoint' }
         )
       if (error) return NextResponse.json({ error: error.message }, { status: 500 })

@@ -118,10 +118,12 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { restaurant_id, type, body: customBody } = await req.json() as {
+    const { restaurant_id, type, body: customBody, title: customTitle, staff_id } = await req.json() as {
       restaurant_id: string
       type: NotifType
       body?: string
+      title?: string
+      staff_id?: string
     }
 
     if (!restaurant_id || !type || !NOTIF_META[type]) {
@@ -145,14 +147,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, skipped: true })
     }
 
-    const { data: subs } = await supabase
+    let subsQuery = supabase
       .from('push_subscriptions')
       .select('endpoint, type, subscription')
       .eq('restaurant_id', restaurant_id)
 
+    // Driver dispatch: target only the assigned staff member's device(s)
+    // instead of broadcasting to every subscription on the restaurant.
+    if (staff_id) subsQuery = subsQuery.eq('staff_id', staff_id)
+
+    const { data: subs } = await subsQuery
+
     if (!subs?.length) return NextResponse.json({ ok: true, sent: 0 })
 
-    const { title, url } = NOTIF_META[type]
+    const { url } = NOTIF_META[type]
+    const title = customTitle ?? NOTIF_META[type].title
     const body = customBody ?? NOTIF_META[type].body
 
     const staleEndpoints: string[] = []

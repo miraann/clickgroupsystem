@@ -295,6 +295,7 @@ function TrackOrderSection({
   const [error, setError]       = useState<string | null>(null)
   const [orders, setOrders]     = useState<TrackOrder[] | null>(null)
   const [expanded, setExpanded] = useState<string | null>(null)
+  const [liveToast, setLiveToast] = useState<string | null>(null)
 
   const dimText  = isDark ? 'rgba(255,255,255,0.45)' : '#9ca3af'
   const bodyText = isDark ? 'rgba(255,255,255,0.85)' : '#111827'
@@ -370,6 +371,50 @@ function TrackOrderSection({
     return found?.label ?? s.replace(/_/g, ' ')
   }
 
+  // ── Realtime tracking ──────────────────────────────────────
+  // Replaces manual re-search with push-based updates: any status change on
+  // a tracked delivery_order (or its notification fan-out row, see
+  // supabase-delivery-notifications.sql) flips the UI instantly instead of
+  // requiring the customer to re-submit their phone number.
+  const trackedIds = orders?.map(o => o.id) ?? []
+  const trackedIdsKey = trackedIds.join(',')
+
+  useEffect(() => {
+    if (trackedIds.length === 0) return
+    const idSet = new Set(trackedIds)
+
+    const channel = supabase
+      .channel(`customer-track-${trackedIdsKey}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'delivery_orders' },
+        (payload) => {
+          const row = payload.new as { id: string; status: string }
+          if (!idSet.has(row.id)) return
+          setOrders(prev => prev?.map(o => o.id === row.id ? { ...o, status: row.status } : o) ?? prev)
+        },
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'delivery_notifications' },
+        (payload) => {
+          const row = payload.new as { delivery_order_id: string; recipient_type: string; message: string }
+          if (row.recipient_type !== 'customer' || !idSet.has(row.delivery_order_id)) return
+          setLiveToast(row.message)
+        },
+      )
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trackedIdsKey])
+
+  useEffect(() => {
+    if (!liveToast) return
+    const t = setTimeout(() => setLiveToast(null), 6000)
+    return () => clearTimeout(t)
+  }, [liveToast])
+
   return (
     <div className="w-full max-w-sm mt-3 mx-auto px-4">
       {/* Toggle header */}
@@ -392,6 +437,14 @@ function TrackOrderSection({
           ? <ChevronUp  className="w-4 h-4" style={{ color: dimText }} />
           : <ChevronDown className="w-4 h-4" style={{ color: dimText }} />}
       </button>
+
+      {liveToast && (
+        <div className="mt-2 flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold animate-in fade-in slide-in-from-top-1"
+          style={{ background: `${primaryColor}18`, border: `1px solid ${primaryColor}40`, color: bodyText }}>
+          <Truck className="w-4 h-4 shrink-0" style={{ color: primaryColor }} />
+          {liveToast}
+        </div>
+      )}
 
       {open && (
         <div className="mt-2 rounded-2xl px-4 py-4 space-y-3"
@@ -789,9 +842,13 @@ export default function DeliveryOrderPage() {
 
   const getQty = (id: string) => cart.get(id)?.qty ?? 0
 
-  const placeOrder = async (custName: string, custPhone: string, lat: number | null, lng: number | null, address: string | null, discountAmount = 0, couponId: string | null = null, selfieUrl: string | null = null) => {
+  const placeOrder = async (custName: string, custPhone: string, lat: number | null, lng: number | null, address: string | null, discountAmount = 0, couponId: string | null = null, selfieUrl: string | null = null, resolvedFee?: number) => {
     if (!restaurant || cartItems.length === 0) return
     setPlacing(true); setPlaceError(null)
+
+    // Zone-based fee (from DeliveryCheckout's zoneCalculator match) wins over
+    // the restaurant-wide default computed before the customer picked a location.
+    const finalFee = resolvedFee ?? effectiveDeliveryFee
 
     // Create order
     const { data: newOrder, error: orderErr } = await supabase
@@ -801,7 +858,7 @@ export default function DeliveryOrderPage() {
         table_number:  0,
         status:        'active',
         source:        'delivery',
-        total:         cartTotal + effectiveDeliveryFee - discountAmount,
+        total:         cartTotal + finalFee - discountAmount,
       })
       .select('id')
       .single()
@@ -844,7 +901,7 @@ export default function DeliveryOrderPage() {
       latitude:      lat,
       longitude:     lng,
       address_text:  address,
-      delivery_fee:  effectiveDeliveryFee,
+      delivery_fee:  finalFee,
       status:        'pending',
       selfie_url:    selfieUrl,
     })
