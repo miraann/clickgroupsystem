@@ -659,10 +659,10 @@ const TableCard = memo(function TableCard({ table, onSelect, onLongPress, format
           </div>
         )}
         {/* Label + dot */}
-        <div className="relative flex items-center justify-between mb-auto">
+        <div className={cn('relative flex items-center gap-1.5 mb-auto', isRound ? 'justify-center' : 'w-full justify-between')}>
           <span className="text-sm font-black text-white drop-shadow-sm">{table.label}</span>
           <motion.div animate={{ scale: [1,1.5,1], opacity:[1,.5,1] }} transition={{ repeat: Infinity, duration: isBillReq ? 0.8 : 2.2 }}
-            className="w-2 h-2 rounded-full bg-white/70" />
+            className="w-2 h-2 rounded-full bg-white/70 shrink-0" />
         </div>
         {/* Status */}
         <p className="relative text-[11px] font-bold uppercase tracking-wide text-white/90 leading-none mb-1.5">
