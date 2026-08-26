@@ -44,7 +44,7 @@ const DEFAULT_UNITS = [
 ]
 const EMPTY_ITEM: Omit<InvItem, 'id' | 'sort_order'> = {
   name: '', sku: '', category_id: null, unit_id: null,
-  current_stock: 0, min_stock: 5, cost_price: 0, active: true,
+  current_stock: 0, min_stock: 5, cost_price: 0, active: true, // cost_price kept at 0 — field removed from UI
 }
 
 // ── Stock badge ────────────────────────────────────────────────
@@ -776,8 +776,8 @@ export default function InventoryPage() {
                 </div>
               </div>
 
-              {/* Stock + Min stock + Cost */}
-              <div className="grid grid-cols-3 gap-3">
+              {/* Stock + Min stock */}
+              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.inv_current_stock}</label>
                   <input type="number" min="0" step="0.01" value={itemForm.current_stock}
@@ -788,12 +788,6 @@ export default function InventoryPage() {
                   <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.inv_min_stock}</label>
                   <input type="number" min="0" step="0.01" value={itemForm.min_stock}
                     onChange={e => setItemForm(f => ({ ...f, min_stock: parseFloat(e.target.value) || 0 }))}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500/50 transition-colors" />
-                </div>
-                <div>
-                  <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.inv_cost_price}</label>
-                  <input type="number" min="0" step="0.01" value={itemForm.cost_price}
-                    onChange={e => setItemForm(f => ({ ...f, cost_price: parseFloat(e.target.value) || 0 }))}
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500/50 transition-colors" />
                 </div>
               </div>

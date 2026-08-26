@@ -122,7 +122,7 @@ const [moduleEnabled,  setModuleEnabled]  = useState<boolean | null>(null)
 
       {/* Top bar */}
       <header className="sticky top-0 z-30 border-b border-white/8 backdrop-blur-2xl" style={{ background: 'var(--app-anchor-80, rgba(2,38,88,0.8))' }}>
-        <div className={cn('flex items-center gap-3 px-5 py-4', isRTL && 'flex-row-reverse')}>
+        <div className="flex items-center gap-3 px-5 py-4">
           {/* Back: home → dashboard, sub-page → settings home */}
           <button
             onClick={() => router.push(isHome ? '/dashboard' : '/dashboard/settings')}
@@ -146,7 +146,7 @@ const [moduleEnabled,  setModuleEnabled]  = useState<boolean | null>(null)
           </button>
 
           <div className="flex-1 min-w-0">
-            <div className={cn('flex items-center gap-1.5 text-xs', isRTL && 'flex-row-reverse')}>
+            <div className="flex items-center gap-1.5 text-xs">
               {isHome ? (
                 <span className="text-white/60 font-medium">{t.nav_settings}</span>
               ) : (
