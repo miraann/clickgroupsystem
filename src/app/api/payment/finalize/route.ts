@@ -227,6 +227,15 @@ export async function POST(req: NextRequest) {
       customer_phone: body.customerPhone ?? null,
     }
 
+    // 10b. Inventory deduction — atomic, row-locked, server-side only.
+    // (Notifications for low/out-of-stock/rapid-depletion fire automatically
+    // via the trg_inventory_stock_notify trigger on inventory_items.)
+    const { error: invDeductErr } = await supabase.rpc('fn_deduct_inventory_for_order', {
+      p_order_id:      body.orderId,
+      p_restaurant_id: body.restaurantId,
+    })
+    if (invDeductErr) console.error('[Inventory deduction failed]', invDeductErr.message)
+
     const { error: invErr1 } = await supabase.from('invoices').insert(invoicePayload)
     if (invErr1) {
       // Retry without optional customer fields in case the column doesn't exist yet

@@ -286,7 +286,7 @@ export default function InventoryPage() {
           </div>
           <span className={cn('px-2 py-0.5 rounded-full text-xs font-medium',
             enabled ? 'bg-emerald-500/15 text-emerald-400' : 'bg-white/8 text-white/30')}>
-            {enabled ? 'Active' : 'Inactive'}
+            {enabled ? t.inv_active : t.inv_inactive}
           </span>
         </div>
       </motion.div>
@@ -296,10 +296,10 @@ export default function InventoryPage() {
         transition={{ duration: 0.42, ease: 'circOut', delay: 0.12 }}
         className="flex gap-2 mb-6">
         {([
-          { key: 'settings',   label: 'Settings',   icon: <Settings className="w-4 h-4" />, base: 'bg-emerald-500/70', active: 'bg-emerald-500 shadow-lg shadow-emerald-500/30' },
-          { key: 'items',      label: 'Items',       icon: <Archive  className="w-4 h-4" />, base: 'bg-violet-500/70',  active: 'bg-violet-500 shadow-lg shadow-violet-500/30'  },
-          { key: 'categories', label: 'Categories',  icon: <Tag      className="w-4 h-4" />, base: 'bg-amber-500/70',   active: 'bg-amber-500 shadow-lg shadow-amber-500/30'   },
-          { key: 'units',      label: 'Units',       icon: <Ruler    className="w-4 h-4" />, base: 'bg-blue-500/70',    active: 'bg-blue-500 shadow-lg shadow-blue-500/30'    },
+          { key: 'settings',   label: t.inv_tab_settings,   icon: <Settings className="w-4 h-4" />, base: 'bg-emerald-500/70', active: 'bg-emerald-500 shadow-lg shadow-emerald-500/30' },
+          { key: 'items',      label: t.inv_tab_items,       icon: <Archive  className="w-4 h-4" />, base: 'bg-violet-500/70',  active: 'bg-violet-500 shadow-lg shadow-violet-500/30'  },
+          { key: 'categories', label: t.inv_tab_categories,  icon: <Tag      className="w-4 h-4" />, base: 'bg-amber-500/70',   active: 'bg-amber-500 shadow-lg shadow-amber-500/30'   },
+          { key: 'units',      label: t.inv_tab_units,       icon: <Ruler    className="w-4 h-4" />, base: 'bg-blue-500/70',    active: 'bg-blue-500 shadow-lg shadow-blue-500/30'    },
         ] as const).map(({ key, label, icon, base, active }) => (
           <button key={key} onClick={() => switchTab(key)}
             className={cn('flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95 text-white',
@@ -342,8 +342,8 @@ export default function InventoryPage() {
                         <Package className={cn('w-5 h-5', enabled ? 'text-emerald-400' : 'text-white/30')} />
                       </div>
                       <div>
-                        <p className="text-sm font-semibold text-white">Inventory Module</p>
-                        <p className="text-xs text-white/40">Enable stock tracking for ingredients and supplies</p>
+                        <p className="text-sm font-semibold text-white">{t.inv_module}</p>
+                        <p className="text-xs text-white/40">{t.inv_module_desc}</p>
                       </div>
                     </div>
                     <button onClick={() => setEnabled(e => !e)} className="active:scale-95 shrink-0">
@@ -357,8 +357,8 @@ export default function InventoryPage() {
                   enabled ? 'bg-white/3 border-white/8' : 'bg-white/2 border-white/5 opacity-40 pointer-events-none')}>
                   <div className="flex items-center justify-between px-5 py-4">
                     <div>
-                      <p className="text-sm font-medium text-white">Show on Dashboard</p>
-                      <p className="text-xs text-white/35 mt-0.5">Display Inventory shortcut in the dashboard bottom bar</p>
+                      <p className="text-sm font-medium text-white">{t.inv_show_on_dash}</p>
+                      <p className="text-xs text-white/35 mt-0.5">{t.inv_show_on_dash_desc}</p>
                     </div>
                     <button onClick={() => setShowOnDash(v => !v)} className="active:scale-95 shrink-0">
                       {showOnDash ? <ToggleRight className="w-6 h-6 text-emerald-400" /> : <ToggleLeft className="w-6 h-6 text-white/25" />}
@@ -366,8 +366,8 @@ export default function InventoryPage() {
                   </div>
                   <div className="flex items-center justify-between px-5 py-4">
                     <div>
-                      <p className="text-sm font-medium text-white">Auto-Deduct on Sale</p>
-                      <p className="text-xs text-white/35 mt-0.5">Automatically reduce stock when a menu item is sold</p>
+                      <p className="text-sm font-medium text-white">{t.inv_auto_deduct}</p>
+                      <p className="text-xs text-white/35 mt-0.5">{t.inv_auto_deduct_desc}</p>
                     </div>
                     <button onClick={() => setAutoDeduct(v => !v)} className="active:scale-95 shrink-0">
                       {autoDeduct ? <ToggleRight className="w-6 h-6 text-emerald-400" /> : <ToggleLeft className="w-6 h-6 text-white/25" />}
@@ -375,8 +375,8 @@ export default function InventoryPage() {
                   </div>
                   <div className="flex items-center justify-between px-5 py-4">
                     <div>
-                      <p className="text-sm font-medium text-white">Low Stock Alert Threshold</p>
-                      <p className="text-xs text-white/35 mt-0.5">Warn when stock falls at or below this quantity</p>
+                      <p className="text-sm font-medium text-white">{t.inv_threshold_label}</p>
+                      <p className="text-xs text-white/35 mt-0.5">{t.inv_threshold_desc}</p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <button onClick={() => setLowThreshold(v => Math.max(0, v - 1))}
@@ -411,7 +411,7 @@ export default function InventoryPage() {
                     className={cn('flex items-center gap-2 px-5 py-2.5 disabled:opacity-50 text-white text-sm font-semibold rounded-xl active:scale-95 transition-all shadow-lg',
                       flagErr ? 'bg-red-500 hover:bg-red-600 shadow-red-500/20' : 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/20')}>
                     {flagSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : flagSaved ? <Check className="w-4 h-4" /> : flagErr ? <AlertTriangle className="w-4 h-4" /> : <Save className="w-4 h-4" />}
-                    {flagSaved ? 'Saved!' : flagErr ? 'Save Failed' : 'Save Settings'}
+                    {flagSaved ? t.inv_saved : flagErr ? t.inv_save_failed : t.inv_save_settings}
                   </button>
                 </motion.div>
 
@@ -429,14 +429,14 @@ export default function InventoryPage() {
                       <Archive className="w-5 h-5 text-emerald-400" />
                     </div>
                     <div>
-                      <h2 className="text-base font-semibold text-white">Inventory Items</h2>
-                      <p className="text-xs text-white/40">Ingredients, supplies and stock items</p>
+                      <h2 className="text-base font-semibold text-white">{t.inv_items_title}</h2>
+                      <p className="text-xs text-white/40">{t.inv_items_subtitle}</p>
                     </div>
                     <span className="px-2 py-0.5 rounded-full bg-white/8 text-xs text-white/50">{items.length}</span>
                   </div>
                   <button onClick={openItemAdd}
                     className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-medium rounded-xl active:scale-95 transition-all">
-                    <Plus className="w-4 h-4" /> Add Item
+                    <Plus className="w-4 h-4" /> {t.inv_add_item}
                   </button>
                 </motion.div>
 
@@ -444,7 +444,7 @@ export default function InventoryPage() {
                   <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.38, ease: 'circOut', delay: 0.07 }}>
                     <input value={itemSearch} onChange={e => setItemSearch(e.target.value)}
-                      placeholder="Search by name or SKU…"
+                      placeholder={t.inv_search_ph}
                       className="w-full mb-4 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-emerald-500/50 transition-colors" />
                   </motion.div>
                 )}
@@ -455,8 +455,8 @@ export default function InventoryPage() {
                       transition={{ duration: 0.3, ease: 'circOut' }}
                       className="text-center py-20 text-white/25">
                       <Archive className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                      <p className="text-sm font-medium">{items.length === 0 ? 'No items yet' : 'No results'}</p>
-                      <p className="text-xs mt-1">Add ingredients, supplies and stock items</p>
+                      <p className="text-sm font-medium">{items.length === 0 ? t.inv_no_items_yet : t.inv_no_results}</p>
+                      <p className="text-xs mt-1">{t.inv_no_items_desc}</p>
                     </motion.div>
                   ) : (
                     <motion.div key="list" variants={CONTAINER} initial="hidden" animate="show" className="space-y-2">
@@ -479,9 +479,9 @@ export default function InventoryPage() {
                               <div className="flex items-center gap-3 mt-1 flex-wrap">
                                 <span className="text-xs text-white/40">
                                   <span className="font-semibold text-white/70">{it.current_stock}</span>
-                                  {unit ? ` ${unit.abbreviation}` : ''} in stock
+                                  {unit ? ` ${unit.abbreviation}` : ''} {t.inv_in_stock_suffix}
                                 </span>
-                                <span className="text-xs text-white/25">min {it.min_stock}{unit ? ` ${unit.abbreviation}` : ''}</span>
+                                <span className="text-xs text-white/25">{t.inv_min_prefix} {it.min_stock}{unit ? ` ${unit.abbreviation}` : ''}</span>
                                 {cat && (
                                   <span className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-medium"
                                     style={{ backgroundColor: cat.color + '22', color: cat.color }}>
@@ -500,7 +500,7 @@ export default function InventoryPage() {
                             <button onClick={() => deleteItem(it.id)}
                               className={cn('h-8 rounded-lg flex items-center justify-center transition-all active:scale-95 text-xs font-medium shrink-0',
                                 itemDelId === it.id ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30 px-2' : 'w-8 bg-white/5 hover:bg-rose-500/10 text-white/40 hover:text-rose-400')}>
-                              {itemDelId === it.id ? 'Confirm?' : <Trash2 className="w-3.5 h-3.5" />}
+                              {itemDelId === it.id ? t.inv_confirm_q : <Trash2 className="w-3.5 h-3.5" />}
                             </button>
                           </motion.div>
                         )
@@ -522,14 +522,14 @@ export default function InventoryPage() {
                       <Tag className="w-5 h-5 text-purple-400" />
                     </div>
                     <div>
-                      <h2 className="text-base font-semibold text-white">Categories</h2>
-                      <p className="text-xs text-white/40">Group inventory items by type</p>
+                      <h2 className="text-base font-semibold text-white">{t.inv_categories_title}</h2>
+                      <p className="text-xs text-white/40">{t.inv_categories_subtitle}</p>
                     </div>
                     <span className="px-2 py-0.5 rounded-full bg-white/8 text-xs text-white/50">{categories.length}</span>
                   </div>
                   <button onClick={openCatAdd}
                     className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-medium rounded-xl active:scale-95 transition-all">
-                    <Plus className="w-4 h-4" /> Add Category
+                    <Plus className="w-4 h-4" /> {t.inv_add_category}
                   </button>
                 </motion.div>
 
@@ -539,8 +539,8 @@ export default function InventoryPage() {
                       transition={{ duration: 0.3, ease: 'circOut' }}
                       className="text-center py-20 text-white/25">
                       <Tag className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                      <p className="text-sm font-medium">No categories yet</p>
-                      <p className="text-xs mt-1">Add categories like "Beverages", "Produce", "Dairy"…</p>
+                      <p className="text-sm font-medium">{t.inv_no_categories}</p>
+                      <p className="text-xs mt-1">{t.inv_no_categories_desc}</p>
                     </motion.div>
                   ) : (
                     <motion.div key="list" variants={CONTAINER} initial="hidden" animate="show" className="space-y-2">
@@ -554,7 +554,7 @@ export default function InventoryPage() {
                           <div className="flex-1">
                             <p className="text-sm font-semibold text-white">{c.name}</p>
                             <p className="text-xs text-white/35 mt-0.5">
-                              {items.filter(i => i.category_id === c.id).length} items
+                              {items.filter(i => i.category_id === c.id).length} {t.inv_items_count_suffix}
                             </p>
                           </div>
                           <div className="w-4 h-4 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
@@ -565,7 +565,7 @@ export default function InventoryPage() {
                           <button onClick={() => deleteCat(c.id)}
                             className={cn('h-8 rounded-lg flex items-center justify-center transition-all active:scale-95 text-xs font-medium shrink-0',
                               catDelId === c.id ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30 px-2' : 'w-8 bg-white/5 hover:bg-rose-500/10 text-white/40 hover:text-rose-400')}>
-                            {catDelId === c.id ? 'Confirm?' : <Trash2 className="w-3.5 h-3.5" />}
+                            {catDelId === c.id ? t.inv_confirm_q : <Trash2 className="w-3.5 h-3.5" />}
                           </button>
                         </motion.div>
                       ))}
@@ -586,8 +586,8 @@ export default function InventoryPage() {
                       <Ruler className="w-5 h-5 text-blue-400" />
                     </div>
                     <div>
-                      <h2 className="text-base font-semibold text-white">Units of Measurement</h2>
-                      <p className="text-xs text-white/40">kg, g, L, mL, pieces…</p>
+                      <h2 className="text-base font-semibold text-white">{t.inv_units_title}</h2>
+                      <p className="text-xs text-white/40">{t.inv_units_subtitle}</p>
                     </div>
                     <span className="px-2 py-0.5 rounded-full bg-white/8 text-xs text-white/50">{units.length}</span>
                   </div>
@@ -595,12 +595,12 @@ export default function InventoryPage() {
                     {units.length === 0 && (
                       <button onClick={seedUnits}
                         className="flex items-center gap-2 px-4 py-2 bg-white/8 hover:bg-white/12 text-white/70 text-sm font-medium rounded-xl active:scale-95 transition-all">
-                        Import Defaults
+                        {t.inv_import_defaults}
                       </button>
                     )}
                     <button onClick={openUnitAdd}
                       className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-medium rounded-xl active:scale-95 transition-all">
-                      <Plus className="w-4 h-4" /> Add Unit
+                      <Plus className="w-4 h-4" /> {t.inv_add_unit}
                     </button>
                   </div>
                 </motion.div>
@@ -611,8 +611,8 @@ export default function InventoryPage() {
                       transition={{ duration: 0.3, ease: 'circOut' }}
                       className="text-center py-20 text-white/25">
                       <Ruler className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                      <p className="text-sm font-medium">No units yet</p>
-                      <p className="text-xs mt-1">Click "Import Defaults" for kg, g, L, mL, pieces…</p>
+                      <p className="text-sm font-medium">{t.inv_no_units}</p>
+                      <p className="text-xs mt-1">{t.inv_no_units_desc}</p>
                     </motion.div>
                   ) : (
                     <motion.div key="list" variants={CONTAINER} initial="hidden" animate="show"
@@ -635,7 +635,7 @@ export default function InventoryPage() {
                             <button onClick={() => deleteUnit(u.id)}
                               className={cn('h-7 rounded-lg flex items-center justify-center transition-all active:scale-95 text-[10px] font-medium',
                                 unitDelId === u.id ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30 px-1.5' : 'w-7 bg-white/5 hover:bg-rose-500/10 text-white/40 hover:text-rose-400')}>
-                              {unitDelId === u.id ? 'Del?' : <Trash2 className="w-3 h-3" />}
+                              {unitDelId === u.id ? t.inv_del_q : <Trash2 className="w-3 h-3" />}
                             </button>
                           </div>
                         </motion.div>
@@ -655,20 +655,20 @@ export default function InventoryPage() {
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="w-full max-w-sm bg-[#0d1220]/95 backdrop-blur-2xl border border-white/15 rounded-3xl p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-base font-semibold text-white">{catEditId ? 'Edit Category' : 'Add Category'}</h2>
+              <h2 className="text-base font-semibold text-white">{catEditId ? t.inv_edit_category : t.inv_add_category}</h2>
               <button onClick={() => setCatModal(false)} className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-all active:scale-95">
                 <X className="w-4 h-4" />
               </button>
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-xs text-white/50 mb-1.5 font-medium">Name *</label>
+                <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.inv_name_req}</label>
                 <input value={catForm.name} onChange={e => setCatForm(f => ({ ...f, name: e.target.value }))}
-                  placeholder="e.g. Beverages, Produce, Dairy…"
+                  placeholder={t.inv_name_ph}
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-emerald-500/50 transition-colors" />
               </div>
               <div>
-                <label className="block text-xs text-white/50 mb-2 font-medium">Color</label>
+                <label className="block text-xs text-white/50 mb-2 font-medium">{t.inv_color}</label>
                 <div className="flex items-center gap-2 flex-wrap">
                   {COLOR_PRESETS.map(c => (
                     <button key={c} onClick={() => setCatForm(f => ({ ...f, color: c }))}
@@ -681,11 +681,11 @@ export default function InventoryPage() {
               </div>
             </div>
             <div className="flex gap-3 mt-6">
-              <button onClick={() => setCatModal(false)} className="flex-1 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 text-sm font-medium transition-all active:scale-95">Cancel</button>
+              <button onClick={() => setCatModal(false)} className="flex-1 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 text-sm font-medium transition-all active:scale-95">{t.inv_cancel}</button>
               <button onClick={saveCat} disabled={!catForm.name.trim() || catSaving}
                 className="flex-1 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40 text-white text-sm font-medium transition-all active:scale-95 flex items-center justify-center gap-2">
                 {catSaving && <Loader2 className="w-4 h-4 animate-spin" />}
-                {catEditId ? 'Save' : 'Add'}
+                {catEditId ? t.inv_save : t.inv_add}
               </button>
             </div>
           </div>
@@ -697,31 +697,31 @@ export default function InventoryPage() {
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="w-full max-w-sm bg-[#0d1220]/95 backdrop-blur-2xl border border-white/15 rounded-3xl p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-base font-semibold text-white">{unitEditId ? 'Edit Unit' : 'Add Unit'}</h2>
+              <h2 className="text-base font-semibold text-white">{unitEditId ? t.inv_edit_unit : t.inv_add_unit}</h2>
               <button onClick={() => setUnitModal(false)} className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-all active:scale-95">
                 <X className="w-4 h-4" />
               </button>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs text-white/50 mb-1.5 font-medium">Unit Name *</label>
+                <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.inv_unit_name_req}</label>
                 <input value={unitForm.name} onChange={e => setUnitForm(f => ({ ...f, name: e.target.value }))}
                   placeholder="Kilogram"
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-emerald-500/50 transition-colors" />
               </div>
               <div>
-                <label className="block text-xs text-white/50 mb-1.5 font-medium">Abbreviation *</label>
+                <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.inv_abbreviation_req}</label>
                 <input value={unitForm.abbreviation} onChange={e => setUnitForm(f => ({ ...f, abbreviation: e.target.value }))}
                   placeholder="kg"
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-emerald-500/50 transition-colors font-mono" />
               </div>
             </div>
             <div className="flex gap-3 mt-6">
-              <button onClick={() => setUnitModal(false)} className="flex-1 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 text-sm font-medium transition-all active:scale-95">Cancel</button>
+              <button onClick={() => setUnitModal(false)} className="flex-1 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 text-sm font-medium transition-all active:scale-95">{t.inv_cancel}</button>
               <button onClick={saveUnit} disabled={!unitForm.name.trim() || !unitForm.abbreviation.trim() || unitSaving}
                 className="flex-1 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40 text-white text-sm font-medium transition-all active:scale-95 flex items-center justify-center gap-2">
                 {unitSaving && <Loader2 className="w-4 h-4 animate-spin" />}
-                {unitEditId ? 'Save' : 'Add'}
+                {unitEditId ? t.inv_save : t.inv_add}
               </button>
             </div>
           </div>
@@ -733,7 +733,7 @@ export default function InventoryPage() {
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="w-full max-w-md bg-[#0d1220]/95 backdrop-blur-2xl border border-white/15 rounded-3xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-base font-semibold text-white">{itemEditId ? 'Edit Item' : 'Add Item'}</h2>
+              <h2 className="text-base font-semibold text-white">{itemEditId ? t.inv_edit_item : t.inv_add_item}</h2>
               <button onClick={() => setItemModal(false)} className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-all active:scale-95">
                 <X className="w-4 h-4" />
               </button>
@@ -743,13 +743,13 @@ export default function InventoryPage() {
               {/* Name + SKU */}
               <div className="grid grid-cols-3 gap-3">
                 <div className="col-span-2">
-                  <label className="block text-xs text-white/50 mb-1.5 font-medium">Item Name *</label>
+                  <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.inv_item_name_req}</label>
                   <input value={itemForm.name} onChange={e => setItemForm(f => ({ ...f, name: e.target.value }))}
                     placeholder="e.g. Tomato, Olive Oil…"
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-emerald-500/50 transition-colors" />
                 </div>
                 <div>
-                  <label className="block text-xs text-white/50 mb-1.5 font-medium">SKU</label>
+                  <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.inv_sku}</label>
                   <input value={itemForm.sku ?? ''} onChange={e => setItemForm(f => ({ ...f, sku: e.target.value }))}
                     placeholder="TOM-001"
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-emerald-500/50 transition-colors font-mono" />
@@ -759,18 +759,18 @@ export default function InventoryPage() {
               {/* Category + Unit */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs text-white/50 mb-1.5 font-medium">Category</label>
+                  <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.inv_category}</label>
                   <select value={itemForm.category_id ?? ''} onChange={e => setItemForm(f => ({ ...f, category_id: e.target.value || null }))}
                     className="w-full bg-[#0d1220] border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500/50 transition-colors">
-                    <option value="">— None —</option>
+                    <option value="">{t.inv_none}</option>
                     {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs text-white/50 mb-1.5 font-medium">Unit</label>
+                  <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.inv_unit}</label>
                   <select value={itemForm.unit_id ?? ''} onChange={e => setItemForm(f => ({ ...f, unit_id: e.target.value || null }))}
                     className="w-full bg-[#0d1220] border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500/50 transition-colors">
-                    <option value="">— None —</option>
+                    <option value="">{t.inv_none}</option>
                     {units.map(u => <option key={u.id} value={u.id}>{u.name} ({u.abbreviation})</option>)}
                   </select>
                 </div>
@@ -779,19 +779,19 @@ export default function InventoryPage() {
               {/* Stock + Min stock + Cost */}
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-xs text-white/50 mb-1.5 font-medium">Current Stock</label>
+                  <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.inv_current_stock}</label>
                   <input type="number" min="0" step="0.01" value={itemForm.current_stock}
                     onChange={e => setItemForm(f => ({ ...f, current_stock: parseFloat(e.target.value) || 0 }))}
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500/50 transition-colors" />
                 </div>
                 <div>
-                  <label className="block text-xs text-white/50 mb-1.5 font-medium">Min Stock</label>
+                  <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.inv_min_stock}</label>
                   <input type="number" min="0" step="0.01" value={itemForm.min_stock}
                     onChange={e => setItemForm(f => ({ ...f, min_stock: parseFloat(e.target.value) || 0 }))}
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500/50 transition-colors" />
                 </div>
                 <div>
-                  <label className="block text-xs text-white/50 mb-1.5 font-medium">Cost Price</label>
+                  <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.inv_cost_price}</label>
                   <input type="number" min="0" step="0.01" value={itemForm.cost_price}
                     onChange={e => setItemForm(f => ({ ...f, cost_price: parseFloat(e.target.value) || 0 }))}
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500/50 transition-colors" />
@@ -800,7 +800,7 @@ export default function InventoryPage() {
 
               {/* Active */}
               <div className="flex items-center justify-between p-3 bg-white/3 rounded-xl">
-                <span className="text-sm text-white/70">Active</span>
+                <span className="text-sm text-white/70">{t.inv_active_label}</span>
                 <button onClick={() => setItemForm(f => ({ ...f, active: !f.active }))} className="active:scale-95">
                   {itemForm.active ? <ToggleRight className="w-6 h-6 text-emerald-400" /> : <ToggleLeft className="w-6 h-6 text-white/25" />}
                 </button>
@@ -808,11 +808,11 @@ export default function InventoryPage() {
             </div>
 
             <div className="flex gap-3 mt-6">
-              <button onClick={() => setItemModal(false)} className="flex-1 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 text-sm font-medium transition-all active:scale-95">Cancel</button>
+              <button onClick={() => setItemModal(false)} className="flex-1 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 text-sm font-medium transition-all active:scale-95">{t.inv_cancel}</button>
               <button onClick={saveItem} disabled={!itemForm.name.trim() || itemSaving}
                 className="flex-1 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40 text-white text-sm font-medium transition-all active:scale-95 flex items-center justify-center gap-2">
                 {itemSaving && <Loader2 className="w-4 h-4 animate-spin" />}
-                {itemEditId ? 'Save Changes' : 'Add Item'}
+                {itemEditId ? t.inv_save_changes : t.inv_add_item}
               </button>
             </div>
           </div>

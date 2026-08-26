@@ -21,6 +21,7 @@ import { useDashboardTables, SWR_KEY, type DashboardFullData } from '@/hooks/use
 import { usePermissions } from '@/lib/permissions/PermissionsContext'
 import { getStaffHome } from '@/lib/permissions/staffHome'
 import InvoiceModal from '@/components/restaurant/invoice-modal'
+import InventoryNotificationBell from '@/components/restaurant/InventoryNotificationBell'
 import { DailySalesModal } from '@/components/restaurant/daily-sales-modal'
 import { logAudit } from '@/lib/logAudit'
 
@@ -1492,6 +1493,7 @@ export default function TablesPage() {
                 <Users size={26} />
               </Link>
             )}
+            <InventoryNotificationBell restaurantId={cachedRestaurantId} />
             {can('dashboard.btn_waiter') && (
               <button
                 onClick={() => setShowWaiterPanel(p => !p)}
