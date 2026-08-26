@@ -1482,19 +1482,9 @@ export default function TablesPage() {
                 {roleName && <span className="text-[10px] text-white/30 truncate max-w-[60px]">· {roleName}</span>}
               </div>
             )}
-            {can('dashboard.btn_reports') && (
-              <Link href="/dashboard/reports" className={cn('hidden lg:flex w-14 h-14 rounded-xl items-center justify-center transition-all active:scale-95', navBtnCn)} style={navBtn('reports')}>
-                <DollarSign size={26} />
-              </Link>
-            )}
             {(isOwner || can('dashboard.btn_audit_log')) && (
               <Link href="/dashboard/settings/audit-log" title="Audit Log" className={cn('hidden lg:flex w-14 h-14 rounded-xl items-center justify-center transition-all active:scale-95', navBtnCn)} style={navBtn('audit')}>
                 <Shield size={26} />
-              </Link>
-            )}
-            {can('dashboard.btn_staff') && (
-              <Link href="/dashboard/staff" className={cn('hidden lg:flex w-14 h-14 rounded-xl items-center justify-center transition-all active:scale-95', navBtnCn)} style={navBtn('staff')}>
-                <Users size={26} />
               </Link>
             )}
             {can('dashboard.btn_waiter') && (
@@ -1604,19 +1594,9 @@ export default function TablesPage() {
           className="lg:hidden flex items-center justify-center gap-1.5 sm:gap-3 md:gap-4 px-2 sm:px-4 md:px-6 py-1 sm:py-2 md:py-2.5 border-t border-white/5 overflow-x-auto [&::-webkit-scrollbar]:hidden"
           style={{ scrollbarWidth: 'none' }}
         >
-          {can('dashboard.btn_reports') && (
-            <Link href="/dashboard/reports" className={cn('shrink-0 flex w-8 h-8 sm:w-11 sm:h-11 md:w-14 md:h-14 rounded-xl items-center justify-center transition-all active:scale-95', navBtnCn)} style={navBtn('reports')}>
-              <DollarSign className="w-[18px] h-[18px] sm:w-5 sm:h-5 md:w-[26px] md:h-[26px]" />
-            </Link>
-          )}
           {(isOwner || can('dashboard.btn_audit_log')) && (
             <Link href="/dashboard/settings/audit-log" title="Audit Log" className={cn('shrink-0 flex w-8 h-8 sm:w-11 sm:h-11 md:w-14 md:h-14 rounded-xl items-center justify-center transition-all active:scale-95', navBtnCn)} style={navBtn('audit')}>
               <Shield className="w-[18px] h-[18px] sm:w-5 sm:h-5 md:w-[26px] md:h-[26px]" />
-            </Link>
-          )}
-          {can('dashboard.btn_staff') && (
-            <Link href="/dashboard/staff" className={cn('shrink-0 flex w-8 h-8 sm:w-11 sm:h-11 md:w-14 md:h-14 rounded-xl items-center justify-center transition-all active:scale-95', navBtnCn)} style={navBtn('staff')}>
-              <Users className="w-[18px] h-[18px] sm:w-5 sm:h-5 md:w-[26px] md:h-[26px]" />
             </Link>
           )}
           {can('dashboard.btn_waiter') && (

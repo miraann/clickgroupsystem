@@ -63,10 +63,17 @@ export function DailySalesModal({ restaurantId, restaurantName, formatPrice, onC
   const [invoices, setInvoices] = useState<InvoiceRow[]>([])
   const [expenses, setExpenses] = useState<ExpenseRow[]>([])
 
+  const [mtdRevenue, setMtdRevenue]   = useState(0)
+  const [mtdExpenses, setMtdExpenses] = useState(0)
+  const [dayOfMonth, setDayOfMonth]   = useState(1)
+
   useEffect(() => {
     const load = async () => {
+      const now = new Date()
       const start = new Date(); start.setHours(0, 0, 0, 0)
-      const [{ data: inv }, { data: exp }] = await Promise.all([
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0)
+
+      const [{ data: inv }, { data: exp }, { data: mtdInv }, { data: mtdExp }] = await Promise.all([
         supabase
           .from('invoices')
           .select('id,subtotal,discount,total,amount_paid,change_amount,payment_method,cashier,table_num,guests,customer_id,items')
@@ -78,9 +85,24 @@ export function DailySalesModal({ restaurantId, restaurantName, formatPrice, onC
           .eq('restaurant_id', restaurantId)
           .eq('status', 'paid')
           .gte('created_at', start.toISOString()),
+        // Month-to-date totals (day 1 of current month -> now), used for the daily-avg section below
+        supabase
+          .from('invoices')
+          .select('total')
+          .eq('restaurant_id', restaurantId)
+          .gte('created_at', monthStart.toISOString()),
+        supabase
+          .from('expenses')
+          .select('amount')
+          .eq('restaurant_id', restaurantId)
+          .eq('status', 'paid')
+          .gte('created_at', monthStart.toISOString()),
       ])
       setInvoices((inv ?? []) as InvoiceRow[])
       setExpenses((exp ?? []) as ExpenseRow[])
+      setMtdRevenue((mtdInv ?? []).reduce((s, r) => s + (r.total ?? 0), 0))
+      setMtdExpenses((mtdExp ?? []).reduce((s, r) => s + (r.amount ?? 0), 0))
+      setDayOfMonth(now.getDate())
       setLoading(false)
     }
     load()
@@ -95,6 +117,10 @@ export function DailySalesModal({ restaurantId, restaurantName, formatPrice, onC
   const totalGuests   = invoices.reduce((s, i) => s + (i.guests ?? 0), 0)
   const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0)
   const netProfit     = totalRevenue - totalExpenses
+
+  // Month-to-date daily averages (MTD total / elapsed days including today)
+  const avgDailySalesMonth   = dayOfMonth > 0 ? mtdRevenue / dayOfMonth : 0
+  const avgDailyExpenseMonth = dayOfMonth > 0 ? mtdExpenses / dayOfMonth : 0
 
   // Payment methods
   const payMap = new Map<string, { total: number; count: number }>()
@@ -349,6 +375,13 @@ export function DailySalesModal({ restaurantId, restaurantName, formatPrice, onC
                       <Row label="Paid Expenses" value={`- ${formatPrice(totalExpenses)}`} hiColor="text-rose-600" />
                       <Divider />
                       <Row label="NET PROFIT" value={formatPrice(netProfit)} large hiColor={netProfit >= 0 ? 'text-green-700' : 'text-red-600'} />
+
+                      {/* ── Month-to-Date Daily Averages ───────── */}
+                      <DoubleLine />
+                      <SectionTitle>Current Month Daily Avg</SectionTitle>
+                      <Divider dashed />
+                      <Row label="Avg Daily Sales"   value={formatPrice(avgDailySalesMonth)} />
+                      <Row label="Avg Daily Expense" value={formatPrice(avgDailyExpenseMonth)} hiColor="text-rose-600" />
 
                       <DoubleLine />
 
