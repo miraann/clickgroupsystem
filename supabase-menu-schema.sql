@@ -325,3 +325,10 @@ create table if not exists public.printers (
 );
 create index if not exists idx_printers_restaurant on public.printers(restaurant_id);
 alter table public.printers disable row level security;
+
+create table if not exists public.printer_categories (
+  printer_id uuid references public.printers(id) on delete cascade not null,
+  category_id uuid references public.menu_categories(id) on delete cascade not null,
+  primary key (printer_id, category_id)
+);
+alter table public.printer_categories disable row level security;

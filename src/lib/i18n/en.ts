@@ -402,6 +402,8 @@ const en = {
   dev_station_name:     'Station Name',
   dev_printer_name:     'Printer Name',
   dev_purpose:          'Purpose',
+  dev_printer_categories:      'Assigned Categories',
+  dev_printer_categories_hint: 'empty = print all categories',
   dev_connection:       'Connection',
   dev_ip_address:       'IP Address',
   dev_port:             'Port',

@@ -59,6 +59,7 @@ interface PrinterDevice {
   paper_width: number | null
   active: boolean
   sort_order: number
+  category_ids: string[]
 }
 
 interface DetectedDevice {
@@ -98,6 +99,7 @@ const EMPTY_PRINTER_FORM = {
   usb_path: '',
   paper_width: 80,
   active: true,
+  category_ids: [] as string[],
 }
 
 const PURPOSE_OPTIONS: { value: PrinterPurpose; label: string; icon: React.ReactNode; color: string }[] = [
@@ -352,13 +354,18 @@ export default function DevicePage() {
   // ── Load Printers ─────────────────────────────────────────
   const loadPrinters = useCallback(async (restId: string) => {
     setPrtLoading(true); setPrtError(null)
-    const { data, error } = await supabase
-      .from('printers')
-      .select('*')
-      .eq('restaurant_id', restId)
-      .order('sort_order')
+    const [{ data, error }, { data: assignments }] = await Promise.all([
+      supabase.from('printers').select('*').eq('restaurant_id', restId).order('sort_order'),
+      supabase.from('printer_categories').select('printer_id, category_id'),
+    ])
     if (error) { setPrtError(error.message); setPrtLoading(false); return }
-    setPrinters((data ?? []) as PrinterDevice[])
+    const assignMap = new Map<string, string[]>()
+    for (const a of (assignments ?? [])) {
+      const arr = assignMap.get(a.printer_id) ?? []
+      arr.push(a.category_id)
+      assignMap.set(a.printer_id, arr)
+    }
+    setPrinters((data ?? []).map(p => ({ ...p, category_ids: assignMap.get(p.id) ?? [] })) as PrinterDevice[])
     setPrtLoading(false)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -754,8 +761,17 @@ export default function DevicePage() {
       usb_path:        p.usb_path ?? '',
       paper_width:     p.paper_width ?? 80,
       active:          p.active,
+      category_ids:    [...p.category_ids],
     })
     setPrtModal(true)
+  }
+  const togglePrtCategory = (catId: string) => {
+    setPrtForm(f => ({
+      ...f,
+      category_ids: f.category_ids.includes(catId)
+        ? f.category_ids.filter(id => id !== catId)
+        : [...f.category_ids, catId],
+    }))
   }
   const handlePrtSave = async () => {
     if (!prtForm.name.trim() || !restaurantId) return
@@ -772,11 +788,22 @@ export default function DevicePage() {
       active:          prtForm.active,
       updated_at:      new Date().toISOString(),
     }
+    let printerId = prtEditId
     if (prtEditId) {
       await supabase.from('printers').update(payload).eq('id', prtEditId)
     } else {
       const nextOrder = printers.length > 0 ? Math.max(...printers.map(p => p.sort_order)) + 1 : 0
-      await supabase.from('printers').insert({ restaurant_id: restaurantId, ...payload, sort_order: nextOrder })
+      const { data } = await supabase.from('printers')
+        .insert({ restaurant_id: restaurantId, ...payload, sort_order: nextOrder }).select('id').single()
+      printerId = data?.id ?? null
+    }
+    if (printerId) {
+      await supabase.from('printer_categories').delete().eq('printer_id', printerId)
+      if (prtForm.category_ids.length > 0) {
+        await supabase.from('printer_categories').insert(
+          prtForm.category_ids.map(category_id => ({ printer_id: printerId!, category_id }))
+        )
+      }
     }
     logAudit(restaurantId, prtEditId ? 'edit' : 'add', { entity: 'printer', name: prtForm.name, purpose: prtForm.purpose, connection: prtForm.connection_type }, prtEditId ?? undefined)
     setPrtSaving(false); setPrtModal(false)
@@ -1545,6 +1572,34 @@ export default function DevicePage() {
                   ))}
                 </div>
               </div>
+
+              {/* Categories (which menu categories print to this station, e.g. Salad / Hot Kitchen / Pizza) */}
+              {(prtForm.purpose === 'kitchen' || prtForm.purpose === 'bar') && (
+                <div>
+                  <label className="block text-xs text-white/50 mb-2 font-medium">
+                    {t.dev_printer_categories} <span className="text-white/25">({t.dev_printer_categories_hint})</span>
+                  </label>
+                  {categories.length === 0 ? (
+                    <p className="text-xs text-white/30 italic">No categories — add them in Menu → Category</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {categories.map(c => {
+                        const selected = prtForm.category_ids.includes(c.id)
+                        return (
+                          <button key={c.id} onClick={() => togglePrtCategory(c.id)}
+                            className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all active:scale-95 border',
+                              selected ? 'border-transparent' : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/8')}
+                            style={selected ? { backgroundColor: c.color + '25', borderColor: c.color + '60', color: c.color } : {}}>
+                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: c.color }} />
+                            {c.name}
+                            {selected && <Check className="w-3 h-3 ml-0.5" />}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Connection type */}
               <div>
