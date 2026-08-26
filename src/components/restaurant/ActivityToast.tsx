@@ -5,6 +5,7 @@ import { X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { useRestaurantSettings } from '@/hooks/useRestaurantSettings'
+import { usePermissions } from '@/lib/permissions/PermissionsContext'
 import type { Translations } from '@/lib/i18n/translations'
 
 interface Toast {
@@ -123,6 +124,8 @@ const TOAST_PREF_DEFAULTS = { toast_dismiss_mode: 'auto' as 'auto' | 'manual', t
 export default function ActivityToast() {
   const { t, isRTL } = useLanguage()
   const { settings: prefs } = useRestaurantSettings<typeof TOAST_PREF_DEFAULTS>(TOAST_PREF_DEFAULTS)
+  const { can, loading: permLoading } = usePermissions()
+  const allowed = permLoading || can('dashboard.activity_toast')
 
   const [toasts, setToasts] = useState<Toast[]>([])
   const timers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
@@ -153,6 +156,7 @@ export default function ActivityToast() {
   }, [dismiss])
 
   useEffect(() => {
+    if (!allowed) return
     const restaurantId = localStorage.getItem('restaurant_id')
     const staffRole    = localStorage.getItem('pos_staff_role')
       ?? (localStorage.getItem('owner_session') === 'true' ? 'owner' : null)
@@ -189,9 +193,9 @@ export default function ActivityToast() {
       .subscribe()
 
     return () => { supabase.removeChannel(auditCh); supabase.removeChannel(msgCh) }
-  }, [push])
+  }, [push, allowed])
 
-  if (toasts.length === 0) return null
+  if (!allowed || toasts.length === 0) return null
 
   const isManual = prefs.toast_dismiss_mode === 'manual'
   const ttl      = (prefs.toast_dismiss_seconds ?? 7) * 1000

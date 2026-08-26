@@ -60,6 +60,7 @@ const PERMISSION_TREE: PermNode[] = [
           { key: 'dashboard.btn_guests',    label: 'Guests'         },
           { key: 'dashboard.btn_language',  label: 'Language'       },
           { key: 'dashboard.btn_inventory_bell', label: 'Notification Bell' },
+          { key: 'dashboard.activity_toast', label: 'Activity Toast Popups' },
         ],
       },
       {
@@ -1052,12 +1053,12 @@ export default function UsersPage() {
             </div>
             <div className="p-5 space-y-4">
               <div className="flex justify-center gap-4 py-4">
-                {[0, 1, 2, 3].map(i => <div key={i} className={cn('w-4 h-4 rounded-full border-2 transition-all', i < newPin.length ? 'bg-amber-400 border-amber-400 scale-110' : 'bg-transparent border-white/25')} />)}
+                {[0, 1, 2, 3, 4, 5].map(i => <div key={i} className={cn('w-4 h-4 rounded-full border-2 transition-all', i < newPin.length ? 'bg-amber-400 border-amber-400 scale-110' : 'bg-transparent border-white/25')} />)}
               </div>
               <div className="grid grid-cols-3 gap-2">
                 {['1','2','3','4','5','6','7','8','9','','0','⌫'].map((k, i) => (
                   <button key={i} disabled={!k}
-                    onClick={() => { if (k === '⌫') setNewPin(p => p.slice(0, -1)); else if (newPin.length < 4) setNewPin(p => p + k) }}
+                    onClick={() => { if (k === '⌫') setNewPin(p => p.slice(0, -1)); else if (newPin.length < 6) setNewPin(p => p + k) }}
                     className={cn('h-12 rounded-xl text-sm font-semibold transition-all active:scale-95', !k ? 'cursor-default' : k === '⌫' ? 'bg-white/5 border border-white/8 text-white/50 hover:bg-white/10' : 'bg-white/8 border border-white/12 text-white hover:bg-white/15')}>
                     {k}
                   </button>

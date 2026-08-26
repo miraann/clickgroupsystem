@@ -28,7 +28,7 @@ export function OrderHeader({
           onClick={() => router.back()}
           className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 active:scale-95 transition-all touch-manipulation"
         >
-          <ArrowLeft className="w-4 h-4" />
+          <ArrowLeft className="w-4 h-4 scale-x-[-1]" />
         </button>
         <div>
           <div className="flex items-center gap-2">

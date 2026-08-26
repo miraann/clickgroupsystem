@@ -1452,7 +1452,8 @@ export default function TablesPage() {
             </div>
             <div className="min-w-0">
               <p className="text-[11px] sm:text-sm font-bold text-white leading-none truncate max-w-[70px] sm:max-w-none">{restaurant?.name ?? '...'}</p>
-              <p className="hidden sm:block text-xs text-white/30 mt-0.5">POS System</p>
+              <p className="hidden sm:block text-xs text-white/30 mt-0.5">Click Group</p>
+              <p className="hidden sm:block text-[9px] text-white/20 leading-none mt-0.5">Powered by</p>
             </div>
             {can('dashboard.btn_inventory_bell') && (
               <InventoryNotificationBell restaurantId={cachedRestaurantId} />

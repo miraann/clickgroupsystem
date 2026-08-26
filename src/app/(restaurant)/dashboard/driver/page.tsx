@@ -69,7 +69,7 @@ export default function DriverPage() {
 
   // Redirect if no permission
   useEffect(() => {
-    if (!permLoading && !isOwner && !can('driver_screen')) {
+    if (!permLoading && !isOwner && !can('driver_screen') && !can('manage_delivery.be_driver')) {
       router.replace('/dashboard/unauthorized')
     }
   }, [permLoading, isOwner, can, router])
