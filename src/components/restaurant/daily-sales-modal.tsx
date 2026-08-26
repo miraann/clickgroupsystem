@@ -1,8 +1,10 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Printer, Loader2, BarChart2 } from 'lucide-react'
+import { X, Printer, Loader2, BarChart2, CheckCircle2, AlertCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { browserPrint } from '@/lib/webusb-print'
+import { getAndroidTcp } from '@/lib/android-tcp'
 
 interface InvoiceRow {
   id: string
@@ -66,6 +68,8 @@ export function DailySalesModal({ restaurantId, restaurantName, formatPrice, onC
   const [mtdRevenue, setMtdRevenue]   = useState(0)
   const [mtdExpenses, setMtdExpenses] = useState(0)
   const [dayOfMonth, setDayOfMonth]   = useState(1)
+  const [printStatus, setPrintStatus] = useState<'idle' | 'sending' | 'ok' | 'error'>('idle')
+  const [printError,  setPrintError]  = useState('')
 
   useEffect(() => {
     const load = async () => {
@@ -208,6 +212,108 @@ export function DailySalesModal({ restaurantId, restaurantName, formatPrice, onC
     setTimeout(() => { win.print(); win.close() }, 300)
   }
 
+  // ── ESC/POS hardware print via the Receipt / Cashier printer ───
+  const handleHardwarePrint = async (): Promise<boolean> => {
+    setPrintStatus('sending')
+    setPrintError('')
+    try {
+      const res = await fetch('/api/print/daily-sales', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          restaurantId, dateStr, timeStr,
+          txCount, totalRevenue, avgOrder, totalGuests, totalDiscount, totalChange,
+          byPayment, orderTypes,
+          memberCount: memberInvs.length, memberTotal,
+          walkInCount: walkInInvs.length, walkInTotal,
+          topItems, byCashier,
+          totalExpenses, netProfit,
+          avgDailySalesMonth, avgDailyExpenseMonth,
+        }),
+      })
+      const json = await res.json()
+      if (!json.ok) throw new Error(json.error ?? 'Print failed')
+
+      const rawBytes = Uint8Array.from(atob(json.bytes), c => c.charCodeAt(0))
+      const ea = (window as any).electronAPI // eslint-disable-line @typescript-eslint/no-explicit-any
+
+      if (ea?.isElectron) {
+        if (json.connectionType === 'ip' && json.ipAddress) {
+          const result = await ea.printBytes(json.bytes, json.ipAddress, json.port ?? 9100)
+          if (!result?.ok) throw new Error(result?.error ?? 'TCP print failed')
+        } else if ((json.connectionType === 'usb' || json.connectionType === 'bluetooth') && json.printerName) {
+          const result = await ea.printWindowsPrinter(json.bytes, json.printerName)
+          if (!result?.ok) throw new Error(result?.error ?? 'Print failed')
+        } else {
+          throw new Error('Printer not configured correctly')
+        }
+      } else {
+        const androidTcp = getAndroidTcp()
+        if (json.connectionType === 'ip' && json.ipAddress) {
+          if (androidTcp) {
+            const result = await androidTcp.printBytes({ host: json.ipAddress, port: json.port ?? 9100, data: json.bytes })
+            if (!result?.ok) throw new Error('IP print failed on device')
+          } else {
+            throw new Error('IP printers require the ClickGroup POS desktop app')
+          }
+        } else if (json.connectionType === 'usb') {
+          await browserPrint(rawBytes)
+        } else if (json.connectionType === 'bluetooth') {
+          if (androidTcp && json.btAddress) {
+            const result = await androidTcp.printBluetooth({ address: json.btAddress, data: json.bytes })
+            if (!result?.ok) throw new Error('Bluetooth print failed on device')
+          } else {
+            const bt = (navigator as any).bluetooth // eslint-disable-line @typescript-eslint/no-explicit-any
+            if (!bt) throw new Error('Bluetooth not supported — use Chrome')
+            const devs = await bt.getDevices()
+            const dev  = devs[0] ?? null
+            if (!dev) throw new Error('No Bluetooth printer paired')
+            let sent = false
+            const server = await dev.gatt.connect()
+            try {
+              for (const uuid of [
+                '000018f0-0000-1000-8000-00805f9b34fb',
+                '0000ffe0-0000-1000-8000-00805f9b34fb',
+                'e7810a71-73ae-499d-8c15-faa9aef0c3f2',
+                '49535343-fe7d-4ae5-8fa9-9fafd205e455',
+              ]) {
+                try {
+                  const svc   = await server.getPrimaryService(uuid)
+                  const chars = await svc.getCharacteristics()
+                  const w = chars.find((c: any) => c.properties.write || c.properties.writeWithoutResponse) // eslint-disable-line @typescript-eslint/no-explicit-any
+                  if (!w) continue
+                  for (let i = 0; i < rawBytes.length; i += 512) {
+                    const chunk = rawBytes.slice(i, Math.min(i + 512, rawBytes.length))
+                    w.properties.writeWithoutResponse
+                      ? await w.writeValueWithoutResponse(chunk)
+                      : await w.writeValue(chunk)
+                  }
+                  sent = true; break
+                } catch { /* try next service UUID */ }
+              }
+            } finally { server.disconnect() }
+            if (!sent) throw new Error('No writable Bluetooth characteristic found')
+          }
+        } else {
+          throw new Error('IP printers require the ClickGroup POS desktop app')
+        }
+      }
+
+      setPrintStatus('ok')
+      setTimeout(() => setPrintStatus('idle'), 3000)
+      return true
+    } catch (e: unknown) {
+      setPrintError(e instanceof Error ? e.message : 'Print failed')
+      setPrintStatus('error')
+      return false
+    }
+  }
+
+  const handlePrintClick = async () => {
+    const hw = await handleHardwarePrint()
+    if (!hw) handlePrint()
+  }
+
   return (
     <>
       {/* Print-only styles (no global pollution) */}
@@ -241,11 +347,15 @@ export function DailySalesModal({ restaurantId, restaurantName, formatPrice, onC
               <div className="flex items-center gap-2">
                 {!loading && txCount > 0 && (
                   <button
-                    onClick={handlePrint}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-900 text-white text-xs font-semibold hover:bg-gray-700 active:scale-95 transition-all"
+                    onClick={handlePrintClick}
+                    disabled={printStatus === 'sending'}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-900 text-white text-xs font-semibold hover:bg-gray-700 active:scale-95 transition-all disabled:opacity-50"
                   >
-                    <Printer className="w-3.5 h-3.5" />
-                    Print
+                    {printStatus === 'sending' ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      : printStatus === 'ok'    ? <CheckCircle2 className="w-3.5 h-3.5" />
+                      : printStatus === 'error' ? <AlertCircle className="w-3.5 h-3.5" />
+                      : <Printer className="w-3.5 h-3.5" />}
+                    {printStatus === 'sending' ? 'Sending…' : printStatus === 'ok' ? 'Sent!' : 'Print'}
                   </button>
                 )}
                 <button
@@ -256,6 +366,14 @@ export function DailySalesModal({ restaurantId, restaurantName, formatPrice, onC
                 </button>
               </div>
             </div>
+
+            {/* Hardware print error hint */}
+            {printStatus === 'error' && printError && (
+              <div className="shrink-0 mx-4 mt-2 px-3 py-2 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-[11px] space-y-1">
+                <p>{printError}</p>
+                <p className="text-gray-500">Opened the browser print dialog instead.</p>
+              </div>
+            )}
 
             {/* Receipt paper */}
             <div className="flex-1 overflow-y-auto bg-white">

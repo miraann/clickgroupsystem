@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { logAudit } from '@/lib/logAudit'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
+import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import type { Category, Expense } from './types'
 import { CAT_ICONS, STATUS_CFG, PAY_METHODS } from './types'
 
@@ -19,6 +20,7 @@ interface Props {
 export function AddExpenseModal({ restaurantId, categories, cashier, onClose, onSaved }: Props) {
   const supabase = createClient()
   const { t } = useLanguage()
+  const { symbol } = useDefaultCurrency()
   const fileRef = useRef<HTMLInputElement>(null)
 
   const [title, setTitle]         = useState('')
@@ -139,15 +141,18 @@ export function AddExpenseModal({ restaurantId, categories, cashier, onClose, on
             </div>
             <div>
               <label className="block text-xs text-white/40 mb-1.5 font-medium">Amount <span className="text-rose-400">*</span></label>
-              <input
-                type="number"
-                value={amount}
-                onChange={e => setAmount(e.target.value)}
-                placeholder="0.00"
-                min="0"
-                step="0.01"
-                className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500/40 transition-colors tabular-nums"
-              />
+              <div className="relative">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-white/35 font-medium pointer-events-none">{symbol}</span>
+                <input
+                  type="number"
+                  value={amount}
+                  onChange={e => setAmount(e.target.value)}
+                  placeholder="0.00"
+                  min="0"
+                  step="0.01"
+                  className="w-full pl-9 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500/40 transition-colors tabular-nums"
+                />
+              </div>
             </div>
           </div>
 
