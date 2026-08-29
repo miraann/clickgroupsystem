@@ -9,6 +9,7 @@ import {
   Utensils, Coffee, ChevronRight, Delete,
   CalendarDays, Phone, Check, AlertCircle, Loader2,
   ArrowRightLeft, Merge, X as XIcon, Truck, BellRing, Globe, Monitor, Shield, BarChart2,
+  Database, Wifi, KeyRound,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
@@ -1021,6 +1022,134 @@ const TableCard = memo(function TableCard({ table, onSelect, onLongPress, format
 })
 
 
+// ── System / Connection Check button ─────────────────────────
+// Hard-refreshes the dashboard while verifying the database connection,
+// auth session and live-data revalidation before reloading the page.
+function SystemCheckButton({ restaurantId, wrapperClassName, buttonClassName }: {
+  restaurantId: string | null
+  wrapperClassName?: string
+  buttonClassName?: string
+}) {
+  const { t: tr } = useLanguage()
+  const [state, setState]   = useState<'idle' | 'checking' | 'ok' | 'error'>('idle')
+  const [open, setOpen]     = useState(false)
+  const [checks, setChecks] = useState<{ db: boolean; auth: boolean; realtime: boolean; latencyMs: number } | null>(null)
+  const [errMsg, setErrMsg] = useState('')
+
+  const run = async () => {
+    if (state === 'checking') return
+    setState('checking'); setOpen(true); setErrMsg(''); setChecks(null)
+    const supabase = createClient()
+    const t0 = performance.now()
+    try {
+      const [dbRes, sessRes] = await Promise.all([
+        supabase.from('restaurants').select('id').eq('id', restaurantId ?? '').limit(1),
+        supabase.auth.getSession(),
+      ])
+      const latencyMs = Math.round(performance.now() - t0)
+      const db   = !dbRes.error && Array.isArray(dbRes.data)
+      const auth = !!sessRes.data?.session
+
+      if (!db) {
+        setChecks({ db: false, auth, realtime: false, latencyMs })
+        setErrMsg(dbRes.error?.message ?? 'Database query failed')
+        setState('error')
+        return
+      }
+
+      // Revalidate every SWR cache (tables, orders, counts, …)
+      let realtime = true
+      try {
+        await swrMutate(() => true, undefined, { revalidate: true })
+      } catch {
+        realtime = false
+      }
+
+      setChecks({ db, auth, realtime, latencyMs })
+      setState(auth && realtime ? 'ok' : 'error')
+      if (auth && realtime) {
+        setTimeout(() => window.location.reload(), 900)
+      }
+    } catch (e) {
+      setErrMsg(e instanceof Error ? e.message : 'Check failed')
+      setState('error')
+    }
+  }
+
+  const tone =
+    state === 'ok'       ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400'
+    : state === 'error'  ? 'bg-rose-500/15 border-rose-500/40 text-rose-400'
+    : state === 'checking' ? 'bg-sky-500/15 border-sky-500/40 text-sky-400'
+    : 'bg-white/5 border-white/10 text-white/40 hover:text-white/70 hover:bg-white/10'
+
+  const Line = ({ ok, icon: Icon, label }: { ok: boolean; icon: typeof Database; label: string }) => (
+    <div className="flex items-center justify-between gap-3 px-3 py-2">
+      <span className="flex items-center gap-2 text-xs text-white/70">
+        <Icon className="w-3.5 h-3.5 text-white/40" />{label}
+      </span>
+      {ok
+        ? <Check className="w-4 h-4 text-emerald-400" />
+        : <XIcon className="w-4 h-4 text-rose-400" />}
+    </div>
+  )
+
+  return (
+    <div className={cn('relative', wrapperClassName)}>
+      <button
+        onClick={run}
+        title={tr.hc_check}
+        className={cn(
+          'flex items-center justify-center rounded-xl border transition-all active:scale-95 shrink-0',
+          tone,
+          buttonClassName,
+        )}
+      >
+        <RefreshCw className={cn('w-[18px] h-[18px] lg:w-[26px] lg:h-[26px]', state === 'checking' && 'animate-spin')} />
+      </button>
+
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="absolute top-full mt-2 right-0 z-50 w-60 rounded-2xl border border-white/12 bg-[#0d1120] shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between px-3 py-2.5 border-b border-white/8">
+              <span className="text-[11px] font-bold text-white/40 uppercase tracking-widest">{tr.hc_title}</span>
+              <span className={cn(
+                'text-[11px] font-semibold',
+                state === 'ok' ? 'text-emerald-400' : state === 'error' ? 'text-rose-400' : 'text-sky-400',
+              )}>
+                {state === 'checking' ? tr.hc_checking : state === 'ok' ? tr.hc_ok : state === 'error' ? tr.hc_fail : ''}
+              </span>
+            </div>
+
+            {state === 'checking' && !checks && (
+              <div className="flex items-center justify-center py-6">
+                <Loader2 className="w-5 h-5 text-sky-400 animate-spin" />
+              </div>
+            )}
+
+            {checks && (
+              <div className="divide-y divide-white/5">
+                <Line ok={checks.db}       icon={Database}  label={tr.hc_db} />
+                <Line ok={checks.auth}     icon={KeyRound}  label={tr.hc_auth} />
+                <Line ok={checks.realtime} icon={Wifi}      label={tr.hc_realtime} />
+                <div className="px-3 py-2 text-[10px] text-white/30 tabular-nums">{checks.latencyMs} ms</div>
+              </div>
+            )}
+
+            {errMsg && (
+              <p className="px-3 py-2 text-[11px] text-rose-300 border-t border-white/8 break-words">{errMsg}</p>
+            )}
+
+            {state === 'ok' && (
+              <p className="px-3 py-2 text-[11px] text-white/40 border-t border-white/8">{tr.hc_reloading}</p>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
 export default function TablesPage() {
   const router = useRouter()
   const { symbol: cur, formatPrice } = useDefaultCurrency()
@@ -1482,6 +1611,11 @@ export default function TablesPage() {
                 {roleName && <span className="text-[10px] text-white/30 truncate max-w-[60px]">· {roleName}</span>}
               </div>
             )}
+            <SystemCheckButton
+              restaurantId={cachedRestaurantId}
+              wrapperClassName="hidden lg:block"
+              buttonClassName="w-14 h-14"
+            />
             {(isOwner || can('dashboard.btn_audit_log')) && (
               <Link href="/dashboard/settings/audit-log" title="Audit Log" className={cn('hidden lg:flex w-14 h-14 rounded-xl items-center justify-center transition-all active:scale-95', navBtnCn)} style={navBtn('audit')}>
                 <Shield size={26} />
@@ -1594,6 +1728,11 @@ export default function TablesPage() {
           className="lg:hidden flex items-center justify-center gap-1.5 sm:gap-3 md:gap-4 px-2 sm:px-4 md:px-6 py-1 sm:py-2 md:py-2.5 border-t border-white/5 overflow-x-auto [&::-webkit-scrollbar]:hidden"
           style={{ scrollbarWidth: 'none' }}
         >
+          <SystemCheckButton
+            restaurantId={cachedRestaurantId}
+            wrapperClassName="shrink-0"
+            buttonClassName="w-8 h-8 sm:w-11 sm:h-11 md:w-14 md:h-14"
+          />
           {(isOwner || can('dashboard.btn_audit_log')) && (
             <Link href="/dashboard/settings/audit-log" title="Audit Log" className={cn('shrink-0 flex w-8 h-8 sm:w-11 sm:h-11 md:w-14 md:h-14 rounded-xl items-center justify-center transition-all active:scale-95', navBtnCn)} style={navBtn('audit')}>
               <Shield className="w-[18px] h-[18px] sm:w-5 sm:h-5 md:w-[26px] md:h-[26px]" />
