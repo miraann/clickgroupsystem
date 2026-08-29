@@ -1033,8 +1033,23 @@ function SystemCheckButton({ restaurantId, wrapperClassName, buttonClassName }: 
   const { t: tr } = useLanguage()
   const [state, setState]   = useState<'idle' | 'checking' | 'ok' | 'error'>('idle')
   const [open, setOpen]     = useState(false)
-  const [checks, setChecks] = useState<{ db: boolean; auth: boolean; realtime: boolean; latencyMs: number } | null>(null)
+  const [checks, setChecks] = useState<{ db: boolean; auth: boolean; realtime: boolean; latencyMs: number; net: string } | null>(null)
   const [errMsg, setErrMsg] = useState('')
+
+  // The browser can't read the Wi-Fi SSID (privacy), but the Network
+  // Information API exposes the link type / speed where supported.
+  const describeNetwork = (): string => {
+    if (typeof navigator === 'undefined') return ''
+    if (!navigator.onLine) return 'offline'
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const c = (navigator as any).connection || (navigator as any).mozConnection || (navigator as any).webkitConnection
+    if (!c) return 'online'
+    const parts: string[] = []
+    if (c.type && c.type !== 'unknown' && c.type !== 'other') parts.push(String(c.type))
+    if (c.effectiveType) parts.push(String(c.effectiveType))
+    if (typeof c.downlink === 'number' && c.downlink > 0) parts.push(`${c.downlink} Mbps`)
+    return parts.length ? parts.join(' · ') : 'online'
+  }
 
   const run = async () => {
     if (state === 'checking') return
@@ -1055,7 +1070,7 @@ function SystemCheckButton({ restaurantId, wrapperClassName, buttonClassName }: 
       const auth = !!sessRes.data?.session || localSession
 
       if (!db) {
-        setChecks({ db: false, auth, realtime: false, latencyMs })
+        setChecks({ db: false, auth, realtime: false, latencyMs, net: describeNetwork() })
         setErrMsg(dbRes.error?.message ?? 'Database query failed')
         setState('error')
         return
@@ -1069,7 +1084,7 @@ function SystemCheckButton({ restaurantId, wrapperClassName, buttonClassName }: 
         realtime = false
       }
 
-      setChecks({ db, auth, realtime, latencyMs })
+      setChecks({ db, auth, realtime, latencyMs, net: describeNetwork() })
       // The database is what "connection" means here — reload whenever it and
       // live data are healthy; the session row is informational only.
       const healthy = db && realtime
@@ -1139,7 +1154,12 @@ function SystemCheckButton({ restaurantId, wrapperClassName, buttonClassName }: 
                 <Line ok={checks.db}       icon={Database}  label={tr.hc_db} />
                 <Line ok={checks.auth}     icon={KeyRound}  label={tr.hc_auth} />
                 <Line ok={checks.realtime} icon={Wifi}      label={tr.hc_realtime} />
-                <div className="px-3 py-2 text-[10px] text-white/30 tabular-nums">{checks.latencyMs} ms</div>
+                <div className="flex items-center justify-between gap-2 px-3 py-2 text-[10px] text-white/30">
+                  <span className="flex items-center gap-1.5 uppercase tracking-wide truncate">
+                    <Wifi className="w-3 h-3 shrink-0" />{checks.net || '—'}
+                  </span>
+                  <span className="tabular-nums shrink-0">{checks.latencyMs} ms</span>
+                </div>
               </div>
             )}
 
