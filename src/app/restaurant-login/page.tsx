@@ -1,11 +1,14 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ChefHat, Eye, EyeOff, Loader2, ArrowLeft } from 'lucide-react'
+import { Eye, EyeOff, Loader2, ArrowLeft } from 'lucide-react'
+import Image from 'next/image'
 import Link from 'next/link'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 export default function RestaurantLoginPage() {
   const router = useRouter()
+  const { t } = useLanguage()
 
   const [email,    setEmail]    = useState('')
   const [password, setPassword] = useState('')
@@ -44,72 +47,75 @@ export default function RestaurantLoginPage() {
       sessionStorage.removeItem('pos_session_active')
       router.push(`/pos/${restaurant.menu_slug}/login`)
     } else {
-      const body = await res.json().catch(() => ({ error: 'Login failed.' }))
-      setError(body.error ?? 'Login failed.')
+      const body = await res.json().catch(() => ({ error: t.rl_failed }))
+      setError(body.error ?? t.rl_failed)
       setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-[#080b14] flex items-center justify-center px-4 relative overflow-hidden">
-      {/* Background glows */}
+    <div className="min-h-screen bg-[#0a1533] flex items-center justify-center px-4 relative overflow-hidden">
+      {/* Brand background glows — ClickGroup navy + gold */}
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-amber-600/15 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-orange-600/10 rounded-full blur-3xl" />
+        <div className="absolute -top-24 left-1/4 w-[28rem] h-[28rem] bg-[#f5c518]/10 rounded-full blur-[120px]" />
+        <div className="absolute -bottom-24 right-1/4 w-[28rem] h-[28rem] bg-[#2544b8]/25 rounded-full blur-[120px]" />
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.018)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.018)_1px,transparent_1px)] bg-[size:64px_64px]" />
       </div>
 
       <div className="relative w-full max-w-sm">
         {/* Back link */}
-        <Link href="/" className="inline-flex items-center gap-1.5 text-white/30 hover:text-white/60 text-sm mb-8 transition-colors">
+        <Link href="/" className="inline-flex items-center gap-1.5 text-white/35 hover:text-white/70 text-sm mb-8 transition-colors">
           <ArrowLeft className="w-4 h-4" />
-          Back
+          {t.rl_back}
         </Link>
 
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center mx-auto mb-4 shadow-2xl shadow-amber-500/30">
-            <ChefHat className="w-8 h-8 text-white" />
+          <div className="w-20 h-20 rounded-2xl bg-white p-2.5 flex items-center justify-center mx-auto mb-4 shadow-2xl shadow-[#f5c518]/20 ring-1 ring-white/15">
+            <Image src="/logo/logo.png" alt="ClickGroup" width={64} height={64} className="w-full h-full object-contain" priority />
           </div>
-          <h1 className="text-2xl font-black text-white">Restaurant Login</h1>
-          <p className="text-white/40 text-sm mt-1">Sign in to your restaurant panel</p>
+          <h1 className="text-2xl font-black text-white">{t.rl_title}</h1>
+          <p className="text-white/45 text-sm mt-1">{t.rl_subtitle}</p>
         </div>
 
         {/* Card */}
         <form
           onSubmit={handleLogin}
-          className="bg-white/4 border border-white/10 rounded-3xl p-6 space-y-4"
+          className="bg-white/[0.04] border border-white/10 rounded-3xl p-6 space-y-4 shadow-2xl shadow-black/40"
         >
           {/* Email */}
           <div>
-            <label className="block text-xs font-medium text-white/50 mb-1.5">Email Address</label>
+            <label className="block text-xs font-medium text-white/55 mb-1.5">{t.rl_email}</label>
             <input
               type="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
-              placeholder="owner@restaurant.com"
+              placeholder={t.rl_email_ph}
               autoComplete="email"
               required
-              className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-sm text-white placeholder-white/20 focus:outline-none focus:border-amber-500/50 transition-colors"
+              dir="ltr"
+              className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-sm text-white placeholder-white/25 focus:outline-none focus:border-[#f5c518]/60 focus:ring-2 focus:ring-[#f5c518]/15 transition-colors"
             />
           </div>
 
           {/* Password */}
           <div>
-            <label className="block text-xs font-medium text-white/50 mb-1.5">Password</label>
+            <label className="block text-xs font-medium text-white/55 mb-1.5">{t.rl_password}</label>
             <div className="relative">
               <input
                 type={showPwd ? 'text' : 'password'}
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                placeholder="Enter your password"
+                placeholder={t.rl_password_ph}
                 autoComplete="current-password"
                 required
-                className="w-full px-4 py-3 pr-11 rounded-xl bg-white/5 border border-white/10 text-sm text-white placeholder-white/20 focus:outline-none focus:border-amber-500/50 transition-colors"
+                dir="ltr"
+                className="w-full px-4 py-3 pr-11 rounded-xl bg-white/5 border border-white/10 text-sm text-white placeholder-white/25 focus:outline-none focus:border-[#f5c518]/60 focus:ring-2 focus:ring-[#f5c518]/15 transition-colors"
               />
               <button
                 type="button"
                 onClick={() => setShowPwd(v => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-white/35 hover:text-white/70 transition-colors"
               >
                 {showPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
@@ -118,7 +124,7 @@ export default function RestaurantLoginPage() {
 
           {/* Error */}
           {error && (
-            <p className="text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-xl px-4 py-2.5">
+            <p className="text-xs text-rose-300 bg-rose-500/10 border border-rose-500/25 rounded-xl px-4 py-2.5">
               {error}
             </p>
           )}
@@ -127,15 +133,15 @@ export default function RestaurantLoginPage() {
           <button
             type="submit"
             disabled={loading || !email.trim() || !password.trim()}
-            className="w-full py-3 rounded-2xl bg-amber-500 hover:bg-amber-400 disabled:opacity-30 disabled:cursor-not-allowed text-white font-bold text-sm transition-all active:scale-[0.98] shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 mt-2"
+            className="w-full py-3 rounded-2xl bg-[#f5c518] hover:bg-[#ffd43b] disabled:opacity-30 disabled:cursor-not-allowed text-[#0a1533] font-black text-sm transition-all active:scale-[0.98] shadow-lg shadow-[#f5c518]/25 flex items-center justify-center gap-2 mt-2"
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-            {loading ? 'Signing in…' : 'Sign In to Dashboard'}
+            {loading ? t.rl_signing_in : t.rl_sign_in}
           </button>
         </form>
 
-        <p className="text-center text-white/15 text-xs mt-6">
-          ClickGroup POS · Restaurant Panel
+        <p className="text-center text-white/20 text-xs mt-6">
+          {t.rl_footer}
         </p>
       </div>
     </div>

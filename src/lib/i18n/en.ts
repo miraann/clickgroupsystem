@@ -1456,6 +1456,26 @@ const en = {
   pl_install_android:   'Install Android App',
   pl_app_installed:     'App Installed',
 
+  // ── Restaurant owner login (/restaurant-login) ────────────────
+  rl_back:              'Back',
+  rl_title:             'Restaurant Login',
+  rl_subtitle:          'Sign in to your restaurant panel',
+  rl_email:             'Email Address',
+  rl_email_ph:          'owner@restaurant.com',
+  rl_password:          'Password',
+  rl_password_ph:       'Enter your password',
+  rl_failed:            'Login failed.',
+  rl_signing_in:        'Signing in…',
+  rl_sign_in:           'Sign In to Dashboard',
+  rl_footer:            'ClickGroup POS · Restaurant Panel',
+
+  // ── Restaurant owner PIN (/restaurant-login/[slug]/pin) ───────
+  rpin_enter_title:     'Enter Owner PIN',
+  rpin_notset_title:    'PIN Not Set',
+  rpin_default_sub:     '6-digit PIN to access your panel',
+  rpin_notset_head:     'Owner PIN not configured',
+  rpin_notset_body:     'Your account does not have an owner PIN set up yet. Please contact your system administrator to set a PIN before you can access the dashboard.',
+
 } as const
 
 export default en

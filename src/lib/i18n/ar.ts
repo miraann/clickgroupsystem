@@ -1468,6 +1468,26 @@ const ar: Record<keyof typeof en, string> = {
   pl_install_app:       'تثبيت التطبيق',
   pl_install_android:   'تثبيت تطبيق أندرويد',
   pl_app_installed:     'تم تثبيت التطبيق',
+
+  // ── دخول صاحب المطعم (/restaurant-login) ──────────────────────
+  rl_back:              'رجوع',
+  rl_title:             'دخول المطعم',
+  rl_subtitle:          'سجّل الدخول إلى لوحة مطعمك',
+  rl_email:             'البريد الإلكتروني',
+  rl_email_ph:          'owner@restaurant.com',
+  rl_password:          'كلمة المرور',
+  rl_password_ph:       'أدخل كلمة المرور',
+  rl_failed:            'فشل تسجيل الدخول.',
+  rl_signing_in:        'جارٍ تسجيل الدخول…',
+  rl_sign_in:           'الدخول إلى لوحة التحكم',
+  rl_footer:            'كليك جروب POS · لوحة المطعم',
+
+  // ── رمز صاحب المطعم (/restaurant-login/[slug]/pin) ────────────
+  rpin_enter_title:     'أدخل رمز المالك',
+  rpin_notset_title:    'الرمز غير مُعيَّن',
+  rpin_default_sub:     'رمز من 6 أرقام للدخول إلى لوحتك',
+  rpin_notset_head:     'لم يتم ضبط رمز المالك',
+  rpin_notset_body:     'لا يحتوي حسابك على رمز مالك بعد. يرجى التواصل مع مسؤول النظام لضبط الرمز قبل أن تتمكن من الدخول إلى لوحة التحكم.',
 }
 
 export default ar

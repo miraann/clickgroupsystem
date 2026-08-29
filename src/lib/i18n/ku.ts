@@ -1468,6 +1468,26 @@ const ku: Record<keyof typeof en, string> = {
   pl_install_app:       'دامەزراندنی ئەپ',
   pl_install_android:   'دامەزراندنی ئەپی ئەندرۆید',
   pl_app_installed:     'ئەپ دامەزرا',
+
+  // ── چوونەژوورەوەی خاوەن ڕێستۆرانت (/restaurant-login) ─────────
+  rl_back:              'گەڕانەوە',
+  rl_title:             'چوونەژوورەوەی ڕێستۆرانت',
+  rl_subtitle:          'بچۆ ژوورەوە بۆ پانێڵی ڕێستۆرانتەکەت',
+  rl_email:             'ناونیشانی ئیمەیڵ',
+  rl_email_ph:          'owner@restaurant.com',
+  rl_password:          'وشەی نهێنی',
+  rl_password_ph:       'وشەی نهێنیت بنووسە',
+  rl_failed:            'چوونەژوورەوە سەرکەوتوو نەبوو.',
+  rl_signing_in:        'چوونەژوورەوە…',
+  rl_sign_in:           'چوونەژوورەوە بۆ داشبۆرد',
+  rl_footer:            'کلیک گروپ POS · پانێڵی ڕێستۆرانت',
+
+  // ── پینی خاوەن ڕێستۆرانت (/restaurant-login/[slug]/pin) ──────
+  rpin_enter_title:     'پینی خاوەن بنووسە',
+  rpin_notset_title:    'پین دانەنراوە',
+  rpin_default_sub:     'پینی ٦ ژمارەیی بۆ چوونەناو پانێڵەکەت',
+  rpin_notset_head:     'پینی خاوەن ڕێکنەخراوە',
+  rpin_notset_body:     'هەژمارەکەت هێشتا پینی خاوەنی بۆ ڕێکنەخراوە. تکایە پەیوەندی بە بەڕێوەبەری سیستەمەکەت بکە بۆ دانانی پین پێش ئەوەی بتوانیت بچیتە ناو داشبۆرد.',
 }
 
 export default ku
