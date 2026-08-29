@@ -1,6 +1,5 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { MODULES, MODULE_CATEGORIES } from '@/lib/modules'
 import { Plus, Edit2, Trash2, CheckCircle2, Loader2, Package2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -33,8 +32,6 @@ function modOn(modules: Record<string, boolean>, key: string) {
 }
 
 export default function PlansPage() {
-  const supabase = createClient()
-
   const [plans,     setPlans]     = useState<Plan[]>([])
   const [loading,   setLoading]   = useState(true)
   const [editPlan,  setEditPlan]  = useState<Plan | null>(null)
@@ -42,14 +39,15 @@ export default function PlansPage() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const { data } = await supabase
-      .from('plans')
-      .select('*')
-      .order('sort_order', { ascending: true })
-      .order('created_at',  { ascending: true })
-    setPlans((data ?? []) as Plan[])
+    try {
+      const res = await fetch('/api/seller/plans')
+      const d = res.ok ? await res.json() : { plans: [] }
+      setPlans((d.plans ?? []) as Plan[])
+    } catch {
+      setPlans([])
+    }
     setLoading(false)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => { load() }, [load])
 
@@ -59,8 +57,12 @@ export default function PlansPage() {
 
   const handleDelete = async (plan: Plan) => {
     if (!confirm(`Delete plan "${plan.name}"? This cannot be undone.`)) return
-    await supabase.from('plans').delete().eq('id', plan.id)
-    setPlans(prev => prev.filter(p => p.id !== plan.id))
+    const res = await fetch('/api/seller/plans', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: plan.id }),
+    })
+    if (res.ok) setPlans(prev => prev.filter(p => p.id !== plan.id))
   }
 
   return (

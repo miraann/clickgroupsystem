@@ -11,6 +11,7 @@ import { ConfirmPayDialog } from './payment/ConfirmPayDialog'
 import { MemberPicker }     from './payment/MemberPicker'
 import { CustomerPicker }   from './payment/CustomerPicker'
 import type { Item, DbDiscount, DbSurcharge, DbPayMethod, ActionTab } from './payment/types'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { mutate as swrMutate } from 'swr'
 import { SWR_KEY } from '@/hooks/useDashboardTables'
 import type { DashboardFullData } from '@/hooks/useDashboardTables'
@@ -34,19 +35,20 @@ const ICON_COLORS: Record<string, { inactive: string; active: string }> = {
   other:  { inactive: 'text-pink-400',    active: 'bg-pink-500/20 border-pink-500/40 text-pink-300'         },
 }
 
-const ACTION_TABS: { id: ActionTab; label: string; inactive: string; active: string }[] = [
-  { id: 'surcharge', label: 'Surcharge', inactive: 'text-orange-400/80  bg-orange-500/15  hover:bg-orange-500/25', active: 'text-white bg-orange-500' },
-  { id: 'gratuity',  label: 'Gratuity',  inactive: 'text-violet-400/80  bg-violet-500/15  hover:bg-violet-500/25', active: 'text-white bg-violet-600' },
-  { id: 'discount',  label: 'Discount',  inactive: 'text-yellow-400/80  bg-yellow-500/15  hover:bg-yellow-500/25', active: 'text-white bg-amber-500'  },
-  { id: 'note',      label: 'Note',      inactive: 'text-sky-400/80     bg-sky-500/15     hover:bg-sky-500/25',    active: 'text-white bg-sky-500'    },
-  { id: 'split',     label: 'Split Bill',inactive: 'text-emerald-400/80 bg-emerald-500/15 hover:bg-emerald-500/25',active: 'text-white bg-emerald-500'},
-  { id: 'paylater',  label: 'Pay Later', inactive: 'text-rose-400/80    bg-rose-500/15    hover:bg-rose-500/25',   active: 'text-white bg-rose-500'   },
+const ACTION_TABS: { id: ActionTab; labelKey: 'pay_tab_surcharge' | 'pay_tab_gratuity' | 'pay_tab_discount' | 'pay_tab_note' | 'pay_tab_split' | 'pay_tab_paylater'; inactive: string; active: string }[] = [
+  { id: 'surcharge', labelKey: 'pay_tab_surcharge', inactive: 'text-orange-400/80  bg-orange-500/15  hover:bg-orange-500/25', active: 'text-white bg-orange-500' },
+  { id: 'gratuity',  labelKey: 'pay_tab_gratuity',  inactive: 'text-violet-400/80  bg-violet-500/15  hover:bg-violet-500/25', active: 'text-white bg-violet-600' },
+  { id: 'discount',  labelKey: 'pay_tab_discount',  inactive: 'text-yellow-400/80  bg-yellow-500/15  hover:bg-yellow-500/25', active: 'text-white bg-amber-500'  },
+  { id: 'note',      labelKey: 'pay_tab_note',      inactive: 'text-sky-400/80     bg-sky-500/15     hover:bg-sky-500/25',    active: 'text-white bg-sky-500'    },
+  { id: 'split',     labelKey: 'pay_tab_split',     inactive: 'text-emerald-400/80 bg-emerald-500/15 hover:bg-emerald-500/25',active: 'text-white bg-emerald-500'},
+  { id: 'paylater',  labelKey: 'pay_tab_paylater',  inactive: 'text-rose-400/80    bg-rose-500/15    hover:bg-rose-500/25',   active: 'text-white bg-rose-500'   },
 ]
 
 const NUMPAD = ['7','8','9','4','5','6','1','2','3','0','00','.']
 
 export default function PaymentScreen({ orderId, restaurantId, tableNum, guests, items, total, onClose, onPaid }: Props) {
   const { can, isOwner } = usePermissions()
+  const { t } = useLanguage()
   const p = (key: string) => isOwner || can(key)
   const [payMethods, setPayMethods]       = useState<DbPayMethod[]>([])
   const [method, setMethod]               = useState<string>('')
@@ -186,7 +188,7 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
   const [payError, setPayError] = useState<string | null>(null)
 
   const handlePayLater = async () => {
-    if (!plName.trim()) { setPayError('Customer name is required'); return }
+    if (!plName.trim()) { setPayError(t.pay_name_required); return }
     setPayingLater(true)
     setPayError(null)
     const now = new Date().toISOString()
@@ -206,7 +208,7 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
       .update({ status: 'closed', total: verifiedTotal, updated_at: now })
       .eq('id', orderId)
     if (orderErr) {
-      setPayError(`Order error: ${orderErr.message}`)
+      setPayError(`${t.pay_order_error} ${orderErr.message}`)
       setPayingLater(false)
       return
     }
@@ -229,7 +231,7 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
       created_by:      cashier,
     })
     if (plErr) {
-      setPayError(`Save error: ${plErr.message}`)
+      setPayError(`${t.pay_save_error} ${plErr.message}`)
       setPayingLater(false)
       return
     }
@@ -270,7 +272,7 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
     const data = await res.json()
 
     if (!res.ok || !data.ok) {
-      setPayError(data.error ?? 'Payment failed')
+      setPayError(data.error ?? t.pay_failed)
       setPaying(false)
       return
     }
@@ -420,7 +422,7 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
                 activeTab === tab.id ? tab.active : tab.inactive
               )}
             >
-              {tab.label}
+              {t[tab.labelKey]}
             </button>
           ))}
         </div>
@@ -439,15 +441,15 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
                 <Users className="w-4 h-4 text-amber-400" />
               </div>
               <div>
-                <p className="text-sm font-bold text-white">{isNaN(parseInt(tableNum)) ? tableNum : `Table ${tableNum}`}{guests > 0 ? ` · ${guests} Guests` : ''}</p>
-                <p className="text-xs text-white/30">{isNaN(parseInt(tableNum)) ? tableNum : 'Dine In'}</p>
+                <p className="text-sm font-bold text-white">{isNaN(parseInt(tableNum)) ? tableNum : `${t.kds_table} ${tableNum}`}{guests > 0 ? ` · ${guests} ${t.pay_guests}` : ''}</p>
+                <p className="text-xs text-white/30">{isNaN(parseInt(tableNum)) ? tableNum : t.pay_dine_in}</p>
               </div>
             </div>
             <div className="space-y-1 pt-1">
               {[
-                ['Invoice', generatedInvoiceNum || previewInvoiceNum || '—'],
-                ['Order',   orderNum ? orderNum : '—'],
-                ['Time',    timeStr],
+                [t.pay_invoice, generatedInvoiceNum || previewInvoiceNum || '—'],
+                [t.pay_order,   orderNum ? orderNum : '—'],
+                [t.pay_time,    timeStr],
               ].map(([k, v]) => (
                 <div key={k} className="flex items-center justify-between">
                   <span className="text-xs text-white/30">{k}</span>

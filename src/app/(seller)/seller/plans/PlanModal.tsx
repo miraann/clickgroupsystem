@@ -2,7 +2,6 @@
 import { useState } from 'react'
 import { X, Package, Layers, Loader2, Save } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { createClient } from '@/lib/supabase/client'
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch'
 import { MODULES, MODULE_CATEGORIES } from '@/lib/modules'
 
@@ -47,7 +46,6 @@ interface Props {
 }
 
 export function PlanModal({ plan, onClose, onSaved }: Props) {
-  const supabase = createClient()
   const isEdit = !!plan
 
   const [tab,     setTab]     = useState<'details' | 'modules'>('details')
@@ -95,12 +93,15 @@ export function PlanModal({ plan, onClose, onSaved }: Props) {
       sort_order:     parseInt(form.sort_order) || 0,
     }
 
-    const { error: err } = isEdit
-      ? await supabase.from('plans').update(payload).eq('id', plan!.id)
-      : await supabase.from('plans').insert(payload)
+    const res = await fetch('/api/seller/plans', {
+      method: isEdit ? 'PATCH' : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(isEdit ? { ...payload, id: plan!.id } : payload),
+    })
+    const data = await res.json().catch(() => ({}))
 
     setSaving(false)
-    if (err) { setError(err.message); return }
+    if (!res.ok || !data.ok) { setError(data.error ?? 'Failed to save plan.'); return }
     onSaved()
   }
 
