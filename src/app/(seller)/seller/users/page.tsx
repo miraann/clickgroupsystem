@@ -5,7 +5,6 @@ import { StatCard } from '@/components/ui/stat-card'
 import { SkeletonList } from '@/components/ui/SkeletonList'
 import { cn } from '@/lib/utils'
 import { Users, Shield, UserCheck, UserX, Search } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
 
 type StaffRow = {
   id:            string
@@ -28,20 +27,21 @@ const ROLE_COLORS: Record<string, string> = {
 }
 
 export default function SellerUsersPage() {
-  const supabase = createClient()
   const [loading, setLoading] = useState(true)
   const [staff, setStaff]     = useState<StaffRow[]>([])
   const [search, setSearch]   = useState('')
 
   const load = useCallback(async () => {
     setLoading(true)
-    const { data } = await supabase
-      .from('staff')
-      .select('id, name, email, role, status, created_at, restaurant_id, restaurants(name)')
-      .order('created_at', { ascending: false })
-    setStaff((data ?? []) as unknown as StaffRow[])
+    try {
+      const res = await fetch('/api/seller/users')
+      const d = res.ok ? await res.json() : { staff: [] }
+      setStaff((d.staff ?? []) as unknown as StaffRow[])
+    } catch {
+      setStaff([])
+    }
     setLoading(false)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => { load() }, [load])
 

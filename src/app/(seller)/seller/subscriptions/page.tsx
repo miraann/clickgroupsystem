@@ -6,7 +6,6 @@ import { StatCard } from '@/components/ui/stat-card'
 import { SkeletonList } from '@/components/ui/SkeletonList'
 import { cn } from '@/lib/utils'
 import { DollarSign, TrendingUp, AlertCircle, CreditCard } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
 import type { Plan } from '../plans/PlanModal'
 import type { Restaurant } from '../restaurants/types'
 
@@ -28,24 +27,22 @@ function nextBillingDate(createdAt: string): string {
 }
 
 export default function SubscriptionsPage() {
-  const supabase = createClient()
   const [loading, setLoading]         = useState(true)
   const [restaurants, setRestaurants] = useState<Restaurant[]>([])
   const [plans, setPlans]             = useState<Plan[]>([])
 
   const load = useCallback(async () => {
     setLoading(true)
-    const [{ data: rData }, { data: pData }] = await Promise.all([
-      supabase
-        .from('restaurants')
-        .select('id, name, email, plan, status, created_at')
-        .order('created_at', { ascending: false }),
-      supabase.from('plans').select('*').order('sort_order'),
-    ])
-    setRestaurants((rData ?? []) as Restaurant[])
-    setPlans((pData ?? []) as Plan[])
+    try {
+      const res = await fetch('/api/seller/restaurants')
+      const d = res.ok ? await res.json() : { restaurants: [], plans: [] }
+      setRestaurants((d.restaurants ?? []) as Restaurant[])
+      setPlans((d.plans ?? []) as Plan[])
+    } catch {
+      setRestaurants([]); setPlans([])
+    }
     setLoading(false)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => { load() }, [load])
 

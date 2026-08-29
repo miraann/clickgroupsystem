@@ -4,7 +4,6 @@ import { GlassCard, GlassCardBody, GlassCardHeader } from '@/components/ui/glass
 import { StatCard } from '@/components/ui/stat-card'
 import { SkeletonList } from '@/components/ui/SkeletonList'
 import { BarChart3, TrendingUp, Users, Store } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
 import type { Plan } from '../plans/PlanModal'
 import type { Restaurant } from '../restaurants/types'
 
@@ -19,7 +18,6 @@ function last6Months() {
 }
 
 export default function AnalyticsPage() {
-  const supabase = createClient()
   const [loading, setLoading]         = useState(true)
   const [restaurants, setRestaurants] = useState<Restaurant[]>([])
   const [plans, setPlans]             = useState<Plan[]>([])
@@ -27,19 +25,17 @@ export default function AnalyticsPage() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const [{ data: rData }, { data: pData }, { count: sCount }] = await Promise.all([
-      supabase
-        .from('restaurants')
-        .select('id, plan, status, created_at')
-        .order('created_at'),
-      supabase.from('plans').select('*').order('sort_order'),
-      supabase.from('staff').select('id', { count: 'exact', head: true }),
-    ])
-    setRestaurants((rData ?? []) as Restaurant[])
-    setPlans((pData ?? []) as Plan[])
-    setStaffCount(sCount ?? 0)
+    try {
+      const res = await fetch('/api/seller/restaurants')
+      const d = res.ok ? await res.json() : { restaurants: [], plans: [], staffCount: 0 }
+      setRestaurants((d.restaurants ?? []) as Restaurant[])
+      setPlans((d.plans ?? []) as Plan[])
+      setStaffCount(d.staffCount ?? 0)
+    } catch {
+      setRestaurants([]); setPlans([]); setStaffCount(0)
+    }
     setLoading(false)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => { load() }, [load])
 

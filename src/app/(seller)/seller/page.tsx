@@ -9,7 +9,6 @@ import {
   Store, TrendingUp, DollarSign, Users, Activity,
   Clock, CheckCircle2, AlertCircle, ArrowUpRight, XCircle,
 } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
 import type { Plan } from './plans/PlanModal'
 import type { Restaurant } from './restaurants/types'
 
@@ -24,7 +23,6 @@ const PLAN_GRADIENT: Record<string, { bg: string; border: string; badge: string 
 }
 
 export default function SellerDashboard() {
-  const supabase = createClient()
   const [loading, setLoading]         = useState(true)
   const [restaurants, setRestaurants] = useState<Restaurant[]>([])
   const [plans, setPlans]             = useState<Plan[]>([])
@@ -32,19 +30,17 @@ export default function SellerDashboard() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const [{ data: rData }, { data: pData }, { count: sCount }] = await Promise.all([
-      supabase
-        .from('restaurants')
-        .select('id, name, email, plan, status, created_at, settings')
-        .order('created_at', { ascending: false }),
-      supabase.from('plans').select('*').order('sort_order'),
-      supabase.from('staff').select('id', { count: 'exact', head: true }),
-    ])
-    setRestaurants((rData ?? []) as Restaurant[])
-    setPlans((pData ?? []) as Plan[])
-    setStaffCount(sCount ?? 0)
+    try {
+      const res = await fetch('/api/seller/restaurants')
+      const d = res.ok ? await res.json() : { restaurants: [], plans: [], staffCount: 0 }
+      setRestaurants((d.restaurants ?? []) as Restaurant[])
+      setPlans((d.plans ?? []) as Plan[])
+      setStaffCount(d.staffCount ?? 0)
+    } catch {
+      setRestaurants([]); setPlans([]); setStaffCount(0)
+    }
     setLoading(false)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => { load() }, [load])
 

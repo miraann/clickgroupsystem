@@ -6,19 +6,24 @@ export const runtime = 'nodejs'
 
 const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
-// ── GET: list restaurants + plans for the seller table ──────────────────────
+// ── GET: restaurants + plans + staff count for the seller table & stats ─────
 export async function GET() {
   const { error } = await requireSeller()
   if (error) return error
   try {
     const admin = serviceClient()
-    const [{ data: restaurants }, { data: plans }] = await Promise.all([
+    const [{ data: restaurants }, { data: plans }, { count: staffCount }] = await Promise.all([
       admin.from('restaurants')
         .select('id, name, email, phone, plan, status, created_at, settings')
         .order('created_at', { ascending: false }),
       admin.from('plans').select('*').order('sort_order', { ascending: true }),
+      admin.from('staff').select('id', { count: 'exact', head: true }),
     ])
-    return NextResponse.json({ restaurants: restaurants ?? [], plans: plans ?? [] })
+    return NextResponse.json({
+      restaurants: restaurants ?? [],
+      plans: plans ?? [],
+      staffCount: staffCount ?? 0,
+    })
   } catch (e) {
     return serverError(e)
   }
