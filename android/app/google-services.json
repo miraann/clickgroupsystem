@@ -42,6 +42,44 @@
           "other_platform_oauth_client": []
         }
       }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:172919359973:android:5e11e6a0b1c2d3e468c70c",
+        "android_client_info": {
+          "package_name": "com.clickgroup.pos.seller"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCokDQD_vvb6nursKt2LzJi72c1W83tGkU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:172919359973:android:c1dd0a0b1c2d3e4f68c70c",
+        "android_client_info": {
+          "package_name": "com.clickgroup.pos.cfd"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCokDQD_vvb6nursKt2LzJi72c1W83tGkU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
     }
   ],
   "configuration_version": "1"

@@ -1,5 +1,17 @@
 apply plugin: 'com.android.application'
 
+// ── Release signing ──────────────────────────────────────────────────────────
+// Passwords + keystore path live in android/keystore.properties, which is
+// git-ignored. When that file is absent (fresh clone, CI without secrets) the
+// release build silently falls back to the debug keystore so `assembleRelease`
+// still produces an installable — but NOT publishable — APK.
+def keystorePropsFile = rootProject.file("keystore.properties")
+def keystoreProps = new Properties()
+if (keystorePropsFile.exists()) {
+    keystoreProps.load(new FileInputStream(keystorePropsFile))
+}
+def hasReleaseKeystore = keystorePropsFile.exists()
+
 android {
     namespace = "com.clickgroup.pos"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -16,24 +28,41 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            if (hasReleaseKeystore) {
+                storeFile rootProject.file(keystoreProps['storeFile'])
+                storePassword keystoreProps['storePassword']
+                keyAlias keystoreProps['keyAlias']
+                keyPassword keystoreProps['keyPassword']
+            }
+        }
+    }
+
     buildTypes {
         release {
+            signingConfig hasReleaseKeystore ? signingConfigs.release : signingConfigs.debug
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
 
-    // ── Product flavors: two separately installable APKs from one project ──
-    // "cashier" keeps the existing com.clickgroup.pos applicationId (no
-    // suffix) — it's the original, already-registered-in-Firebase, already
-    // -deployed app, so existing installs/keystores/Firebase config are
-    // untouched. It boots to /dashboard via the capacitor.config.json that
-    // `npx cap sync android` regenerates in src/main/assets.
-    // "driver" is the new flavor: applicationId com.clickgroup.pos.driver,
-    // overriding that same-named asset file from
-    // src/driver/assets/capacitor.config.json to boot straight to
-    // /dashboard/driver instead. Registered in Firebase as a second Android
-    // app under the same project (see google-services.json).
+    // ── Product flavors: four separately installable APKs from one project ──
+    // Every flavor is the same Capacitor WebView shell; they differ only by
+    // applicationId, launcher name/icon, and the server.url in their
+    // src/<flavor>/assets/capacitor.config.json (which overrides the generated
+    // src/main/assets/capacitor.config.json).
+    //
+    //   cashier → com.clickgroup.pos         → /dashboard         (original app,
+    //             no suffix — existing installs / Firebase config untouched)
+    //   driver  → com.clickgroup.pos.driver  → /dashboard/driver
+    //   seller  → com.clickgroup.pos.seller  → /seller-login   (Admin Seller Panel)
+    //   cfd     → com.clickgroup.pos.cfd     → /cfd            (Customer Facing Display —
+    //             one-time restaurant login stores the slug, then opens /cfd/<slug>)
+    //
+    // Each applicationId must have a matching client entry in
+    // google-services.json or the com.google.gms.google-services task fails the
+    // build. seller/cfd don't use push, so their entries are structural stubs.
     flavorDimensions "role"
     productFlavors {
         cashier {
@@ -47,6 +76,20 @@ android {
             versionNameSuffix "-driver"
             resValue "string", "app_name", "ClickGroup Driver"
             resValue "string", "title_activity_main", "ClickGroup Driver"
+        }
+        seller {
+            dimension "role"
+            applicationIdSuffix ".seller"
+            versionNameSuffix "-seller"
+            resValue "string", "app_name", "ClickGroup Seller"
+            resValue "string", "title_activity_main", "ClickGroup Seller"
+        }
+        cfd {
+            dimension "role"
+            applicationIdSuffix ".cfd"
+            versionNameSuffix "-cfd"
+            resValue "string", "app_name", "ClickGroup CFD"
+            resValue "string", "title_activity_main", "ClickGroup CFD"
         }
     }
 }

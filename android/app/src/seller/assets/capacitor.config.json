@@ -1,0 +1,21 @@
+{
+	"appId": "com.clickgroup.pos",
+	"appName": "ClickGroup Seller",
+	"webDir": "public",
+	"server": {
+		"url": "https://clickgroupsystem.vercel.app/seller-login",
+		"cleartext": false
+	},
+	"android": {
+		"backgroundColor": "#080b14"
+	},
+	"plugins": {
+		"PushNotifications": {
+			"presentationOptions": [
+				"badge",
+				"sound",
+				"alert"
+			]
+		}
+	}
+}

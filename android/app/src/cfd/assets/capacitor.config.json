@@ -1,0 +1,21 @@
+{
+	"appId": "com.clickgroup.pos",
+	"appName": "ClickGroup CFD",
+	"webDir": "public",
+	"server": {
+		"url": "https://clickgroupsystem.vercel.app/cfd",
+		"cleartext": false
+	},
+	"android": {
+		"backgroundColor": "#022658"
+	},
+	"plugins": {
+		"PushNotifications": {
+			"presentationOptions": [
+				"badge",
+				"sound",
+				"alert"
+			]
+		}
+	}
+}
