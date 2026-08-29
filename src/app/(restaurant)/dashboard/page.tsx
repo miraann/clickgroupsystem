@@ -1047,8 +1047,12 @@ function SystemCheckButton({ restaurantId, wrapperClassName, buttonClassName }: 
         supabase.auth.getSession(),
       ])
       const latencyMs = Math.round(performance.now() - t0)
-      const db   = !dbRes.error && Array.isArray(dbRes.data)
-      const auth = !!sessRes.data?.session
+      const db = !dbRes.error && Array.isArray(dbRes.data)
+      // A session is either a Supabase auth session OR the local owner / PIN-staff
+      // session this POS uses — the latter has no Supabase token by design.
+      const localSession = typeof window !== 'undefined' &&
+        !!(localStorage.getItem('owner_session') || localStorage.getItem('pos_staff_id'))
+      const auth = !!sessRes.data?.session || localSession
 
       if (!db) {
         setChecks({ db: false, auth, realtime: false, latencyMs })
@@ -1066,8 +1070,11 @@ function SystemCheckButton({ restaurantId, wrapperClassName, buttonClassName }: 
       }
 
       setChecks({ db, auth, realtime, latencyMs })
-      setState(auth && realtime ? 'ok' : 'error')
-      if (auth && realtime) {
+      // The database is what "connection" means here — reload whenever it and
+      // live data are healthy; the session row is informational only.
+      const healthy = db && realtime
+      setState(healthy ? 'ok' : 'error')
+      if (healthy) {
         setTimeout(() => window.location.reload(), 900)
       }
     } catch (e) {
