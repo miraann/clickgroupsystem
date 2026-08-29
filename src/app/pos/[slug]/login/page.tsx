@@ -5,8 +5,16 @@ import { Delete, ChefHat, Clock, Loader2, CheckCircle2, Download } from 'lucide-
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { getStaffHome } from '@/lib/permissions/staffHome'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 const supabase = createClient()
+
+// Latin numerals for the clock regardless of language, localized weekday / month
+const DATE_LOCALE: Record<string, string> = {
+  en: 'en-US',
+  ku: 'ckb-u-nu-latn',
+  ar: 'ar-u-nu-latn',
+}
 
 
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'clr', '0', 'del'] as const
@@ -18,6 +26,7 @@ export default function POSLoginPage() {
   const router = useRouter()
   const params = useParams()
   const slug = params.slug as string
+  const { t, lang } = useLanguage()
 
   const [restaurant, setRestaurant]   = useState<Restaurant | null>(null)
   const [loadingRest, setLoadingRest] = useState(true)
@@ -142,8 +151,9 @@ export default function POSLoginPage() {
     return () => window.removeEventListener('keydown', handler)
   }, [handleKey])
 
-  const formattedTime = time.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
-  const formattedDate = time.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+  const dateLocale = DATE_LOCALE[lang] ?? 'en-US'
+  const formattedTime = time.toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit', hour12: true })
+  const formattedDate = time.toLocaleDateString(dateLocale, { weekday: 'long', month: 'long', day: 'numeric' })
 
   return (
     <div className="min-h-screen bg-[#022658] flex flex-col items-center justify-center overflow-hidden relative select-none">
@@ -168,8 +178,8 @@ export default function POSLoginPage() {
             <div className="h-4 w-32 rounded bg-white/8 animate-pulse" />
           ) : (
             <div>
-              <p className="text-sm font-bold text-white leading-none">{restaurant?.name ?? 'Point of Sale'}</p>
-              <p className="text-xs text-white/30 mt-0.5">Staff Login</p>
+              <p className="text-sm font-bold text-white leading-none">{restaurant?.name ?? t.pl_pos}</p>
+              <p className="text-xs text-white/30 mt-0.5">{t.pl_staff_login}</p>
             </div>
           )}
         </div>
@@ -191,8 +201,8 @@ export default function POSLoginPage() {
               ? <img src={restaurant.logo_url} alt={restaurant.name} className="w-full h-full object-cover" />
               : <ChefHat className="w-9 h-9 text-amber-400" />}
           </div>
-          <h1 className="text-2xl font-bold text-white">Enter your PIN</h1>
-          <p className="text-white/35 text-sm mt-1">6-digit staff PIN to access POS</p>
+          <h1 className="text-2xl font-bold text-white">{t.pl_enter_pin}</h1>
+          <p className="text-white/35 text-sm mt-1">{t.pl_pin_subtitle}</p>
         </div>
 
         {/* PIN dots */}
@@ -213,19 +223,19 @@ export default function POSLoginPage() {
         <div className="text-center h-6 mb-6">
           {status === 'success' && (
             <p className="text-sm text-emerald-400 font-medium flex items-center justify-center gap-1.5">
-              <CheckCircle2 className="w-4 h-4" /> Welcome! Opening dashboard...
+              <CheckCircle2 className="w-4 h-4" /> {t.pl_welcome}
             </p>
           )}
           {status === 'error' && (
-            <p className="text-sm text-rose-400 font-medium">Incorrect PIN. Try again.</p>
+            <p className="text-sm text-rose-400 font-medium">{t.pl_incorrect}</p>
           )}
           {status === 'checking' && (
             <p className="text-sm text-amber-400/70 font-medium flex items-center justify-center gap-1.5">
-              <Loader2 className="w-3.5 h-3.5 animate-spin" /> Verifying...
+              <Loader2 className="w-3.5 h-3.5 animate-spin" /> {t.pl_verifying}
             </p>
           )}
           {status === 'idle' && pin.length === 0 && (
-            <p className="text-sm text-white/20">Tap numbers below</p>
+            <p className="text-sm text-white/20">{t.pl_tap_numbers}</p>
           )}
         </div>
 
@@ -247,7 +257,7 @@ export default function POSLoginPage() {
                       : 'bg-white/8 border border-white/12 text-white hover:bg-white/14 hover:border-white/20 active:bg-white/20 shadow-sm'
                   )}
                 >
-                  {key === 'del' ? <Delete className="w-5 h-5 mx-auto" /> : key === 'clr' ? 'CLR' : key}
+                  {key === 'del' ? <Delete className="w-5 h-5 mx-auto" /> : key === 'clr' ? t.pl_clr : key}
                 </button>
               )
             })}
@@ -255,7 +265,7 @@ export default function POSLoginPage() {
         </div>
 
         <p className="text-center text-xs text-white/15 mt-5">
-          Contact your manager if you forgot your PIN.
+          {t.pl_forgot}
         </p>
 
         <div className="mt-3 flex justify-center">
@@ -269,7 +279,7 @@ export default function POSLoginPage() {
             }}
             className="text-xs text-white/15 hover:text-white/40 transition-colors underline underline-offset-2"
           >
-            Change restaurant account
+            {t.pl_change_account}
           </button>
         </div>
 
@@ -279,7 +289,7 @@ export default function POSLoginPage() {
             // Android: download and install the native APK
             installed ? (
               <div className="flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-semibold border bg-emerald-500/15 border-emerald-500/25 text-emerald-400">
-                <CheckCircle2 className="w-4 h-4" /> App Installed
+                <CheckCircle2 className="w-4 h-4" /> {t.pl_app_installed}
               </div>
             ) : (
               <a
@@ -287,7 +297,7 @@ export default function POSLoginPage() {
                 download="ClickGroup-POS.apk"
                 className="flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-semibold transition-all active:scale-95 border bg-amber-500/15 border-amber-500/25 text-amber-400 hover:bg-amber-500/25"
               >
-                <Download className="w-4 h-4" /> Install Android App
+                <Download className="w-4 h-4" /> {t.pl_install_android}
               </a>
             )
           ) : (deferredInstall || installed) ? (
@@ -303,8 +313,8 @@ export default function POSLoginPage() {
               )}
             >
               {installed
-                ? <><CheckCircle2 className="w-4 h-4" /> App Installed</>
-                : <><Download className="w-4 h-4" /> Install App</>}
+                ? <><CheckCircle2 className="w-4 h-4" /> {t.pl_app_installed}</>
+                : <><Download className="w-4 h-4" /> {t.pl_install_app}</>}
             </button>
           ) : null}
         </div>

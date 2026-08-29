@@ -1440,6 +1440,22 @@ const en = {
   al_ent_receipt_settings:   'Receipt Settings',
   al_ent_restaurant_info:    'Restaurant Info',
 
+  // ── POS staff PIN login ───────────────────────────────────────
+  pl_pos:                'Point of Sale',
+  pl_staff_login:       'Staff Login',
+  pl_enter_pin:         'Enter your PIN',
+  pl_pin_subtitle:      '6-digit staff PIN to access POS',
+  pl_welcome:           'Welcome! Opening dashboard…',
+  pl_incorrect:         'Incorrect PIN. Try again.',
+  pl_verifying:         'Verifying…',
+  pl_tap_numbers:       'Tap numbers below',
+  pl_clr:               'CLR',
+  pl_forgot:            'Contact your manager if you forgot your PIN.',
+  pl_change_account:    'Change restaurant account',
+  pl_install_app:       'Install App',
+  pl_install_android:   'Install Android App',
+  pl_app_installed:     'App Installed',
+
 } as const
 
 export default en

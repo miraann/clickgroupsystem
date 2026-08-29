@@ -1452,6 +1452,22 @@ const ar: Record<keyof typeof en, string> = {
   al_ent_reservation:        'حجز',
   al_ent_receipt_settings:   'إعدادات الفاتورة',
   al_ent_restaurant_info:    'معلومات المطعم',
+
+  // ── دخول الموظفين برمز PIN ────────────────────────────────────
+  pl_pos:                'نقطة البيع',
+  pl_staff_login:       'دخول الموظفين',
+  pl_enter_pin:         'أدخل رمز PIN',
+  pl_pin_subtitle:      'رمز PIN من 6 أرقام للدخول إلى نظام البيع',
+  pl_welcome:           'أهلاً بك! جارٍ فتح لوحة التحكم…',
+  pl_incorrect:         'رمز PIN غير صحيح. حاول مرة أخرى.',
+  pl_verifying:         'جارٍ التحقق…',
+  pl_tap_numbers:       'اضغط على الأرقام أدناه',
+  pl_clr:               'مسح',
+  pl_forgot:            'تواصل مع مديرك إذا نسيت رمز PIN.',
+  pl_change_account:    'تغيير حساب المطعم',
+  pl_install_app:       'تثبيت التطبيق',
+  pl_install_android:   'تثبيت تطبيق أندرويد',
+  pl_app_installed:     'تم تثبيت التطبيق',
 }
 
 export default ar

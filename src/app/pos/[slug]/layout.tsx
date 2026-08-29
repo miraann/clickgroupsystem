@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
+import { LanguageProvider } from '@/lib/i18n/LanguageContext'
 
 export async function generateMetadata(
   { params }: { params: Promise<{ slug: string }> }
@@ -29,5 +30,5 @@ export async function generateMetadata(
 }
 
 export default function PosSlugLayout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>
+  return <LanguageProvider>{children}</LanguageProvider>
 }

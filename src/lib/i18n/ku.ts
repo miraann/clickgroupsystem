@@ -1452,6 +1452,22 @@ const ku: Record<keyof typeof en, string> = {
   al_ent_reservation:        'حجزکردن',
   al_ent_receipt_settings:   'ڕێکخستنەکانی پسوڵە',
   al_ent_restaurant_info:    'زانیاری ڕێستۆرانت',
+
+  // ── چوونەژوورەوەی ستاف بە پین ─────────────────────────────────
+  pl_pos:                'خاڵی فرۆشتن',
+  pl_staff_login:       'چوونەژوورەوەی ستاف',
+  pl_enter_pin:         'پینەکەت بنووسە',
+  pl_pin_subtitle:      'پینی ٦ ژمارەیی ستاف بۆ چوونەناو سیستەم',
+  pl_welcome:           'بەخێربێیت! داشبۆرد دەکرێتەوە…',
+  pl_incorrect:         'پین هەڵەیە. دووبارە هەوڵبدەوە.',
+  pl_verifying:         'پشتڕاستکردنەوە…',
+  pl_tap_numbers:       'لە خوارەوە ژمارەکان دابگرە',
+  pl_clr:               'سڕینەوە',
+  pl_forgot:            'ئەگەر پینەکەت لەبیرکردووە پەیوەندی بە بەڕێوەبەرەکەت بکە.',
+  pl_change_account:    'گۆڕینی هەژماری ڕێستۆرانت',
+  pl_install_app:       'دامەزراندنی ئەپ',
+  pl_install_android:   'دامەزراندنی ئەپی ئەندرۆید',
+  pl_app_installed:     'ئەپ دامەزرا',
 }
 
 export default ku
