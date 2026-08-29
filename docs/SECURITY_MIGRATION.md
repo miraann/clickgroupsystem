@@ -10,7 +10,7 @@ signing certs and cannot be applied from code alone.
 
 | Finding | Change |
 |---|---|
-| C2, H1 | `src/middleware.ts` — server-side gate on `/dashboard/*` and `/seller/*` using the signed cookies. Client `AuthGuard` / `SellerAuthGuard` now verify the server cookie and no longer trust a `localStorage` flag. |
+| C2, H1 | `src/proxy.ts` (Next 16's middleware; already present) is the server-side gate on `/dashboard/*` and `/seller/*` using the signed cookies. Client `AuthGuard` / `SellerAuthGuard` now verify the server cookie and no longer trust a `localStorage` flag. (An added `src/middleware.ts` was removed — it duplicated `proxy.ts` and Next 16 rejects having both.) |
 | H2 | `upload/receipt-image` now requires a restaurant session, validates size (≤4 MB) + magic bytes, rejects SVG, and derives the storage path from the session (not a request field). `upload/selfie` (public, can't require auth) now caps at 3 MB, sniffs magic bytes, and returns a **signed** URL. |
 | H3 | `api/push/debug` deleted. |
 | H4 | `api/push/send`: unauthenticated callers (guest pages) can no longer choose the notification text or target a device, are throttled per-restaurant, and the push must correspond to a real recent event. Text is length-clamped. |

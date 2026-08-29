@@ -2,7 +2,7 @@
 // restaurant's Supabase auth user (provisioned by scripts/provision-auth-users.mjs
 // or the seller "create restaurant" route). This is what populates auth.uid()
 // so the tenant RLS policies apply. The signed __pos_restaurant cookie is still
-// set by the caller and remains the middleware gate / pre-migration fallback.
+// set by the caller and remains the proxy gate (src/proxy.ts) / pre-migration fallback.
 
 import 'server-only'
 import { createClient } from '@supabase/supabase-js'

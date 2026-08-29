@@ -11,7 +11,7 @@ export default function SellerAuthGuard({ children }: { children: React.ReactNod
 
   useEffect(() => {
     // Always verify the signed server cookie. The localStorage flag is a UX
-    // hint only and is never trusted for access control (see middleware.ts).
+    // hint only and is never trusted for access control (see src/proxy.ts).
     fetch('/api/seller/verify')
       .then(r => r.ok ? r.json() : null)
       .then(data => {

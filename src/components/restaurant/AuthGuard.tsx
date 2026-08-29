@@ -42,7 +42,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 
     if (sessionActive && (localStorage.getItem('pos_staff_id') || localStorage.getItem('owner_session') === 'true')) {
       // Confirm the signed server cookie before rendering. localStorage alone is
-      // not trusted — middleware.ts is the hard gate, this avoids a content flash
+      // not trusted — src/proxy.ts is the hard gate, this avoids a content flash
       // and handles a cleared/expired cookie.
       fetch('/api/restaurant/verify')
         .then(r => (r.ok ? r.json() : null))
