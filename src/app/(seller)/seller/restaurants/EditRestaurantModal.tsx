@@ -2,7 +2,6 @@
 import { useState } from 'react'
 import { X, Edit, Layers, Loader2, Eye, EyeOff } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { createClient } from '@/lib/supabase/client'
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch'
 import { MODULES, MODULE_CATEGORIES } from '@/lib/modules'
 import type { Restaurant } from './types'
@@ -29,8 +28,6 @@ const FIELDS = [
 ] as const
 
 export function EditRestaurantModal({ plans, restaurant, onClose, onSaved }: Props) {
-  const supabase = createClient()
-
   const s = restaurant.settings as Record<string, unknown>
   const [form, setForm] = useState({
     name:      restaurant.name,
@@ -74,20 +71,25 @@ export function EditRestaurantModal({ plans, restaurant, onClose, onSaved }: Pro
       setSaveError('Owner PIN must be exactly 6 digits.'); return
     }
     setSaving(true); setSaveError(null)
-    const settings: Record<string, unknown> = { ...(restaurant.settings ?? {}) }
-    if (form.ownerName.trim()) settings.owner_name = form.ownerName.trim()
-    if (form.password.trim())  settings.password   = form.password.trim()
-    if (form.ownerPin.trim())  settings.owner_pin  = form.ownerPin.trim()
-    settings.modules = modules
-    const { error } = await supabase.from('restaurants').update({
-      name:  form.name.trim(),
-      email: form.email.trim() || null,
-      phone: form.phone.trim() || null,
-      plan:  form.plan,
-      settings,
-    }).eq('id', restaurant.id)
+
+    const res = await fetch('/api/seller/restaurants', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id:        restaurant.id,
+        name:      form.name.trim(),
+        email:     form.email.trim() || undefined,
+        phone:     form.phone.trim(),
+        plan:      form.plan,
+        ownerName: form.ownerName.trim() || undefined,
+        password:  form.password.trim() || undefined,
+        ownerPin:  form.ownerPin.trim() || undefined,
+        modules,
+      }),
+    })
+    const data = await res.json().catch(() => ({}))
     setSaving(false)
-    if (error) { setSaveError(error.message); return }
+    if (!res.ok || !data.ok) { setSaveError(data.error ?? 'Failed to save changes.'); return }
     onSaved()
   }
 

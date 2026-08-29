@@ -49,7 +49,7 @@ export default function CFDPage() {
   useEffect(() => {
     if (!slug) return
     const init = async () => {
-      const { data: r } = await supabase.from('restaurants').select('id, name, logo_url').eq('menu_slug', slug).maybeSingle()
+      const { data: r } = await supabase.from('restaurant_public').select('id, name, logo_url').eq('menu_slug', slug).maybeSingle()
       if (!r) return
       setRest(r as Restaurant)
       setRestaurantId(r.id)

@@ -57,7 +57,7 @@ export default function POSLoginPage() {
   useEffect(() => {
     if (!slug) return
     supabase
-      .from('restaurants')
+      .from('restaurant_public')
       .select('id, name, logo_url')
       .eq('menu_slug', slug)
       .maybeSingle()

@@ -44,7 +44,7 @@ export default function POSEntry() {
   useEffect(() => {
     const load = async () => {
       try {
-        const { data: rest } = await supabase.from('restaurants').select('id,name').limit(1).maybeSingle()
+        const { data: rest } = await supabase.from('restaurant_public').select('id,name').limit(1).maybeSingle()
         if (!rest) return
         setRestaurantName(rest.name ?? 'Point of Sale')
         const { data } = await supabase

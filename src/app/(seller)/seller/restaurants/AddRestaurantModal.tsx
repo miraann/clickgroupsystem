@@ -1,7 +1,6 @@
 'use client'
 import { useState } from 'react'
 import { X, Store, Loader2, Eye, EyeOff } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
 import { EMPTY_FORM } from './types'
 import type { Plan } from '../plans/PlanModal'
 
@@ -14,13 +13,11 @@ interface Props {
 const FIELDS = [
   { label: 'Restaurant Name *', key: 'name',      placeholder: 'e.g. Spice Garden',        type: 'text'  },
   { label: 'Owner Full Name',   key: 'ownerName', placeholder: 'e.g. Ahmad Karimi',         type: 'text'  },
-  { label: 'Owner Email',       key: 'email',     placeholder: 'owner@restaurant.com',      type: 'email' },
+  { label: 'Owner Email *',     key: 'email',     placeholder: 'owner@restaurant.com',      type: 'email' },
   { label: 'Phone Number',      key: 'phone',     placeholder: '+964 XXX XXX XXXX',         type: 'tel'   },
 ] as const
 
 export function AddRestaurantModal({ plans, onClose, onSaved }: Props) {
-  const supabase = createClient()
-
   const defaultPlan = plans[0]?.slug ?? ''
   const [form, setForm]                 = useState({ ...EMPTY_FORM, plan: defaultPlan })
   const [showPassword, setShowPassword] = useState(false)
@@ -31,47 +28,35 @@ export function AddRestaurantModal({ plans, onClose, onSaved }: Props) {
 
   const handleSave = async () => {
     if (!form.name.trim()) return
-    if (form.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
-      setSaveError('Invalid email address.'); return
+    if (!form.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+      setSaveError('A valid owner email is required — it is the login username.'); return
     }
     if (form.phone.trim() && form.phone.replace(/[\s\-+()]/g, '').length < 7) {
       setSaveError('Phone number is too short.'); return
     }
-    if (form.password.length > 0 && form.password.length < 8) {
+    if (form.password.trim().length < 8) {
       setSaveError('Password must be at least 8 characters.'); return
     }
     setSaving(true); setSaveError(null)
-    const settings: Record<string, unknown> = {}
-    if (form.ownerName.trim()) settings.owner_name = form.ownerName.trim()
-    if (form.password.trim())  settings.password   = form.password.trim()
 
-    // Apply selected plan's module permissions
     const selectedPlan = plans.find(p => p.slug === form.plan)
-    if (selectedPlan) settings.modules = selectedPlan.modules
 
-    const { data: newRest, error } = await supabase.from('restaurants').insert({
-      name:   form.name.trim(),
-      email:  form.email.trim() || null,
-      phone:  form.phone.trim() || null,
-      plan:   form.plan,
-      status: 'active',
-      settings,
-    }).select('id').single()
+    const res = await fetch('/api/seller/restaurants', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name:      form.name.trim(),
+        email:     form.email.trim(),
+        phone:     form.phone.trim() || undefined,
+        plan:      form.plan,
+        password:  form.password.trim(),
+        ownerName: form.ownerName.trim() || undefined,
+        modules:   selectedPlan?.modules,
+      }),
+    })
+    const data = await res.json().catch(() => ({}))
     setSaving(false)
-    if (error) { setSaveError(error.message); return }
-
-    if (newRest?.id) {
-      await Promise.all([
-        supabase.from('currencies').insert({
-          restaurant_id: newRest.id, name: 'Iraqi Dinar', symbol: 'IQD',
-          decimal_places: 0, is_default: true, sort_order: 0,
-        }),
-        supabase.from('payment_methods').insert({
-          restaurant_id: newRest.id, name: 'کاش', icon_type: 'cash',
-          active: true, is_default: true, sort_order: 0,
-        }),
-      ])
-    }
+    if (!res.ok || !data.ok) { setSaveError(data.error ?? 'Failed to create restaurant.'); return }
 
     onSaved()
   }

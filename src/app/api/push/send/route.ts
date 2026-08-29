@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import webpush from 'web-push'
 import { createClient } from '@/lib/supabase/server'
 import { rateLimit } from '@/lib/rate-limit'
+import { getRestaurantSession } from '@/lib/api-auth'
 
 // ── VAPID (browser web push) ──────────────────────────────────────
 function initVapid() {
@@ -110,6 +111,8 @@ const NOTIF_META: Record<NotifType, { title: string; body: string; url: string }
 const ICON  = '/logo/android/launchericon-192x192.png'
 const BADGE = '/logo/android/launchericon-96x96.png'
 
+const clampText = (s: string) => s.replace(/[\r\n\t]+/g, ' ').trim().slice(0, 140)
+
 // ── Route handler ─────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
   // Rate-limit: max 30 push sends per minute per IP
@@ -130,6 +133,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing or invalid fields' }, { status: 400 })
     }
 
+    // Trusted = a signed-in member of THIS restaurant (dashboard / POS).
+    // Untrusted = the public guest-menu / waiter-call / delivery-order pages,
+    // which legitimately need to fire this endpoint but must not be able to
+    // choose the notification text or target a specific device.
+    const session = await getRestaurantSession()
+    const trusted = !!session && session.rid === restaurant_id
+
     const supabase = await createClient()
 
     // Verify restaurant exists and fetch settings in one query
@@ -140,6 +150,26 @@ export async function POST(req: NextRequest) {
       .maybeSingle()
 
     if (!restaurant) return NextResponse.json({ error: 'Restaurant not found' }, { status: 404 })
+
+    if (!trusted) {
+      // Per-restaurant throttle for the public path.
+      if (!rateLimit(req, `push/send:rid:${restaurant_id}`, 12, 60_000)) {
+        return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+      }
+      // Tie the notification to a real, recent event so it can't be used as a
+      // standalone spam trigger. Failing open on a query error keeps the
+      // feature working if the schema differs.
+      const since = new Date(Date.now() - 5 * 60_000).toISOString()
+      const evTable = type === 'waiter' ? 'waiter_calls' : 'orders'
+      const { count, error: evErr } = await supabase
+        .from(evTable)
+        .select('id', { count: 'exact', head: true })
+        .eq('restaurant_id', restaurant_id)
+        .gte('created_at', since)
+      if (!evErr && (count ?? 0) === 0) {
+        return NextResponse.json({ ok: true, skipped: 'no recent event' })
+      }
+    }
 
     // Check per-type notification preference
     const settings = (restaurant.settings as Record<string, unknown>) ?? {}
@@ -152,17 +182,17 @@ export async function POST(req: NextRequest) {
       .select('endpoint, type, subscription')
       .eq('restaurant_id', restaurant_id)
 
-    // Driver dispatch: target only the assigned staff member's device(s)
-    // instead of broadcasting to every subscription on the restaurant.
-    if (staff_id) subsQuery = subsQuery.eq('staff_id', staff_id)
+    // Driver dispatch: target only the assigned staff member's device(s).
+    // Only trusted callers (the dashboard) may narrow the target.
+    if (trusted && staff_id) subsQuery = subsQuery.eq('staff_id', staff_id)
 
     const { data: subs } = await subsQuery
 
     if (!subs?.length) return NextResponse.json({ ok: true, sent: 0 })
 
     const { url } = NOTIF_META[type]
-    const title = customTitle ?? NOTIF_META[type].title
-    const body = customBody ?? NOTIF_META[type].body
+    const title = clampText(trusted ? (customTitle ?? NOTIF_META[type].title) : NOTIF_META[type].title)
+    const body = clampText(trusted ? (customBody ?? NOTIF_META[type].body) : NOTIF_META[type].body)
 
     const staleEndpoints: string[] = []
     let sent = 0

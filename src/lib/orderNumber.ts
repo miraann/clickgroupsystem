@@ -1,11 +1,30 @@
 import { SupabaseClient } from '@supabase/supabase-js'
 
 /**
- * Generates the next order number from order_number_settings,
- * increments the counter, and writes it to the orders record.
- * Returns the generated string (e.g. "ORD-008").
+ * Generates the next order number from order_number_settings, increments the
+ * counter, and writes it to the orders record. Returns the generated string
+ * (e.g. "ORD-008").
+ *
+ * Prefers the `guest_assign_order_number` SECURITY DEFINER function (added in
+ * 20260829_02_tenant_rls.sql) so the guest / QR flow doesn't need anon UPDATE
+ * rights. Falls back to the direct client path when that function isn't present
+ * (pre-migration, or the offline-queue replay path).
  */
 export async function assignOrderNumber(
+  supabase: SupabaseClient,
+  restaurantId: string,
+  orderId: string,
+): Promise<string> {
+  const { data, error } = await supabase.rpc('guest_assign_order_number', {
+    p_restaurant_id: restaurantId,
+    p_order_id: orderId,
+  })
+  if (!error && typeof data === 'string' && data) return data
+
+  return legacyAssignOrderNumber(supabase, restaurantId, orderId)
+}
+
+async function legacyAssignOrderNumber(
   supabase: SupabaseClient,
   restaurantId: string,
   orderId: string,

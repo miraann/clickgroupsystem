@@ -5,6 +5,8 @@ import {
   verifyPendingToken, RESTAURANT_PENDING_COOKIE,
   createRestaurantToken, RESTAURANT_COOKIE,
 } from '@/lib/session'
+import { verifySecret } from '@/lib/crypto'
+import { attachRestaurantSupabaseSession } from '@/lib/supabase/session-bridge'
 
 function serviceClient() {
   return createClient(
@@ -36,24 +38,25 @@ export async function POST(req: NextRequest) {
     }
 
     const supabase = serviceClient()
-    const { data: restaurant } = await supabase
-      .from('restaurants')
-      .select('id, name, menu_slug, settings')
-      .eq('id', rid)
-      .maybeSingle()
+    const [{ data: restaurant }, { data: secretRow }] = await Promise.all([
+      supabase.from('restaurants').select('id, name, menu_slug, settings').eq('id', rid).maybeSingle(),
+      supabase.from('restaurant_secrets').select('owner_pin_hash').eq('restaurant_id', rid).maybeSingle(),
+    ])
 
     if (!restaurant) {
       return NextResponse.json({ error: 'Restaurant not found.' }, { status: 404 })
     }
 
     const settings = (restaurant.settings ?? {}) as Record<string, unknown>
-    const ownerPin = settings.owner_pin as string | undefined
+    const pinHash = secretRow?.owner_pin_hash as string | undefined
+    const legacyPin = settings.owner_pin as string | undefined
 
-    if (!ownerPin) {
+    if (!pinHash && !legacyPin) {
       return NextResponse.json({ error: 'No PIN configured. Ask your seller administrator to set an owner PIN.' }, { status: 403 })
     }
 
-    if (pin !== ownerPin) {
+    const pinOk = pinHash ? await verifySecret(pin, pinHash) : pin === legacyPin
+    if (!pinOk) {
       return NextResponse.json({ error: 'Incorrect PIN.' }, { status: 401 })
     }
 
@@ -84,6 +87,10 @@ export async function POST(req: NextRequest) {
       path:     '/',
       maxAge:   0,
     })
+
+    // Mint a real Supabase session so RLS (auth.uid()) applies in the browser.
+    const bridge = await attachRestaurantSupabaseSession(req, res, restaurant.id)
+    if (bridge !== 'ok') console.warn('[verify-pin] supabase session not attached:', bridge)
 
     return res
   } catch {

@@ -10,7 +10,7 @@ export async function generateMetadata(
   try {
     const supabase = await createClient()
     const { data } = await supabase
-      .from('restaurants')
+      .from('restaurant_public')
       .select('name')
       .eq('menu_slug', slug)
       .maybeSingle()

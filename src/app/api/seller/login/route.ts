@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { rateLimit } from '@/lib/rate-limit'
 import { createSellerToken, SELLER_COOKIE } from '@/lib/session'
+import { timingSafeEqualStr } from '@/lib/crypto'
 
 export async function POST(req: NextRequest) {
   if (!rateLimit(req, 'seller/login', 1, 60_000)) {
@@ -15,7 +16,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Seller password not configured.' }, { status: 500 })
     }
 
-    if (!password || password !== sellerPassword) {
+    if (typeof password !== 'string' || !timingSafeEqualStr(password, sellerPassword)) {
       return NextResponse.json({ error: 'Incorrect password.' }, { status: 401 })
     }
 

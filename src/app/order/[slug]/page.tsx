@@ -676,7 +676,7 @@ export default function DeliveryOrderPage() {
 
   useEffect(() => {
     if (!slug) return
-    supabase.from('restaurants').select('id').eq('menu_slug', slug).maybeSingle()
+    supabase.from('restaurant_public').select('id').eq('menu_slug', slug).maybeSingle()
       .then(({ data }) => { if (data?.id) setRestaurantId(data.id) })
   }, [slug]) // eslint-disable-line react-hooks/exhaustive-deps
 

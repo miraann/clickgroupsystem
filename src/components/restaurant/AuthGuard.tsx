@@ -1,7 +1,6 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 
 const STAFF_KEYS = [
   'pos_staff_id', 'pos_staff_name', 'pos_staff_role', 'pos_staff_color',
@@ -42,16 +41,23 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
       sessionStorage.getItem('pos_session_active') === '1' || isSessionFresh()
 
     if (sessionActive && (localStorage.getItem('pos_staff_id') || localStorage.getItem('owner_session') === 'true')) {
-      // Active session — verify the restaurant still exists in the background
-      setReady(true)
-      const supabase = createClient()
-      supabase.from('restaurants').select('id').eq('id', restaurantId).maybeSingle()
-        .then(({ data }) => {
-          if (!data) {
+      // Confirm the signed server cookie before rendering. localStorage alone is
+      // not trusted — middleware.ts is the hard gate, this avoids a content flash
+      // and handles a cleared/expired cookie.
+      fetch('/api/restaurant/verify')
+        .then(r => (r.ok ? r.json() : null))
+        .then(data => {
+          if (!data?.ok) {
             clearStaffSession()
             fetch('/api/restaurant/logout', { method: 'POST' }).catch(() => {})
             router.replace(`/pos/${slug}/login`)
+            return
           }
+          setReady(true)
+        })
+        .catch(() => {
+          clearStaffSession()
+          router.replace(`/pos/${slug}/login`)
         })
       return
     }

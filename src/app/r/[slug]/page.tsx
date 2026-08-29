@@ -129,7 +129,7 @@ export default function PublicMenuPage() {
 
   useEffect(() => {
     if (!slug) return
-    createClient().from('restaurants').select('id').eq('menu_slug', slug).maybeSingle()
+    createClient().from('restaurant_public').select('id').eq('menu_slug', slug).maybeSingle()
       .then(({ data }) => { if (data?.id) setRestaurantId(data.id) })
   }, [slug])
 

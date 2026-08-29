@@ -5,13 +5,67 @@ const path = require('path')
 const fs   = require('fs')
 const { exec } = require('child_process')
 
-const APP_URL      = 'https://clickgroupsystem.vercel.app/dashboard'
+const APP_BASE     = 'https://clickgroupsystem.vercel.app'
+const APP_URL      = `${APP_BASE}/dashboard`
+const ALLOWED_ORIGIN = new URL(APP_BASE).origin
+
+// True only when an IPC message originates from a frame served by our own site.
+// Blocks a redirected / compromised page from driving local printers or the LAN scan.
+function fromTrustedFrame(event) {
+  try {
+    const url = event.senderFrame?.url || ''
+    if (url.startsWith('blob:') || url.startsWith('about:')) return true
+    return new URL(url).origin === ALLOWED_ORIGIN
+  } catch {
+    return false
+  }
+}
 const PRINTER_PORTS = [9100, 631, 515]
 const SCAN_TIMEOUT  = 300  // ms per port probe
 const BATCH_SIZE    = 40   // concurrent host probes
 
 let mainWindow = null
 let tray       = null
+
+// ── Persisted login state ─────────────────────────────────────────────────────
+// Remembers which restaurant this device is bound to so the app opens straight
+// on the staff PIN screen after the first email login. Lives in userData, so it
+// survives app restarts / updates and is only removed when the app is
+// uninstalled (or the user picks "Change restaurant account").
+const STATE_FILE = path.join(app.getPath('userData'), 'clickgroup-login.json')
+
+function readSavedSlug() {
+  try {
+    const raw = fs.readFileSync(STATE_FILE, 'utf8')
+    const slug = JSON.parse(raw).slug
+    return (typeof slug === 'string' && slug.trim()) ? slug.trim() : null
+  } catch {
+    return null
+  }
+}
+
+function saveSlug(slug) {
+  try {
+    if (slug && slug.trim()) {
+      fs.writeFileSync(STATE_FILE, JSON.stringify({ slug: slug.trim() }), 'utf8')
+    }
+  } catch { /* ignore */ }
+}
+
+function clearSavedSlug() {
+  try { fs.unlinkSync(STATE_FILE) } catch { /* ignore */ }
+}
+
+// Pull the restaurant slug the web app stored in localStorage and persist it.
+async function syncSlugFromPage() {
+  if (!mainWindow) return
+  try {
+    const slug = await mainWindow.webContents.executeJavaScript(
+      'localStorage.getItem("restaurant_slug")', true,
+    )
+    if (slug) saveSlug(slug)
+  } catch { /* ignore */ }
+}
 
 // ── Window ────────────────────────────────────────────────────────────────────
 function createWindow() {
@@ -29,8 +83,23 @@ function createWindow() {
     },
   })
 
-  mainWindow.loadURL(APP_URL)
+  // If this device already logged in once, open straight on the staff PIN
+  // screen; otherwise show the first-time restaurant (email) login.
+  const savedSlug = readSavedSlug()
+  mainWindow.loadURL(savedSlug ? `${APP_BASE}/pos/${savedSlug}/login` : APP_URL)
   mainWindow.setMenuBarVisibility(false)
+
+  // Keep the saved slug in sync with the web app's localStorage. After any
+  // navigation we read restaurant_slug back out and persist it, and if the user
+  // deliberately goes to the restaurant-login page we forget the binding.
+  mainWindow.webContents.on('did-finish-load', () => {
+    const url = mainWindow.webContents.getURL()
+    if (url.includes('/restaurant-login')) {
+      clearSavedSlug()
+    } else {
+      syncSlugFromPage()
+    }
+  })
 
   // Minimize to tray instead of closing
   mainWindow.on('close', (e) => {
@@ -40,14 +109,26 @@ function createWindow() {
     }
   })
 
-  // blob:/about:/data: stay inside Electron; everything else opens in the default browser
+  // blob:/about: (print preview) stay inside Electron; our own origin stays;
+  // everything else — including data: — opens in the default browser.
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith('blob:') || url.startsWith('about:') || url.startsWith('data:')) {
-      return { action: 'allow' }
-    }
+    if (url.startsWith('blob:') || url.startsWith('about:')) return { action: 'allow' }
+    try {
+      if (new URL(url).origin === ALLOWED_ORIGIN) return { action: 'allow' }
+    } catch { /* fall through */ }
     shell.openExternal(url)
     return { action: 'deny' }
   })
+
+  // Never let the main window navigate away from our origin.
+  const blockOffOrigin = (e, url) => {
+    try {
+      if (new URL(url).origin !== ALLOWED_ORIGIN) { e.preventDefault(); shell.openExternal(url) }
+    } catch { e.preventDefault() }
+  }
+  mainWindow.webContents.on('will-navigate', blockOffOrigin)
+  mainWindow.webContents.on('will-redirect', blockOffOrigin)
+  mainWindow.webContents.on('will-attach-webview', (e) => e.preventDefault())
 }
 
 // ── System tray ───────────────────────────────────────────────────────────────
@@ -266,8 +347,15 @@ function printBytes(base64Bytes, ip, port) {
 
 // ── App lifecycle ─────────────────────────────────────────────────────────────
 app.whenReady().then(() => {
-  // Register IPC handlers inside whenReady to ensure main process context
-  ipcMain.handle('scan-network', async () => {
+  // Wrap every IPC handler with an origin check on the calling frame.
+  const handle = (channel, fn) => {
+    ipcMain.handle(channel, async (event, args) => {
+      if (!fromTrustedFrame(event)) return { ok: false, devices: [], error: 'blocked: untrusted frame' }
+      return fn(event, args)
+    })
+  }
+
+  handle('scan-network', async () => {
     try {
       return { devices: await scanNetwork() }
     } catch (e) {
@@ -275,7 +363,7 @@ app.whenReady().then(() => {
     }
   })
 
-  ipcMain.handle('print-bytes', async (_, { base64Bytes, ip, port }) => {
+  handle('print-bytes', async (_, { base64Bytes, ip, port }) => {
     try {
       return await printBytes(base64Bytes, ip, port)
     } catch (e) {
@@ -283,7 +371,7 @@ app.whenReady().then(() => {
     }
   })
 
-  ipcMain.handle('scan-usb', async () => {
+  handle('scan-usb', async () => {
     try {
       return { devices: await scanSystemPrinters() }
     } catch (e) {
@@ -291,7 +379,7 @@ app.whenReady().then(() => {
     }
   })
 
-  ipcMain.handle('print-windows-printer', async (_, { base64Bytes, printerName }) => {
+  handle('print-windows-printer', async (_, { base64Bytes, printerName }) => {
     try {
       return await printWindowsPrinter(base64Bytes, printerName)
     } catch (e) {
@@ -299,7 +387,7 @@ app.whenReady().then(() => {
     }
   })
 
-  ipcMain.handle('test-connection', async (_, { ip, port }) => {
+  handle('test-connection', async (_, { ip, port }) => {
     return new Promise(resolve => {
       const sock = new net.Socket()
       let done = false

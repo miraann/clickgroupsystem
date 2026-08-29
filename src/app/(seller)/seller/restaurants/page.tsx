@@ -9,7 +9,6 @@ import {
 import { SkeletonList } from '@/components/ui/SkeletonList'
 import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
-import { createClient } from '@/lib/supabase/client'
 import type { Restaurant } from './types'
 import { AddRestaurantModal } from './AddRestaurantModal'
 import { EditRestaurantModal } from './EditRestaurantModal'
@@ -27,8 +26,6 @@ const PLAN_BG: Record<string, string> = {
 }
 
 export default function RestaurantsPage() {
-  const supabase = createClient()
-
   const [restaurants, setRestaurants]   = useState<Restaurant[]>([])
   const [plans, setPlans]               = useState<Plan[]>([])
   const [loading, setLoading]           = useState(true)
@@ -40,20 +37,17 @@ export default function RestaurantsPage() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const [{ data: rData }, { data: pData }] = await Promise.all([
-      supabase
-        .from('restaurants')
-        .select('id, name, email, phone, plan, status, created_at, settings')
-        .order('created_at', { ascending: false }),
-      supabase
-        .from('plans')
-        .select('*')
-        .order('sort_order', { ascending: true }),
-    ])
-    setRestaurants((rData ?? []) as Restaurant[])
-    setPlans((pData ?? []) as Plan[])
+    try {
+      const res = await fetch('/api/seller/restaurants')
+      const data = res.ok ? await res.json() : { restaurants: [], plans: [] }
+      setRestaurants((data.restaurants ?? []) as Restaurant[])
+      setPlans((data.plans ?? []) as Plan[])
+    } catch {
+      setRestaurants([])
+      setPlans([])
+    }
     setLoading(false)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => { load() }, [load])
 
@@ -66,15 +60,25 @@ export default function RestaurantsPage() {
 
   const handleStatusToggle = async (r: Restaurant) => {
     const next = r.status === 'active' ? 'suspended' : 'active'
-    await supabase.from('restaurants').update({ status: next }).eq('id', r.id)
-    setRestaurants(prev => prev.map(x => x.id === r.id ? { ...x, status: next as RestaurantStatus } : x))
+    const res = await fetch('/api/seller/restaurants', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: r.id, status: next }),
+    })
+    if (res.ok) {
+      setRestaurants(prev => prev.map(x => x.id === r.id ? { ...x, status: next as RestaurantStatus } : x))
+    }
     setActiveMenu(null)
   }
 
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this restaurant? This cannot be undone.')) return
-    await supabase.from('restaurants').delete().eq('id', id)
-    setRestaurants(prev => prev.filter(x => x.id !== id))
+    const res = await fetch('/api/seller/restaurants', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    })
+    if (res.ok) setRestaurants(prev => prev.filter(x => x.id !== id))
     setActiveMenu(null)
   }
 

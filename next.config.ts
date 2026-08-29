@@ -23,9 +23,36 @@ const nextConfig: NextConfig = {
     formats: ['image/webp', 'image/avif'],
   },
   async headers() {
+    // Content-Security-Policy is shipped in Report-Only mode first so it cannot
+    // break WebUSB / Web Bluetooth printing, Supabase realtime, or face-api.
+    // Watch the browser console / a report endpoint, then rename the header to
+    // `Content-Security-Policy` to enforce.
+    const csp = [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval'",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "font-src 'self' data: https://fonts.gstatic.com",
+      "img-src 'self' data: blob: https://*.supabase.co",
+      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://oauth2.googleapis.com https://fcm.googleapis.com",
+      "worker-src 'self' blob:",
+      "frame-ancestors 'self'",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "object-src 'none'",
+    ].join('; ')
+
+    const securityHeaders = [
+      { key: 'X-Content-Type-Options', value: 'nosniff' },
+      { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+      { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+      { key: 'X-DNS-Prefetch-Control', value: 'on' },
+      { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
+      { key: 'Permissions-Policy', value: 'camera=(self), microphone=(), geolocation=(self), usb=(self), bluetooth=(self), serial=(self)' },
+      { key: 'Content-Security-Policy-Report-Only', value: csp },
+    ]
+
     return [
       {
-        // Service worker must never be cached — browser checks for updates on each load
         source: '/sw.js',
         headers: [
           { key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' },
@@ -33,11 +60,14 @@ const nextConfig: NextConfig = {
         ],
       },
       {
-        // Manifest can be cached briefly
         source: '/manifest.json',
         headers: [
           { key: 'Cache-Control', value: 'public, max-age=86400' },
         ],
+      },
+      {
+        source: '/:path*',
+        headers: securityHeaders,
       },
     ]
   },

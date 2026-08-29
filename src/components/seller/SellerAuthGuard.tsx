@@ -10,17 +10,16 @@ export default function SellerAuthGuard({ children }: { children: React.ReactNod
   const [ready, setReady] = useState(false)
 
   useEffect(() => {
-    // Fast path: localStorage session present
-    if (localStorage.getItem('seller_session') === 'true') {
-      setReady(true)
-      return
-    }
-
-    // Fallback: verify via server cookie (handles localStorage-cleared edge case)
+    // Always verify the signed server cookie. The localStorage flag is a UX
+    // hint only and is never trusted for access control (see middleware.ts).
     fetch('/api/seller/verify')
       .then(r => r.ok ? r.json() : null)
       .then(data => {
-        if (!data?.ok) { router.replace('/seller-login'); return }
+        if (!data?.ok) {
+          localStorage.removeItem('seller_session')
+          router.replace('/seller-login')
+          return
+        }
         localStorage.setItem('seller_session', 'true')
         setReady(true)
       })

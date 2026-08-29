@@ -83,8 +83,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No restaurant found with this email address.' }, { status: 401 })
     }
 
+    const { data: secretRow } = await supabase
+      .from('restaurant_secrets')
+      .select('password_hash, owner_pin_hash')
+      .eq('restaurant_id', restaurant.id)
+      .maybeSingle()
+
     const settings = (restaurant.settings ?? {}) as Record<string, unknown>
-    const storedPassword = settings.password as string | undefined
+    // Prefer the hash in restaurant_secrets; fall back to the legacy
+    // settings.password so this keeps working before secrets are stripped.
+    const storedPassword = (secretRow?.password_hash as string | undefined) ?? (settings.password as string | undefined)
 
     if (!storedPassword) {
       return NextResponse.json({ error: 'No password set. Contact support.' }, { status: 401 })
@@ -95,17 +103,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Incorrect password.' }, { status: 401 })
     }
 
-    // One-time migration: hash any plaintext password found
+    // One-time migration: hash any plaintext password into restaurant_secrets
+    // (never back into settings).
     if (!storedPassword.startsWith('pbkdf2:')) {
       const hashed = await hashPassword(password.trim())
       await supabase
-        .from('restaurants')
-        .update({ settings: { ...settings, password: hashed } })
-        .eq('id', restaurant.id)
+        .from('restaurant_secrets')
+        .upsert({ restaurant_id: restaurant.id, password_hash: hashed, updated_at: new Date().toISOString() })
     }
 
     // Always require PIN step — issue a 5-min pending token and redirect to PIN page
-    const hasPin = !!(settings.owner_pin as string | undefined)
+    const hasPin = !!(secretRow?.owner_pin_hash as string | undefined) || !!(settings.owner_pin as string | undefined)
     const pendingToken = await createPendingToken(restaurant.id)
     const res = NextResponse.json({
       requirePin: true,

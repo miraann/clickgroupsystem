@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { rateLimit } from '@/lib/rate-limit'
+import { requireRestaurant, serverError } from '@/lib/api-auth'
 
 export const runtime = 'nodejs'
 
@@ -26,34 +27,23 @@ export async function POST(req: NextRequest) {
       isOwner?:        boolean        // owner session auth
     }
 
+    // Auth: require a valid signed restaurant session bound to this restaurant.
+    // `isOwner` from the request body is no longer trusted.
+    const { session, error: authErr } = await requireRestaurant(body.restaurantId)
+    if (authErr) return authErr
+
     const supabase = await createClient()
     let pinStaffName: string | null = null
-    let authorized = false
 
-    // Owner session (localStorage owner_session flag) — verify restaurant exists
-    if (body.isOwner) {
-      const { data: rest } = await supabase
-        .from('restaurants').select('id')
-        .eq('id', body.restaurantId).maybeSingle()
-      if (rest) authorized = true
-    }
-
-    // PIN staff — verify active staff belongs to this restaurant
-    if (!authorized && body.staffId) {
+    // Resolve the cashier name from the staff row, scoped to the session's restaurant.
+    if (body.staffId) {
       const { data: staffRecord } = await supabase
         .from('staff').select('id, name')
         .eq('id', body.staffId)
-        .eq('restaurant_id', body.restaurantId)
+        .eq('restaurant_id', session.rid)
         .eq('status', 'active')
         .maybeSingle()
-      if (staffRecord) {
-        authorized = true
-        pinStaffName = staffRecord.name
-      }
-    }
-
-    if (!authorized) {
-      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 })
+      if (staffRecord) pinStaffName = staffRecord.name
     }
 
     // 1. Real subtotal from DB — never trust client-supplied prices
@@ -63,7 +53,7 @@ export async function POST(req: NextRequest) {
       .eq('order_id', body.orderId)
       .neq('status', 'void')
 
-    if (itemsErr) return NextResponse.json({ ok: false, error: itemsErr.message }, { status: 500 })
+    if (itemsErr) return serverError(itemsErr)
     if (!orderItems || orderItems.length === 0) {
       return NextResponse.json({ ok: false, error: 'No items on this order' }, { status: 400 })
     }
@@ -134,7 +124,7 @@ export async function POST(req: NextRequest) {
     const now          = new Date().toISOString()
 
     // 6. Resolve cashier name
-    const cashier = pinStaffName ?? (body.isOwner ? 'Owner' : 'Staff')
+    const cashier = pinStaffName ?? (session.role === 'owner' ? 'Owner' : 'Staff')
 
     // 7. Fetch order_num for the invoice
     const { data: order } = await supabase
@@ -158,9 +148,7 @@ export async function POST(req: NextRequest) {
       })
       .eq('id', body.orderId)
 
-    if (orderErr) {
-      return NextResponse.json({ ok: false, error: `Order update failed: ${orderErr.message}` }, { status: 500 })
-    }
+    if (orderErr) return serverError(orderErr)
 
     // Mark table as dirty (needs cleaning) — skip for takeout/delivery
     const tableSeq = parseInt(body.tableNum)
@@ -272,7 +260,6 @@ export async function POST(req: NextRequest) {
     })
 
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Payment finalization failed'
-    return NextResponse.json({ ok: false, error: message }, { status: 500 })
+    return serverError(err)
   }
 }

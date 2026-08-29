@@ -18,7 +18,7 @@ export default function CFDSetup() {
   useEffect(() => {
     if (!slug) return
     const load = async () => {
-      const { data: slugRow } = await supabase.from('restaurants').select('id, name').eq('menu_slug', slug).maybeSingle()
+      const { data: slugRow } = await supabase.from('restaurant_public').select('id, name').eq('menu_slug', slug).maybeSingle()
       if (!slugRow) return
       setRestaurantId(slugRow.id)
       setRestName(slugRow.name ?? '')

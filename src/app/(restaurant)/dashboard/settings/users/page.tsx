@@ -592,8 +592,8 @@ export default function UsersPage() {
           <Users className="w-5 h-5 text-amber-400" />
         </div>
         <div>
-          <h1 className="text-lg font-bold text-white">Users</h1>
-          <p className="text-xs text-white/40">Manage staff accounts and role permissions</p>
+          <h1 className="text-lg font-bold text-white">{t.usr_title}</h1>
+          <p className="text-xs text-white/40">{t.usr_subtitle}</p>
         </div>
       </motion.div>
 
@@ -604,7 +604,7 @@ export default function UsersPage() {
         transition={{ delay: 0.12, duration: 0.42, ease: 'circOut' }}
         className="flex gap-1 mb-6 p-1 rounded-xl bg-white/4 border border-white/8 w-fit"
       >
-        {([['staff', 'Staff', Users], ['roles', 'Role Permissions', Shield]] as const).map(([tab, label, Icon]) => (
+        {([['staff', t.usr_staff_tab, Users], ['roles', t.usr_roles_tab, Shield]] as const).map(([tab, label, Icon]) => (
           <button key={tab} onClick={() => switchPageTab(tab)}
             className={cn('flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all',
               pageTab === tab ? 'bg-amber-500 text-white shadow-sm' : 'text-white/40 hover:text-white/70')}>
@@ -624,21 +624,21 @@ export default function UsersPage() {
           transition={{ duration: 0.28, ease: 'circOut' }}
         >
           <div className="flex items-center justify-between mb-4">
-            <span className="px-2 py-0.5 rounded-full bg-white/8 text-xs text-white/50">{users.length} staff</span>
+            <span className="px-2 py-0.5 rounded-full bg-white/8 text-xs text-white/50">{users.length} {t.usr_staff_count}</span>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setShowQR(true)}
                 className="flex items-center gap-2 px-3 py-2 bg-white/6 hover:bg-white/10 border border-white/10 hover:border-white/20 text-white/60 hover:text-white text-sm font-medium rounded-xl active:scale-95 transition-all"
                 title="Show POS Login QR Code"
               >
-                <QrCode className="w-4 h-4" /> POS QR
+                <QrCode className="w-4 h-4" /> {t.usr_pos_qr}
               </button>
               <button
                 onClick={handleInstall}
                 title="Install POS App on staff devices"
                 className="flex items-center gap-2 px-3 py-2 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 hover:border-indigo-500/40 text-indigo-300 hover:text-indigo-200 text-sm font-medium rounded-xl active:scale-95 transition-all"
               >
-                <Download className="w-4 h-4" /> Install App
+                <Download className="w-4 h-4" /> {t.usr_install_app}
               </button>
               <button onClick={openAdd}
                 className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-xl active:scale-95 transition-all shadow-lg shadow-amber-500/20">
@@ -655,7 +655,7 @@ export default function UsersPage() {
 
           <div className="flex justify-end mb-3">
             <button onClick={() => setShowPins(p => !p)} className="flex items-center gap-1.5 text-xs text-white/30 hover:text-white/60 transition-colors">
-              <Key className="w-3.5 h-3.5" />{showPins ? 'Hide PINs' : 'Show PINs'}
+              <Key className="w-3.5 h-3.5" />{showPins ? t.usr_hide_pins : t.usr_show_pins}
             </button>
           </div>
 
