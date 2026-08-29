@@ -650,6 +650,15 @@ const en = {
   fin_revenue:          'Revenue',
   fin_expenses:         'Expenses',
   fin_sales:            'Sales',
+  fin_export_csv:       'Export CSV',
+  fin_today:            'Today',
+  fin_this_week:        'This Week',
+  fin_this_month:       'This Month',
+  fin_this_year:        'This Year',
+  fin_custom:           'Custom',
+  fin_to:               'to',
+  fin_apply:            'Apply',
+  fin_other:            'Other',
 
   // ── Sales page ────────────────────────────────────────────────
   sales_title:          'Sales',

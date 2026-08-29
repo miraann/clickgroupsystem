@@ -1,8 +1,10 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { X, Printer, Loader2, ImageIcon } from 'lucide-react'
+import { X, Printer, Loader2, ImageIcon, CheckCircle2, AlertCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
+import { browserPrint } from '@/lib/webusb-print'
+import { getAndroidTcp } from '@/lib/android-tcp'
 
 interface StoredInvoice {
   id: string
@@ -55,6 +57,8 @@ export default function InvoiceViewModal({ invoice, restaurantId, onClose }: Pro
     show_logo: true, show_address: true, show_phone: true,
   })
   const [restaurantName, setRestaurantName] = useState('')
+  const [printStatus, setPrintStatus] = useState<'idle' | 'sending' | 'ok' | 'error'>('idle')
+  const [printError, setPrintError]   = useState('')
 
   useEffect(() => {
     const load = async () => {
@@ -85,7 +89,125 @@ export default function InvoiceViewModal({ invoice, restaurantId, onClose }: Pro
     load()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handlePrint = () => {
+  // ── ESC/POS hardware print via the configured Receipt / Cashier printer ──
+  const handleHardwarePrint = async (): Promise<boolean> => {
+    setPrintStatus('sending')
+    setPrintError('')
+    const ts = new Date(invoice.created_at)
+    try {
+      const allItems        = invoice.items ?? []
+      const regularItems    = allItems.filter(it => !it.isDeliveryFee)
+      const deliveryFeeItem = allItems.find(it => it.isDeliveryFee)
+
+      const res = await fetch('/api/print/receipt', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          restaurantId,
+          tableNum:      invoice.table_num ?? '',
+          guests:        invoice.guests,
+          invoiceNum:    invoice.invoice_num,
+          orderNum:      invoice.order_num ?? '',
+          cashier:       invoice.cashier ?? '',
+          dateStr:       ts.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }),
+          timeStr:       ts.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
+          items:         regularItems.map(it => ({ name: it.name, qty: it.qty, price: it.price })),
+          subtotal:      Number(invoice.subtotal),
+          discount:      Number(invoice.discount),
+          surcharge:     deliveryFeeItem ? Number(deliveryFeeItem.price) : 0,
+          total:         Number(invoice.total),
+          paymentMethod: invoice.payment_method ?? '—',
+          amountPaid:    Number(invoice.amount_paid),
+          change:        Number(invoice.change_amount),
+          note:          null,
+          mode:          'receipt',
+          qrUrl:         rs.show_qr ? (rs.qr_url ?? null) : null,
+        }),
+      })
+      const json = await res.json()
+      if (!json.ok) throw new Error(json.error ?? 'Print failed')
+
+      const rawBytes = Uint8Array.from(atob(json.bytes), c => c.charCodeAt(0))
+      const ea = (window as any).electronAPI // eslint-disable-line @typescript-eslint/no-explicit-any
+
+      if (ea?.isElectron) {
+        if (json.connectionType === 'ip' && json.ipAddress) {
+          const result = await ea.printBytes(json.bytes, json.ipAddress, json.port ?? 9100)
+          if (!result?.ok) throw new Error(result?.error ?? 'TCP print failed')
+        } else if ((json.connectionType === 'usb' || json.connectionType === 'bluetooth') && json.printerName) {
+          const result = await ea.printWindowsPrinter(json.bytes, json.printerName)
+          if (!result?.ok) throw new Error(result?.error ?? 'Print failed')
+        } else {
+          throw new Error('Printer not configured correctly')
+        }
+      } else {
+        const androidTcp = getAndroidTcp()
+        if (json.connectionType === 'ip' && json.ipAddress) {
+          if (androidTcp) {
+            const result = await androidTcp.printBytes({ host: json.ipAddress, port: json.port ?? 9100, data: json.bytes })
+            if (!result?.ok) throw new Error('IP print failed on device')
+          } else {
+            throw new Error('IP printers require the ClickGroup POS desktop app')
+          }
+        } else if (json.connectionType === 'usb') {
+          await browserPrint(rawBytes)
+        } else if (json.connectionType === 'bluetooth') {
+          if (androidTcp && json.btAddress) {
+            const result = await androidTcp.printBluetooth({ address: json.btAddress, data: json.bytes })
+            if (!result?.ok) throw new Error('Bluetooth print failed on device')
+          } else {
+            const bt = (navigator as any).bluetooth // eslint-disable-line @typescript-eslint/no-explicit-any
+            if (!bt) throw new Error('Bluetooth not supported — use Chrome')
+            const devs = await bt.getDevices()
+            const dev  = devs[0] ?? null
+            if (!dev) throw new Error('No Bluetooth printer paired')
+            let sent = false
+            const server = await dev.gatt.connect()
+            try {
+              for (const uuid of [
+                '000018f0-0000-1000-8000-00805f9b34fb',
+                '0000ffe0-0000-1000-8000-00805f9b34fb',
+                'e7810a71-73ae-499d-8c15-faa9aef0c3f2',
+                '49535343-fe7d-4ae5-8fa9-9fafd205e455',
+              ]) {
+                try {
+                  const svc   = await server.getPrimaryService(uuid)
+                  const chars = await svc.getCharacteristics()
+                  const w = chars.find((c: any) => c.properties.write || c.properties.writeWithoutResponse) // eslint-disable-line @typescript-eslint/no-explicit-any
+                  if (!w) continue
+                  for (let i = 0; i < rawBytes.length; i += 512) {
+                    const chunk = rawBytes.slice(i, Math.min(i + 512, rawBytes.length))
+                    w.properties.writeWithoutResponse
+                      ? await w.writeValueWithoutResponse(chunk)
+                      : await w.writeValue(chunk)
+                  }
+                  sent = true; break
+                } catch { /* try next service UUID */ }
+              }
+            } finally { server.disconnect() }
+            if (!sent) throw new Error('No writable Bluetooth characteristic found')
+          }
+        } else {
+          throw new Error('IP printers require the ClickGroup POS desktop app')
+        }
+      }
+
+      setPrintStatus('ok')
+      setTimeout(() => setPrintStatus('idle'), 3000)
+      return true
+    } catch (e: unknown) {
+      setPrintError(e instanceof Error ? e.message : 'Print failed')
+      setPrintStatus('error')
+      return false
+    }
+  }
+
+  const handlePrintClick = async () => {
+    const ok = await handleHardwarePrint()
+    if (!ok) handleBrowserPrint()
+  }
+
+  const handleBrowserPrint = () => {
     const marginMm  = 2
     const wMm       = paperWidth - marginMm * 2
     // Font sizes scale with paper width (58mm→8pt, 80mm→10pt, 104mm→12pt)
@@ -268,11 +390,15 @@ ${qrHtml}
         {/* Action buttons */}
         <div className="flex items-center justify-between mb-3">
           <button
-            onClick={handlePrint}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 border border-white/15 text-white/70 text-sm font-medium hover:bg-white/15 active:scale-95 transition-all"
+            onClick={handlePrintClick}
+            disabled={printStatus === 'sending'}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 border border-white/15 text-white/70 text-sm font-medium hover:bg-white/15 active:scale-95 transition-all disabled:opacity-50"
           >
-            <Printer className="w-4 h-4" />
-            Print
+            {printStatus === 'sending' ? <Loader2 className="w-4 h-4 animate-spin" />
+              : printStatus === 'ok'   ? <CheckCircle2 className="w-4 h-4" />
+              : printStatus === 'error' ? <AlertCircle className="w-4 h-4" />
+              : <Printer className="w-4 h-4" />}
+            {printStatus === 'sending' ? 'Sending…' : printStatus === 'ok' ? 'Sent!' : 'Print'}
           </button>
           <button
             onClick={onClose}
@@ -282,6 +408,13 @@ ${qrHtml}
             Close
           </button>
         </div>
+
+        {printStatus === 'error' && printError && (
+          <div className="mb-3 px-3 py-2 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-300 text-[11px] space-y-0.5">
+            <p>{printError}</p>
+            <p className="text-white/40">Opened the browser print dialog instead.</p>
+          </div>
+        )}
 
         {/* Receipt */}
         <div id="invoice-print" className="bg-white rounded-2xl shadow-2xl shadow-black/50 overflow-hidden text-[11px] font-sans">

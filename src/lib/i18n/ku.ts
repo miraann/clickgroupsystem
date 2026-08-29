@@ -35,7 +35,7 @@ const ku: Record<keyof typeof en, string> = {
   si_finance:           'دارایی',
   si_sales:             'فرۆشتن',
   si_expense:           'خەرجی',
-  si_pay_later:         'پاشتر دەدرێت',
+  si_pay_later:         'قەرز',
   si_receipt:           'پسووڵە',
   si_void_items:        'بەتاڵکردنەکان',
   si_report:            'ڕاپۆرت',
@@ -413,7 +413,7 @@ const ku: Record<keyof typeof en, string> = {
   exp_this_month:       'ئەم مانگە',
 
   // ── Pay Later page ────────────────────────────────
-  pl_title:             'پاشتر دەدرێت',
+  pl_title:             'قەرز',
   pl_subtitle:          'بەڕێوەبردنی پارەدانی دواخراو',
   pl_outstanding:       'مەودووعە',
   pl_settled:           'دانراوە',
@@ -1073,19 +1073,19 @@ const ku: Record<keyof typeof en, string> = {
 
   // ── Financial Overview ────────────────────────────────────────
   fin_title:            'سەیرکردنی دارایی',
-  fin_subtitle:         'فرۆشتن · خەرجی · قازانجی خاڵص',
+  fin_subtitle:         'فرۆشتن · خەرجی · قازانج',
   fin_total_revenue:    'کۆی داهات',
   fin_total_expenses:   'کۆی خەرجی',
-  fin_net_profit:       'قازانجی خاڵص',
+  fin_net_profit:       'قازانج',
   fin_revenue_vs_exp:   'داهات دژ بە خەرجی',
-  fin_sales_by_pm:      'فرۆشتن بەپێی ڕێگای پارەدان',
+  fin_sales_by_pm:      'فرۆشتن',
   fin_expenses_by_cat:  'خەرجی بەپێی بەش',
   fin_transactions:     'مامەڵەکان',
   fin_no_sales:         'هیچ فرۆشتنێک لەم سەردەمەدا نییە',
   fin_no_expenses:      'هیچ خەرجییەک لەم سەردەمەدا نییە',
   fin_no_data:          'هیچ مامەڵەیەک بۆ ئەم سەردەمە نییە',
-  fin_no_prev:          'داتای پێشووی نییە',
-  fin_vs_prev:          'بەراورد بە سەردەمی پێشوو',
+  fin_no_prev:          'داتای پێشتری نییە',
+  fin_vs_prev:          'بەراورد بە پێشتر',
   fin_profit_margin:    'سنووری قازانج',
   fin_avg_order:        'تێکڕا / فەرمان',
   fin_of_revenue:       '% لە داهاتەوە',
@@ -1094,6 +1094,15 @@ const ku: Record<keyof typeof en, string> = {
   fin_revenue:          'داهات',
   fin_expenses:         'خەرجی',
   fin_sales:            'فرۆشتن',
+  fin_export_csv:       'ناردنی CSV',
+  fin_today:            'ئەمڕۆ',
+  fin_this_week:        'ئەم هەفتەیە',
+  fin_this_month:       'ئەم مانگە',
+  fin_this_year:        'ئەم ساڵە',
+  fin_custom:           'دیاریکراو',
+  fin_to:               'بۆ',
+  fin_apply:            'جێبەجێکردن',
+  fin_other:            'هیتر',
 
   // ── Sales additions ───────────────────────────────────────────
   sales_7d_growth:      'گەشەی 7 ڕۆژ',
@@ -1144,7 +1153,7 @@ const ku: Record<keyof typeof en, string> = {
   vi_price:             'نرخ',
 
   // ── Report additions ──────────────────────────────────────────
-  rpt_net_profit:       'قازانجی خاڵص',
+  rpt_net_profit:       'قازانج',
   rpt_total_guests:     'کۆی میوانەکان',
   rpt_total_expenses:   'کۆی خەرجی',
   rpt_total_discounts:  'کۆی داشکاندنەکان',
@@ -1239,7 +1248,7 @@ const ku: Record<keyof typeof en, string> = {
   // ── Activity toast action labels ──────────────────────────────
   toast_sent_to_kitchen:    'نێردرا بۆ چێشتخانە',
   toast_payment:            'پارەدان',
-  toast_pay_later:          'پاشتر دەدرێت',
+  toast_pay_later:          'قەرز',
   toast_void_item:          'بەتاڵکردن',
   toast_edit_price:         'گۆڕینی نرخ',
   toast_discount:           'داشکاندن جێبەجێکرا',

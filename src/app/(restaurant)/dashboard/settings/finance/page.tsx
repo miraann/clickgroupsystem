@@ -21,6 +21,7 @@ function Skel({ className }: { className?: string }) {
   return <div className={cn('animate-pulse rounded-xl bg-white/8', className)} />
 }
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer,
@@ -39,12 +40,12 @@ interface Invoice {
 
 type Period = 'today' | 'week' | 'month' | 'year' | 'custom'
 
-const PERIODS: { key: Period; label: string; base: string; active: string }[] = [
-  { key: 'today',  label: 'Today',      base: 'bg-amber-500/70',   active: 'bg-amber-500 shadow-lg shadow-amber-500/30'   },
-  { key: 'week',   label: 'This Week',  base: 'bg-blue-500/70',    active: 'bg-blue-500 shadow-lg shadow-blue-500/30'    },
-  { key: 'month',  label: 'This Month', base: 'bg-emerald-500/70', active: 'bg-emerald-500 shadow-lg shadow-emerald-500/30' },
-  { key: 'year',   label: 'This Year',  base: 'bg-violet-500/70',  active: 'bg-violet-500 shadow-lg shadow-violet-500/30'  },
-  { key: 'custom', label: 'Custom',     base: 'bg-rose-500/70',    active: 'bg-rose-500 shadow-lg shadow-rose-500/30'    },
+const PERIODS: { key: Period; labelKey: 'fin_today' | 'fin_this_week' | 'fin_this_month' | 'fin_this_year' | 'fin_custom'; base: string; active: string }[] = [
+  { key: 'today',  labelKey: 'fin_today',      base: 'bg-amber-500/70',   active: 'bg-amber-500 shadow-lg shadow-amber-500/30'   },
+  { key: 'week',   labelKey: 'fin_this_week',  base: 'bg-blue-500/70',    active: 'bg-blue-500 shadow-lg shadow-blue-500/30'    },
+  { key: 'month',  labelKey: 'fin_this_month', base: 'bg-emerald-500/70', active: 'bg-emerald-500 shadow-lg shadow-emerald-500/30' },
+  { key: 'year',   labelKey: 'fin_this_year',  base: 'bg-violet-500/70',  active: 'bg-violet-500 shadow-lg shadow-violet-500/30'  },
+  { key: 'custom', labelKey: 'fin_custom',     base: 'bg-rose-500/70',    active: 'bg-rose-500 shadow-lg shadow-rose-500/30'    },
 ]
 
 // ── Date helpers ──────────────────────────────────────────────────
@@ -107,13 +108,13 @@ function ChartTooltip({ active, payload, label, formatPrice }: any) {
 }
 
 // ── Trend badge ───────────────────────────────────────────────────
-function Trend({ pct, inverse = false }: { pct: number | null; inverse?: boolean }) {
-  if (pct === null) return <span className="text-[11px] text-white/25">No prev data</span>
+function Trend({ pct, inverse = false, noPrevLabel, vsPrevLabel }: { pct: number | null; inverse?: boolean; noPrevLabel: string; vsPrevLabel: string }) {
+  if (pct === null) return <span className="text-[11px] text-white/25">{noPrevLabel}</span>
   const positive = inverse ? pct <= 0 : pct >= 0
   return (
     <span className={cn('flex items-center gap-0.5 text-[11px] font-semibold', positive ? 'text-emerald-400' : 'text-rose-400')}>
       {pct >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-      {Math.abs(pct).toFixed(1)}% vs prev period
+      {Math.abs(pct).toFixed(1)}% {vsPrevLabel}
     </span>
   )
 }
@@ -122,6 +123,7 @@ function Trend({ pct, inverse = false }: { pct: number | null; inverse?: boolean
 export default function FinancePage() {
   const supabase = createClient()
   const { formatPrice } = useDefaultCurrency()
+  const { t } = useLanguage()
 
   const [restaurantId, setRestaurantId] = useState<string | null>(null)
   const [period, setPeriod]             = useState<Period>('month')
@@ -202,7 +204,7 @@ export default function FinancePage() {
 
   // ── Payment method breakdown ───────────────────────────────────
   const pmMap = new Map<string, number>()
-  invoices.forEach(i => { const pm = i.payment_method ?? 'Other'; pmMap.set(pm, (pmMap.get(pm) ?? 0) + i.total) })
+  invoices.forEach(i => { const pm = i.payment_method ?? t.fin_other; pmMap.set(pm, (pmMap.get(pm) ?? 0) + i.total) })
   const pmData = Array.from(pmMap.entries()).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value)
   const pmMax  = pmData[0]?.value ?? 1
 
@@ -210,7 +212,7 @@ export default function FinancePage() {
   const allCats = [...BUILTIN_CATS, ...categories.filter(c => !BUILTIN_CATS.find(b => b.id === c.id))]
   const catMap  = new Map<string, { name: string; color: string; value: number }>()
   expenses.forEach(e => {
-    const cat = allCats.find(c => c.id === e.category_id) ?? { id: 'other', name: 'Other', color: '#6b7280' }
+    const cat = allCats.find(c => c.id === e.category_id) ?? { id: 'other', name: t.fin_other, color: '#6b7280' }
     const ex  = catMap.get(cat.id)
     if (ex) ex.value += e.amount
     else catMap.set(cat.id, { name: cat.name, color: cat.color, value: e.amount })
@@ -253,12 +255,12 @@ export default function FinancePage() {
         transition={{ duration: 0.42, ease: 'circOut' as const, delay: 0.05 }}
         className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-semibold text-white">Financial Overview</h1>
-          <p className="text-xs text-white/40 mt-0.5">Sales · Expenses · Net Profit</p>
+          <h1 className="text-lg font-semibold text-white">{t.fin_title}</h1>
+          <p className="text-xs text-white/40 mt-0.5">{t.fin_subtitle}</p>
         </div>
         <button onClick={exportCSV}
           className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/8 text-xs text-white/50 hover:text-white/70 transition-all active:scale-95">
-          <Download className="w-3.5 h-3.5" /> Export CSV
+          <Download className="w-3.5 h-3.5" /> {t.fin_export_csv}
         </button>
       </motion.div>
 
@@ -268,11 +270,11 @@ export default function FinancePage() {
         transition={{ duration: 0.42, ease: 'circOut' as const, delay: 0.12 }}
         className="flex flex-wrap items-center gap-3">
         <div className="flex gap-2">
-          {PERIODS.map(({ key, label, base, active }) => (
+          {PERIODS.map(({ key, labelKey, base, active }) => (
             <button key={key} onClick={() => handlePeriod(key)}
               className={cn('px-4 py-2 rounded-xl text-xs font-semibold transition-all active:scale-95 text-white',
                 period === key ? active : base)}>
-              {label}
+              {t[labelKey]}
             </button>
           ))}
         </div>
@@ -284,7 +286,7 @@ export default function FinancePage() {
               <input type="date" value={customFrom} onChange={e => setCustomFrom(e.target.value)}
                 className="bg-transparent text-xs text-white/70 focus:outline-none w-28 cursor-pointer [color-scheme:dark]" />
             </div>
-            <span className="text-white/25 text-xs">to</span>
+            <span className="text-white/25 text-xs">{t.fin_to}</span>
             <div className="flex items-center gap-2 px-3 py-1.5 bg-white/5 border border-white/10 rounded-xl">
               <Calendar className="w-3.5 h-3.5 text-white/30 shrink-0" />
               <input type="date" value={customTo} onChange={e => setCustomTo(e.target.value)}
@@ -294,7 +296,7 @@ export default function FinancePage() {
               onClick={() => { if (restaurantId && customFrom && customTo) load(restaurantId, 'custom', customFrom, customTo) }}
               disabled={!customFrom || !customTo}
               className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40 text-xs text-white font-medium transition-all active:scale-95">
-              Apply
+              {t.fin_apply}
             </button>
           </div>
         )}
@@ -328,19 +330,19 @@ export default function FinancePage() {
                 <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500/20 via-emerald-500/10 to-transparent border border-emerald-500/25 p-5">
                   <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full bg-emerald-500/10 blur-2xl" />
                   <div className="flex items-center justify-between mb-3">
-                    <p className="text-xs font-semibold text-emerald-400/70 uppercase tracking-wider">Total Revenue</p>
+                    <p className="text-xs font-semibold text-emerald-400/70 uppercase tracking-wider">{t.fin_total_revenue}</p>
                     <div className="w-8 h-8 rounded-xl bg-emerald-500/15 flex items-center justify-center">
                       <ShoppingBag className="w-4 h-4 text-emerald-400" />
                     </div>
                   </div>
                   <p className="text-2xl font-extrabold text-white tabular-nums">{formatPrice(totalRevenue)}</p>
                   <div className="mt-2 flex items-center justify-between">
-                    <Trend pct={revGrowth} />
-                    <span className="text-[10px] text-white/25">{invoices.length} invoices</span>
+                    <Trend pct={revGrowth} noPrevLabel={t.fin_no_prev} vsPrevLabel={t.fin_vs_prev} />
+                    <span className="text-[10px] text-white/25">{invoices.length} {t.fin_invoices}</span>
                   </div>
                   {invoices.length > 0 && (
                     <p className="text-[10px] text-white/30 mt-1">
-                      Avg {formatPrice(totalRevenue / invoices.length)} / order
+                      {t.fin_avg_order}: {formatPrice(totalRevenue / invoices.length)}
                     </p>
                   )}
                 </div>
@@ -350,19 +352,19 @@ export default function FinancePage() {
                 <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-rose-500/20 via-rose-500/10 to-transparent border border-rose-500/25 p-5">
                   <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full bg-rose-500/10 blur-2xl" />
                   <div className="flex items-center justify-between mb-3">
-                    <p className="text-xs font-semibold text-rose-400/70 uppercase tracking-wider">Total Expenses</p>
+                    <p className="text-xs font-semibold text-rose-400/70 uppercase tracking-wider">{t.fin_total_expenses}</p>
                     <div className="w-8 h-8 rounded-xl bg-rose-500/15 flex items-center justify-center">
                       <DollarSign className="w-4 h-4 text-rose-400" />
                     </div>
                   </div>
                   <p className="text-2xl font-extrabold text-white tabular-nums">{formatPrice(totalExpenses)}</p>
                   <div className="mt-2 flex items-center justify-between">
-                    <Trend pct={expGrowth} inverse />
-                    <span className="text-[10px] text-white/25">{expenses.length} entries</span>
+                    <Trend pct={expGrowth} inverse noPrevLabel={t.fin_no_prev} vsPrevLabel={t.fin_vs_prev} />
+                    <span className="text-[10px] text-white/25">{expenses.length} {t.fin_entries}</span>
                   </div>
                   {totalRevenue > 0 && (
                     <p className="text-[10px] text-white/30 mt-1">
-                      {((totalExpenses / totalRevenue) * 100).toFixed(1)}% of revenue
+                      {((totalExpenses / totalRevenue) * 100).toFixed(1)}{t.fin_of_revenue}
                     </p>
                   )}
                 </div>
@@ -377,7 +379,7 @@ export default function FinancePage() {
                     netProfit >= 0 ? 'bg-violet-500/10' : 'bg-rose-900/20')} />
                   <div className="flex items-center justify-between mb-3">
                     <p className={cn('text-xs font-semibold uppercase tracking-wider',
-                      netProfit >= 0 ? 'text-violet-400/70' : 'text-rose-400/70')}>Net Profit</p>
+                      netProfit >= 0 ? 'text-violet-400/70' : 'text-rose-400/70')}>{t.fin_net_profit}</p>
                     <div className={cn('w-8 h-8 rounded-xl flex items-center justify-center',
                       netProfit >= 0 ? 'bg-violet-500/15' : 'bg-rose-500/15')}>
                       <Wallet className={cn('w-4 h-4', netProfit >= 0 ? 'text-violet-400' : 'text-rose-400')} />
@@ -387,11 +389,11 @@ export default function FinancePage() {
                     {netProfit < 0 ? '−' : ''}{formatPrice(Math.abs(netProfit))}
                   </p>
                   <div className="mt-2">
-                    <Trend pct={profGrowth} />
+                    <Trend pct={profGrowth} noPrevLabel={t.fin_no_prev} vsPrevLabel={t.fin_vs_prev} />
                   </div>
                   {totalRevenue > 0 && (
                     <p className="text-[10px] text-white/30 mt-1">
-                      {((netProfit / totalRevenue) * 100).toFixed(1)}% profit margin
+                      {((netProfit / totalRevenue) * 100).toFixed(1)}% {t.fin_profit_margin}
                     </p>
                   )}
                 </div>
@@ -404,7 +406,7 @@ export default function FinancePage() {
                 initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.42, ease: 'circOut' as const, delay: 0.14 }}>
                 <div className="rounded-2xl bg-white/4 border border-white/8 p-5">
-                  <p className="text-sm font-semibold text-white/60 mb-4">Revenue vs Expenses</p>
+                  <p className="text-sm font-semibold text-white/60 mb-4">{t.fin_revenue_vs_exp}</p>
                   <ResponsiveContainer width="100%" height={180}>
                     <AreaChart data={chartData} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
                       <defs>
@@ -422,18 +424,18 @@ export default function FinancePage() {
                         axisLine={false} tickLine={false} interval="preserveStartEnd" />
                       <YAxis hide />
                       <Tooltip content={<ChartTooltip formatPrice={formatPrice} />} />
-                      <Area type="monotone" dataKey="Revenue"  stroke="#10b981" strokeWidth={2}
+                      <Area type="monotone" dataKey="Revenue"  name={t.fin_revenue}  stroke="#10b981" strokeWidth={2}
                         fill="url(#revGrad)"  dot={false} activeDot={{ r: 4, fill: '#10b981' }} />
-                      <Area type="monotone" dataKey="Expenses" stroke="#f43f5e" strokeWidth={2}
+                      <Area type="monotone" dataKey="Expenses" name={t.fin_expenses} stroke="#f43f5e" strokeWidth={2}
                         fill="url(#expGrad2)" dot={false} activeDot={{ r: 4, fill: '#f43f5e' }} />
                     </AreaChart>
                   </ResponsiveContainer>
                   <div className="flex items-center gap-5 mt-3">
                     <span className="flex items-center gap-1.5 text-[11px] text-white/40">
-                      <span className="w-6 h-0.5 rounded-full bg-emerald-400 inline-block" />Revenue
+                      <span className="w-6 h-0.5 rounded-full bg-emerald-400 inline-block" />{t.fin_revenue}
                     </span>
                     <span className="flex items-center gap-1.5 text-[11px] text-white/40">
-                      <span className="w-6 h-0.5 rounded-full bg-rose-400 inline-block" />Expenses
+                      <span className="w-6 h-0.5 rounded-full bg-rose-400 inline-block" />{t.fin_expenses}
                     </span>
                   </div>
                 </div>
@@ -446,9 +448,9 @@ export default function FinancePage() {
               transition={{ duration: 0.42, ease: 'circOut' as const, delay: 0.21 }}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="rounded-2xl bg-white/4 border border-white/8 p-5">
-                  <p className="text-sm font-semibold text-white/60 mb-4">Sales by Payment Method</p>
+                  <p className="text-sm font-semibold text-white/60 mb-4">{t.fin_sales_by_pm}</p>
                   {pmData.length === 0 ? (
-                    <p className="text-xs text-white/25 text-center py-8">No sales in this period</p>
+                    <p className="text-xs text-white/25 text-center py-8">{t.fin_no_sales}</p>
                   ) : (
                     <div className="space-y-3.5">
                       {pmData.map(({ name, value }) => (
@@ -471,9 +473,9 @@ export default function FinancePage() {
                 </div>
 
                 <div className="rounded-2xl bg-white/4 border border-white/8 p-5">
-                  <p className="text-sm font-semibold text-white/60 mb-4">Expenses by Category</p>
+                  <p className="text-sm font-semibold text-white/60 mb-4">{t.fin_expenses_by_cat}</p>
                   {catData.length === 0 ? (
-                    <p className="text-xs text-white/25 text-center py-8">No expenses in this period</p>
+                    <p className="text-xs text-white/25 text-center py-8">{t.fin_no_expenses}</p>
                   ) : (
                     <div className="space-y-3.5">
                       {catData.map(({ name, color, value }) => (
@@ -504,7 +506,7 @@ export default function FinancePage() {
                   initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
                   transition={{ duration: 0.42, ease: 'circOut' as const, delay: 0.28 }}
                   className="text-center py-16 text-white/25 text-sm">
-                  No transactions found for this period
+                  {t.fin_no_data}
                 </motion.div>
               ) : (
                 <motion.div key="list"
@@ -512,11 +514,11 @@ export default function FinancePage() {
                   transition={{ duration: 0.42, ease: 'circOut' as const, delay: 0.28 }}>
                   <div className="rounded-2xl border border-white/8 overflow-hidden">
                     <div className="flex items-center justify-between px-5 py-3 bg-white/3 border-b border-white/8">
-                      <p className="text-xs font-semibold text-white/40 uppercase tracking-wider">Transactions</p>
+                      <p className="text-xs font-semibold text-white/40 uppercase tracking-wider">{t.fin_transactions}</p>
                       <div className="flex items-center gap-4 text-[11px] text-white/30">
-                        <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />Sales</span>
-                        <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-rose-500 inline-block" />Expenses</span>
-                        <span>{timeline.length} entries</span>
+                        <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />{t.fin_sales}</span>
+                        <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-rose-500 inline-block" />{t.fin_expenses}</span>
+                        <span>{timeline.length} {t.fin_entries}</span>
                       </div>
                     </div>
                     <motion.div variants={CONTAINER} initial="hidden" animate="show"

@@ -214,20 +214,20 @@ function AllInvoices({ restaurantId }: { restaurantId: string }) {
         className="flex flex-col sm:flex-row flex-wrap gap-3 items-stretch sm:items-end"
       >
         <div className="flex-1 min-w-[200px] w-full sm:w-auto">
-          <label className="block text-xs text-white/40 mb-1.5">Invoice Number / Customer Name / Phone</label>
+          <label className="block text-xs text-white/40 mb-1.5">ژمارەی پسووڵە / ناوی کڕیار / تەلەفۆن</label>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/30" />
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && load()}
-              placeholder="Search INV-…"
+              placeholder="گەڕان بۆ پسووڵە…"
               className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-3.5 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-amber-500/50 transition-colors"
             />
           </div>
         </div>
         <div>
-          <label className="block text-xs text-white/40 mb-1.5">From</label>
+          <label className="block text-xs text-white/40 mb-1.5">لە</label>
           <input
             type="date"
             value={dateFrom}
@@ -236,7 +236,7 @@ function AllInvoices({ restaurantId }: { restaurantId: string }) {
           />
         </div>
         <div>
-          <label className="block text-xs text-white/40 mb-1.5">To</label>
+          <label className="block text-xs text-white/40 mb-1.5">بۆ</label>
           <input
             type="date"
             value={dateTo}
@@ -252,7 +252,7 @@ function AllInvoices({ restaurantId }: { restaurantId: string }) {
           {loading
             ? <Loader2 className="w-4 h-4 animate-spin" />
             : <Search className="w-4 h-4" />}
-          Search
+          گەڕان
         </button>
       </motion.div>
 
@@ -262,7 +262,7 @@ function AllInvoices({ restaurantId }: { restaurantId: string }) {
         transition={{ duration: 0.38, ease: 'circOut', delay: 0.07 }}
         className="text-xs text-white/30"
       >
-        {invoices.length} invoice{invoices.length !== 1 ? 's' : ''} found
+        {invoices.length} پسووڵە دۆزرایەوە
       </motion.p>
 
       {/* List — AnimatePresence ensures each state (loading/empty/data) gets its own entrance */}
@@ -284,7 +284,7 @@ function AllInvoices({ restaurantId }: { restaurantId: string }) {
             className="text-center py-20 text-white/30"
           >
             <FileText className="w-10 h-10 mx-auto mb-3 opacity-30" />
-            <p className="text-sm">No invoices found</p>
+            <p className="text-sm">هیچ پسووڵەیەک نەدۆزرایەوە</p>
           </motion.div>
         ) : (
           <motion.div key="list" variants={CONTAINER} initial="hidden" animate="show" className="space-y-2">
@@ -303,32 +303,32 @@ function AllInvoices({ restaurantId }: { restaurantId: string }) {
                   <div className="flex items-center gap-3 overflow-hidden">
                     {/* Invoice — always */}
                     <div className="w-[100px] shrink-0">
-                      <p className="text-[10px] text-white/40">Invoice</p>
+                      <p className="text-[10px] text-white/40">پسووڵە</p>
                       <p className="text-sm font-bold text-amber-400 truncate">{inv.invoice_num}</p>
                     </div>
                     {/* Order — sm+ */}
                     <div className="w-[88px] shrink-0 hidden sm:block">
-                      <p className="text-[10px] text-white/40">Order</p>
+                      <p className="text-[10px] text-white/40">فەرمان</p>
                       <p className="text-sm font-semibold text-white truncate">{inv.order_num || '—'}</p>
                     </div>
                     {/* Table — sm+ */}
                     <div className="w-[80px] shrink-0 hidden sm:block">
-                      <p className="text-[10px] text-white/40">Table</p>
+                      <p className="text-[10px] text-white/40">مێز</p>
                       <p className="text-sm font-semibold text-white truncate">{inv.table_num || '—'}</p>
                     </div>
                     {/* Payment — md+ */}
                     <div className="w-[90px] shrink-0 hidden md:block">
-                      <p className="text-[10px] text-white/40">Payment</p>
+                      <p className="text-[10px] text-white/40">پارەدان</p>
                       <p className="text-sm font-semibold text-white truncate">{inv.payment_method || '—'}</p>
                     </div>
                     {/* Cashier — fills remaining space on lg+ */}
                     <div className="flex-1 min-w-0 hidden lg:block">
-                      <p className="text-[10px] text-white/40">Cashier</p>
+                      <p className="text-[10px] text-white/40">کاشێر</p>
                       <p className="text-sm font-semibold text-white truncate">{inv.cashier || '—'}</p>
                     </div>
                     {/* Date — lg+ */}
                     <div className="w-[110px] shrink-0 hidden lg:block">
-                      <p className="text-[10px] text-white/40">Date</p>
+                      <p className="text-[10px] text-white/40">بەروار</p>
                       <p className="text-[11px] text-white/60">{date.toLocaleDateString()}</p>
                       <p className="text-[11px] text-white/40">{date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                     </div>
@@ -336,7 +336,7 @@ function AllInvoices({ restaurantId }: { restaurantId: string }) {
                     <div className="flex-1 lg:hidden" />
                     {/* Total — always */}
                     <div className="w-[100px] shrink-0 text-right">
-                      <p className="text-[10px] text-white/40">Total</p>
+                      <p className="text-[10px] text-white/40">کۆی گشتی</p>
                       <p className="text-sm font-bold text-white tabular-nums">{formatPrice(Number(inv.total))}</p>
                     </div>
                     {/* View */}
@@ -344,7 +344,7 @@ function AllInvoices({ restaurantId }: { restaurantId: string }) {
                       onClick={e => { e.stopPropagation(); setViewInvoice(inv) }}
                       className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-500/70 hover:bg-amber-500 text-white text-[11px] font-semibold active:scale-95 transition-all"
                     >
-                      <Eye className="w-3.5 h-3.5" /><span className="hidden sm:inline ml-0.5">View</span>
+                      <Eye className="w-3.5 h-3.5" /><span className="hidden sm:inline ml-0.5">بینین</span>
                     </button>
                     {/* Chevron */}
                     <div className="shrink-0 text-white/30">
@@ -353,7 +353,7 @@ function AllInvoices({ restaurantId }: { restaurantId: string }) {
                   </div>
                   {/* Mobile sub-line */}
                   <div className="flex items-center gap-3 mt-1 sm:hidden text-[10px] text-white/40">
-                    {inv.table_num && <span>Table: <span className="text-white/60">{inv.table_num}</span></span>}
+                    {inv.table_num && <span>مێز: <span className="text-white/60">{inv.table_num}</span></span>}
                     {inv.payment_method && <span>{inv.payment_method}</span>}
                     <span className="ml-auto text-white/30">{date.toLocaleDateString()} {date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                   </div>
@@ -365,9 +365,9 @@ function AllInvoices({ restaurantId }: { restaurantId: string }) {
                     <table className="w-full text-sm mt-3">
                       <thead>
                         <tr className="text-white/40 text-xs border-b border-white/8">
-                          <th className="text-left pb-2 font-semibold">Item</th>
-                          <th className="text-center pb-2 font-semibold w-12">Qty</th>
-                          <th className="text-right pb-2 font-semibold">Price</th>
+                          <th className="text-left pb-2 font-semibold">کاڵا</th>
+                          <th className="text-center pb-2 font-semibold w-12">بڕ</th>
+                          <th className="text-right pb-2 font-semibold">نرخ</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -384,27 +384,27 @@ function AllInvoices({ restaurantId }: { restaurantId: string }) {
                     </table>
                     <div className="mt-3 pt-3 border-t border-white/8 space-y-1.5 text-sm">
                       <div className="flex justify-between text-white/60">
-                        <span>Subtotal</span>
+                        <span>کۆی بەشەکان</span>
                         <span className="tabular-nums">{formatPrice(Number(inv.subtotal))}</span>
                       </div>
                       {Number(inv.discount) > 0 && (
                         <div className="flex justify-between text-rose-400">
-                          <span>Discount</span>
+                          <span>داشکاندن</span>
                           <span className="tabular-nums">-{formatPrice(Number(inv.discount))}</span>
                         </div>
                       )}
                       <div className="flex justify-between font-bold text-white">
-                        <span>Total</span>
+                        <span>کۆی گشتی</span>
                         <span className="tabular-nums">{formatPrice(Number(inv.total))}</span>
                       </div>
                       {Number(inv.amount_paid) > 0 && Number(inv.amount_paid) > Number(inv.total) && (
                         <>
                           <div className="flex justify-between text-white/60">
-                            <span>Paid</span>
+                            <span>دراوە</span>
                             <span className="tabular-nums">{formatPrice(Number(inv.amount_paid))}</span>
                           </div>
                           <div className="flex justify-between text-white/60">
-                            <span>Change</span>
+                            <span>گەڕاوە</span>
                             <span className="tabular-nums">{formatPrice(Number(inv.change_amount))}</span>
                           </div>
                         </>
@@ -470,41 +470,41 @@ function InvoiceNumberTab({ restaurantId }: { restaurantId: string }) {
     <motion.div variants={PAGE} initial="hidden" animate="show" className="max-w-lg space-y-5">
       {/* Preview */}
       <div className="p-5 bg-gradient-to-br from-amber-500/10 to-orange-500/5 border border-amber-500/20 rounded-2xl text-center">
-        <p className="text-xs text-white/40 mb-2 uppercase tracking-wider">Preview</p>
+        <p className="text-xs text-white/40 mb-2 uppercase tracking-wider">پێشبینین</p>
         <p className="text-4xl font-bold text-white font-mono tracking-wide">{preview}</p>
-        <p className="text-xs text-white/25 mt-2">This is how invoice numbers will appear</p>
+        <p className="text-xs text-white/25 mt-2">بەم شێوەیە ژمارەی پسووڵەکان دەردەکەون</p>
       </div>
 
       {/* Fields */}
       <div className="space-y-5 bg-white/5 border border-white/10 rounded-2xl p-5">
         <div>
-          <label className="block text-xs text-white/50 mb-1.5 font-medium">Prefix</label>
+          <label className="block text-xs text-white/50 mb-1.5 font-medium">پێشگر</label>
           <input value={settings.prefix} onChange={e => setSettings(s => ({ ...s, prefix: e.target.value }))} placeholder="INV-"
             className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500/50 transition-colors font-mono" />
-          <p className="text-xs text-white/25 mt-1">e.g. INV-, #, REC-</p>
+          <p className="text-xs text-white/25 mt-1">بۆ نموونە INV-, #, REC-</p>
         </div>
         <div>
-          <label className="block text-xs text-white/50 mb-1.5 font-medium">Starting Number</label>
+          <label className="block text-xs text-white/50 mb-1.5 font-medium">ژمارەی دەستپێک</label>
           <input type="number" min="1" value={settings.start_num}
             onChange={e => setSettings(s => ({ ...s, start_num: parseInt(e.target.value) || 1 }))}
             className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500/50 transition-colors font-mono" />
         </div>
         <div>
-          <label className="block text-xs text-white/50 mb-1.5 font-medium">Current Number</label>
+          <label className="block text-xs text-white/50 mb-1.5 font-medium">ژمارەی ئێستا</label>
           <div className="px-3.5 py-2.5 bg-white/3 border border-white/8 rounded-xl text-sm text-white/40 font-mono">
-            {settings.prefix}{settings.current_num} <span className="text-xs text-white/20">(read-only)</span>
+            {settings.prefix}{settings.current_num} <span className="text-xs text-white/20">(تەنها خوێندنەوە)</span>
           </div>
         </div>
         <div>
-          <label className="block text-xs text-white/50 mb-2 font-medium">Reset Period</label>
+          <label className="block text-xs text-white/50 mb-2 font-medium">ماوەی ڕێسێت</label>
           <div className="grid grid-cols-4 gap-2">
-            {(['never', 'daily', 'monthly', 'yearly'] as InvResetPeriod[]).map(r => (
+            {([['never','هەرگیز'], ['daily','ڕۆژانە'], ['monthly','مانگانە'], ['yearly','ساڵانە']] as [InvResetPeriod, string][]).map(([r, lbl]) => (
               <button key={r} onClick={() => setSettings(s => ({ ...s, reset_period: r }))}
-                className={cn('py-2 rounded-xl text-xs font-medium capitalize transition-all active:scale-95',
+                className={cn('py-2 rounded-xl text-xs font-medium transition-all active:scale-95',
                   settings.reset_period === r
                     ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
                     : 'bg-white/5 text-white/40 border border-white/8 hover:bg-white/8')}>
-                {r}
+                {lbl}
               </button>
             ))}
           </div>
@@ -521,9 +521,9 @@ function InvoiceNumberTab({ restaurantId }: { restaurantId: string }) {
       <button onClick={handleSave} disabled={saving}
         className={cn('w-full h-12 rounded-2xl text-sm font-semibold flex items-center justify-center gap-2 transition-all active:scale-95',
           saved ? 'bg-emerald-500/20 border border-emerald-500/30 text-emerald-400' : 'bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/20')}>
-        {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</>
-          : saved ? <><CheckCircle2 className="w-4 h-4" /> Saved!</>
-          : <><Save className="w-4 h-4" /> Save Invoice Number Settings</>}
+        {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> پاشەکەوت دەکرێت…</>
+          : saved ? <><CheckCircle2 className="w-4 h-4" /> پاشەکەوت کرا!</>
+          : <><Save className="w-4 h-4" /> پاشەکەوتکردنی ڕێکخستنی ژمارەی پسووڵە</>}
       </button>
     </motion.div>
   )
@@ -568,47 +568,47 @@ function OrderNumberTab({ restaurantId }: { restaurantId: string }) {
     <motion.div variants={PAGE} initial="hidden" animate="show" className="max-w-lg space-y-5">
       {/* Preview */}
       <div className="p-5 bg-gradient-to-br from-indigo-500/10 to-violet-500/5 border border-indigo-500/20 rounded-2xl text-center">
-        <p className="text-xs text-white/40 mb-2 uppercase tracking-wider">Preview</p>
+        <p className="text-xs text-white/40 mb-2 uppercase tracking-wider">پێشبینین</p>
         <p className="text-4xl font-bold text-white font-mono tracking-wide">{preview}</p>
-        <p className="text-xs text-white/25 mt-2">Next order will be numbered</p>
+        <p className="text-xs text-white/25 mt-2">فەرمانی داهاتوو ئەم ژمارەیەی دەدرێتێ</p>
       </div>
 
       {/* Fields */}
       <div className="space-y-5 bg-white/5 border border-white/10 rounded-2xl p-5">
         <div>
-          <label className="block text-xs text-white/50 mb-1.5 font-medium">Prefix</label>
+          <label className="block text-xs text-white/50 mb-1.5 font-medium">پێشگر</label>
           <input value={settings.prefix} onChange={e => setSettings(s => ({ ...s, prefix: e.target.value }))} placeholder="ORD-"
             className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500/50 transition-colors font-mono" />
         </div>
         <div>
-          <label className="block text-xs text-white/50 mb-1.5 font-medium">Starting Number</label>
+          <label className="block text-xs text-white/50 mb-1.5 font-medium">ژمارەی دەستپێک</label>
           <input type="number" min="1" value={settings.start_num}
             onChange={e => setSettings(s => ({ ...s, start_num: parseInt(e.target.value) || 1 }))}
             className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500/50 transition-colors font-mono" />
         </div>
         <div>
-          <label className="block text-xs text-white/50 mb-1.5 font-medium">Current Number</label>
+          <label className="block text-xs text-white/50 mb-1.5 font-medium">ژمارەی ئێستا</label>
           <div className="px-3.5 py-2.5 bg-white/3 border border-white/8 rounded-xl text-sm text-white/40 font-mono">
-            {settings.prefix}{String(settings.current_num).padStart(3, '0')} <span className="text-xs text-white/20">(read-only)</span>
+            {settings.prefix}{String(settings.current_num).padStart(3, '0')} <span className="text-xs text-white/20">(تەنها خوێندنەوە)</span>
           </div>
         </div>
         <div>
-          <label className="block text-xs text-white/50 mb-2 font-medium">Reset Period</label>
+          <label className="block text-xs text-white/50 mb-2 font-medium">ماوەی ڕێسێت</label>
           <div className="grid grid-cols-3 gap-2">
-            {(['never', 'daily', 'shift'] as OrdResetPeriod[]).map(r => (
+            {([['never','هەرگیز'], ['daily','ڕۆژانە'], ['shift','شیفت']] as [OrdResetPeriod, string][]).map(([r, lbl]) => (
               <button key={r} onClick={() => setSettings(s => ({ ...s, reset_period: r }))}
-                className={cn('py-2 rounded-xl text-xs font-medium capitalize transition-all active:scale-95',
+                className={cn('py-2 rounded-xl text-xs font-medium transition-all active:scale-95',
                   settings.reset_period === r
                     ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
                     : 'bg-white/5 text-white/40 border border-white/8 hover:bg-white/8')}>
-                {r}
+                {lbl}
               </button>
             ))}
           </div>
         </div>
         {([
-          { k: 'show_receipt' as const, label: 'Show on Receipt' },
-          { k: 'show_kds'     as const, label: 'Show on Kitchen Display (KDS)' },
+          { k: 'show_receipt' as const, label: 'پیشاندان لەسەر پسووڵە' },
+          { k: 'show_kds'     as const, label: 'پیشاندان لەسەر شاشەی چێشتخانە (KDS)' },
         ]).map(({ k, label }) => (
           <div key={k} className="flex items-center justify-between p-3 bg-white/3 rounded-xl">
             <span className="text-sm text-white/70">{label}</span>
@@ -629,9 +629,9 @@ function OrderNumberTab({ restaurantId }: { restaurantId: string }) {
       <button onClick={handleSave} disabled={saving}
         className={cn('w-full h-12 rounded-2xl text-sm font-semibold flex items-center justify-center gap-2 transition-all active:scale-95',
           saved ? 'bg-emerald-500/20 border border-emerald-500/30 text-emerald-400' : 'bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/20')}>
-        {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</>
-          : saved ? <><CheckCircle2 className="w-4 h-4" /> Saved!</>
-          : <><Save className="w-4 h-4" /> Save Order Number Settings</>}
+        {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> پاشەکەوت دەکرێت…</>
+          : saved ? <><CheckCircle2 className="w-4 h-4" /> پاشەکەوت کرا!</>
+          : <><Save className="w-4 h-4" /> پاشەکەوتکردنی ڕێکخستنی ژمارەی فەرمان</>}
       </button>
     </motion.div>
   )
@@ -680,7 +680,7 @@ function RecoverTableTab({ restaurantId }: { restaurantId: string }) {
     // 1. Find invoice
     const { data: invoice, error: e1 } = await supabase
       .from('invoices').select('*').eq('restaurant_id', restaurantId).eq('invoice_num', inv).maybeSingle()
-    if (e1 || !invoice) { setRecoverError('Invoice not found. Check the invoice number and try again.'); setRecovering(false); return }
+    if (e1 || !invoice) { setRecoverError('پسووڵە نەدۆزرایەوە. ژمارەی پسووڵە بپشکنە و دووبارە هەوڵ بدە.'); setRecovering(false); return }
 
     // 2. Find the order — try by order_num first, fallback to table_number
     let order: { id: string; order_num: string | null; status: string } | null = null
@@ -705,12 +705,12 @@ function RecoverTableTab({ restaurantId }: { restaurantId: string }) {
         .limit(1).maybeSingle()
       order = data ?? null
     }
-    if (!order) { setRecoverError('Order not found or is already active. Check the invoice number.'); setRecovering(false); return }
+    if (!order) { setRecoverError('فەرمان نەدۆزرایەوە یان پێشتر چالاکە. ژمارەی پسووڵە بپشکنە.'); setRecovering(false); return }
 
     // 3. Reopen order
     const { error: e3 } = await supabase
       .from('orders').update({ status: 'active', updated_at: new Date().toISOString() }).eq('id', order.id)
-    if (e3) { setRecoverError(`Failed to reopen order: ${e3.message}`); setRecovering(false); return }
+    if (e3) { setRecoverError(`کردنەوەی فەرمان سەرکەوتوو نەبوو: ${e3.message}`); setRecovering(false); return }
 
     // 4. Reopen voided items → set back to 'sent'
     await supabase.from('order_items').update({ status: 'sent' }).eq('order_id', order.id).eq('status', 'void')
@@ -729,7 +729,7 @@ function RecoverTableTab({ restaurantId }: { restaurantId: string }) {
       reason:        reason.trim() || null,
     })
 
-    setRecoverSuccess(`Table ${invoice.table_num} recovered successfully!`)
+    setRecoverSuccess(`مێز ${invoice.table_num} بە سەرکەوتوویی گەڕێندرایەوە!`)
     setInvInput(''); setReason('')
     setShowModal(false)
     loadLogs()
@@ -742,14 +742,14 @@ function RecoverTableTab({ restaurantId }: { restaurantId: string }) {
       {/* Header + button */}
       <motion.div variants={ITEM} className="flex items-center justify-between">
         <div>
-          <h2 className="text-base font-semibold text-white">Recover Table</h2>
-          <p className="text-xs text-white/40 mt-0.5">Reopen a table that was closed by mistake</p>
+          <h2 className="text-base font-semibold text-white">گەڕاندنەوەی مێز</h2>
+          <p className="text-xs text-white/40 mt-0.5">مێزێک کە بە هەڵە داخراوە بیکەرەوە</p>
         </div>
         <button
           onClick={() => { setShowModal(true); setRecoverError(null); setRecoverSuccess(null) }}
           className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-xl active:scale-95 transition-all"
         >
-          <RotateCcw className="w-4 h-4" /> Recover Table
+          <RotateCcw className="w-4 h-4" /> گەڕاندنەوەی مێز
         </button>
       </motion.div>
 
@@ -768,7 +768,7 @@ function RecoverTableTab({ restaurantId }: { restaurantId: string }) {
           ))}
         </motion.div>
       ) : logs.length === 0 ? (
-        <motion.div variants={ITEM} className="text-center py-14 text-white/25 text-sm">No recoveries yet</motion.div>
+        <motion.div variants={ITEM} className="text-center py-14 text-white/25 text-sm">هێشتا هیچ گەڕاندنەوەیەک نییە</motion.div>
       ) : (
         <motion.div variants={CONTAINER} initial="hidden" animate="show" className="space-y-2">
           {logs.map(log => (
@@ -780,7 +780,7 @@ function RecoverTableTab({ restaurantId }: { restaurantId: string }) {
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-sm font-bold text-amber-400">{log.invoice_num}</span>
                   {log.order_num && <span className="text-xs text-white/40">{log.order_num}</span>}
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-white/8 text-white/50">Table {log.table_num}</span>
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-white/8 text-white/50">مێز {log.table_num}</span>
                 </div>
                 {log.reason && <p className="text-xs text-white/50 mt-1 italic">"{log.reason}"</p>}
                 <div className="flex items-center gap-3 mt-1.5 text-[11px] text-white/30">
@@ -798,7 +798,7 @@ function RecoverTableTab({ restaurantId }: { restaurantId: string }) {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
           <div className="w-full max-w-sm bg-[#0d1220] border border-white/15 rounded-2xl p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-5">
-              <h3 className="text-base font-bold text-white">Recover Table</h3>
+              <h3 className="text-base font-bold text-white">گەڕاندنەوەی مێز</h3>
               <button onClick={() => setShowModal(false)} className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-all">
                 <X className="w-4 h-4" />
               </button>
@@ -806,20 +806,20 @@ function RecoverTableTab({ restaurantId }: { restaurantId: string }) {
 
             <div className="space-y-4">
               <div>
-                <label className="block text-xs text-white/50 mb-1.5 font-medium">Invoice Number *</label>
+                <label className="block text-xs text-white/50 mb-1.5 font-medium">ژمارەی پسووڵە *</label>
                 <input
                   value={invInput}
                   onChange={e => setInvInput(e.target.value)}
-                  placeholder="e.g. INV-1039"
+                  placeholder="بۆ نموونە INV-1039"
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500/50 transition-colors"
                 />
               </div>
               <div>
-                <label className="block text-xs text-white/50 mb-1.5 font-medium">Reason</label>
+                <label className="block text-xs text-white/50 mb-1.5 font-medium">هۆکار</label>
                 <textarea
                   value={reason}
                   onChange={e => setReason(e.target.value)}
-                  placeholder="Why is this table being recovered?"
+                  placeholder="بۆچی ئەم مێزە دەگەڕێندرێتەوە؟"
                   rows={3}
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500/50 transition-colors resize-none"
                 />
@@ -835,14 +835,14 @@ function RecoverTableTab({ restaurantId }: { restaurantId: string }) {
 
             <div className="flex gap-3 mt-5">
               <button onClick={() => setShowModal(false)} className="flex-1 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 text-sm font-medium transition-all active:scale-95">
-                Cancel
+                پاشگەزبوونەوە
               </button>
               <button
                 onClick={handleRecover}
                 disabled={!invInput.trim() || recovering}
                 className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white text-sm font-bold transition-all active:scale-95 flex items-center justify-center gap-2"
               >
-                {recovering ? <><Loader2 className="w-4 h-4 animate-spin" />Recovering…</> : <><RotateCcw className="w-4 h-4" />Recover</>}
+                {recovering ? <><Loader2 className="w-4 h-4 animate-spin" />دەگەڕێندرێتەوە…</> : <><RotateCcw className="w-4 h-4" />گەڕاندنەوە</>}
               </button>
             </div>
           </div>
@@ -1015,7 +1015,7 @@ export default function ReceiptSettingsPage() {
           { key: 'settings',   icon: <Receipt    className="w-4 h-4" />, label: t.rec_title,      base: 'bg-blue-500/70',    active: 'bg-blue-500 shadow-lg shadow-blue-500/30'    },
           { key: 'invoice-num',icon: <FileText   className="w-4 h-4" />, label: t.in_title,       base: 'bg-violet-500/70',  active: 'bg-violet-500 shadow-lg shadow-violet-500/30'  },
           { key: 'order-num',  icon: <Hash       className="w-4 h-4" />, label: t.on_title,       base: 'bg-emerald-500/70', active: 'bg-emerald-500 shadow-lg shadow-emerald-500/30' },
-          { key: 'recover',    icon: <RotateCcw  className="w-4 h-4" />, label: 'Recover Table',  base: 'bg-rose-500/70',    active: 'bg-rose-500 shadow-lg shadow-rose-500/30'    },
+          { key: 'recover',    icon: <RotateCcw  className="w-4 h-4" />, label: 'گەڕاندنەوەی مێز',  base: 'bg-rose-500/70',    active: 'bg-rose-500 shadow-lg shadow-rose-500/30'    },
         ] as const).map(({ key, icon, label, base, active }) => (
           <button
             key={key}
@@ -1053,7 +1053,7 @@ export default function ReceiptSettingsPage() {
               initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.45, ease: 'circOut', delay: 0.12 }}
             >
-              <p className="text-xs font-bold text-white/40 uppercase tracking-widest">Branding</p>
+              <p className="text-xs font-bold text-white/40 uppercase tracking-widest">براند</p>
 
               {/* Logo upload */}
               <div>
@@ -1080,7 +1080,7 @@ export default function ReceiptSettingsPage() {
                         onClick={() => set('logo_url', '')}
                         className="block text-[11px] text-rose-400/60 hover:text-rose-400 transition-colors"
                       >
-                        Remove
+                        لابردن
                       </button>
                     )}
                     {uploadError && <p className="text-[11px] text-rose-400">{uploadError}</p>}
@@ -1093,7 +1093,7 @@ export default function ReceiptSettingsPage() {
                 <input
                   value={form.shop_name}
                   onChange={e => set('shop_name', e.target.value)}
-                  placeholder={restaurantName || 'Restaurant Name'}
+                  placeholder={restaurantName || 'ناوی چێشتخانە'}
                   className={INPUT}
                 />
               </Field>
@@ -1107,7 +1107,7 @@ export default function ReceiptSettingsPage() {
                 />
               </Field>
 
-              <Field label="Receipt Language">
+              <Field label="زمانی پسووڵە">
                 <div className="flex gap-2">
                   {(['ku', 'en'] as const).map(lang => (
                     <button
@@ -1134,7 +1134,7 @@ export default function ReceiptSettingsPage() {
               initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.45, ease: 'circOut', delay: 0.19 }}
             >
-              <p className="text-xs font-bold text-white/40 uppercase tracking-widest">Contact Info</p>
+              <p className="text-xs font-bold text-white/40 uppercase tracking-widest">زانیاری پەیوەندی</p>
 
               <Field label={t.rec_phone}>
                 <input
@@ -1162,19 +1162,19 @@ export default function ReceiptSettingsPage() {
               initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.45, ease: 'circOut', delay: 0.26 }}
             >
-              <p className="text-xs font-bold text-white/40 uppercase tracking-widest">Receipt Content</p>
+              <p className="text-xs font-bold text-white/40 uppercase tracking-widest">ناوەڕۆکی پسووڵە</p>
 
               <Field label={t.rec_thank_you}>
                 <input
                   value={form.thank_you_msg}
                   onChange={e => set('thank_you_msg', e.target.value)}
-                  placeholder="Thank you for your visit!"
+                  placeholder="سوپاس بۆ سەردانتان!"
                   className={INPUT}
                 />
               </Field>
 
               <div className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-white/3 border border-white/8">
-                <span className="text-xs text-white/35">Footer Note</span>
+                <span className="text-xs text-white/35">تێبینی ژێرەوە</span>
                 <span className="text-xs text-white/25 italic">Powered by ClickGroup · 07701466787</span>
               </div>
             </motion.section>
@@ -1195,7 +1195,7 @@ export default function ReceiptSettingsPage() {
 
               {form.show_qr && (
                 <div>
-                  <label className="block text-xs text-white/50 mb-2">QR Code Image</label>
+                  <label className="block text-xs text-white/50 mb-2">وێنەی کۆدی QR</label>
                   <div className="flex items-center gap-3">
                     <div className="w-16 h-16 rounded-xl bg-white/5 border border-white/10 overflow-hidden flex items-center justify-center shrink-0">
                       {form.qr_url
@@ -1210,7 +1210,7 @@ export default function ReceiptSettingsPage() {
                         className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/8 border border-white/12 text-xs text-white/60 hover:bg-white/12 active:scale-95 transition-all disabled:opacity-50"
                       >
                         {uploadingQr ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-                        {uploadingQr ? 'Uploading…' : 'Upload QR Image'}
+                        {uploadingQr ? 'بار دەکرێت…' : 'وێنەی QR بار بکە'}
                       </button>
                       {form.qr_url && (
                         <button
@@ -1235,7 +1235,7 @@ export default function ReceiptSettingsPage() {
               initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.45, ease: 'circOut', delay: 0.40 }}
             >
-              <p className="text-xs font-bold text-white/40 uppercase tracking-widest">Show / Hide</p>
+              <p className="text-xs font-bold text-white/40 uppercase tracking-widest">پیشاندان / شاردنەوە</p>
 
               {([
                 ['show_logo',    t.rec_show_logo],

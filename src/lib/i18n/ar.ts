@@ -1094,6 +1094,15 @@ const ar: Record<keyof typeof en, string> = {
   fin_revenue:          'الإيرادات',
   fin_expenses:         'المصروفات',
   fin_sales:            'المبيعات',
+  fin_export_csv:       'تصدير CSV',
+  fin_today:            'اليوم',
+  fin_this_week:        'هذا الأسبوع',
+  fin_this_month:       'هذا الشهر',
+  fin_this_year:        'هذه السنة',
+  fin_custom:           'مخصص',
+  fin_to:               'إلى',
+  fin_apply:            'تطبيق',
+  fin_other:            'أخرى',
 
   // ── Sales additions ───────────────────────────────────────────
   sales_7d_growth:      'نمو 7 أيام',
