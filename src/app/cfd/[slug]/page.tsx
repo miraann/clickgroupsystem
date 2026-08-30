@@ -4,6 +4,9 @@ import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Monitor, ArrowRight, Maximize2, LayoutDashboard } from 'lucide-react'
 
+// The [slug] segment may be a menu_slug or a restaurant UUID.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 export default function CFDSetup() {
   const { slug } = useParams<{ slug: string }>()
   const router = useRouter()
@@ -18,7 +21,10 @@ export default function CFDSetup() {
   useEffect(() => {
     if (!slug) return
     const load = async () => {
-      const { data: slugRow } = await supabase.from('restaurant_public').select('id, name').eq('menu_slug', slug).maybeSingle()
+      const { data: slugRow } = await supabase.from('restaurant_public')
+        .select('id, name')
+        .eq(UUID_RE.test(slug) ? 'id' : 'menu_slug', slug)
+        .maybeSingle()
       if (!slugRow) return
       setRestaurantId(slugRow.id)
       setRestName(slugRow.name ?? '')

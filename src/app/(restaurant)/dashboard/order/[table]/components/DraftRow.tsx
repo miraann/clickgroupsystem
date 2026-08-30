@@ -1,5 +1,6 @@
 'use client'
 import { Minus, Plus, X, Pencil } from 'lucide-react'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 import type { DbMenuItem, DraftEntry } from '../types'
 
 interface Props {
@@ -12,6 +13,7 @@ interface Props {
 }
 
 export function DraftRow({ item, entry, onQty, onRemove, onEdit, formatPrice }: Props) {
+  const { t: tr } = useLanguage()
   const modPrice  = entry.selectedOptions.reduce((s, o) => s + o.price, 0)
   const lineTotal = (Number(item.price) + modPrice) * entry.qty
   const hasExtras = entry.selectedOptions.length > 0 || entry.customNote || entry.selectedNoteIds.length > 0
@@ -26,7 +28,7 @@ export function DraftRow({ item, entry, onQty, onRemove, onEdit, formatPrice }: 
           </div>
           <p className="text-xs text-amber-400/80 tabular-nums mt-0.5">
             {formatPrice(lineTotal)}
-            {modPrice > 0 && <span className="text-white/30 ml-1">(+{formatPrice(modPrice * entry.qty)} mods)</span>}
+            {modPrice > 0 && <span className="text-white/30 ml-1">(+{formatPrice(modPrice * entry.qty)} {tr.ord_mods})</span>}
           </p>
         </button>
         <div className="flex items-center gap-1 shrink-0">
@@ -62,7 +64,7 @@ export function DraftRow({ item, entry, onQty, onRemove, onEdit, formatPrice }: 
         </button>
       ) : (
         <button onClick={onEdit} className="w-full px-3 pb-2 text-left touch-manipulation">
-          <p className="text-[10px] text-white/20 hover:text-amber-400/50 transition-colors">Tap to add notes & modifiers…</p>
+          <p className="text-[10px] text-white/20 hover:text-amber-400/50 transition-colors">{tr.ord_add_notes}</p>
         </button>
       )}
     </div>

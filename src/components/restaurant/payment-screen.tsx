@@ -487,7 +487,7 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
               </div>
             )}
             <div className="flex justify-between text-sm text-white/40">
-              <span>Subtotal</span>
+              <span>{t.pay_subtotal}</span>
               <span className="tabular-nums">{formatPrice(total)}</span>
             </div>
             {appliedDiscount && (
@@ -503,7 +503,7 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
               </div>
             )}
             <div className="flex justify-between text-base font-bold text-white pt-1 border-t border-white/8">
-              <span>Total</span>
+              <span>{t.pay_total}</span>
               <span className="text-amber-400 tabular-nums">{formatPrice(finalTotal)}</span>
             </div>
           </div>
@@ -519,12 +519,12 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
                 <Users className="w-4 h-4 text-amber-400" />
               </div>
               <div>
-                <p className="text-sm font-bold text-white leading-tight">{isNaN(parseInt(tableNum)) ? tableNum : `Table ${tableNum}`}{guests > 0 ? ` · ${guests} Guests` : ''}</p>
-                <p className="text-[11px] text-white/35">{items.length} item{items.length !== 1 ? 's' : ''} · {isNaN(parseInt(tableNum)) ? tableNum : 'Dine In'}</p>
+                <p className="text-sm font-bold text-white leading-tight">{isNaN(parseInt(tableNum)) ? tableNum : `${t.kds_table} ${tableNum}`}{guests > 0 ? ` · ${guests} ${t.pay_guests}` : ''}</p>
+                <p className="text-[11px] text-white/35">{items.length} {t.pay_items} · {isNaN(parseInt(tableNum)) ? tableNum : t.pay_dine_in}</p>
               </div>
             </div>
             <div className="text-right">
-              <p className="text-[10px] text-white/30 uppercase tracking-wide">Total</p>
+              <p className="text-[10px] text-white/30 uppercase tracking-wide">{t.pay_total}</p>
               <p className="text-base font-bold text-amber-400 tabular-nums">{formatPrice(finalTotal)}</p>
             </div>
           </div>
@@ -532,10 +532,10 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
           {/* Summary row */}
           <div className="shrink-0 grid grid-cols-4 divide-x divide-white/8 border-b border-white/8">
             {[
-              { label: 'Total',  value: formatPrice(finalTotal),                                                   color: 'text-white' },
-              { label: 'Pay',    value: formatPrice(payAmount),                                                    color: 'text-amber-400' },
-              { label: 'Paid',   value: enteredNum > 0 ? formatPrice(enteredNum) : formatPrice(0),                color: enteredNum > 0 ? 'text-white/70' : 'text-white/25' },
-              { label: 'Change', value: formatPrice(change),                                                       color: change > 0 ? 'text-emerald-400' : 'text-white/25' },
+              { label: t.pay_total,  value: formatPrice(finalTotal),                                              color: 'text-white' },
+              { label: t.pay_pay,    value: formatPrice(payAmount),                                                color: 'text-amber-400' },
+              { label: t.pay_paid,   value: enteredNum > 0 ? formatPrice(enteredNum) : formatPrice(0),            color: enteredNum > 0 ? 'text-white/70' : 'text-white/25' },
+              { label: t.pay_change, value: formatPrice(change),                                                   color: change > 0 ? 'text-emerald-400' : 'text-white/25' },
             ].map(s => (
               <div key={s.label} className="flex flex-col items-center justify-center py-2 md:py-4 gap-0.5 md:gap-1">
                 <span className="text-[10px] md:text-xs text-white/30 uppercase tracking-wider">{s.label}</span>
@@ -547,7 +547,7 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
           {/* Payment methods */}
           <div className="shrink-0 flex gap-2 px-4 py-3 border-b border-white/8 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
             {payMethods.length === 0 ? (
-              <p className="text-xs text-white/25 italic self-center">No payment methods — add in Settings → Menu → Payment Method</p>
+              <p className="text-xs text-white/25 italic self-center">{t.pay_no_methods}</p>
             ) : payMethods.map(m => {
               const colors = ICON_COLORS[m.icon_type] ?? ICON_COLORS.other
               return (
@@ -571,7 +571,7 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
           {activeTab === 'surcharge' && (
             <div className="shrink-0 border-b border-white/8 bg-[#080b14] p-4">
               {surcharges.length === 0 ? (
-                <p className="text-xs text-white/25 italic text-center py-2">No surcharges — add in Settings → Menu → Surcharge</p>
+                <p className="text-xs text-white/25 italic text-center py-2">{t.pay_no_surcharges}</p>
               ) : (
                 <div className="flex flex-wrap gap-2">
                   {surcharges.map(s => {
@@ -607,7 +607,7 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
           {activeTab === 'discount' && (
             <div className="shrink-0 border-b border-white/8 bg-[#080b14] p-4">
               {discounts.length === 0 ? (
-                <p className="text-xs text-white/25 italic text-center py-2">No discounts — add in Settings → Menu → Discount</p>
+                <p className="text-xs text-white/25 italic text-center py-2">{t.pay_no_discounts}</p>
               ) : (
                 <div className="flex flex-wrap gap-2">
                   {discounts.map(d => {
@@ -632,7 +632,7 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
                         </span>
                         <span>{d.name}</span>
                         {!eligible && d.min_order > 0 && (
-                          <span className="text-[10px] text-white/25">min {formatPrice(d.min_order)}</span>
+                          <span className="text-[10px] text-white/25">{t.pay_min} {formatPrice(d.min_order)}</span>
                         )}
                         {selected && <span className="text-xs">✓</span>}
                       </button>
@@ -646,11 +646,11 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
           {/* Note panel */}
           {activeTab === 'note' && (
             <div className="shrink-0 border-b border-white/8 bg-[#080b14] p-4 space-y-2">
-              <p className="text-xs text-white/30 font-medium">Invoice note (printed on receipt)</p>
+              <p className="text-xs text-white/30 font-medium">{t.pay_note_label}</p>
               <textarea
                 value={invoiceNote}
                 onChange={e => setInvoiceNote(e.target.value)}
-                placeholder="e.g. Thank you for your visit! Special instructions..."
+                placeholder={t.pay_note_ph}
                 rows={3}
                 className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-white/20 focus:outline-none focus:border-cyan-500/40 resize-none transition-colors"
               />
@@ -659,7 +659,7 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
                   onClick={() => setInvoiceNote('')}
                   className="text-xs text-white/25 hover:text-rose-400 transition-colors"
                 >
-                  Clear note
+                  {t.pay_clear_note}
                 </button>
               )}
             </div>
@@ -668,19 +668,19 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
           {/* Pay Later panel */}
           {activeTab === 'paylater' && (
             <div className="shrink-0 border-b border-white/8 bg-[#080b14] p-4 space-y-3">
-              <p className="text-xs text-rose-400/70 font-semibold uppercase tracking-wider">Pay Later — {formatPrice(finalTotal)}</p>
+              <p className="text-xs text-rose-400/70 font-semibold uppercase tracking-wider">{t.pay_tab_paylater} — {formatPrice(finalTotal)}</p>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <p className="text-[10px] text-white/35 mb-1">Customer Name <span className="text-rose-400">*</span></p>
+                  <p className="text-[10px] text-white/35 mb-1">{t.pay_cust_name} <span className="text-rose-400">*</span></p>
                   <input
                     value={plName}
                     onChange={e => setPlName(e.target.value)}
-                    placeholder="Full name"
+                    placeholder={t.pay_full_name_ph}
                     className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/20 focus:outline-none focus:border-rose-500/40 transition-colors"
                   />
                 </div>
                 <div>
-                  <p className="text-[10px] text-white/35 mb-1">Phone</p>
+                  <p className="text-[10px] text-white/35 mb-1">{t.pay_phone}</p>
                   <input
                     value={plPhone}
                     onChange={e => setPlPhone(e.target.value)}
@@ -691,7 +691,7 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <p className="text-[10px] text-white/35 mb-1">Due Date <span className="text-white/20">(optional)</span></p>
+                  <p className="text-[10px] text-white/35 mb-1">{t.pay_due_date} <span className="text-white/20">{t.pay_optional}</span></p>
                   <input
                     type="date"
                     value={plDueDate}
@@ -700,17 +700,17 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
                   />
                 </div>
                 <div>
-                  <p className="text-[10px] text-white/35 mb-1">Note <span className="text-white/20">(optional)</span></p>
+                  <p className="text-[10px] text-white/35 mb-1">{t.pay_tab_note} <span className="text-white/20">{t.pay_optional}</span></p>
                   <input
                     value={plNote}
                     onChange={e => setPlNote(e.target.value)}
-                    placeholder="Reason…"
+                    placeholder={t.pay_reason_ph}
                     className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/20 focus:outline-none focus:border-rose-500/40 transition-colors"
                   />
                 </div>
               </div>
               {selectedCustomer && plName === selectedCustomer.name && (
-                <p className="text-[10px] text-violet-400/70">Pre-filled from selected customer</p>
+                <p className="text-[10px] text-violet-400/70">{t.pay_prefilled_cust}</p>
               )}
             </div>
           )}
@@ -724,10 +724,10 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
                 <p className="text-3xl font-bold text-white/20 tabular-nums">{formatPrice(finalTotal)}</p>
               )}
               {entered && shortfall > 0 && (
-                <p className="text-xs text-rose-400/70 mt-1">Short by {formatPrice(shortfall)}</p>
+                <p className="text-xs text-rose-400/70 mt-1">{t.pay_short_by} {formatPrice(shortfall)}</p>
               )}
               {entered && change > 0 && (
-                <p className="text-xs text-emerald-400/70 mt-1">Change: {formatPrice(change)}</p>
+                <p className="text-xs text-emerald-400/70 mt-1">{t.pay_change_label} {formatPrice(change)}</p>
               )}
               {payError && (
                 <p className="text-xs text-rose-400 mt-1 font-mono">{payError}</p>
@@ -738,13 +738,13 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
                 onClick={() => press('Exact')}
                 className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-white/40 hover:bg-white/10 hover:text-white/60 transition-all active:scale-95 touch-manipulation"
               >
-                Exact
+                {t.pay_exact}
               </button>
               <button
                 onClick={() => press('C')}
                 className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-rose-400/50 hover:bg-rose-500/10 hover:text-rose-400 transition-all active:scale-95 touch-manipulation"
               >
-                Clear
+                {t.clear}
               </button>
             </div>
           </div>
@@ -769,7 +769,7 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
                 onClick={() => setActiveTab(null)}
                 className="flex-1 bg-transparent hover:bg-white/5 active:bg-white/10 text-white/40 hover:text-white/60 text-xs font-medium transition-all touch-manipulation flex items-center justify-center"
               >
-                Cancel
+                {t.cancel}
               </button>
               <button
                 onClick={handlePayLater}
@@ -784,10 +784,10 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
                 )}
               >
                 {paidLater
-                  ? <><Check className="w-5 h-5" />Saved to Pay Later!</>
+                  ? <><Check className="w-5 h-5" />{t.pay_saved_paylater}</>
                   : payingLater
-                    ? <><Loader2 className="w-5 h-5 animate-spin" />Saving…</>
-                    : <><CreditCard className="w-5 h-5" />Confirm Pay Later · {formatPrice(finalTotal)}</>
+                    ? <><Loader2 className="w-5 h-5 animate-spin" />{t.pay_saving}</>
+                    : <><CreditCard className="w-5 h-5" />{t.pay_confirm_paylater} · {formatPrice(finalTotal)}</>
                 }
               </button>
             </div>
@@ -804,14 +804,14 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
                   onClick={() => { setInvoiceMode('receipt'); setShowInvoice(true) }}
                   className="flex-1 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 text-sm font-semibold flex items-center justify-center gap-1.5 transition-all active:scale-95 touch-manipulation"
                 >
-                  <Printer className="w-4 h-4" />Receipt
+                  <Printer className="w-4 h-4" />{t.pay_receipt}
                 </button>
               )}
               {p('payment_screen.wa') && (
                 <button
                   onClick={handleWaButton}
                   className="flex-1 bg-green-600/20 hover:bg-green-600/35 text-green-400 text-sm font-semibold flex items-center justify-center gap-1.5 transition-all active:scale-95 touch-manipulation"
-                  title="Send invoice via WhatsApp"
+                  title={t.pay_wa_send_invoice}
                 >
                   <MessageCircle className="w-4 h-4" />WA
                 </button>
@@ -832,10 +832,10 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
                   )}
                 >
                   {paid
-                    ? <><Check className="w-6 h-6" />Paid!</>
+                    ? <><Check className="w-6 h-6" />{t.pay_paid_excl}</>
                     : paying
-                      ? <><Loader2 className="w-6 h-6 animate-spin" />Processing</>
-                      : 'Pay'}
+                      ? <><Loader2 className="w-6 h-6 animate-spin" />{t.pay_processing}</>
+                      : t.pay_pay}
                 </button>
               )}
             </div>
@@ -846,13 +846,13 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
             <div className="shrink-0 flex gap-px bg-white/5 border-t border-white/8">
               {p('dashboard.drawer') && (
                 <button className="flex-1 h-12 bg-rose-600 hover:bg-rose-500 text-white text-sm font-medium flex items-center justify-center gap-2 transition-all active:scale-95 touch-manipulation">
-                  Drawer
+                  {t.pay_drawer}
                 </button>
               )}
               {p('dashboard.member') && (
                 <button onClick={() => setShowMemberPicker(true)} className="flex-1 h-12 bg-amber-600 hover:bg-amber-500 text-white text-sm font-medium flex items-center justify-center gap-2 transition-all active:scale-95 touch-manipulation px-2 overflow-hidden">
                   <Star className="w-4 h-4 shrink-0" />
-                  <span className="truncate">{selectedMember ? selectedMember.name : 'Member'}</span>
+                  <span className="truncate">{selectedMember ? selectedMember.name : t.pay_member}</span>
                   {selectedMember && (
                     <span role="button" onClick={e => { e.stopPropagation(); setSelectedMember(null) }} className="shrink-0 text-white/60 hover:text-white cursor-pointer">
                       <X className="w-3.5 h-3.5" />
@@ -863,7 +863,7 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
               {p('dashboard.customer') && (
                 <button onClick={() => setShowCustomerPicker(true)} className="flex-1 h-12 bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium flex items-center justify-center gap-2 transition-all active:scale-95 touch-manipulation px-2 overflow-hidden">
                   <Users className="w-4 h-4 shrink-0" />
-                  <span className="truncate">{selectedCustomer ? selectedCustomer.name : 'Customer'}</span>
+                  <span className="truncate">{selectedCustomer ? selectedCustomer.name : t.pay_customer}</span>
                   {selectedCustomer && (
                     <span role="button" onClick={e => { e.stopPropagation(); persistCustomer(null) }} className="shrink-0 text-white/60 hover:text-white cursor-pointer">
                       <X className="w-3.5 h-3.5" />
@@ -953,8 +953,8 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
               <MessageCircle className="w-4 h-4 text-green-400" />
             </div>
             <div className="flex-1">
-              <p className="text-sm font-bold text-white">Send via WhatsApp</p>
-              <p className="text-[11px] text-white/35">Select a template and enter phone number</p>
+              <p className="text-sm font-bold text-white">{t.pay_wa_send}</p>
+              <p className="text-[11px] text-white/35">{t.pay_wa_subtitle}</p>
             </div>
             <button onClick={() => setShowWaModal(false)} className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/40 hover:text-white transition-all">
               <X className="w-3.5 h-3.5" />
@@ -965,13 +965,13 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
 
             {/* Template selector */}
             <div>
-              <p className="text-[11px] font-semibold text-white/40 uppercase tracking-wider mb-2">Template</p>
+              <p className="text-[11px] font-semibold text-white/40 uppercase tracking-wider mb-2">{t.pay_wa_template}</p>
               {!waTemplatesLoaded ? (
                 <div className="flex items-center gap-2 text-xs text-white/30 py-2">
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading templates…
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" /> {t.pay_wa_loading}
                 </div>
               ) : waTemplates.length === 0 ? (
-                <p className="text-xs text-white/30 py-2">No templates yet — create one in <span className="text-green-400">Settings → WhatsApp</span></p>
+                <p className="text-xs text-white/30 py-2">{t.pay_wa_no_templates}</p>
               ) : (
                 <div className="flex flex-wrap gap-2">
                   {waTemplates.map(t => (
@@ -995,7 +995,7 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
             {/* Message preview */}
             {waMessage && (
               <div className="rounded-xl bg-[#0b141a] border border-white/8 p-3">
-                <p className="text-[10px] text-white/25 mb-2 uppercase tracking-wider">Preview</p>
+                <p className="text-[10px] text-white/25 mb-2 uppercase tracking-wider">{t.pay_wa_preview}</p>
                 <div className="flex justify-end">
                   <div className="max-w-[90%] rounded-xl rounded-tr-sm px-3 py-2 text-xs leading-relaxed whitespace-pre-wrap break-words" style={{ background: '#d9fdd3', color: '#111b21' }}>
                     {waMessage}
@@ -1006,7 +1006,7 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
 
             {/* Phone input */}
             <div>
-              <p className="text-[11px] font-semibold text-white/40 uppercase tracking-wider mb-2">Phone Number</p>
+              <p className="text-[11px] font-semibold text-white/40 uppercase tracking-wider mb-2">{t.pay_wa_phone}</p>
               <input
                 value={waPhone}
                 onChange={e => setWaPhone(e.target.value)}
@@ -1022,13 +1022,13 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
             <div className="flex gap-2 pt-1">
               <button onClick={() => setShowWaModal(false)}
                 className="flex-1 py-2.5 rounded-xl bg-white/8 hover:bg-white/12 text-white/50 text-sm font-medium transition-all active:scale-95">
-                Cancel
+                {t.cancel}
               </button>
               <button
                 onClick={() => { if (waPhone.trim() && waMessage) { sendWhatsApp(waPhone.trim()); setShowWaModal(false) } }}
                 disabled={!waPhone.trim() || !waMessage}
                 className="flex-[2] py-2.5 rounded-xl bg-green-600 hover:bg-green-500 disabled:opacity-40 text-white text-sm font-bold transition-all active:scale-95 flex items-center justify-center gap-2">
-                <MessageCircle className="w-4 h-4" />Send via WhatsApp
+                <MessageCircle className="w-4 h-4" />{t.pay_wa_send}
               </button>
             </div>
           </div>

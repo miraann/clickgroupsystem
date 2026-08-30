@@ -2272,9 +2272,15 @@ export default function TablesPage() {
             )}>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-white/40 mb-1">Table {selectedTable.label}</p>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-white/40 mb-1">{tr.kds_table} {selectedTable.label}</p>
                   <p className={cn('text-xl font-bold', STATUS_CONFIG[selectedTable.status].text)}>
-                    {STATUS_CONFIG[selectedTable.status].label}
+                    {({
+                      available: tr.table_available,
+                      occupied:  tr.table_occupied,
+                      reserved:  tr.table_reserved,
+                      dirty:     tr.table_dirty,
+                      bill_requested: tr.table_bill,
+                    } as Record<string, string>)[selectedTable.status] ?? STATUS_CONFIG[selectedTable.status].label}
                   </p>
                 </div>
                 <div className={cn('w-14 h-14 rounded-2xl border flex items-center justify-center text-2xl font-bold text-white', STATUS_CONFIG[selectedTable.status].bg, STATUS_CONFIG[selectedTable.status].border)}>
@@ -2285,9 +2291,9 @@ export default function TablesPage() {
               {selectedTable.status === 'occupied' && (
                 <div className="grid grid-cols-3 gap-3 mt-4">
                   {[
-                    { icon: Users, label: 'Guests', value: `${selectedTable.guests}` },
-                    { icon: Clock, label: 'Time', value: selectedTable.openedAt! },
-                    { icon: DollarSign, label: 'Total', value: selectedTable.orderTotal != null ? formatPrice(selectedTable.orderTotal) : '' },
+                    { icon: Users, label: tr.pay_guests, value: `${selectedTable.guests}` },
+                    { icon: Clock, label: tr.pay_time, value: selectedTable.openedAt! },
+                    { icon: DollarSign, label: tr.pay_total, value: selectedTable.orderTotal != null ? formatPrice(selectedTable.orderTotal) : '' },
                   ].map(s => (
                     <div key={s.label} className="text-center">
                       <s.icon className="w-4 h-4 text-white/30 mx-auto mb-1" />
@@ -2307,17 +2313,17 @@ export default function TablesPage() {
                     onClick={() => { setGuestTable(selectedTable); setSelectedTable(null) }}
                     className="col-span-2 h-14 rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-semibold flex items-center justify-center gap-2 transition-all shadow-lg shadow-amber-500/20 touch-manipulation">
                     <Utensils className="w-5 h-5" />
-                    Open Table
+                    {tr.open_table}
                   </button>
                   <button className="h-12 rounded-xl bg-indigo-500/20 border border-indigo-500/30 text-indigo-400 text-sm font-medium flex items-center justify-center gap-2 active:scale-95 transition-all touch-manipulation">
                     <Coffee className="w-4 h-4" />
-                    Reserve
+                    {tr.gn_reserve}
                   </button>
                   <button
                     onClick={() => setSelectedTable(null)}
                     className="h-12 rounded-xl bg-white/5 border border-white/10 text-white/50 text-sm font-medium flex items-center justify-center active:scale-95 transition-all touch-manipulation"
                   >
-                    Cancel
+                    {tr.cancel}
                   </button>
                 </>
               )}
@@ -2328,20 +2334,20 @@ export default function TablesPage() {
                     onClick={() => openOrder(selectedTable)}
                     className="col-span-2 h-14 rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-semibold flex items-center justify-center gap-2 transition-all shadow-lg shadow-amber-500/20 touch-manipulation">
                     <ShoppingBag className="w-5 h-5" />
-                    View Order
+                    {tr.td_view_order}
                     <ChevronRight className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => openOrder(selectedTable)}
                     className="h-12 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-sm font-medium flex items-center justify-center gap-2 active:scale-95 transition-all touch-manipulation">
                     <DollarSign className="w-4 h-4" />
-                    Pay Bill
+                    {tr.td_pay_bill}
                   </button>
                   <button
                     onClick={() => openOrder(selectedTable)}
                     className="h-12 rounded-xl bg-white/5 border border-white/10 text-white/50 text-sm font-medium flex items-center justify-center gap-2 active:scale-95 transition-all touch-manipulation">
                     <Plus className="w-4 h-4" />
-                    Add Items
+                    {tr.td_add_items}
                   </button>
                 </>
               )}
@@ -2352,16 +2358,16 @@ export default function TablesPage() {
                     onClick={() => { setGuestTable(selectedTable); setSelectedTable(null) }}
                     className="col-span-2 h-14 rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-semibold flex items-center justify-center gap-2 transition-all shadow-lg shadow-amber-500/20 touch-manipulation">
                     <Utensils className="w-5 h-5" />
-                    Seat Guests
+                    {tr.td_seat_guests}
                   </button>
                   <button className="h-12 rounded-xl bg-rose-500/15 border border-rose-500/25 text-rose-400 text-sm font-medium flex items-center justify-center active:scale-95 transition-all touch-manipulation">
-                    Cancel Reservation
+                    {tr.td_cancel_res}
                   </button>
                   <button
                     onClick={() => setSelectedTable(null)}
                     className="h-12 rounded-xl bg-white/5 border border-white/10 text-white/50 text-sm font-medium flex items-center justify-center active:scale-95 transition-all touch-manipulation"
                   >
-                    Close
+                    {tr.close}
                   </button>
                 </>
               )}
@@ -2393,13 +2399,13 @@ export default function TablesPage() {
                     }}
                     className="col-span-2 h-14 rounded-2xl bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white font-semibold flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-500/20 touch-manipulation">
                     <RefreshCw className="w-5 h-5" />
-                    Mark as Clean
+                    {tr.td_mark_clean}
                   </button>
                   <button
                     onClick={() => setSelectedTable(null)}
                     className="col-span-2 h-12 rounded-xl bg-white/5 border border-white/10 text-white/50 text-sm font-medium flex items-center justify-center active:scale-95 transition-all touch-manipulation"
                   >
-                    Close
+                    {tr.close}
                   </button>
                 </>
               )}
@@ -2430,6 +2436,7 @@ function GuestNumpad({
   onClose: () => void
 }) {
   const supabase = createClient()
+  const { t: tr } = useLanguage()
   const [value, setValue]           = useState('')
   const [view, setView]             = useState<'numpad' | 'reserve'>('numpad')
   const [resName, setResName]       = useState('')
@@ -2443,6 +2450,13 @@ function GuestNumpad({
   const [resErr, setResErr]         = useState<string | null>(null)
 
   const cfg = STATUS_CONFIG[table.status]
+  const statusLabel = ({
+    available: tr.table_available,
+    occupied:  tr.table_occupied,
+    reserved:  tr.table_reserved,
+    dirty:     tr.table_dirty,
+    bill_requested: tr.table_bill,
+  } as Record<string, string>)[table.status] ?? cfg.label
 
   const press = (key: string) => {
     if (key === '⌫') { setValue(v => v.slice(0, -1)); return }
@@ -2458,12 +2472,12 @@ function GuestNumpad({
   }
 
   const handleReserve = async () => {
-    if (!resName.trim()) { setResErr('Guest name is required'); return }
-    if (!resDate)        { setResErr('Date is required'); return }
-    if (!resTime)        { setResErr('Time is required'); return }
+    if (!resName.trim()) { setResErr(tr.gn_guest_name_req); return }
+    if (!resDate)        { setResErr(tr.gn_date_req); return }
+    if (!resTime)        { setResErr(tr.gn_time_req); return }
     setResSaving(true); setResErr(null)
     const { data: rest } = await supabase.from('restaurants').select('id').eq('id', typeof window !== 'undefined' ? (localStorage.getItem('restaurant_id') ?? '') : '').maybeSingle()
-    if (!rest?.id) { setResErr('Restaurant not found'); setResSaving(false); return }
+    if (!rest?.id) { setResErr(tr.gn_rest_not_found); setResSaving(false); return }
     const { error } = await supabase.from('reservations').insert({
       restaurant_id: rest.id,
       guest_name:    resName.trim(),
@@ -2488,8 +2502,8 @@ function GuestNumpad({
     <div className={cn('px-5 py-4 border-b border-white/8', cfg.bg)}>
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-white/40 mb-0.5">Table {table.label}</p>
-          <p className={cn('text-lg font-bold', cfg.text)}>{cfg.label}</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-white/40 mb-0.5">{tr.kds_table} {table.label}</p>
+          <p className={cn('text-lg font-bold', cfg.text)}>{statusLabel}</p>
         </div>
         <div className={cn('w-12 h-12 rounded-2xl border flex items-center justify-center text-lg font-bold text-white', cfg.bg, cfg.border)}>
           {table.label}
@@ -2514,8 +2528,8 @@ function GuestNumpad({
               <div className="w-11 h-11 rounded-2xl bg-amber-500/15 border border-amber-500/25 flex items-center justify-center mx-auto mb-2.5">
                 <Users className="w-5 h-5 text-amber-400" />
               </div>
-              <p className="text-base font-bold text-white">How many guests?</p>
-              <p className="text-xs text-white/30 mt-0.5">Up to {table.capacity}</p>
+              <p className="text-base font-bold text-white">{tr.ord_how_many_guests}</p>
+              <p className="text-xs text-white/30 mt-0.5">{tr.gn_up_to} {table.capacity}</p>
             </div>
 
             {/* Display */}
@@ -2546,11 +2560,11 @@ function GuestNumpad({
                 onClick={() => setView('reserve')}
                 className="h-10 rounded-xl bg-indigo-500/15 border border-indigo-500/25 text-indigo-400 text-sm font-medium flex items-center justify-center gap-1.5 active:scale-95 transition-all touch-manipulation"
               >
-                <Coffee className="w-4 h-4" />Reserve
+                <Coffee className="w-4 h-4" />{tr.gn_reserve}
               </button>
               <button onClick={onClose}
                 className="h-10 rounded-xl bg-white/5 border border-white/10 text-white/50 text-sm font-medium flex items-center justify-center active:scale-95 transition-all touch-manipulation">
-                Cancel
+                {tr.cancel}
               </button>
             </div>
           </>
@@ -2559,7 +2573,7 @@ function GuestNumpad({
             {/* Reserve form */}
             <div className="px-5 pt-4 pb-2 border-b border-white/8 flex items-center gap-2">
               <CalendarDays className="w-4 h-4 text-indigo-400" />
-              <p className="text-sm font-bold text-white">Reserve Table {table.label}</p>
+              <p className="text-sm font-bold text-white">{tr.gn_reserve_table} {table.label}</p>
             </div>
 
             {resSaved ? (
@@ -2567,21 +2581,21 @@ function GuestNumpad({
                 <div className="w-12 h-12 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center">
                   <Check className="w-6 h-6 text-emerald-400" />
                 </div>
-                <p className="text-sm font-bold text-emerald-400">Reservation Confirmed!</p>
+                <p className="text-sm font-bold text-emerald-400">{tr.gn_res_confirmed}</p>
               </div>
             ) : (
               <div className="px-5 py-4 space-y-3 max-h-[60vh] overflow-y-auto">
                 {/* Name */}
                 <div>
-                  <p className="text-[10px] text-white/40 mb-1 uppercase tracking-wider">Guest Name <span className="text-rose-400">*</span></p>
+                  <p className="text-[10px] text-white/40 mb-1 uppercase tracking-wider">{tr.rsv_guest_name} <span className="text-rose-400">*</span></p>
                   <input value={resName} onChange={e => setResName(e.target.value)}
-                    placeholder="Full name"
+                    placeholder={tr.pay_full_name_ph}
                     className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/20 focus:outline-none focus:border-indigo-500/40 transition-colors" />
                 </div>
 
                 {/* Phone */}
                 <div>
-                  <p className="text-[10px] text-white/40 mb-1 uppercase tracking-wider">Phone</p>
+                  <p className="text-[10px] text-white/40 mb-1 uppercase tracking-wider">{tr.pay_phone}</p>
                   <div className="relative">
                     <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/30" />
                     <input value={resPhone} onChange={e => setResPhone(e.target.value)}
@@ -2593,12 +2607,12 @@ function GuestNumpad({
                 {/* Date + Time */}
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <p className="text-[10px] text-white/40 mb-1 uppercase tracking-wider">Date <span className="text-rose-400">*</span></p>
+                    <p className="text-[10px] text-white/40 mb-1 uppercase tracking-wider">{tr.rsv_date} <span className="text-rose-400">*</span></p>
                     <input value={resDate} onChange={e => setResDate(e.target.value)} type="date"
                       className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-white/70 focus:outline-none focus:border-indigo-500/40 [color-scheme:dark] cursor-pointer" />
                   </div>
                   <div>
-                    <p className="text-[10px] text-white/40 mb-1 uppercase tracking-wider">Time <span className="text-rose-400">*</span></p>
+                    <p className="text-[10px] text-white/40 mb-1 uppercase tracking-wider">{tr.rsv_time} <span className="text-rose-400">*</span></p>
                     <input value={resTime} onChange={e => setResTime(e.target.value)} type="time"
                       className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-white/70 focus:outline-none focus:border-indigo-500/40 [color-scheme:dark] cursor-pointer" />
                   </div>
@@ -2606,7 +2620,7 @@ function GuestNumpad({
 
                 {/* Party size */}
                 <div>
-                  <p className="text-[10px] text-white/40 mb-1 uppercase tracking-wider">Guest Num</p>
+                  <p className="text-[10px] text-white/40 mb-1 uppercase tracking-wider">{tr.rsv_party_size}</p>
                   <div className="flex items-center gap-3">
                     <button onClick={() => setResParty(v => Math.max(1, v - 1))}
                       className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-white/60 hover:bg-white/10 active:scale-95 transition-all text-lg font-bold">−</button>
@@ -2618,9 +2632,9 @@ function GuestNumpad({
 
                 {/* Note */}
                 <div>
-                  <p className="text-[10px] text-white/40 mb-1 uppercase tracking-wider">Note</p>
+                  <p className="text-[10px] text-white/40 mb-1 uppercase tracking-wider">{tr.rsv_note}</p>
                   <input value={resNote} onChange={e => setResNote(e.target.value)}
-                    placeholder="Special requests…"
+                    placeholder={tr.gn_special_req_ph}
                     className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/20 focus:outline-none focus:border-indigo-500/40 transition-colors" />
                 </div>
 
@@ -2637,12 +2651,12 @@ function GuestNumpad({
               <div className="grid grid-cols-2 gap-2 p-3 border-t border-white/8">
                 <button onClick={() => setView('numpad')}
                   className="h-10 rounded-xl bg-white/5 border border-white/10 text-white/50 text-sm font-medium flex items-center justify-center active:scale-95 transition-all">
-                  Back
+                  {tr.back}
                 </button>
                 <button onClick={handleReserve} disabled={resSaving}
                   className="h-10 rounded-xl bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 text-white text-sm font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-all">
                   {resSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                  {resSaving ? 'Saving…' : 'Confirm'}
+                  {resSaving ? tr.pay_saving : tr.confirm}
                 </button>
               </div>
             )}

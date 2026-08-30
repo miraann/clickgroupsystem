@@ -13,6 +13,10 @@ interface Restaurant { id: string; name: string; logo_url: string | null }
 interface Currency   { symbol: string; decimal_places: number }
 interface OItem      { id: string; menu_item_id: string | null; item_name: string; item_price: number; qty: number; status: string }
 
+// The [slug] segment may be a menu_slug (dashboard buttons) or a restaurant UUID
+// (the order-screen CFD button passes restaurantId directly).
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 // ══════════════════════════════════════════════════════════════
 export default function CFDPage() {
   const { slug, tableNum } = useParams<{ slug: string; tableNum: string }>()
@@ -49,8 +53,11 @@ export default function CFDPage() {
   useEffect(() => {
     if (!slug) return
     const init = async () => {
-      const { data: r } = await supabase.from('restaurant_public').select('id, name, logo_url').eq('menu_slug', slug).maybeSingle()
-      if (!r) return
+      const { data: r } = await supabase.from('restaurant_public')
+        .select('id, name, logo_url')
+        .eq(UUID_RE.test(slug) ? 'id' : 'menu_slug', slug)
+        .maybeSingle()
+      if (!r) { setPhase('idle'); return }
       setRest(r as Restaurant)
       setRestaurantId(r.id)
       const [{ data: c }, { data: mi }] = await Promise.all([

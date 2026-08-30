@@ -1,6 +1,7 @@
 'use client'
 import { ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 import type { DbOrderItem } from '../types'
 
 interface Props {
@@ -10,13 +11,14 @@ interface Props {
 }
 
 export function SentRow({ item, onAction, formatPrice }: Props) {
+  const { t: tr } = useLanguage()
   const statusCfg = item.status === 'ready'
-    ? { bg: 'bg-emerald-500/8',  border: 'border-emerald-500/25', badge: 'bg-emerald-500/20 text-emerald-400', label: 'Ready'   }
+    ? { bg: 'bg-emerald-500/8',  border: 'border-emerald-500/25', badge: 'bg-emerald-500/20 text-emerald-400', label: tr.ord_status_ready   }
     : item.status === 'cooking'
-    ? { bg: 'bg-blue-500/8',     border: 'border-blue-500/20',    badge: 'bg-blue-500/20 text-blue-400',       label: 'Cooking' }
+    ? { bg: 'bg-blue-500/8',     border: 'border-blue-500/20',    badge: 'bg-blue-500/20 text-blue-400',       label: tr.ord_status_cooking }
     : item.status === 'queued'
-    ? { bg: 'bg-amber-500/6',    border: 'border-amber-500/20',   badge: 'bg-amber-500/20 text-amber-400',     label: 'Queued'  }
-    : { bg: 'bg-white/4',        border: 'border-white/8',        badge: 'bg-white/8 text-white/35',           label: 'Sent'    }
+    ? { bg: 'bg-amber-500/6',    border: 'border-amber-500/20',   badge: 'bg-amber-500/20 text-amber-400',     label: tr.ord_status_queued  }
+    : { bg: 'bg-white/4',        border: 'border-white/8',        badge: 'bg-white/8 text-white/35',           label: tr.ord_status_sent    }
 
   return (
     <button

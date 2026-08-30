@@ -7,6 +7,7 @@ import dynamic from 'next/dynamic'
 
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import { usePermissions } from '@/lib/permissions/PermissionsContext'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 import { useOrderState } from './useOrderState'
 import { OrderHeader }      from './components/OrderHeader'
@@ -25,6 +26,7 @@ function OrderPage() {
   const router         = useRouter()
   const { formatPrice } = useDefaultCurrency()
   const { can, isOwner } = usePermissions()
+  const { t: tr } = useLanguage()
   const p = (key: string) => isOwner || can(key)
 
   // ── URL-derived context ───────────────────────────────────────
@@ -63,9 +65,9 @@ function OrderPage() {
     <div className="flex items-center justify-center h-screen p-6" style={{ background: 'var(--app-bg, #022658)' }}>
       <div className="max-w-sm w-full p-5 rounded-2xl bg-rose-500/10 border border-rose-500/25 flex flex-col items-center gap-3 text-center">
         <AlertCircle className="w-8 h-8 text-rose-400" />
-        <p className="text-sm text-rose-400 font-semibold">Failed to open order</p>
+        <p className="text-sm text-rose-400 font-semibold">{tr.ord_failed_open}</p>
         <p className="text-xs text-white/40">{order.initError}</p>
-        <button onClick={order.init} className="mt-1 px-4 py-2 rounded-xl bg-white/8 text-xs text-white/50 hover:bg-white/12 active:scale-95 transition-all">Retry</button>
+        <button onClick={order.init} className="mt-1 px-4 py-2 rounded-xl bg-white/8 text-xs text-white/50 hover:bg-white/12 active:scale-95 transition-all">{tr.retry}</button>
       </div>
     </div>
   )
@@ -128,8 +130,8 @@ function OrderPage() {
         )}>
           <WifiOff className="w-3.5 h-3.5 shrink-0" />
           {order.queueCount > 0
-            ? <span>{order.queueCount} order{order.queueCount > 1 ? 's' : ''} queued — will sync when online</span>
-            : <span>Offline — orders will be queued until connection returns</span>}
+            ? <span>{order.queueCount} {tr.ord_queued_suffix}</span>
+            : <span>{tr.ord_offline_msg}</span>}
           {order.isOnline && order.queueCount > 0 && (
             <button
               onClick={order.syncQueuedOrders}
@@ -137,7 +139,7 @@ function OrderPage() {
               className="ml-auto flex items-center gap-1 font-semibold hover:text-amber-300 disabled:opacity-50"
             >
               {order.syncing ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
-              {order.syncing ? 'Syncing…' : 'Sync Now'}
+              {order.syncing ? tr.ord_syncing : tr.ord_sync_now}
             </button>
           )}
         </div>
@@ -158,7 +160,6 @@ function OrderPage() {
         restaurantId={order.restaurantId}
         supabase={order.supabase}
         formatPrice={formatPrice}
-        canCfd={!!order.restaurantId && p('dashboard.cfd_order')}
         canPay={p('dashboard.pay')}
         canSend={p('dashboard.order.send_kitchen')}
         isOnline={order.isOnline}
@@ -246,7 +247,7 @@ function OrderPage() {
         <PaymentScreen
           orderId={order.orderId}
           restaurantId={order.restaurantId}
-          tableNum={isTakeout ? 'Takeout' : table}
+          tableNum={isTakeout ? tr.ord_takeout : table}
           guests={guestCount}
           items={order.sentItems.map(i => ({ name: i.item_name, price: i.item_price, qty: i.qty }))}
           total={order.grandTotal}

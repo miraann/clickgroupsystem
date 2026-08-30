@@ -9,6 +9,7 @@ import {
   ShieldCheck, ChevronRight, User, Phone, Tag,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { matchDeliveryZone, type ZoneMatchResult } from '@/lib/delivery/zoneCalculator'
 
 // Lazy-load the map to avoid SSR
@@ -92,15 +93,16 @@ function calcEAR(pts: Pt[]): number {
 
 // ─── Face Scan Panel ──────────────────────────────────────────────────────────
 type Guidance = 'move_back' | 'move_closer' | 'center_face' | 'look_straight' | 'show_full_face' | null
-const GUIDE_CFG: Record<NonNullable<Guidance>, { text: string; color: string; bg: string; border: string }> = {
-  move_back:      { text: '↕  Move back a little',    color: '#ffffff', bg: '#F59E0B',              border: '#D97706'               },
-  move_closer:    { text: '↔  Come a bit closer',     color: '#fbbf24', bg: 'rgba(245,158,11,0.22)', border: 'rgba(245,158,11,0.50)' },
-  center_face:    { text: '◎  Center your face',      color: '#7dd3fc', bg: 'rgba(56,189,248,0.20)',  border: 'rgba(56,189,248,0.45)'  },
-  look_straight:  { text: '👁  Look straight ahead',  color: '#f9a8d4', bg: 'rgba(244,114,182,0.20)', border: 'rgba(244,114,182,0.45)' },
-  show_full_face: { text: '↕  Show forehead to chin', color: '#fbbf24', bg: 'rgba(245,158,11,0.22)', border: 'rgba(245,158,11,0.50)' },
+const GUIDE_CFG: Record<NonNullable<Guidance>, { icon: string; key: 'dck_fs_move_back' | 'dck_fs_move_closer' | 'dck_fs_center_face' | 'dck_fs_look_straight' | 'dck_fs_show_full_face'; color: string; bg: string; border: string }> = {
+  move_back:      { icon: '↕', key: 'dck_fs_move_back',      color: '#ffffff', bg: '#F59E0B',              border: '#D97706'               },
+  move_closer:    { icon: '↔', key: 'dck_fs_move_closer',    color: '#fbbf24', bg: 'rgba(245,158,11,0.22)', border: 'rgba(245,158,11,0.50)' },
+  center_face:    { icon: '◎', key: 'dck_fs_center_face',    color: '#7dd3fc', bg: 'rgba(56,189,248,0.20)',  border: 'rgba(56,189,248,0.45)'  },
+  look_straight:  { icon: '👁', key: 'dck_fs_look_straight', color: '#f9a8d4', bg: 'rgba(244,114,182,0.20)', border: 'rgba(244,114,182,0.45)' },
+  show_full_face: { icon: '↕', key: 'dck_fs_show_full_face', color: '#fbbf24', bg: 'rgba(245,158,11,0.22)', border: 'rgba(245,158,11,0.50)' },
 }
 
 function FaceScanPanel({ onVerified }: { onVerified: (selfieUrl: string) => void }) {
+  const { t } = useLanguage()
   const videoRef   = useRef<HTMLVideoElement>(null)
   const canvasRef  = useRef<HTMLCanvasElement>(null)
   const streamRef  = useRef<MediaStream | null>(null)
@@ -145,7 +147,7 @@ function FaceScanPanel({ onVerified }: { onVerified: (selfieUrl: string) => void
       body: JSON.stringify({ dataUrl }),
     })
     const json = await res.json() as { ok: boolean; url?: string; error?: string }
-    if (!res.ok || !json.ok) throw new Error(json.error ?? 'Upload failed')
+    if (!res.ok || !json.ok) throw new Error(json.error ?? t.dck_fs_upload_fail)
     return json.url!
   }
 
@@ -439,10 +441,10 @@ function FaceScanPanel({ onVerified }: { onVerified: (selfieUrl: string) => void
       const e = err as DOMException
       setErrMsg(
         e.name === 'NotAllowedError'
-          ? 'Camera permission denied. Tap the address bar lock icon → allow camera → try again.'
+          ? t.dck_fs_cam_denied
           : e.name === 'NotFoundError'
-          ? 'No camera found on this device.'
-          : (err as Error)?.message ?? 'Face detection could not load. Please try again.'
+          ? t.dck_fs_no_camera
+          : t.dck_fs_detect_load_fail
       )
       setPhase('error')
     })
@@ -525,7 +527,7 @@ function FaceScanPanel({ onVerified }: { onVerified: (selfieUrl: string) => void
                 borderRightColor: 'rgba(245,158,11,0.28)',
               }}
             />
-            <p className="text-sm text-white/50 font-medium">Starting camera…</p>
+            <p className="text-sm text-white/50 font-medium">{t.dck_fs_starting_camera}</p>
           </div>
         )}
 
@@ -654,7 +656,7 @@ function FaceScanPanel({ onVerified }: { onVerified: (selfieUrl: string) => void
                   boxShadow: `0 4px 20px ${cfg.bg}`,
                 }}
               >
-                {cfg.text}
+                {cfg.icon}  {t[cfg.key]}
               </motion.div>
             )
           })()}
@@ -740,8 +742,8 @@ function FaceScanPanel({ onVerified }: { onVerified: (selfieUrl: string) => void
                 <Loader2 className="w-8 h-8 text-emerald-400 animate-spin" />
               </div>
               <div className="text-center">
-                <p className="text-sm text-emerald-400 font-semibold">Processing…</p>
-                <p className="text-[11px] text-white/35 mt-1">Uploading your verification photo</p>
+                <p className="text-sm text-emerald-400 font-semibold">{t.dck_fs_processing}</p>
+                <p className="text-[11px] text-white/35 mt-1">{t.dck_fs_uploading}</p>
               </div>
             </motion.div>
           )}
@@ -811,7 +813,7 @@ function FaceScanPanel({ onVerified }: { onVerified: (selfieUrl: string) => void
           <div className="flex items-center gap-2 px-3 py-2 rounded-xl"
             style={{ background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.22)' }}>
             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-            <p className="text-[10px] text-emerald-400 font-semibold">Liveness confirmed — review your photo above</p>
+            <p className="text-[10px] text-emerald-400 font-semibold">{t.dck_fs_liveness_ok}</p>
           </div>
 
           {uploadErr && (
@@ -826,7 +828,7 @@ function FaceScanPanel({ onVerified }: { onVerified: (selfieUrl: string) => void
             <button onClick={retake} disabled={uploading}
               className="py-3 rounded-2xl text-sm font-semibold transition-all active:scale-95 disabled:opacity-40"
               style={{ background: 'rgba(0,0,0,0.05)', border: '1px solid rgba(0,0,0,0.15)', color: 'rgba(0,0,0,0.65)' }}>
-              ↩ Retake
+              ↩ {t.dck_fs_retake}
             </button>
             <button
               onClick={async () => {
@@ -837,14 +839,14 @@ function FaceScanPanel({ onVerified }: { onVerified: (selfieUrl: string) => void
                   const url = await uploadSelfie(captured)
                   onVerified(url)
                 } catch {
-                  setUploadErr('Upload failed — tap Confirm to retry.')
+                  setUploadErr(t.dck_fs_upload_retry)
                   setUploading(false)
                 }
               }}
               disabled={uploading}
               className="py-3 rounded-2xl text-sm font-bold text-black transition-all active:scale-[0.97] disabled:opacity-60 flex items-center justify-center gap-1.5"
               style={{ background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)', boxShadow: '0 6px 20px rgba(245,158,11,0.35)' }}>
-              Confirm →
+              {t.dck_fs_confirm} →
             </button>
           </div>
         </motion.div>
@@ -858,10 +860,10 @@ function FaceScanPanel({ onVerified }: { onVerified: (selfieUrl: string) => void
           style={{ background: 'rgba(245,158,11,0.04)', border: '1px solid rgba(245,158,11,0.14)' }}>
           <div className="flex items-center gap-2.5">
             <ShieldCheck className="w-4 h-4 text-amber-400 shrink-0" />
-            <p className="text-xs font-bold text-amber-400">Why face verification?</p>
+            <p className="text-xs font-bold text-amber-400">{t.dck_fs_why_title}</p>
           </div>
           <p className="text-[11px] text-white/40 leading-relaxed">
-            A blink-based liveness check confirms this is a real person placing the order — preventing fraudulent or automated orders.
+            {t.dck_fs_why_body}
           </p>
         </motion.div>
       )}
@@ -871,9 +873,10 @@ function FaceScanPanel({ onVerified }: { onVerified: (selfieUrl: string) => void
 
 // ─── Step indicator ───────────────────────────────────────────────────────────
 function StepIndicator({ step, primaryColor }: { step: Step; primaryColor: string }) {
+  const { t } = useLanguage()
   const steps: { id: Step; label: string }[] = [
-    { id: 'scan',    label: 'Verify'  },
-    { id: 'details', label: 'Order'   },
+    { id: 'scan',    label: t.dck_step_verify },
+    { id: 'details', label: t.dck_step_order  },
   ]
   const activeIdx = steps.findIndex(s => s.id === step)
 
@@ -955,6 +958,8 @@ export default function DeliveryCheckout({
   faceScanEnabled = true,
 }: DeliveryCheckoutProps) {
 
+  const { t } = useLanguage()
+
   // ── Navigation step — skip face scan when disabled ─────────
   const [step,      setStep]      = useState<Step>(faceScanEnabled ? 'scan' : 'details')
   const [selfieUrl, setSelfieUrl] = useState<string | null>(null)
@@ -1027,7 +1032,7 @@ export default function DeliveryCheckout({
   }, [reverseGeocode])
 
   const handleGPS = () => {
-    if (!navigator.geolocation) { setGpsErr('Geolocation not supported'); return }
+    if (!navigator.geolocation) { setGpsErr(t.dck_err_geo_unsupported); return }
     setGpsLoad(true); setGpsErr('')
     if (watchRef.current !== null) { navigator.geolocation.clearWatch(watchRef.current); watchRef.current = null }
 
@@ -1049,9 +1054,9 @@ export default function DeliveryCheckout({
         if (watchRef.current !== null) { navigator.geolocation.clearWatch(watchRef.current); watchRef.current = null }
         setGpsLoad(false)
         setGpsErr(
-          err.code === 1 ? 'Location permission denied. Allow access and try again.'
-          : err.code === 2 ? 'Location unavailable. Check your GPS.'
-          : 'Could not get location. Please try again.'
+          err.code === 1 ? t.dck_err_geo_denied
+          : err.code === 2 ? t.dck_err_geo_unavailable
+          : t.dck_err_geo_generic
         )
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
@@ -1071,9 +1076,9 @@ export default function DeliveryCheckout({
       .eq('active', true)
       .single()
 
-    if (!data) { setCouponErr('Invalid or inactive coupon code'); setCouponLoading(false); return }
-    if (data.expires_at && new Date(data.expires_at) < new Date()) { setCouponErr('This coupon has expired'); setCouponLoading(false); return }
-    if (data.max_uses !== null && data.used_count >= data.max_uses) { setCouponErr('This coupon has reached its usage limit'); setCouponLoading(false); return }
+    if (!data) { setCouponErr(t.dck_err_coupon_invalid); setCouponLoading(false); return }
+    if (data.expires_at && new Date(data.expires_at) < new Date()) { setCouponErr(t.dck_err_coupon_expired); setCouponLoading(false); return }
+    if (data.max_uses !== null && data.used_count >= data.max_uses) { setCouponErr(t.dck_err_coupon_limit); setCouponLoading(false); return }
     if (data.min_order_amount > 0 && cartTotal < data.min_order_amount) {
       setCouponErr(`Minimum order of ${formatPrice(data.min_order_amount)} required`)
       setCouponLoading(false); return
@@ -1088,10 +1093,10 @@ export default function DeliveryCheckout({
   // ── Validation ─────────────────────────────────────────────
   const validateForm = (): boolean => {
     const e: typeof errors = {}
-    if (!name.trim()) e.name = 'Full name is required'
-    if (!phone.trim()) e.phone = 'Phone number is required'
-    else if (!phoneOk) e.phone = 'Enter a valid phone number'
-    if (!lat || !lng) e.loc = 'Set your delivery location on the map'
+    if (!name.trim()) e.name = t.dck_err_name
+    if (!phone.trim()) e.phone = t.dck_err_phone
+    else if (!phoneOk) e.phone = t.dck_err_phone_invalid
+    if (!lat || !lng) e.loc = t.dck_err_location
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -1149,9 +1154,9 @@ export default function DeliveryCheckout({
                 <Truck className="w-4 h-4 text-amber-400" />
               </div>
               <div>
-                <h2 className="text-sm font-bold text-gray-900 leading-tight">Delivery Order</h2>
+                <h2 className="text-sm font-bold text-gray-900 leading-tight">{t.dck_delivery_order}</h2>
                 <p className="text-[10px] text-gray-400">
-                  {cartCount} item{cartCount !== 1 ? 's' : ''} · {formatPrice(cartTotal)}
+                  {cartCount} {cartCount !== 1 ? t.gm_items : t.gm_item} · {formatPrice(cartTotal)}
                 </p>
               </div>
             </div>
@@ -1159,7 +1164,7 @@ export default function DeliveryCheckout({
               <StepIndicator step={step} primaryColor={primaryColor} />
               <button
                 onClick={onClose}
-                aria-label="Close"
+                aria-label={t.dck_close}
                 className="w-7 h-7 rounded-full flex items-center justify-center transition-all active:scale-90"
                 style={{ background: 'rgba(0,0,0,0.05)', border: '1px solid rgba(0,0,0,0.08)' }}
               >
@@ -1175,12 +1180,12 @@ export default function DeliveryCheckout({
           >
             <div className="flex items-center gap-1.5 px-3 py-2">
               <Clock className="w-3 h-3 text-gray-400 shrink-0" />
-              <span className="text-[10px] text-gray-400">~{effEta} min</span>
+              <span className="text-[10px] text-gray-400">~{effEta} {t.dck_min_eta}</span>
             </div>
             <div className="flex items-center gap-1.5 px-3 py-2">
               <Package className="w-3 h-3 text-gray-400 shrink-0" />
               <span className="text-[10px] text-gray-400">
-                {deliveryFee === 0 ? <span className="text-emerald-400/80">Free</span> : formatPrice(deliveryFee)}
+                {deliveryFee === 0 ? <span className="text-emerald-400/80">{t.dck_free}</span> : formatPrice(deliveryFee)}
               </span>
             </div>
             <div className="flex items-center justify-end px-3 py-2">
@@ -1222,7 +1227,7 @@ export default function DeliveryCheckout({
                 style={{ background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.22)' }}
               >
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                <p className="text-[11px] text-emerald-400 font-semibold">Identity verified — fill in your delivery details below</p>
+                <p className="text-[11px] text-emerald-400 font-semibold">{t.dck_identity_verified}</p>
               </div>
 
               {/* Order error */}
@@ -1237,14 +1242,14 @@ export default function DeliveryCheckout({
               )}
 
               {/* Full name */}
-              <FieldWrap label="Full Name" error={errors.name}>
+              <FieldWrap label={t.dck_full_name} error={errors.name}>
                 <div className="relative">
                   <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <input
                     type="text"
                     value={name}
                     onChange={e => { setName(e.target.value); setErrors(er => ({ ...er, name: undefined })) }}
-                    placeholder="Your full name"
+                    placeholder={t.dck_full_name_ph}
                     className="w-full pl-10 pr-4 py-2.5 rounded-2xl text-sm text-gray-900 placeholder:text-gray-300 outline-none"
                     style={inputStyle(errors.name)}
                     onFocus={e => { if (!errors.name) e.currentTarget.style.borderColor = `rgba(245,158,11,0.50)` }}
@@ -1254,7 +1259,7 @@ export default function DeliveryCheckout({
               </FieldWrap>
 
               {/* Phone */}
-              <FieldWrap label="Phone Number" error={errors.phone}>
+              <FieldWrap label={t.dck_phone} error={errors.phone}>
                 <div className="relative">
                   <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <input
@@ -1262,7 +1267,7 @@ export default function DeliveryCheckout({
                     inputMode="tel"
                     value={phone}
                     onChange={e => { setPhone(e.target.value); setErrors(er => ({ ...er, phone: undefined })) }}
-                    placeholder="+964 7XX XXX XXXX"
+                    placeholder={t.dck_phone_ph}
                     className="w-full pl-10 pr-10 py-2.5 rounded-2xl text-sm text-gray-900 placeholder:text-gray-300 outline-none"
                     style={inputStyle(errors.phone, !!(phone && !phoneOk))}
                     onFocus={e => { if (!errors.phone) e.currentTarget.style.borderColor = 'rgba(245,158,11,0.50)' }}
@@ -1282,7 +1287,7 @@ export default function DeliveryCheckout({
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
-                    Delivery Location
+                    {t.dck_delivery_location}
                   </label>
                   {lat && lng && (
                     <div className="flex items-center gap-1.5">
@@ -1327,7 +1332,7 @@ export default function DeliveryCheckout({
                     {gpsLoad
                       ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
                       : <Crosshair className="w-3.5 h-3.5" />}
-                    {gpsLoad ? 'Locating…' : 'Live Location'}
+                    {gpsLoad ? t.dck_locating : t.dck_live_location}
                   </button>
 
                   {/* Hint overlay */}
@@ -1337,7 +1342,7 @@ export default function DeliveryCheckout({
                       style={{ background: 'rgba(255,255,255,0.60)', backdropFilter: 'blur(1.5px)' }}
                     >
                       <MapPin className="w-5 h-5 text-gray-400" />
-                      <p className="text-[11px] text-gray-500 font-medium">Tap map or use Live Location</p>
+                      <p className="text-[11px] text-gray-500 font-medium">{t.dck_tap_map}</p>
                     </div>
                   )}
 
@@ -1348,7 +1353,7 @@ export default function DeliveryCheckout({
                       style={{ background: 'rgba(245,158,11,0.88)' }}
                     >
                       <Loader2 className="w-3 h-3 text-amber-900 animate-spin shrink-0" />
-                      <p className="text-[10px] text-amber-900 font-semibold">Improving accuracy — stay still…</p>
+                      <p className="text-[10px] text-amber-900 font-semibold">{t.dck_improving_accuracy}</p>
                     </div>
                   )}
                 </div>
@@ -1364,7 +1369,7 @@ export default function DeliveryCheckout({
               </div>
 
               {/* Coupon */}
-              <FieldWrap label="Coupon Code">
+              <FieldWrap label={t.dck_coupon_code}>
                 <div className="flex gap-2">
                   <div className="relative flex-1">
                     <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
@@ -1372,7 +1377,7 @@ export default function DeliveryCheckout({
                       type="text"
                       value={couponCode}
                       onChange={e => { setCouponCode(e.target.value.toUpperCase()); setAppliedCoupon(null); setCouponErr(null) }}
-                      placeholder="OPTIONAL"
+                      placeholder={t.dck_optional}
                       disabled={!!appliedCoupon}
                       className="w-full pl-9 pr-3 py-2.5 rounded-2xl text-sm text-gray-900 placeholder:text-gray-300 font-mono uppercase outline-none disabled:opacity-45"
                       style={{ background: 'rgba(0,0,0,0.04)', border: `1px solid ${appliedCoupon ? 'rgba(52,211,153,0.30)' : 'rgba(0,0,0,0.10)'}` }}
@@ -1391,14 +1396,14 @@ export default function DeliveryCheckout({
                     {couponLoading
                       ? <Loader2 className="w-4 h-4 animate-spin" />
                       : appliedCoupon
-                      ? <><Check className="w-3.5 h-3.5" />Applied</>
-                      : 'Apply'}
+                      ? <><Check className="w-3.5 h-3.5" />{t.dck_applied}</>
+                      : t.dck_apply}
                   </button>
                 </div>
                 {appliedCoupon && (
                   <p className="text-[11px] text-emerald-400 mt-1.5 flex items-center gap-1.5">
                     <Check className="w-3.5 h-3.5 shrink-0" />
-                    {appliedCoupon.code} — save {formatPrice(appliedCoupon.discount)}
+                    {t.dck_coupon_save.replace('{code}', appliedCoupon.code).replace('{x}', formatPrice(appliedCoupon.discount))}
                   </p>
                 )}
                 {couponErr && (
@@ -1416,7 +1421,7 @@ export default function DeliveryCheckout({
                 >
                   <AlertCircle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                   <p className="text-[11px] text-amber-400">
-                    Minimum order is {formatPrice(effMinOrder)} — add {formatPrice(effMinOrder - cartTotal)} more
+                    {t.dck_min_order_warn.replace('{min}', formatPrice(effMinOrder)).replace('{more}', formatPrice(effMinOrder - cartTotal))}
                   </p>
                 </div>
               )}
@@ -1426,19 +1431,19 @@ export default function DeliveryCheckout({
                 className="rounded-2xl overflow-hidden"
                 style={{ border: '1px solid rgba(0,0,0,0.08)', background: 'rgba(0,0,0,0.02)' }}
               >
-                <TotalRow label="Subtotal"     value={formatPrice(cartTotal)} />
-                <TotalRow label="Delivery Fee" value={effFee === 0 ? 'Free' : formatPrice(effFee)} accent={effFee === 0} />
+                <TotalRow label={t.dck_subtotal}     value={formatPrice(cartTotal)} />
+                <TotalRow label={t.dck_delivery_fee} value={effFee === 0 ? t.dck_free : formatPrice(effFee)} accent={effFee === 0} />
                 {zoneMatch?.matched && zoneMatch.zoneName && (
                   <div className="px-4 py-1.5 text-[10px] text-emerald-500 flex items-center gap-1">
-                    <MapPin className="w-3 h-3" /> Zone: {zoneMatch.zoneName}
+                    <MapPin className="w-3 h-3" /> {t.dck_zone}: {zoneMatch.zoneName}
                   </div>
                 )}
-                {discountAmount > 0 && <TotalRow label="Discount" value={`−${formatPrice(discountAmount)}`} accent />}
+                {discountAmount > 0 && <TotalRow label={t.dck_discount} value={`−${formatPrice(discountAmount)}`} accent />}
                 <div
                   className="flex justify-between items-center px-4 py-3.5"
                   style={{ background: 'rgba(245,158,11,0.07)', borderTop: '1px solid rgba(245,158,11,0.16)' }}
                 >
-                  <span className="text-sm font-bold text-gray-900">Total to Pay</span>
+                  <span className="text-sm font-bold text-gray-900">{t.dck_total_to_pay}</span>
                   <span className="text-base font-extrabold tracking-tight" style={{ color: primaryColor }}>
                     {formatPrice(grandTotal)}
                   </span>
@@ -1470,8 +1475,8 @@ export default function DeliveryCheckout({
               }}
             >
               {placing
-                ? <><Loader2 className="w-4 h-4 animate-spin" /> Placing Order…</>
-                : <>Place Order <ChevronRight className="w-4 h-4" strokeWidth={2.5} /></>}
+                ? <><Loader2 className="w-4 h-4 animate-spin" /> {t.dck_placing_order}</>
+                : <>{t.dck_place_order} <ChevronRight className="w-4 h-4" strokeWidth={2.5} /></>}
             </button>
           ) : (
             <div

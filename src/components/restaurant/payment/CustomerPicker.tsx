@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { Search, X, Users, Phone, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 type Customer = { id: string; name: string; phone: string | null; email: string | null }
 
@@ -15,6 +16,7 @@ interface Props {
 }
 
 export function CustomerPicker({ open, restaurantId, selectedId, onSelect, onClose }: Props) {
+  const { t } = useLanguage()
   const [list,   setList]   = useState<Customer[]>([])
   const [search, setSearch] = useState('')
 
@@ -41,7 +43,7 @@ export function CustomerPicker({ open, restaurantId, selectedId, onSelect, onClo
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
       <div className="w-full max-w-sm bg-[#0d1220] border border-white/15 rounded-2xl shadow-2xl flex flex-col max-h-[80vh]">
         <div className="flex items-center justify-between px-5 pt-5 pb-3 shrink-0">
-          <h3 className="text-base font-bold text-white">Select Customer</h3>
+          <h3 className="text-base font-bold text-white">{t.pay_select_customer}</h3>
           <button onClick={onClose} className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-all">
             <X className="w-4 h-4" />
           </button>
@@ -50,7 +52,7 @@ export function CustomerPicker({ open, restaurantId, selectedId, onSelect, onClo
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
             <input value={search} onChange={e => setSearch(e.target.value)}
-              placeholder="Search name or phone…" autoFocus
+              placeholder={t.pay_search_name_phone} autoFocus
               className="w-full pl-9 pr-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/25 focus:outline-none focus:border-violet-500/50 transition-colors" />
           </div>
         </div>
@@ -70,7 +72,7 @@ export function CustomerPicker({ open, restaurantId, selectedId, onSelect, onClo
             </button>
           ))}
           {list.length === 0 && (
-            <p className="text-center text-white/30 text-sm py-8">No active customers found</p>
+            <p className="text-center text-white/30 text-sm py-8">{t.pay_no_customers}</p>
           )}
         </div>
       </div>

@@ -1,6 +1,7 @@
 'use client'
 import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 import type { DbCategory, DbMenuItem } from '../types'
 
 const itemGridVariants = {
@@ -27,6 +28,7 @@ export function MenuPanel({
   mobilePanel, categories, activeCategory, onCategory,
   visible, draftQty, onItemTap, formatPrice,
 }: Props) {
+  const { t: tr } = useLanguage()
   return (
     <div className={cn('flex-1 flex-col overflow-hidden', mobilePanel === 'menu' ? 'flex' : 'hidden sm:flex')}>
       {/* Category scroll */}
@@ -35,7 +37,7 @@ export function MenuPanel({
         style={{ scrollbarWidth: 'none' }}
       >
         {categories.length === 0
-          ? <p className="text-xs text-white/25 italic">No categories — add in Settings → Menu → Category</p>
+          ? <p className="text-xs text-white/25 italic">{tr.ord_no_categories}</p>
           : categories.map(cat => (
             <button key={cat.id} onClick={() => onCategory(cat.id)}
               className={cn(
@@ -55,8 +57,8 @@ export function MenuPanel({
       <div className="flex-1 overflow-y-auto p-4">
         {visible.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full gap-3">
-            <p className="text-sm text-white/25">No items in this category</p>
-            <p className="text-xs text-white/15">Add items in Settings → Menu → Item</p>
+            <p className="text-sm text-white/25">{tr.ord_no_items_cat}</p>
+            <p className="text-xs text-white/15">{tr.ord_add_items_hint}</p>
           </div>
         ) : (
           <motion.div

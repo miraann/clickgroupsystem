@@ -10,11 +10,13 @@ import {
   Truck, Clock, Package, Search, ChevronDown, ChevronUp, User, Phone,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import { assignOrderNumber } from '@/lib/orderNumber'
 import { sendPush } from '@/lib/push'
 import { logAudit } from '@/lib/logAudit'
 import { useRestaurantMenu } from '@/hooks/useRestaurantMenu'
+import MenuLanguageSwitcher from '@/components/menu/MenuLanguageSwitcher'
 
 const DeliveryCheckout = dynamic(
   () => import('@/components/delivery/DeliveryCheckout'),
@@ -269,10 +271,10 @@ interface TrackOrder {
 }
 
 const DELIVERY_STEPS = [
-  { key: 'pending',           label: 'Order Received',   icon: Package },
-  { key: 'preparing',         label: 'Preparing',        icon: Clock },
-  { key: 'out_for_delivery',  label: 'On the Way',       icon: Truck },
-  { key: 'delivered',         label: 'Delivered',        icon: CheckCircle2 },
+  { key: 'pending',           labelKey: 'gm_step_received'  as const, icon: Package },
+  { key: 'preparing',         labelKey: 'gm_step_preparing' as const, icon: Clock },
+  { key: 'out_for_delivery',  labelKey: 'gm_step_otw'       as const, icon: Truck },
+  { key: 'delivered',         labelKey: 'gm_step_delivered' as const, icon: CheckCircle2 },
 ]
 
 function stepIndex(status: string) {
@@ -288,6 +290,7 @@ function TrackOrderSection({
   isDark: boolean
   formatPrice: (n: number) => string
 }) {
+  const { t } = useLanguage()
   const supabase = createClient()
   const [open, setOpen]         = useState(false)
   const [phone, setPhone]       = useState('')
@@ -305,7 +308,7 @@ function TrackOrderSection({
 
   const search = async () => {
     const raw = phone.trim()
-    if (!raw) { setError('Enter your phone number'); return }
+    if (!raw) { setError(t.gm_err_enter_phone); return }
     setLoading(true); setError(null); setOrders(null)
 
     const { data: delivRows, error: dErr } = await supabase
@@ -316,9 +319,9 @@ function TrackOrderSection({
       .order('created_at', { ascending: false })
       .limit(10)
 
-    if (dErr) { setError('Could not fetch orders. Try again.'); setLoading(false); return }
+    if (dErr) { setError(t.gm_err_fetch); setLoading(false); return }
     if (!delivRows || delivRows.length === 0) {
-      setError('No orders found for this phone number.'); setLoading(false); return
+      setError(t.gm_err_no_orders); setLoading(false); return
     }
 
     const orderIds = delivRows.map(r => r.order_id)
@@ -356,7 +359,7 @@ function TrackOrderSection({
     const result   = allResult.filter(r => new Date(r.created_at).toDateString() === todayStr)
 
     if (result.length === 0) {
-      setError("No orders placed today found for this number.")
+      setError(t.gm_err_no_orders_today)
       setLoading(false)
       return
     }
@@ -368,7 +371,7 @@ function TrackOrderSection({
 
   const statusLabel = (s: string) => {
     const found = DELIVERY_STEPS.find(x => x.key === s)
-    return found?.label ?? s.replace(/_/g, ' ')
+    return found ? t[found.labelKey] : s.replace(/_/g, ' ')
   }
 
   // ── Realtime tracking ──────────────────────────────────────
@@ -431,7 +434,7 @@ function TrackOrderSection({
             style={{ background: `${primaryColor}20` }}>
             <Search className="w-4 h-4" style={{ color: primaryColor }} />
           </div>
-          <span className="text-sm font-bold" style={{ color: bodyText }}>Track Your Order</span>
+          <span className="text-sm font-bold" style={{ color: bodyText }}>{t.gm_track_title}</span>
         </div>
         {open
           ? <ChevronUp  className="w-4 h-4" style={{ color: dimText }} />
@@ -460,7 +463,7 @@ function TrackOrderSection({
                 value={phone}
                 onChange={e => { setPhone(e.target.value); setError(null) }}
                 onKeyDown={e => e.key === 'Enter' && search()}
-                placeholder="+964 7XX XXX XXXX"
+                placeholder={t.gm_phone_ph}
                 className="w-full pl-10 pr-3 py-2.5 rounded-xl text-sm outline-none"
                 style={{
                   background: inputBg,
@@ -502,14 +505,14 @@ function TrackOrderSection({
                 >
                   <div>
                     <p className="text-sm font-bold" style={{ color: bodyText }}>
-                      {order.order_number ? `Order #${order.order_number}` : 'Order'}
+                      {order.order_number ? `${t.gm_order} #${order.order_number}` : t.gm_order}
                       <span className="ml-2 text-xs font-normal" style={{ color: dimText }}>
                         {new Date(order.created_at).toLocaleDateString()}
                       </span>
                     </p>
                     {isCancelled ? (
                       <p className="text-xs mt-0.5 font-bold flex items-center gap-1" style={{ color: '#f87171' }}>
-                        ⚠️ Order Cancelled
+                        ⚠️ {t.gm_order_cancelled}
                       </p>
                     ) : (
                       <p className="text-xs mt-0.5 font-semibold" style={{ color: primaryColor }}>
@@ -530,9 +533,9 @@ function TrackOrderSection({
                         style={{ background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.25)' }}>
                         <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" style={{ color: '#f87171' }} />
                         <div>
-                          <p className="text-sm font-bold" style={{ color: '#f87171' }}>Order Cancelled</p>
+                          <p className="text-sm font-bold" style={{ color: '#f87171' }}>{t.gm_order_cancelled}</p>
                           <p className="text-xs mt-0.5" style={{ color: 'rgba(248,113,113,0.75)' }}>
-                            This order has been cancelled. Please contact us if you have any questions.
+                            {t.gm_order_cancelled_body}
                           </p>
                         </div>
                       </div>
@@ -577,7 +580,7 @@ function TrackOrderSection({
                               </motion.div>
                               <p className="text-[9px] font-semibold text-center leading-tight w-14"
                                 style={{ color: done ? primaryColor : dimText }}>
-                                {s.label}
+                                {t[s.labelKey]}
                               </p>
                             </div>
                           )
@@ -626,29 +629,29 @@ function TrackOrderSection({
                           {/* Subtotal */}
                           <div className="flex items-center justify-between px-3 py-1.5"
                             style={{ background: isDark ? 'rgba(255,255,255,0.03)' : '#fafafa', borderTop: `1px solid ${cardBorder}` }}>
-                            <span className="text-xs" style={{ color: isDark ? 'rgba(255,255,255,0.45)' : '#6b7280' }}>Subtotal</span>
+                            <span className="text-xs" style={{ color: isDark ? 'rgba(255,255,255,0.45)' : '#6b7280' }}>{t.gm_subtotal}</span>
                             <span className="text-xs" style={{ color: isDark ? 'rgba(255,255,255,0.45)' : '#6b7280' }}>{formatPrice(subtotal)}</span>
                           </div>
                           {/* Delivery fee */}
                           <div className="flex items-center justify-between px-3 py-1.5"
                             style={{ background: isDark ? 'rgba(255,255,255,0.03)' : '#fafafa' }}>
-                            <span className="text-xs" style={{ color: isDark ? 'rgba(255,255,255,0.45)' : '#6b7280' }}>Delivery Fee</span>
+                            <span className="text-xs" style={{ color: isDark ? 'rgba(255,255,255,0.45)' : '#6b7280' }}>{t.gm_delivery_fee}</span>
                             <span className="text-xs" style={{ color: isDark ? 'rgba(255,255,255,0.45)' : '#6b7280' }}>
-                              {delivFee === 0 ? 'Free' : formatPrice(delivFee)}
+                              {delivFee === 0 ? t.gm_free : formatPrice(delivFee)}
                             </span>
                           </div>
                           {/* Discount */}
                           {discount > 0 && (
                             <div className="flex items-center justify-between px-3 py-1.5"
                               style={{ background: isDark ? 'rgba(255,255,255,0.03)' : '#fafafa' }}>
-                              <span className="text-xs text-emerald-500">Discount</span>
+                              <span className="text-xs text-emerald-500">{t.gm_discount}</span>
                               <span className="text-xs text-emerald-500">-{formatPrice(discount)}</span>
                             </div>
                           )}
                           {/* Grand total */}
                           <div className="flex items-center justify-between px-3 py-2.5"
                             style={{ background: isDark ? 'rgba(255,255,255,0.05)' : '#f3f4f6', borderTop: `1px solid ${cardBorder}` }}>
-                            <span className="text-xs font-bold" style={{ color: bodyText }}>Total</span>
+                            <span className="text-xs font-bold" style={{ color: bodyText }}>{t.gm_total}</span>
                             <span className="text-sm font-extrabold" style={{ color: primaryColor }}>
                               {formatPrice(grandTotal)}
                             </span>
@@ -670,6 +673,7 @@ function TrackOrderSection({
 // ── Main Page ──────────────────────────────────────────────────
 export default function DeliveryOrderPage() {
   const { slug } = useParams<{ slug: string }>()
+  const { t, isRTL } = useLanguage()
   const supabase = createClient()
   const { formatPrice } = useDefaultCurrency()
   const [restaurantId, setRestaurantId] = useState<string | null>(null)
@@ -864,7 +868,7 @@ export default function DeliveryOrderPage() {
       .single()
 
     if (orderErr || !newOrder) {
-      setPlaceError(orderErr?.message ?? 'Failed to create order')
+      setPlaceError(t.gm_err_create)
       setPlacing(false); return
     }
 
@@ -945,8 +949,9 @@ export default function DeliveryOrderPage() {
       <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ background: `${primaryColor}20` }}>
         <UtensilsCrossed className="w-8 h-8" style={{ color: primaryColor }} />
       </div>
-      <h2 className={`text-xl font-bold ${tpl.nameColor}`}>Menu Unavailable</h2>
-      <p className={`text-sm ${tpl.welcomeColor}`}>{restaurant.name} has temporarily taken their menu offline.</p>
+      <h2 className={`text-xl font-bold ${tpl.nameColor}`}>{t.gm_menu_unavailable}</h2>
+      <p className={`text-sm ${tpl.welcomeColor}`}>{t.gm_menu_offline_body.replace('{name}', restaurant.name)}</p>
+      <MenuLanguageSwitcher isDark={tpl.isDark} accent={primaryColor} />
     </div>
   )
   if (!deliveryEnabled) return (
@@ -954,8 +959,9 @@ export default function DeliveryOrderPage() {
       <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ background: `${primaryColor}20` }}>
         <Truck className="w-8 h-8" style={{ color: primaryColor }} />
       </div>
-      <h2 className={`text-xl font-bold ${tpl.nameColor}`}>Delivery Unavailable</h2>
-      <p className={`text-sm ${tpl.welcomeColor}`}>{restaurant.name} is not currently accepting delivery orders.</p>
+      <h2 className={`text-xl font-bold ${tpl.nameColor}`}>{t.gm_delivery_unavailable}</h2>
+      <p className={`text-sm ${tpl.welcomeColor}`}>{t.gm_delivery_off_body.replace('{name}', restaurant.name)}</p>
+      <MenuLanguageSwitcher isDark={tpl.isDark} accent={primaryColor} />
     </div>
   )
 
@@ -968,7 +974,7 @@ export default function DeliveryOrderPage() {
     { key: 'tiktok',    value: rst.tiktok    ?? '', label: 'TikTok',    icon: <TikTokIcon    className="w-5 h-5" />, iconBg: '#010101', textColor: '#111827', borderColor: '#e5e7eb' },
     { key: 'twitter',   value: rst.twitter   ?? '', label: 'X',         icon: <TwitterXIcon  className="w-5 h-5" />, iconBg: '#14171a', textColor: '#111827', borderColor: '#e5e7eb' },
     { key: 'youtube',   value: rst.youtube   ?? '', label: 'YouTube',   icon: <YoutubeIcon   className="w-5 h-5" />, iconBg: '#ff0000', textColor: '#dc2626', borderColor: '#fecaca' },
-    { key: 'maps',      value: rst.maps_url  ?? '', label: 'Location',  icon: <MapPin        className="w-5 h-5" />, iconBg: '#10b981', textColor: '#059669', borderColor: '#a7f3d0' },
+    { key: 'maps',      value: rst.maps_url  ?? '', label: t.gm_location,  icon: <MapPin        className="w-5 h-5" />, iconBg: '#10b981', textColor: '#059669', borderColor: '#a7f3d0' },
   ].filter(s => s.value.trim() !== '')
 
   return (
@@ -993,24 +999,24 @@ export default function DeliveryOrderPage() {
       <motion.span initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1], delay: 0.24 }}
         className="mt-1 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-semibold"
         style={{ background: `${primaryColor}18`, color: primaryColor }}>
-        <Truck className="w-3.5 h-3.5" /> Delivery Order
+        <Truck className="w-3.5 h-3.5" /> {t.gm_delivery_order}
       </motion.span>
 
       {/* Delivery info strip */}
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1], delay: 0.35 }}
         className="mt-2 flex items-center gap-3 text-xs flex-wrap justify-center"
         style={{ color: tpl.isDark ? 'rgba(255,255,255,0.40)' : '#9ca3af' }}>
-        <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> ~{estimatedTime} min</span>
+        <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> ~{estimatedTime} {t.gm_minutes}</span>
         <span>·</span>
         <span className="flex items-center gap-1">
           <Package className="w-3.5 h-3.5" />
           {effectiveDeliveryFee === 0 && deliveryFee > 0
-            ? <span className="text-emerald-500 font-semibold">Free Delivery!</span>
-            : `Fee: ${formatPrice(deliveryFee)}`}
+            ? <span className="text-emerald-500 font-semibold">{t.gm_free_delivery}</span>
+            : `${t.gm_fee_prefix} ${formatPrice(deliveryFee)}`}
         </span>
-        {minOrder > 0 && <><span>·</span><span>Min: {formatPrice(minOrder)}</span></>}
+        {minOrder > 0 && <><span>·</span><span>{t.gm_min_prefix} {formatPrice(minOrder)}</span></>}
         {freeDeliveryAbove !== null && effectiveDeliveryFee > 0 && (
-          <><span>·</span><span className="text-emerald-500">Free above {formatPrice(freeDeliveryAbove)}</span></>
+          <><span>·</span><span className="text-emerald-500">{t.gm_free_above} {formatPrice(freeDeliveryAbove)}</span></>
         )}
       </motion.div>
 
@@ -1027,16 +1033,19 @@ export default function DeliveryOrderPage() {
       {/* Welcome */}
       <motion.p initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1], delay: 0.46 }}
         className={`mt-1 text-sm px-8 ${tpl.welcomeColor}`}>
-        {welcomeText ?? 'Browse our menu and place your delivery order below.'}
+        {welcomeText ?? t.gm_welcome_delivery}
       </motion.p>
+
+      {/* Language picker */}
+      <MenuLanguageSwitcher isDark={tpl.isDark} accent={primaryColor} />
 
       {/* Order placed banner */}
       {orderPlaced && (
         <div className="mx-6 mt-5 w-full max-w-sm flex items-start gap-3 p-4 rounded-2xl bg-emerald-50 border border-emerald-200">
           <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
           <div className="text-left">
-            <p className="text-sm font-bold text-emerald-700">Order Placed!</p>
-            <p className="text-xs text-emerald-600 mt-0.5">We received your order and will contact you shortly to confirm delivery.</p>
+            <p className="text-sm font-bold text-emerald-700">{t.gm_order_placed}</p>
+            <p className="text-xs text-emerald-600 mt-0.5">{t.gm_order_placed_body}</p>
           </div>
           <button onClick={() => setOrderPlaced(false)} className="ml-auto text-emerald-400 hover:text-emerald-600">
             <X className="w-4 h-4" />
@@ -1173,7 +1182,7 @@ export default function DeliveryOrderPage() {
           <div className="w-full mt-4 px-4 pb-10 text-left">
             <button onClick={() => setShowItems(false)}
               className={`mb-4 ml-2 flex items-center gap-1.5 text-sm font-semibold transition-colors ${tpl.backBtn}`}>
-              ← Back
+              ← {t.gm_back}
             </button>
             {activeCat && (
               <div className="flex items-center gap-2 mb-4 px-2">
@@ -1185,7 +1194,7 @@ export default function DeliveryOrderPage() {
             {catItems.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 gap-3">
                 <UtensilsCrossed className="w-10 h-10 text-gray-200" />
-                <p className="text-gray-400 text-sm">No items in this category</p>
+                <p className="text-gray-400 text-sm">{t.gm_no_items}</p>
               </div>
             ) : itemStyle === 'list' ? (
               <div className="space-y-3">
@@ -1210,7 +1219,7 @@ export default function DeliveryOrderPage() {
                           {qty === 0 ? (
                             <button onClick={() => addOne(item.id)}
                               className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold active:scale-95 ${tpl.addBtnBg} ${tpl.addBtnText}`}>
-                              <Plus className="w-3.5 h-3.5" /> Add
+                              <Plus className="w-3.5 h-3.5" /> {t.gm_add}
                             </button>
                           ) : (
                             <div className={`flex items-center rounded-xl border ${tpl.qtyBg} ${tpl.qtyBorder}`}>
@@ -1286,7 +1295,7 @@ export default function DeliveryOrderPage() {
                         {qty === 0 ? (
                           <button onClick={() => addOne(item.id)}
                             className={`w-full flex items-center justify-center gap-1 py-1.5 rounded-xl text-xs font-bold active:scale-95 ${tpl.addBtnBg} ${tpl.addBtnText}`}>
-                            <Plus className="w-3.5 h-3.5" /> Add
+                            <Plus className="w-3.5 h-3.5" /> {t.gm_add}
                           </button>
                         ) : (
                           <div className={`flex items-center justify-between rounded-xl border ${tpl.qtyBg} ${tpl.qtyBorder}`}>
@@ -1311,8 +1320,8 @@ export default function DeliveryOrderPage() {
           {events.length > 0 && (
             <motion.div className="w-full mt-6"
               initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1], delay: 0.84 }}>
-              <h2 className={`text-lg font-bold mb-3 pl-4 text-left ${tpl.sectionTitle}`}>Event &amp; Offers</h2>
-              <div className="scroll-hide flex gap-5 overflow-x-auto pl-4 pr-6 pb-4 pt-2 justify-start"
+              <h2 className={`text-lg font-bold mb-3 ps-4 text-start ${tpl.sectionTitle}`}>{t.gm_events_offers}</h2>
+              <div className="scroll-hide flex gap-5 overflow-x-auto ps-4 pe-6 pb-4 pt-2 justify-start"
                 style={{ scrollbarWidth: 'none' } as React.CSSProperties}>
                 {events.map((ev, idx) => (
                   <motion.div key={ev.id} onClick={() => openStory(idx)}
@@ -1340,7 +1349,7 @@ export default function DeliveryOrderPage() {
           {socialLinks.length > 0 && (
             <motion.div className="w-full mt-4 pb-10"
               initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1], delay: 1.06 }}>
-              <div className="scroll-hide flex gap-3 overflow-x-auto pl-4 pr-6 py-2 justify-start"
+              <div className="scroll-hide flex gap-3 overflow-x-auto ps-4 pe-6 py-2 justify-start"
                 style={{ scrollbarWidth: 'none' } as React.CSSProperties}>
                 {socialLinks.map((s, idx) => {
                   const href = buildSocialHref(s.key, s.value)
@@ -1378,12 +1387,12 @@ export default function DeliveryOrderPage() {
                 <ShoppingCart className="w-4 h-4 text-white" />
               </div>
               <div className="text-left">
-                <p className="text-white text-xs font-semibold opacity-80">{cartCount} item{cartCount !== 1 ? 's' : ''}</p>
+                <p className="text-white text-xs font-semibold opacity-80">{cartCount} {cartCount !== 1 ? t.gm_items : t.gm_item}</p>
                 <p className="text-white text-sm font-extrabold">{formatPrice(cartTotal)}</p>
               </div>
             </div>
             <div className="flex items-center gap-1 text-white font-bold text-sm">
-              View Order <ChevronRight className="w-4 h-4" />
+              {t.gm_view_order} {isRTL ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
             </div>
           </button>
         </div>
@@ -1398,8 +1407,8 @@ export default function DeliveryOrderPage() {
             </div>
             <div className="flex items-center justify-between px-5 pb-3 border-b border-gray-100">
               <div>
-                <h2 className="text-base font-bold text-gray-900">Your Order</h2>
-                <p className="text-xs text-gray-400 mt-0.5">{cartCount} item{cartCount !== 1 ? 's' : ''} · Delivery</p>
+                <h2 className="text-base font-bold text-gray-900">{t.gm_your_order}</h2>
+                <p className="text-xs text-gray-400 mt-0.5">{cartCount} {cartCount !== 1 ? t.gm_items : t.gm_item} · {t.gm_delivery}</p>
               </div>
               <button onClick={() => setShowCart(false)} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">
                 <X className="w-4 h-4" />
@@ -1442,8 +1451,8 @@ export default function DeliveryOrderPage() {
                         onClick={() => setItemModalId(item.id)}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-600 text-xs font-semibold active:scale-95 transition-all shrink-0"
                       >
-                        <ChevronRight className="w-3 h-3" />
-                        {allNotes.length > 0 ? 'Edit' : 'Add notes & modifiers'}
+                        {isRTL ? <ChevronLeft className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                        {allNotes.length > 0 ? t.gm_edit : t.gm_add_notes}
                       </button>
                       {allNotes.length > 0 && (
                         <p className="text-[11px] text-gray-500 line-clamp-1 flex-1 min-w-0">{allNotes.join(' · ')}</p>
@@ -1458,8 +1467,8 @@ export default function DeliveryOrderPage() {
             {freeDeliveryAbove !== null && effectiveDeliveryFee > 0 && (
               <div className="px-5 pt-3 pb-1">
                 <div className="flex justify-between text-xs text-gray-500 mb-1">
-                  <span>Add {formatPrice(freeDeliveryAbove - cartTotal)} more for free delivery</span>
-                  <span className="text-emerald-500 font-semibold">Free above {formatPrice(freeDeliveryAbove)}</span>
+                  <span>{t.gm_add_more_free.replace('{x}', formatPrice(freeDeliveryAbove - cartTotal))}</span>
+                  <span className="text-emerald-500 font-semibold">{t.gm_free_above} {formatPrice(freeDeliveryAbove)}</span>
                 </div>
                 <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden">
                   <div className="h-full rounded-full bg-emerald-400 transition-all duration-300"
@@ -1470,23 +1479,23 @@ export default function DeliveryOrderPage() {
             {freeDeliveryAbove !== null && effectiveDeliveryFee === 0 && (
               <div className="mx-5 mt-3 flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-100">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                <p className="text-xs text-emerald-600 font-medium">You unlocked free delivery!</p>
+                <p className="text-xs text-emerald-600 font-medium">{t.gm_unlocked_free_delivery}</p>
               </div>
             )}
 
             {/* Totals */}
             <div className="px-5 pt-3 pb-2 border-t border-gray-100 space-y-2 mt-2">
               <div className="flex justify-between text-sm text-gray-500">
-                <span>Subtotal</span><span>{formatPrice(cartTotal)}</span>
+                <span>{t.gm_subtotal}</span><span>{formatPrice(cartTotal)}</span>
               </div>
               <div className="flex justify-between text-sm text-gray-500">
-                <span>Delivery fee</span>
+                <span>{t.gm_delivery_fee}</span>
                 <span className={effectiveDeliveryFee === 0 && deliveryFee > 0 ? 'text-emerald-500 font-semibold' : ''}>
-                  {effectiveDeliveryFee === 0 && deliveryFee > 0 ? 'Free' : formatPrice(effectiveDeliveryFee)}
+                  {effectiveDeliveryFee === 0 && deliveryFee > 0 ? t.gm_free : formatPrice(effectiveDeliveryFee)}
                 </span>
               </div>
               <div className="flex justify-between text-base font-extrabold text-gray-900 pt-1 border-t border-gray-100">
-                <span>Total</span><span style={{ color: primaryColor }}>{formatPrice(cartTotal + effectiveDeliveryFee)}</span>
+                <span>{t.gm_total}</span><span style={{ color: primaryColor }}>{formatPrice(cartTotal + effectiveDeliveryFee)}</span>
               </div>
             </div>
 
@@ -1501,7 +1510,7 @@ export default function DeliveryOrderPage() {
                 disabled={minOrder > 0 && cartTotal < minOrder}
                 className="w-full py-4 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-40"
                 style={{ background: primaryColor, color: primaryColor === '#39ff14' ? '#000' : '#fff', boxShadow: `0 6px 24px ${primaryColor}40` }}>
-                <Truck className="w-4 h-4" /> Place Order · {formatPrice(cartTotal + effectiveDeliveryFee)}
+                <Truck className="w-4 h-4" /> {t.gm_place_order} · {formatPrice(cartTotal + effectiveDeliveryFee)}
               </button>
             </div>
           </div>
@@ -1563,10 +1572,10 @@ export default function DeliveryOrderPage() {
             {/* Backdrop click to close — desktop only */}
             <div className="absolute inset-0 hidden sm:block" onClick={closeStory} />
 
-            {/* Prev arrow */}
+            {/* Prev arrow (points toward earlier stories — right in RTL) */}
             <button onClick={goPrev}
-              className={`hidden sm:flex relative z-20 w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm items-center justify-center active:scale-90 transition-transform mr-3 ${storyIdx === 0 ? 'invisible pointer-events-none' : ''}`}>
-              <ChevronLeft className="w-5 h-5 text-white" />
+              className={`hidden sm:flex relative z-20 w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm items-center justify-center active:scale-90 transition-transform mx-3 ${storyIdx === 0 ? 'invisible pointer-events-none' : ''}`}>
+              {isRTL ? <ChevronRight className="w-5 h-5 text-white" /> : <ChevronLeft className="w-5 h-5 text-white" />}
             </button>
 
             {/* Story card — full screen mobile, portrait 9:16 desktop */}
@@ -1583,7 +1592,7 @@ export default function DeliveryOrderPage() {
                   {events.map((_, i) => (
                     <div key={i} className="flex-1 h-[3px] rounded-full bg-white/30 overflow-hidden">
                       {i === storyIdx && (
-                        <div key={storyKey} className="h-full bg-white rounded-full origin-left"
+                        <div key={storyKey} className={`h-full bg-white rounded-full ${isRTL ? 'origin-right' : 'origin-left'}`}
                           style={{ animation: 'story-progress 10s linear forwards' }} />
                       )}
                       {i < storyIdx && <div className="h-full bg-white rounded-full w-full" />}
@@ -1615,7 +1624,7 @@ export default function DeliveryOrderPage() {
                     {ev.description}
                   </p>
                 )}
-                <p className="text-white/40 text-xs font-medium">{storyIdx + 1} / {events.length}</p>
+                <p className="text-white/40 text-xs font-medium" dir="ltr">{storyIdx + 1} / {events.length}</p>
               </div>
 
               {/* Tap zones */}
@@ -1625,10 +1634,10 @@ export default function DeliveryOrderPage() {
               </div>
             </div>
 
-            {/* Next arrow */}
+            {/* Next arrow (points toward the next story — left in RTL) */}
             <button onClick={goNext}
-              className={`hidden sm:flex relative z-20 w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm items-center justify-center active:scale-90 transition-transform ml-3 ${storyIdx >= events.length - 1 ? 'invisible pointer-events-none' : ''}`}>
-              <ChevronRight className="w-5 h-5 text-white" />
+              className={`hidden sm:flex relative z-20 w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm items-center justify-center active:scale-90 transition-transform mx-3 ${storyIdx >= events.length - 1 ? 'invisible pointer-events-none' : ''}`}>
+              {isRTL ? <ChevronLeft className="w-5 h-5 text-white" /> : <ChevronRight className="w-5 h-5 text-white" />}
             </button>
           </div>
         )
@@ -1647,6 +1656,7 @@ function DeliveryItemModal({ item, initial, kitchenNotes, supabase, formatPrice,
   onConfirm: (entry: CartEntry) => void
   onClose: () => void
 }) {
+  const { t } = useLanguage()
   const [local, setLocal] = useState<CartEntry>({ ...initial, selectedOptions: [...initial.selectedOptions], noteIds: [...initial.noteIds] })
   const [modGroups, setModGroups] = useState<ModGroup[]>([])
   const [loadingMods, setLoadingMods] = useState(true)
@@ -1722,7 +1732,7 @@ function DeliveryItemModal({ item, initial, kitchenNotes, supabase, formatPrice,
         )}
 
         <div className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-gray-100">
-          <span className="text-sm font-semibold text-gray-600">Quantity</span>
+          <span className="text-sm font-semibold text-gray-600">{t.gm_quantity}</span>
           <div className="flex items-center rounded-xl border-2 border-amber-400 overflow-hidden">
             <button onClick={() => setLocal(e => ({ ...e, qty: Math.max(1, e.qty - 1) }))} className="w-9 h-9 flex items-center justify-center text-amber-600 bg-amber-50 active:bg-amber-100 transition-all">
               <Minus className="w-3.5 h-3.5" />
@@ -1742,9 +1752,9 @@ function DeliveryItemModal({ item, initial, kitchenNotes, supabase, formatPrice,
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-1.5">
                   <span className="text-sm font-bold text-gray-900">{group.name}</span>
-                  {group.required && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-100 text-red-500 font-bold">Required</span>}
+                  {group.required && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-100 text-red-500 font-bold">{t.gm_required}</span>}
                 </div>
-                <span className="text-xs text-gray-400">{group.max_select === 1 ? 'Choose 1' : `Up to ${group.max_select}`}</span>
+                <span className="text-xs text-gray-400">{group.max_select === 1 ? t.gm_choose_1 : `${t.gm_up_to} ${group.max_select}`}</span>
               </div>
               <div className="space-y-1.5">
                 {group.options.map(opt => {
@@ -1766,7 +1776,7 @@ function DeliveryItemModal({ item, initial, kitchenNotes, supabase, formatPrice,
 
           {kitchenNotes.length > 0 && (
             <div className="px-4 py-3">
-              <p className="text-sm font-bold text-gray-900 mb-2">Kitchen Notes</p>
+              <p className="text-sm font-bold text-gray-900 mb-2">{t.gm_kitchen_notes}</p>
               <div className="flex flex-wrap gap-2">
                 {kitchenNotes.map(note => {
                   const active = local.noteIds.includes(note.id)
@@ -1782,11 +1792,11 @@ function DeliveryItemModal({ item, initial, kitchenNotes, supabase, formatPrice,
           )}
 
           <div className="px-4 py-3">
-            <p className="text-sm font-bold text-gray-900 mb-2">Special Request <span className="text-xs text-gray-400 font-normal ml-1">Optional</span></p>
+            <p className="text-sm font-bold text-gray-900 mb-2">{t.gm_special_request} <span className="text-xs text-gray-400 font-normal ml-1">{t.gm_optional}</span></p>
             <input
               value={local.customNote}
               onChange={e => setLocal(en => ({ ...en, customNote: e.target.value }))}
-              placeholder="e.g. No onions, extra sauce…"
+              placeholder={t.gm_note_ph}
               className="w-full border-2 border-gray-100 rounded-xl px-3 py-2.5 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-amber-300 bg-gray-50"
             />
           </div>
@@ -1797,7 +1807,7 @@ function DeliveryItemModal({ item, initial, kitchenNotes, supabase, formatPrice,
             onClick={() => onConfirm(local)}
             className="w-full py-3.5 rounded-2xl bg-amber-500 text-white text-sm font-extrabold shadow-lg shadow-amber-400/30 active:scale-[0.98] transition-all flex items-center justify-between px-4"
           >
-            <span>{isEditing ? 'Update' : 'Add to Order'}</span>
+            <span>{isEditing ? t.gm_update : t.gm_add_to_order}</span>
             <span className="bg-white/25 px-3 py-1 rounded-xl text-sm font-bold">{formatPrice(lineTotal)}</span>
           </button>
         </div>

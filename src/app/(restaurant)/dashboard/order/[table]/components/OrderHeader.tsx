@@ -1,6 +1,7 @@
 'use client'
 import { ArrowLeft, Users, ShoppingBag } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 interface Props {
   table:        string
@@ -20,6 +21,7 @@ export function OrderHeader({
   orderId, guestCount, grandTotal, formatPrice, canGuestEdit, onGuestEdit,
 }: Props) {
   const router = useRouter()
+  const { t: tr } = useLanguage()
 
   return (
     <header className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-white/8 backdrop-blur-2xl" style={{ background: 'var(--app-anchor-80, rgba(2,38,88,0.8))' }}>
@@ -35,12 +37,12 @@ export function OrderHeader({
             {isTakeout ? (
               <div className="flex items-center gap-2">
                 <ShoppingBag className="w-4 h-4 text-amber-400" />
-                <span className="text-sm font-bold text-white">{takeoutName ?? 'Takeout'}</span>
+                <span className="text-sm font-bold text-white">{takeoutName ?? tr.ord_takeout}</span>
                 {takeoutPhone && <span className="text-xs text-white/40">{takeoutPhone}</span>}
               </div>
             ) : (
               <>
-                <span className="text-sm font-bold text-white">Table {table}</span>
+                <span className="text-sm font-bold text-white">{tr.kds_table} {table}</span>
                 {canGuestEdit && (
                   <button
                     onClick={onGuestEdit}
@@ -48,14 +50,14 @@ export function OrderHeader({
                   >
                     <Users className="w-4 h-4 text-amber-400" />
                     <span className="text-sm font-bold text-white">{guestCount > 0 ? guestCount : '—'}</span>
-                    <span className="text-xs text-white/40">guests</span>
+                    <span className="text-xs text-white/40">{tr.ord_guests}</span>
                   </button>
                 )}
               </>
             )}
           </div>
           <p className="text-xs text-white/25 mt-0.5">
-            {isTakeout ? 'Takeout' : 'Dine In'} · #{orderId?.slice(-6).toUpperCase()}
+            {isTakeout ? tr.ord_takeout : tr.ord_dine_in} · #{orderId?.slice(-6).toUpperCase()}
           </p>
         </div>
       </div>

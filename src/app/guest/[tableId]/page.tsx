@@ -9,11 +9,13 @@ import {
   Clock, Flame, ChefHat, BellRing,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import { assignOrderNumber } from '@/lib/orderNumber'
 import { sendPush } from '@/lib/push'
 import { logAudit } from '@/lib/logAudit'
 import { useRestaurantMenu } from '@/hooks/useRestaurantMenu'
+import MenuLanguageSwitcher from '@/components/menu/MenuLanguageSwitcher'
 
 interface Restaurant { id: string; name: string; logo_url: string | null; settings: Record<string, string> }
 interface TableInfo  { id: string; restaurant_id: string; seq: number; table_number: string; name: string | null; group_id: string | null }
@@ -28,11 +30,11 @@ interface TrackedItem { id: string; item_name: string; qty: number; status: 'pen
 
 function trackedStatus(status: TrackedItem['status']) {
   switch (status) {
-    case 'pending':  return { icon: <Clock className="w-4 h-4 text-amber-500" />,   label: 'Waiting for approval', color: 'text-amber-600', bg: 'bg-amber-50'   }
-    case 'sent':     return { icon: <ChefHat className="w-4 h-4 text-blue-500" />,  label: 'In kitchen queue',     color: 'text-blue-600',  bg: 'bg-blue-50'    }
-    case 'cooking':  return { icon: <Flame className="w-4 h-4 text-orange-500" />,  label: 'Being prepared',       color: 'text-orange-600',bg: 'bg-orange-50'  }
-    case 'ready':    return { icon: <CheckCircle2 className="w-4 h-4 text-emerald-500" />, label: 'Ready!',        color: 'text-emerald-600',bg: 'bg-emerald-50' }
-    default:         return { icon: <X className="w-4 h-4 text-gray-400" />,        label: 'Cancelled',            color: 'text-gray-400',  bg: 'bg-gray-50'    }
+    case 'pending':  return { icon: <Clock className="w-4 h-4 text-amber-500" />,   labelKey: 'gm_st_pending'   as const, color: 'text-amber-600', bg: 'bg-amber-50'   }
+    case 'sent':     return { icon: <ChefHat className="w-4 h-4 text-blue-500" />,  labelKey: 'gm_st_sent'      as const, color: 'text-blue-600',  bg: 'bg-blue-50'    }
+    case 'cooking':  return { icon: <Flame className="w-4 h-4 text-orange-500" />,  labelKey: 'gm_st_cooking'   as const, color: 'text-orange-600',bg: 'bg-orange-50'  }
+    case 'ready':    return { icon: <CheckCircle2 className="w-4 h-4 text-emerald-500" />, labelKey: 'gm_st_ready' as const, color: 'text-emerald-600',bg: 'bg-emerald-50' }
+    default:         return { icon: <X className="w-4 h-4 text-gray-400" />,        labelKey: 'gm_st_cancelled' as const, color: 'text-gray-400',  bg: 'bg-gray-50'    }
   }
 }
 
@@ -203,6 +205,7 @@ function buildSocialHref(key: string, value: string): string {
 
 export default function GuestPage() {
   const { tableId } = useParams<{ tableId: string }>()
+  const { t, isRTL } = useLanguage()
   const supabase = createClient()
   const { formatPrice } = useDefaultCurrency()
 
@@ -459,7 +462,7 @@ export default function GuestPage() {
         .select('id')
         .single()
       if (createErr || !newOrder) {
-        setPlaceError(createErr?.message ?? 'Failed to create order')
+        setPlaceError(t.gm_err_create)
         setPlacing(false)
         return
       }
@@ -556,12 +559,13 @@ export default function GuestPage() {
     { key: 'tiktok',    value: settings.tiktok    ?? '', label: 'TikTok',    icon: <TikTokIcon    className="w-5 h-5" />, iconBg: '#010101', textColor: '#111827', borderColor: '#e5e7eb' },
     { key: 'twitter',   value: settings.twitter   ?? '', label: 'X',         icon: <TwitterXIcon  className="w-5 h-5" />, iconBg: '#14171a', textColor: '#111827', borderColor: '#e5e7eb' },
     { key: 'youtube',   value: settings.youtube   ?? '', label: 'YouTube',   icon: <YoutubeIcon   className="w-5 h-5" />, iconBg: '#ff0000', textColor: '#dc2626', borderColor: '#fecaca' },
-    { key: 'maps',      value: settings.maps_url  ?? '', label: 'Location',  icon: <MapPin        className="w-5 h-5" />, iconBg: '#10b981', textColor: '#059669', borderColor: '#a7f3d0' },
+    { key: 'maps',      value: settings.maps_url  ?? '', label: t.gm_location,  icon: <MapPin        className="w-5 h-5" />, iconBg: '#10b981', textColor: '#059669', borderColor: '#a7f3d0' },
   ].filter(s => s.value.trim() !== '')
 
   return (
     <div className={`min-h-screen ${tpl.pageBg} flex flex-col items-center pt-6 sm:pt-16 text-center pb-28`}>
       <style>{`.cat-scroll::-webkit-scrollbar{display:none} .social-scroll::-webkit-scrollbar{display:none}`}</style>
+
 
       {/* Circle logo */}
       <motion.div initial={{ opacity: 0, y: 28 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
@@ -582,15 +586,18 @@ export default function GuestPage() {
       {tableLabel && (
         <motion.span initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1], delay: 0.24 }}
           className={`mt-1 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-semibold ${tpl.tableChipBg} ${tpl.tableChipText}`}>
-          Table {tableLabel}
+          {t.gm_table} {tableLabel}
         </motion.span>
       )}
 
       {/* Welcome message */}
       <motion.p initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1], delay: 0.35 }}
         className={`mt-2 text-sm px-6 ${tpl.welcomeColor}`}>
-        {welcomeText ?? 'Welcome! Browse our menu and order directly from your table.'}
+        {welcomeText ?? t.gm_welcome_guest}
       </motion.p>
+
+      {/* Language picker */}
+      <MenuLanguageSwitcher isDark={tpl.pageBg.includes('0a0a') || tpl.pageBg.includes('080c')} accent={primaryColor} />
 
       {/* Dine-in note (from Dine In settings) */}
       {restaurant?.settings?.dine_in_note && (
@@ -604,8 +611,8 @@ export default function GuestPage() {
         <div className="mx-6 mt-5 w-full max-w-sm flex items-start gap-3 p-4 rounded-2xl bg-emerald-50 border border-emerald-200">
           <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
           <div className="text-left">
-            <p className="text-sm font-bold text-emerald-700">Order sent!</p>
-            <p className="text-xs text-emerald-600 mt-0.5">Your order is being reviewed by staff. You can add more items anytime.</p>
+            <p className="text-sm font-bold text-emerald-700">{t.gm_order_sent}</p>
+            <p className="text-xs text-emerald-600 mt-0.5">{t.gm_order_sent_body}</p>
           </div>
           <button onClick={() => setOrderPlaced(false)} className="ml-auto text-emerald-400 hover:text-emerald-600">
             <X className="w-4 h-4" />
@@ -619,7 +626,7 @@ export default function GuestPage() {
           <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
             <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100 bg-gray-50">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-sm font-bold text-gray-800">Your Order · Live Updates</span>
+              <span className="text-sm font-bold text-gray-800">{t.gm_live_updates}</span>
             </div>
             <div className="divide-y divide-gray-50">
               {trackedItems.filter(i => i.status !== 'void').map(item => {
@@ -629,7 +636,7 @@ export default function GuestPage() {
                     <div className="shrink-0">{s.icon}</div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-gray-800 truncate">{item.item_name}</p>
-                      <p className={`text-xs font-medium mt-0.5 ${s.color}`}>{s.label}</p>
+                      <p className={`text-xs font-medium mt-0.5 ${s.color}`}>{t[s.labelKey]}</p>
                     </div>
                     <span className="text-xs text-gray-400 font-medium shrink-0">×{item.qty}</span>
                   </div>
@@ -801,7 +808,7 @@ export default function GuestPage() {
               onClick={() => setShowItems(false)}
               className={`mb-4 ml-2 flex items-center gap-1.5 text-sm font-semibold transition-colors ${tpl.backBtn}`}
             >
-              ← Back
+              ← {t.gm_back}
             </button>
             {/* Category title */}
             {activeCat && (
@@ -814,7 +821,7 @@ export default function GuestPage() {
             {items.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 gap-3">
                 <UtensilsCrossed className="w-10 h-10 text-gray-200" />
-                <p className="text-gray-400 text-sm">No items in this category</p>
+                <p className="text-gray-400 text-sm">{t.gm_no_items}</p>
               </div>
             ) : itemStyle === 'list' ? (
               /* ── List layout ── */
@@ -846,7 +853,7 @@ export default function GuestPage() {
                               onClick={() => addOne(item.id)}
                               className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all active:scale-95 ${tpl.addBtnBg} ${tpl.addBtnText}`}
                             >
-                              <Plus className="w-3.5 h-3.5" /> Add
+                              <Plus className="w-3.5 h-3.5" /> {t.gm_add}
                             </button>
                           ) : (
                             <div className={`flex items-center rounded-xl border ${tpl.qtyBg} ${tpl.qtyBorder}`}>
@@ -946,7 +953,7 @@ export default function GuestPage() {
                             onClick={() => addOne(item.id)}
                             className={`w-full flex items-center justify-center gap-1 py-1.5 rounded-xl text-xs font-bold transition-all active:scale-95 ${tpl.addBtnBg} ${tpl.addBtnText}`}
                           >
-                            <Plus className="w-3.5 h-3.5" /> Add
+                            <Plus className="w-3.5 h-3.5" /> {t.gm_add}
                           </button>
                         ) : (
                           <div className={`flex items-center justify-between rounded-xl border ${tpl.qtyBg} ${tpl.qtyBorder}`}>
@@ -975,12 +982,12 @@ export default function GuestPage() {
           {events.length > 0 && (
             <motion.div className="w-full mt-6"
               initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1], delay: 0.62 }}>
-              <h2 className={`text-lg font-bold mb-3 pl-4 text-left ${tpl.sectionTitleColor}`}>Event &amp; Offers</h2>
+              <h2 className={`text-lg font-bold mb-3 ps-4 text-start ${tpl.sectionTitleColor}`}>{t.gm_events_offers}</h2>
 
               {eventStyle === 'story' ? (
                 /* ── Story circles ── */
                 <div
-                  className="cat-scroll flex gap-4 overflow-x-auto pl-4 pr-6 pb-4 pt-2 justify-start"
+                  className="cat-scroll flex gap-4 overflow-x-auto ps-4 pe-6 pb-4 pt-2 justify-start"
                   style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
                 >
                   {events.map((ev, idx) => (
@@ -1033,7 +1040,7 @@ export default function GuestPage() {
               ) : (
                 /* ── Cards (default horizontal scroll) ── */
                 <div
-                  className="cat-scroll flex gap-5 overflow-x-auto pl-4 pr-6 pb-4 pt-2 justify-start"
+                  className="cat-scroll flex gap-5 overflow-x-auto ps-4 pe-6 pb-4 pt-2 justify-start"
                   style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
                 >
                   {events.map((ev, idx) => (
@@ -1094,7 +1101,7 @@ export default function GuestPage() {
               ) : socialStyle === 'icons' ? (
                 /* ── Icon circles only ── */
                 <div
-                  className="social-scroll flex gap-4 overflow-x-auto pl-4 pr-6 py-2 justify-start"
+                  className="social-scroll flex gap-4 overflow-x-auto ps-4 pe-6 py-2 justify-start"
                   style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
                 >
                   {socialLinks.map((s, idx) => {
@@ -1120,7 +1127,7 @@ export default function GuestPage() {
               ) : (
                 /* ── Pills (default horizontal scroll) ── */
                 <div
-                  className="social-scroll flex gap-3 overflow-x-auto pl-4 pr-6 py-2 justify-start"
+                  className="social-scroll flex gap-3 overflow-x-auto ps-4 pe-6 py-2 justify-start"
                   style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
                 >
                   {socialLinks.map((s, idx) => {
@@ -1170,10 +1177,10 @@ export default function GuestPage() {
               : <BellRing className={`w-4 h-4 ${waiterCalled ? 'animate-bounce' : ''}`} />
             }
             {waiterCalled
-              ? 'Waiter Coming!'
+              ? t.gm_waiter_coming
               : waiterCooldown
-                ? 'Called ✓'
-                : 'Call Waiter'
+                ? t.gm_waiter_called
+                : t.gm_call_waiter
             }
           </button>
         </div>
@@ -1191,12 +1198,12 @@ export default function GuestPage() {
                 <ShoppingCart className="w-4 h-4 text-white" />
               </div>
               <div className="text-left">
-                <p className="text-white text-xs font-semibold opacity-80">{cartCount} item{cartCount !== 1 ? 's' : ''}</p>
+                <p className="text-white text-xs font-semibold opacity-80">{cartCount} {cartCount !== 1 ? t.gm_items : t.gm_item}</p>
                 <p className="text-white text-sm font-extrabold">{formatPrice(cartTotal)}</p>
               </div>
             </div>
             <div className="flex items-center gap-1 text-white font-bold text-sm">
-              View Order <ChevronRight className="w-4 h-4" />
+              {t.gm_view_order} {isRTL ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
             </div>
           </button>
         </div>
@@ -1217,8 +1224,8 @@ export default function GuestPage() {
             {/* Header */}
             <div className="flex items-center justify-between px-5 pb-3 border-b border-gray-100">
               <div>
-                <h2 className="text-base font-bold text-gray-900">Your Order</h2>
-                <p className="text-xs text-gray-400 mt-0.5">{cartCount} item{cartCount !== 1 ? 's' : ''} · Table {tableLabel}</p>
+                <h2 className="text-base font-bold text-gray-900">{t.gm_your_order}</h2>
+                <p className="text-xs text-gray-400 mt-0.5">{cartCount} {cartCount !== 1 ? t.gm_items : t.gm_item} · {t.gm_table} {tableLabel}</p>
               </div>
               <button onClick={() => setShowCart(false)} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-all">
                 <X className="w-4 h-4" />
@@ -1266,7 +1273,7 @@ export default function GuestPage() {
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-600 text-xs font-semibold active:scale-95 transition-all shrink-0"
                       >
                         <ChevronRight className="w-3 h-3" />
-                        {allNotes.length > 0 ? 'Edit' : 'Add notes & modifiers'}
+                        {allNotes.length > 0 ? t.gm_edit : t.gm_add_notes}
                       </button>
                       {allNotes.length > 0 && (
                         <p className="text-[11px] text-gray-500 line-clamp-1 flex-1 min-w-0">{allNotes.join(' · ')}</p>
@@ -1280,7 +1287,7 @@ export default function GuestPage() {
             {/* Total + place order */}
             <div className="px-5 pt-3 pb-6 border-t border-gray-100 space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-500 font-medium">Total</span>
+                <span className="text-sm text-gray-500 font-medium">{t.gm_total}</span>
                 <span className="text-base font-extrabold text-gray-900">{formatPrice(cartTotal)}</span>
               </div>
               {placeError && (
@@ -1289,7 +1296,7 @@ export default function GuestPage() {
               {restaurant?.settings?.enable_qr_ordering === 'false' ? (
                 <div className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl bg-white/8 border border-white/10 text-white/40 text-sm font-semibold">
                   <UtensilsCrossed className="w-4 h-4" />
-                  Online ordering is currently unavailable
+                  {t.gm_ordering_unavailable}
                 </div>
               ) : (
                 <button
@@ -1298,7 +1305,7 @@ export default function GuestPage() {
                   className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl bg-amber-500 text-white text-sm font-bold shadow-lg shadow-amber-500/30 active:scale-95 transition-all disabled:opacity-60"
                 >
                   {placing ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShoppingCart className="w-4 h-4" />}
-                  {placing ? 'Placing order…' : 'Place Order'}
+                  {placing ? t.gm_placing : t.gm_place_order}
                 </button>
               )}
             </div>
@@ -1324,10 +1331,10 @@ export default function GuestPage() {
             {/* Backdrop click to close — desktop only */}
             <div className="absolute inset-0 hidden sm:block" onClick={closeStory} />
 
-            {/* Prev arrow */}
+            {/* Prev arrow (points toward where earlier stories sit — right in RTL) */}
             <button onClick={storyGoPrev}
-              className={`hidden sm:flex relative z-20 w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm items-center justify-center active:scale-90 transition-transform mr-3 ${storyViewerIndex === 0 ? 'invisible pointer-events-none' : ''}`}>
-              <ChevronLeft className="w-5 h-5 text-white" />
+              className={`hidden sm:flex relative z-20 w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm items-center justify-center active:scale-90 transition-transform mx-3 ${storyViewerIndex === 0 ? 'invisible pointer-events-none' : ''}`}>
+              {isRTL ? <ChevronRight className="w-5 h-5 text-white" /> : <ChevronLeft className="w-5 h-5 text-white" />}
             </button>
 
             {/* Story card — full screen mobile, portrait 9:16 desktop */}
@@ -1344,7 +1351,7 @@ export default function GuestPage() {
                   {events.map((_, i) => (
                     <div key={i} className="flex-1 h-[3px] rounded-full bg-white/30 overflow-hidden">
                       {i === storyViewerIndex && (
-                        <div key={storyKey} className="h-full bg-white rounded-full origin-left"
+                        <div key={storyKey} className={`h-full bg-white rounded-full ${isRTL ? 'origin-right' : 'origin-left'}`}
                           style={{ animation: 'story-progress 10s linear forwards' }} />
                       )}
                       {i < storyViewerIndex && <div className="h-full bg-white rounded-full w-full" />}
@@ -1376,7 +1383,7 @@ export default function GuestPage() {
                     {ev.description}
                   </p>
                 )}
-                <p className="text-white/40 text-xs font-medium">{storyViewerIndex + 1} / {events.length}</p>
+                <p className="text-white/40 text-xs font-medium" dir="ltr">{storyViewerIndex + 1} / {events.length}</p>
               </div>
 
               {/* Tap zones */}
@@ -1386,10 +1393,10 @@ export default function GuestPage() {
               </div>
             </div>
 
-            {/* Next arrow */}
+            {/* Next arrow (points toward the next story — left in RTL) */}
             <button onClick={storyGoNext}
-              className={`hidden sm:flex relative z-20 w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm items-center justify-center active:scale-90 transition-transform ml-3 ${storyViewerIndex >= events.length - 1 ? 'invisible pointer-events-none' : ''}`}>
-              <ChevronRight className="w-5 h-5 text-white" />
+              className={`hidden sm:flex relative z-20 w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm items-center justify-center active:scale-90 transition-transform mx-3 ${storyViewerIndex >= events.length - 1 ? 'invisible pointer-events-none' : ''}`}>
+              {isRTL ? <ChevronLeft className="w-5 h-5 text-white" /> : <ChevronRight className="w-5 h-5 text-white" />}
             </button>
           </div>
         )
@@ -1426,6 +1433,7 @@ function GuestItemModal({ item, initial, kitchenNotes, supabase, formatPrice, on
   onConfirm: (entry: CartEntry) => void
   onClose: () => void
 }) {
+  const { t } = useLanguage()
   const [local, setLocal] = useState<CartEntry>({ ...initial, selectedOptions: [...initial.selectedOptions], noteIds: [...initial.noteIds] })
   const [modGroups, setModGroups] = useState<ModGroup[]>([])
   const [loadingMods, setLoadingMods] = useState(true)
@@ -1506,7 +1514,7 @@ function GuestItemModal({ item, initial, kitchenNotes, supabase, formatPrice, on
 
         {/* ── Qty row ── */}
         <div className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-gray-100">
-          <span className="text-sm font-semibold text-gray-600">Quantity</span>
+          <span className="text-sm font-semibold text-gray-600">{t.gm_quantity}</span>
           <div className="flex items-center rounded-xl border-2 border-amber-400 overflow-hidden">
             <button onClick={() => setLocal(e => ({ ...e, qty: Math.max(1, e.qty - 1) }))} className="w-9 h-9 flex items-center justify-center text-amber-600 bg-amber-50 active:bg-amber-100 transition-all">
               <Minus className="w-3.5 h-3.5" />
@@ -1529,9 +1537,9 @@ function GuestItemModal({ item, initial, kitchenNotes, supabase, formatPrice, on
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-1.5">
                   <span className="text-sm font-bold text-gray-900">{group.name}</span>
-                  {group.required && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-100 text-red-500 font-bold">Required</span>}
+                  {group.required && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-100 text-red-500 font-bold">{t.gm_required}</span>}
                 </div>
-                <span className="text-xs text-gray-400">{group.max_select === 1 ? 'Choose 1' : `Up to ${group.max_select}`}</span>
+                <span className="text-xs text-gray-400">{group.max_select === 1 ? t.gm_choose_1 : `${t.gm_up_to} ${group.max_select}`}</span>
               </div>
               <div className="space-y-1.5">
                 {group.options.map(opt => {
@@ -1554,7 +1562,7 @@ function GuestItemModal({ item, initial, kitchenNotes, supabase, formatPrice, on
           {/* Kitchen Notes */}
           {kitchenNotes.length > 0 && (
             <div className="px-4 py-3">
-              <p className="text-sm font-bold text-gray-900 mb-2">Kitchen Notes</p>
+              <p className="text-sm font-bold text-gray-900 mb-2">{t.gm_kitchen_notes}</p>
               <div className="flex flex-wrap gap-2">
                 {kitchenNotes.map(note => {
                   const active = local.noteIds.includes(note.id)
@@ -1571,11 +1579,11 @@ function GuestItemModal({ item, initial, kitchenNotes, supabase, formatPrice, on
 
           {/* Special Request */}
           <div className="px-4 py-3">
-            <p className="text-sm font-bold text-gray-900 mb-2">Special Request <span className="text-xs text-gray-400 font-normal ml-1">Optional</span></p>
+            <p className="text-sm font-bold text-gray-900 mb-2">{t.gm_special_request} <span className="text-xs text-gray-400 font-normal ml-1">{t.gm_optional}</span></p>
             <input
               value={local.customNote}
               onChange={e => setLocal(en => ({ ...en, customNote: e.target.value }))}
-              placeholder="e.g. No onions, extra sauce…"
+              placeholder={t.gm_note_ph}
               className="w-full border-2 border-gray-100 rounded-xl px-3 py-2.5 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-amber-300 bg-gray-50"
             />
           </div>
@@ -1587,7 +1595,7 @@ function GuestItemModal({ item, initial, kitchenNotes, supabase, formatPrice, on
             onClick={() => onConfirm(local)}
             className="w-full py-3.5 rounded-2xl bg-amber-500 text-white text-sm font-extrabold shadow-lg shadow-amber-400/30 active:scale-[0.98] transition-all flex items-center justify-between px-4"
           >
-            <span>{isEditing ? 'Update' : 'Add to Order'}</span>
+            <span>{isEditing ? t.gm_update : t.gm_add_to_order}</span>
             <span className="bg-white/25 px-3 py-1 rounded-xl text-sm font-bold">{formatPrice(lineTotal)}</span>
           </button>
         </div>
