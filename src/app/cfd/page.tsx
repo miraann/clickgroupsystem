@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Monitor, Eye, EyeOff, Loader2, ArrowRight } from 'lucide-react'
+import { useWakeLock } from '@/hooks/useWakeLock'
 
 // One-time pairing screen for the CFD (Customer Facing Display) app.
 // The native shell always boots here (/cfd). Once a restaurant has been paired
@@ -18,6 +19,9 @@ export default function CFDPairing() {
   const [showPwd,  setShowPwd]  = useState(false)
   const [loading,  setLoading]  = useState(false)
   const [error,    setError]    = useState<string | null>(null)
+
+  // Keep the tablet awake on the pairing screen too (unless turned off later).
+  useWakeLock(true)
 
   // If already paired, jump to the display. `?switch=1` forces re-pairing.
   useEffect(() => {

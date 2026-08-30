@@ -2,7 +2,10 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { Monitor, ArrowRight, Maximize2, LayoutDashboard } from 'lucide-react'
+import { Monitor, ArrowRight, Maximize2, LayoutDashboard, MonitorCheck, MonitorOff } from 'lucide-react'
+import { useWakeLock } from '@/hooks/useWakeLock'
+
+const KEEP_AWAKE_KEY = 'cfd_keep_awake'
 
 // The [slug] segment may be a menu_slug or a restaurant UUID.
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -16,6 +19,19 @@ export default function CFDSetup() {
   const [tableNum, setTableNum] = useState('')
   const [restName, setRestName] = useState('')
   const [tables, setTables] = useState<number[]>([])
+
+  // Keep the display awake — defaults ON, persisted for the CFD screens + the
+  // native shell to read. Toggle it off only if the tablet should sleep.
+  const [keepAwake, setKeepAwake] = useState(true)
+  useEffect(() => { setKeepAwake(localStorage.getItem(KEEP_AWAKE_KEY) !== '0') }, [])
+  const toggleKeepAwake = () => {
+    setKeepAwake(v => {
+      const next = !v
+      localStorage.setItem(KEEP_AWAKE_KEY, next ? '1' : '0')
+      return next
+    })
+  }
+  useWakeLock(keepAwake)
 
   // Resolve slug → real UUID, then load restaurant + tables
   useEffect(() => {
@@ -113,6 +129,30 @@ export default function CFDSetup() {
           >
             <LayoutDashboard className="w-4 h-4" />
             Show Welcome Screen
+          </button>
+
+          {/* Keep screen awake toggle */}
+          <button
+            type="button"
+            role="switch"
+            aria-checked={keepAwake}
+            onClick={toggleKeepAwake}
+            className={`w-full flex items-center gap-3 py-3 px-4 rounded-2xl border transition-all active:scale-[0.98] ${
+              keepAwake
+                ? 'bg-blue-500/15 border-blue-500/30 text-blue-200'
+                : 'bg-white/5 border-white/10 text-white/45'
+            }`}
+          >
+            {keepAwake ? <MonitorCheck className="w-4 h-4 shrink-0" /> : <MonitorOff className="w-4 h-4 shrink-0" />}
+            <span className="flex-1 text-left text-sm font-semibold leading-tight">
+              Keep screen awake
+              <span className="block text-[11px] font-normal opacity-60">
+                {keepAwake ? "Display won't sleep · شاشە ناخەوێت" : 'Display may sleep · شاشە دەخەوێت'}
+              </span>
+            </span>
+            <span className={`w-9 h-5 rounded-full p-0.5 shrink-0 transition-colors ${keepAwake ? 'bg-blue-500' : 'bg-white/15'}`}>
+              <span className={`block w-4 h-4 rounded-full bg-white transition-transform ${keepAwake ? 'translate-x-4' : 'translate-x-0'}`} />
+            </span>
           </button>
 
           {/* Launch button */}

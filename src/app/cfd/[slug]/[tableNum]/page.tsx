@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { QRCodeSVG } from 'qrcode.react'
 import { Star, Check, ChefHat, UtensilsCrossed } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useWakeLock } from '@/hooks/useWakeLock'
 
 // ── Types ──────────────────────────────────────────────────────
 type Phase = 'loading' | 'idle' | 'ordering' | 'thankyou'
@@ -39,6 +40,11 @@ export default function CFDPage() {
     const tick = () => setTime(new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }))
     tick(); const t = setInterval(tick, 1000); return () => clearInterval(t)
   }, [])
+
+  // Keep the display awake unless the operator turned it off on the setup screen.
+  const [keepAwake, setKeepAwake] = useState(true)
+  useEffect(() => { setKeepAwake(localStorage.getItem('cfd_keep_awake') !== '0') }, [])
+  useWakeLock(keepAwake)
 
   // Feedback
   const [rating,    setRating]    = useState(0)

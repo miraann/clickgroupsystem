@@ -23,6 +23,11 @@ launcher name/icon colour, and the `server.url` each one boots to.
 - `seller` / `cfd` don't use push notifications; their `google-services.json`
   client entries are structural stubs (build would fail without them). Register
   real Firebase Android apps for those package names only if push is ever added.
+- **CFD keep-awake:** the CFD screens keep the display on via the Wake Lock API
+  (`src/hooks/useWakeLock.ts`), toggled by "Keep screen awake" on the `/cfd/<slug>`
+  setup screen and persisted to `localStorage['cfd_keep_awake']` (default on).
+  The native CFD shell also holds `FLAG_KEEP_SCREEN_ON` and polls that same flag
+  in `MainActivity`, so the screen stays on even on WebViews without Wake Lock.
 
 ## Signing
 
