@@ -3,8 +3,8 @@ import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Printer, Loader2, BarChart2, CheckCircle2, AlertCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { browserPrint } from '@/lib/webusb-print'
-import { getAndroidTcp } from '@/lib/android-tcp'
+import { enqueuePrint } from '@/lib/printQueue'
+import { sendPrinterBytes } from '@/lib/sendToPrinter'
 
 interface InvoiceRow {
   id: string
@@ -216,97 +216,49 @@ export function DailySalesModal({ restaurantId, restaurantName, formatPrice, onC
   const handleHardwarePrint = async (): Promise<boolean> => {
     setPrintStatus('sending')
     setPrintError('')
-    try {
-      const res = await fetch('/api/print/daily-sales', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          restaurantId, dateStr, timeStr,
-          txCount, totalRevenue, avgOrder, totalGuests, totalDiscount, totalChange,
-          byPayment, orderTypes,
-          memberCount: memberInvs.length, memberTotal,
-          walkInCount: walkInInvs.length, walkInTotal,
-          topItems, byCashier,
-          totalExpenses, netProfit,
-          avgDailySalesMonth, avgDailyExpenseMonth,
-        }),
-      })
-      const json = await res.json()
-      if (!json.ok) throw new Error(json.error ?? 'Print failed')
 
-      const rawBytes = Uint8Array.from(atob(json.bytes), c => c.charCodeAt(0))
-      const ea = (window as any).electronAPI // eslint-disable-line @typescript-eslint/no-explicit-any
+    const { done } = enqueuePrint({
+      kind:   'report',
+      title:  'Daily sales report',
+      detail: dateStr,
+      run: async () => {
+        const res = await fetch('/api/print/daily-sales', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            restaurantId, dateStr, timeStr,
+            txCount, totalRevenue, avgOrder, totalGuests, totalDiscount, totalChange,
+            byPayment, orderTypes,
+            memberCount: memberInvs.length, memberTotal,
+            walkInCount: walkInInvs.length, walkInTotal,
+            topItems, byCashier,
+            totalExpenses, netProfit,
+            avgDailySalesMonth, avgDailyExpenseMonth,
+          }),
+        })
+        const json = await res.json().catch(() => null)
+        if (!json?.ok || !json.bytes) throw new Error(json?.error ?? 'Report printer is not set up')
 
-      if (ea?.isElectron) {
-        if (json.connectionType === 'ip' && json.ipAddress) {
-          const result = await ea.printBytes(json.bytes, json.ipAddress, json.port ?? 9100)
-          if (!result?.ok) throw new Error(result?.error ?? 'TCP print failed')
-        } else if ((json.connectionType === 'usb' || json.connectionType === 'bluetooth') && json.printerName) {
-          const result = await ea.printWindowsPrinter(json.bytes, json.printerName)
-          if (!result?.ok) throw new Error(result?.error ?? 'Print failed')
-        } else {
-          throw new Error('Printer not configured correctly')
-        }
-      } else {
-        const androidTcp = getAndroidTcp()
-        if (json.connectionType === 'ip' && json.ipAddress) {
-          if (androidTcp) {
-            const result = await androidTcp.printBytes({ host: json.ipAddress, port: json.port ?? 9100, data: json.bytes })
-            if (!result?.ok) throw new Error('IP print failed on device')
-          } else {
-            throw new Error('IP printers require the ClickGroup POS desktop app')
-          }
-        } else if (json.connectionType === 'usb') {
-          await browserPrint(rawBytes)
-        } else if (json.connectionType === 'bluetooth') {
-          if (androidTcp && json.btAddress) {
-            const result = await androidTcp.printBluetooth({ address: json.btAddress, data: json.bytes })
-            if (!result?.ok) throw new Error('Bluetooth print failed on device')
-          } else {
-            const bt = (navigator as any).bluetooth // eslint-disable-line @typescript-eslint/no-explicit-any
-            if (!bt) throw new Error('Bluetooth not supported — use Chrome')
-            const devs = await bt.getDevices()
-            const dev  = devs[0] ?? null
-            if (!dev) throw new Error('No Bluetooth printer paired')
-            let sent = false
-            const server = await dev.gatt.connect()
-            try {
-              for (const uuid of [
-                '000018f0-0000-1000-8000-00805f9b34fb',
-                '0000ffe0-0000-1000-8000-00805f9b34fb',
-                'e7810a71-73ae-499d-8c15-faa9aef0c3f2',
-                '49535343-fe7d-4ae5-8fa9-9fafd205e455',
-              ]) {
-                try {
-                  const svc   = await server.getPrimaryService(uuid)
-                  const chars = await svc.getCharacteristics()
-                  const w = chars.find((c: any) => c.properties.write || c.properties.writeWithoutResponse) // eslint-disable-line @typescript-eslint/no-explicit-any
-                  if (!w) continue
-                  for (let i = 0; i < rawBytes.length; i += 512) {
-                    const chunk = rawBytes.slice(i, Math.min(i + 512, rawBytes.length))
-                    w.properties.writeWithoutResponse
-                      ? await w.writeValueWithoutResponse(chunk)
-                      : await w.writeValue(chunk)
-                  }
-                  sent = true; break
-                } catch { /* try next service UUID */ }
-              }
-            } finally { server.disconnect() }
-            if (!sent) throw new Error('No writable Bluetooth characteristic found')
-          }
-        } else {
-          throw new Error('IP printers require the ClickGroup POS desktop app')
-        }
-      }
+        await sendPrinterBytes({
+          bytes:          json.bytes,
+          connectionType: json.connectionType ?? '',
+          printerName:    json.printerName ?? null,
+          ipAddress:      json.ipAddress ?? null,
+          btAddress:      json.btAddress ?? null,
+          port:           json.port ?? 9100,
+        })
+      },
+    })
 
+    const ok = await done
+    if (ok) {
       setPrintStatus('ok')
       setTimeout(() => setPrintStatus('idle'), 3000)
-      return true
-    } catch (e: unknown) {
-      setPrintError(e instanceof Error ? e.message : 'Print failed')
+    } else {
+      setPrintError('Printing failed — see the Print Queue on the dashboard')
       setPrintStatus('error')
-      return false
     }
+    return ok
   }
 
   const handlePrintClick = async () => {

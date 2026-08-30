@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { assignOrderNumber } from '@/lib/orderNumber'
 import { printKitchenTicket } from '@/lib/printKitchenTicket'
+import { enqueuePrint } from '@/lib/printQueue'
 import { logAudit } from '@/lib/logAudit'
 import { sendPush } from '@/lib/push'
 import { enqueueOrder, getQueueCount, syncAllQueued } from '@/lib/offlineQueue'
@@ -314,12 +315,13 @@ export function useOrderState(table: string, guestCount: number) {
           item_count: rows.length,
           items:      rows.map(r => `${r.qty}× ${r.item_name}`).join(', '),
         })
-        printKitchenTicket({
-          restaurantId,
-          tableNum: table,
-          orderNum,
-          items: rows.map(r => ({ name: r.item_name, qty: r.qty, note: r.note })),
-        }).catch(() => {})
+        const ticketItems = rows.map(r => ({ name: r.item_name, qty: r.qty, note: r.note }))
+        enqueuePrint({
+          kind:   'kitchen',
+          title:  `Kitchen ticket · Table ${table}`,
+          detail: ticketItems.map(i => `${i.qty}× ${i.name}`).join(', '),
+          run:    () => printKitchenTicket({ restaurantId, tableNum: table, orderNum, items: ticketItems }),
+        })
       }
     }
     setSending(false)

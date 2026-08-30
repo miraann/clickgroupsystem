@@ -2,8 +2,8 @@
 import { useEffect, useState } from 'react'
 import { X, Printer, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
-import { browserPrint } from '@/lib/webusb-print'
-import { getAndroidTcp } from '@/lib/android-tcp'
+import { enqueuePrint } from '@/lib/printQueue'
+import { printReceiptBytes } from '@/lib/printReceipt'
 import { useInvoiceData } from './useInvoiceData'
 import { InvoicePrintTemplate } from './InvoicePrintTemplate'
 import type { InvoiceModalProps } from './types'
@@ -52,103 +52,32 @@ export default function InvoiceModal({
     setPrintStatus('sending')
     setPrintError('')
     const ts = new Date()
-    try {
-      const res = await fetch('/api/print/receipt', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          restaurantId, tableNum, guests,
-          invoiceNum, orderNum, cashier,
-          dateStr: ts.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }),
-          timeStr: ts.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
-          items, subtotal, discount, surcharge, total,
-          paymentMethod, amountPaid, change: changeAmount,
-          note: note ?? null, mode,
-          qrUrl: rs.show_qr ? (rs.qr_url ?? null) : null,
-        }),
-      })
-      const json = await res.json()
-      if (!json.ok) throw new Error(json.error ?? 'Print failed')
+    const label = tableNum ? `Receipt · Table ${tableNum}` : 'Receipt'
+    const { done } = enqueuePrint({
+      kind:   'receipt',
+      title:  label,
+      detail: invoiceNum ? `#${invoiceNum}` : undefined,
+      run: () => printReceiptBytes({
+        restaurantId, tableNum, guests,
+        invoiceNum, orderNum, cashier,
+        dateStr: ts.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }),
+        timeStr: ts.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
+        items, subtotal, discount, surcharge, total,
+        paymentMethod, amountPaid, change: changeAmount,
+        note: note ?? null, mode,
+        qrUrl: rs.show_qr ? (rs.qr_url ?? null) : null,
+      }),
+    })
 
-      const rawBytes = Uint8Array.from(atob(json.bytes), c => c.charCodeAt(0))
-      const ea = (window as any).electronAPI
-
-      if (ea?.isElectron) {
-        if (json.connectionType === 'ip' && json.ipAddress) {
-          const result = await ea.printBytes(json.bytes, json.ipAddress, json.port ?? 9100)
-          if (!result?.ok) throw new Error(result?.error ?? 'TCP print failed')
-        } else if ((json.connectionType === 'usb' || json.connectionType === 'bluetooth') && json.printerName) {
-          // USB and Bluetooth printers paired in Windows appear in Win32_Printer
-          const result = await ea.printWindowsPrinter(json.bytes, json.printerName)
-          if (!result?.ok) throw new Error(result?.error ?? 'Print failed')
-        } else {
-          throw new Error('Printer not configured correctly')
-        }
-      } else {
-        // Browser / Android APK
-        const androidTcp = getAndroidTcp()
-
-        if (json.connectionType === 'ip' && json.ipAddress) {
-          // IP — Android handles TCP natively; plain web cannot reach LAN
-          if (androidTcp) {
-            const result = await androidTcp.printBytes({ host: json.ipAddress, port: json.port ?? 9100, data: json.bytes })
-            if (!result?.ok) throw new Error('IP print failed on device')
-          } else {
-            throw new Error('IP printers require the ClickGroup POS desktop app')
-          }
-        } else if (json.connectionType === 'usb') {
-          await browserPrint(rawBytes)
-        } else if (json.connectionType === 'bluetooth') {
-          if (androidTcp && json.btAddress) {
-            // Android APK — Bluetooth SPP via native plugin
-            const result = await androidTcp.printBluetooth({ address: json.btAddress, data: json.bytes })
-            if (!result?.ok) throw new Error('Bluetooth print failed on device')
-          } else {
-            // Desktop browser — Web Bluetooth
-            const bt = (navigator as any).bluetooth
-            if (!bt) throw new Error('Bluetooth not supported — use Chrome')
-            const devs = await bt.getDevices()
-            const dev  = devs[0] ?? null
-            if (!dev) throw new Error('No Bluetooth printer paired')
-            let sent = false
-            const server = await dev.gatt.connect()
-            try {
-              for (const uuid of [
-                '000018f0-0000-1000-8000-00805f9b34fb',
-                '0000ffe0-0000-1000-8000-00805f9b34fb',
-                'e7810a71-73ae-499d-8c15-faa9aef0c3f2',
-                '49535343-fe7d-4ae5-8fa9-9fafd205e455',
-              ]) {
-                try {
-                  const svc   = await server.getPrimaryService(uuid)
-                  const chars = await svc.getCharacteristics()
-                  const w = chars.find((c: any) => c.properties.write || c.properties.writeWithoutResponse)
-                  if (!w) continue
-                  for (let i = 0; i < rawBytes.length; i += 512) {
-                    const chunk = rawBytes.slice(i, Math.min(i + 512, rawBytes.length))
-                    w.properties.writeWithoutResponse
-                      ? await w.writeValueWithoutResponse(chunk)
-                      : await w.writeValue(chunk)
-                  }
-                  sent = true; break
-                } catch { /* try next service UUID */ }
-              }
-            } finally { server.disconnect() }
-            if (!sent) throw new Error('No writable Bluetooth characteristic found')
-          }
-        } else {
-          throw new Error('IP printers require the ClickGroup POS desktop app')
-        }
-      }
-
+    const ok = await done
+    if (ok) {
       setPrintStatus('ok')
       setTimeout(() => setPrintStatus('idle'), 3000)
-      return true
-    } catch (e: unknown) {
-      setPrintError(e instanceof Error ? e.message : 'Print failed')
+    } else {
+      setPrintError('Printing failed — see the Print Queue on the dashboard')
       setPrintStatus('error')
-      return false
     }
+    return ok
   }
 
   // Auto-print once data has loaded — silent ESC/POS only, no browser print dialog fallback

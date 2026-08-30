@@ -23,6 +23,7 @@ import { usePermissions } from '@/lib/permissions/PermissionsContext'
 import { getStaffHome } from '@/lib/permissions/staffHome'
 import InvoiceModal from '@/components/restaurant/invoice-modal'
 import InventoryNotificationBell from '@/components/restaurant/InventoryNotificationBell'
+import PrintQueueButton from '@/components/restaurant/PrintQueueButton'
 import { DailySalesModal } from '@/components/restaurant/daily-sales-modal'
 import { logAudit } from '@/lib/logAudit'
 
@@ -1643,6 +1644,9 @@ export default function TablesPage() {
               wrapperClassName="hidden lg:block"
               buttonClassName="w-14 h-14"
             />
+            {can('dashboard.btn_print_queue') && (
+              <PrintQueueButton wrapperClassName="hidden lg:block" buttonClassName="w-14 h-14" />
+            )}
             {(isOwner || can('dashboard.btn_audit_log')) && (
               <Link href="/dashboard/settings/audit-log" title="Audit Log" className={cn('hidden lg:flex w-14 h-14 rounded-xl items-center justify-center transition-all active:scale-95', navBtnCn)} style={navBtn('audit')}>
                 <Shield size={26} />
@@ -1760,6 +1764,12 @@ export default function TablesPage() {
             wrapperClassName="shrink-0"
             buttonClassName="w-8 h-8 sm:w-11 sm:h-11 md:w-14 md:h-14"
           />
+          {can('dashboard.btn_print_queue') && (
+            <PrintQueueButton
+              wrapperClassName="shrink-0"
+              buttonClassName="w-8 h-8 sm:w-11 sm:h-11 md:w-14 md:h-14"
+            />
+          )}
           {(isOwner || can('dashboard.btn_audit_log')) && (
             <Link href="/dashboard/settings/audit-log" title="Audit Log" className={cn('shrink-0 flex w-8 h-8 sm:w-11 sm:h-11 md:w-14 md:h-14 rounded-xl items-center justify-center transition-all active:scale-95', navBtnCn)} style={navBtn('audit')}>
               <Shield className="w-[18px] h-[18px] sm:w-5 sm:h-5 md:w-[26px] md:h-[26px]" />
@@ -2540,7 +2550,7 @@ function GuestNumpad({
             </div>
 
             {/* Numpad */}
-            <div className="grid grid-cols-3 gap-px bg-white/5 border-t border-white/8">
+            <div className="grid grid-cols-3 gap-px bg-white/5 border-t border-white/8" dir="ltr">
               {KEYS.map(k => (
                 <button key={k} onClick={() => k === '✓' ? confirm() : press(k)}
                   className={cn(
