@@ -144,7 +144,7 @@ export async function POST(req: NextRequest) {
     const amountPaid   = (body.amountPaid ?? 0) > 0 ? body.amountPaid : finalTotal
     const changeAmount = Math.max(0, amountPaid - finalTotal)
     const now          = new Date().toISOString()
-    const cashier      = pinStaffName ?? (session.role === 'owner' ? 'Owner' : 'Staff')
+    const cashier      = pinStaffName ?? (session.role === 'owner' ? 'SuperAdmin' : 'Staff')
     const orderNum     = (orderRes.data as { order_num?: string } | null)?.order_num ?? ''
 
     // Invoice number, derived from the settings row we already read above

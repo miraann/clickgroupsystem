@@ -2165,7 +2165,7 @@ export default function TablesPage() {
         <PrintBillFetcher
           table={printBillTable}
           restaurantId={cachedRestaurantId}
-          cashier={staffName ?? ''}
+          cashier={isOwner ? 'SuperAdmin' : (staffName ?? roleName ?? 'Staff')}
           onClose={() => setPrintBillTable(null)}
         />
       )}

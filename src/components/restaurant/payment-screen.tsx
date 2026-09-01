@@ -47,7 +47,7 @@ const ACTION_TABS: { id: ActionTab; labelKey: 'pay_tab_surcharge' | 'pay_tab_gra
 const NUMPAD = ['7','8','9','4','5','6','1','2','3','0','00','.']
 
 export default function PaymentScreen({ orderId, restaurantId, tableNum, guests, items, total, onClose, onPaid }: Props) {
-  const { can, isOwner } = usePermissions()
+  const { can, isOwner, isPinStaff, staffName, roleName } = usePermissions()
   const { t } = useLanguage()
   const p = (key: string) => isOwner || can(key)
   const [payMethods, setPayMethods]       = useState<DbPayMethod[]>([])
@@ -59,7 +59,7 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
   const [showInvoice, setShowInvoice]     = useState(false)
   const [invoiceMode, setInvoiceMode]     = useState<'receipt' | 'payment'>('payment')
   const [showConfirm, setShowConfirm]     = useState(false)
-  const [cashier, setCashier]             = useState('Staff')
+  const [authFullName, setAuthFullName]   = useState<string | null>(null)
   const [paidAmount, setPaidAmount]       = useState(0)
   const [changeAmt, setChangeAmt]         = useState(0)
   const [generatedInvoiceNum, setGeneratedInvoiceNum] = useState('')
@@ -106,7 +106,20 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
   const supabase = createClient()
   const { symbol: cur, decimalPlaces, formatPrice } = useDefaultCurrency()
 
-  // Load payment methods + cashier name
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setAuthFullName((user?.user_metadata?.full_name as string) ?? null)
+    })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Cashier label for the receipt / invoice. Never a login email: the owner
+  // signs in with one and it must not be printed on a customer receipt.
+  const cashier =
+    isOwner                     ? 'SuperAdmin'
+    : (isPinStaff && staffName)  ? staffName
+    : (authFullName || staffName || roleName || 'Staff')
+
+  // Load payment methods
   useEffect(() => {
     supabase
       .from('payment_methods')
@@ -120,9 +133,6 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
         const def = methods.find(m => m.is_default) ?? methods[0]
         if (def) setMethod(def.id)
       })
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      setCashier(user?.user_metadata?.full_name ?? user?.email ?? 'Staff')
-    })
     supabase
       .from('discounts')
       .select('id,name,type,value,min_order,active')
