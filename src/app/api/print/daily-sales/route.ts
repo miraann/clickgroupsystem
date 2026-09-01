@@ -6,9 +6,13 @@ import { rateLimit } from '@/lib/rate-limit'
 
 export const runtime = 'nodejs'
 
+// Service role: tenant RLS (migration 20260829_02) hides `printers`,
+// `receipt_settings` and `restaurants` from the anon key. Server-only
+// route, gated by rateLimit + requireRestaurantId.
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  { auth: { persistSession: false } }
 )
 
 export async function POST(req: NextRequest) {

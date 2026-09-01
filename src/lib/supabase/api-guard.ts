@@ -1,19 +1,24 @@
 import { createClient as createServerClient } from '@/lib/supabase/server'
-import { createClient as createAnonClient } from '@supabase/supabase-js'
+import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 
 /**
  * Lightweight check for printer/device endpoints: verifies the restaurantId
  * exists in the database without requiring a Supabase user auth session.
  * Safe to use for endpoints that only return ESC/POS bytes or device info.
+ *
+ * Uses the service-role key: tenant RLS (migration 20260829_02) hides the
+ * `restaurants` table from the anon role, so an anon lookup here always came
+ * back empty and reported every restaurant as "not found".
  */
 export async function requireRestaurantId(restaurantId: string) {
   if (!restaurantId) {
     return { error: NextResponse.json({ error: 'Missing restaurantId' }, { status: 400 }) }
   }
-  const supabase = createAnonClient(
+  const supabase = createServiceClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false } },
   )
   const { data } = await supabase
     .from('restaurants')
