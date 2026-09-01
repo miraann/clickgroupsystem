@@ -45,7 +45,7 @@ export function GuestEditModal({ table, guestCount, guestDraft, onKey, onConfirm
           </span>
         </div>
 
-        <div className="grid grid-cols-3 gap-px bg-white/5 border-t border-white/8">
+        <div className="grid grid-cols-3 gap-px bg-white/5 border-t border-white/8" dir="ltr">
           {['1','2','3','4','5','6','7','8','9','⌫','0','✓'].map(k => (
             <button
               key={k}

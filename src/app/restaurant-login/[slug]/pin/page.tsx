@@ -167,7 +167,7 @@ export default function RestaurantPinPage() {
 
             {/* Numpad */}
             <div className="rounded-3xl border border-white/10 bg-white/4 backdrop-blur-2xl p-4 shadow-2xl shadow-black/40">
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-3 gap-3" dir="ltr">
                 {KEYS.map(key => {
                   const isAction = key === 'del' || key === 'clr'
                   const disabled = status === 'checking' || status === 'success'

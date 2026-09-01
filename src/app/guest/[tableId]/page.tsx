@@ -802,7 +802,7 @@ export default function GuestPage() {
         const activeCat = categories.find(c => c.id === activeId)
         const items = menuItems.filter(i => i.category_id === activeId)
         return (
-          <div className="w-full mt-4 px-4 pb-10 text-left">
+          <div className="w-full mt-4 px-4 pb-10 text-start">
             {/* Back button */}
             <button
               onClick={() => setShowItems(false)}

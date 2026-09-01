@@ -750,7 +750,7 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
           </div>
 
           {/* Numpad */}
-          <div className="flex-1 grid grid-cols-3 gap-px bg-white/5 overflow-hidden">
+          <div className="flex-1 grid grid-cols-3 gap-px bg-white/5 overflow-hidden" dir="ltr">
             {NUMPAD.map(key => (
               <button
                 key={key}

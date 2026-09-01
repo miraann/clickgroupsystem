@@ -1179,7 +1179,7 @@ export default function DeliveryOrderPage() {
         const activeCat = categories.find(c => c.id === activeId)
         const catItems  = menuItems.filter(i => i.category_id === activeId)
         return (
-          <div className="w-full mt-4 px-4 pb-10 text-left">
+          <div className="w-full mt-4 px-4 pb-10 text-start">
             <button onClick={() => setShowItems(false)}
               className={`mb-4 ml-2 flex items-center gap-1.5 text-sm font-semibold transition-colors ${tpl.backBtn}`}>
               ← {t.gm_back}
