@@ -1,5 +1,6 @@
 import { escpos, cols, enc, divBytes, rowBytes, threeColBytes, concat } from './commands'
 import { KU, kuTableLabel } from './kurdish'
+import { toAscii, enPaymentMethod, enCurrencySymbol } from './translate'
 
 export interface ReceiptPayload {
   restaurantName: string
@@ -18,6 +19,7 @@ export interface ReceiptPayload {
   surcharge:      number
   total:          number
   paymentMethod:  string
+  paymentMethodType?: string | null   // icon_type bucket — fallback for the English label
   amountPaid:     number
   change:         number
   currencySymbol: string
@@ -34,7 +36,15 @@ export interface ReceiptPayload {
 export function buildReceiptBytes(d: ReceiptPayload): Uint8Array {
   const W      = cols(d.paperWidth)
   const isKu   = (d.language ?? 'ku') === 'ku'
-  const fmt    = (n: number) => `${n.toLocaleString('en-US')}${d.currencySymbol ? ' ' + d.currencySymbol : ''}`
+
+  // English receipts: force every dynamic value to printable ASCII (translating
+  // the common Kurdish/Arabic terms first) so a printer without an Arabic font
+  // ROM never emits replacement garbage. Kurdish receipts are left untouched.
+  const tx        = (s?: string | null): string => (isKu ? (s ?? '') : toAscii(s))
+  const currency  = isKu ? d.currencySymbol : enCurrencySymbol(d.currencySymbol)
+  const payMethod = isKu ? d.paymentMethod  : enPaymentMethod(d.paymentMethod, d.paymentMethodType)
+
+  const fmt    = (n: number) => `${n.toLocaleString('en-US')}${currency ? ' ' + currency : ''}`
   const div    = (ch = '-') => divBytes(W, ch)
 
   // In Kurdish mode: swap columns so label is on right, value on left (RTL reading order)
@@ -65,7 +75,7 @@ export function buildReceiptBytes(d: ReceiptPayload): Uint8Array {
 
   const tableLabel = isKu
     ? kuTableLabel(d.tableNum, d.guests)
-    : d.guests ? `Table ${d.tableNum} - ${d.guests} guests` : `Table ${d.tableNum}`
+    : d.guests ? `Table ${tx(d.tableNum)} - ${d.guests} guests` : `Table ${tx(d.tableNum)}`
 
   const parts: Uint8Array[] = [
     escpos.init(),
@@ -77,29 +87,29 @@ export function buildReceiptBytes(d: ReceiptPayload): Uint8Array {
     // ── Restaurant name + contact (centered) ──────────────
     escpos.alignCenter(),
     escpos.boldOn(), escpos.doubleSize(),
-    enc(d.restaurantName.toUpperCase() + '\n'),
+    enc(tx(d.restaurantName).toUpperCase() + '\n'),
     escpos.normalSize(), escpos.boldOff(),
-    ...(d.phone   ? [enc(d.phone   + '\n')] : []),
-    ...(d.address ? [enc(d.address + '\n')] : []),
+    ...(d.phone   ? [enc(tx(d.phone)   + '\n')] : []),
+    ...(d.address ? [enc(tx(d.address) + '\n')] : []),
 
     // ── Date | Invoice two-column header ──────────────────
     escpos.alignLeft(),
     div(),
     row(d.dateStr,   L.invoiceNo),
-    row(d.timeStr,   d.invoiceNum),
+    row(d.timeStr,   tx(d.invoiceNum)),
     row(L.cashier,   L.employee),
-    row(d.cashier,   d.cashier),
+    row(tx(d.cashier), tx(d.cashier)),
     div(),
 
     // ── Table - guests | Order number ─────────────────────
-    row(tableLabel, d.orderNum),
+    row(tableLabel, tx(d.orderNum)),
     div(),
 
     // ── Payment method (centered) ─────────────────────────
     escpos.alignCenter(),
     enc(L.paymentMethod + '\n'),
     escpos.boldOn(),
-    enc(d.paymentMethod + '\n'),
+    enc(payMethod + '\n'),
     escpos.boldOff(),
     escpos.alignLeft(),
     div(),
@@ -116,7 +126,7 @@ export function buildReceiptBytes(d: ReceiptPayload): Uint8Array {
     ...d.items.map(item =>
       isKu
         ? threeColBytes(fmt(item.price * item.qty), String(item.qty), item.name, W)
-        : threeColBytes(item.name, String(item.qty), fmt(item.price * item.qty), W)
+        : threeColBytes(tx(item.name), String(item.qty), fmt(item.price * item.qty), W)
     ),
     div(),
 
@@ -181,7 +191,7 @@ export function buildReceiptBytes(d: ReceiptPayload): Uint8Array {
   if (d.note?.trim()) {
     parts.push(
       escpos.alignCenter(),
-      enc(d.note.trim() + '\n'),
+      enc(tx(d.note).trim() + '\n'),
       div(),
     )
   }
@@ -190,10 +200,10 @@ export function buildReceiptBytes(d: ReceiptPayload): Uint8Array {
   parts.push(
     escpos.alignCenter(),
     escpos.boldOn(),
-    enc('\n' + d.thankYouMsg + '\n'),
+    enc('\n' + (tx(d.thankYouMsg) || (isKu ? d.thankYouMsg : 'Thank you for your visit!')) + '\n'),
     escpos.boldOff(),
     enc(d.poweredBy
-      ? `Powered by ClickGroup - ${d.poweredBy}\n`
+      ? `Powered by ClickGroup - ${tx(d.poweredBy)}\n`
       : 'Powered by ClickGroup\n'),
     escpos.feed(4),
     escpos.cut(),

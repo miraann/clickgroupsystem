@@ -913,6 +913,7 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
         surcharge={surchargeAmount}
         total={finalTotal}
         paymentMethod={payMethods.find(m => m.id === method)?.name ?? method}
+        paymentMethodType={payMethods.find(m => m.id === method)?.icon_type ?? null}
         amountPaid={paidAmount}
         changeAmount={changeAmt}
         cashier={cashier}

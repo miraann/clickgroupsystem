@@ -46,6 +46,7 @@ export interface InvoiceModalProps {
   surcharge:       number
   total:           number
   paymentMethod:   string
+  paymentMethodType?: string | null
   amountPaid:      number
   changeAmount:    number
   cashier:         string

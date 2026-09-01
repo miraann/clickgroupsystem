@@ -35,12 +35,15 @@ function gsv0(pixels: Uint8Array, widthPx: number, heightPx: number): Uint8Array
 async function makeLogoBitmap(logoUrl: string, paperWidthMm: number): Promise<Uint8Array | null> {
   try {
     const dotsPerMm = 8
-    const maxWidthPx = Math.floor(paperWidthMm * dotsPerMm * 0.90) // 90% of paper
+    // A header badge, not a banner: cap width at ~40% of the paper and height at
+    // ~22mm so a tall logo can't take over the top of the receipt.
+    const maxWidthPx  = Math.floor(paperWidthMm * dotsPerMm * 0.40)
+    const maxHeightPx = 180
     const res = await fetch(logoUrl, { signal: AbortSignal.timeout(6000) })
     if (!res.ok) return null
     const buf = Buffer.from(await res.arrayBuffer())
     const { data, info } = await sharp(buf)
-      .resize(maxWidthPx, null, { fit: 'inside', withoutEnlargement: true })
+      .resize(maxWidthPx, maxHeightPx, { fit: 'inside', withoutEnlargement: true })
       .greyscale()
       .threshold(128)
       .raw()
@@ -110,6 +113,7 @@ export async function POST(req: NextRequest) {
       surcharge:     number
       total:         number
       paymentMethod: string
+      paymentMethodType?: string | null
       amountPaid:    number
       change:        number
       note?:         string | null
@@ -162,7 +166,10 @@ export async function POST(req: NextRequest) {
       thankYouMsg:    (rsAny?.thank_you_msg  as string)       ?? 'Thank you for your visit!',
       currencySymbol: (rsAny?.currency_symbol as string)      ?? '',
       poweredBy:      (rsAny?.phone          as string | null) ?? null,
-      language:       (rsAny?.language as string) === 'en' ? 'en' : 'ku',
+      // Thermal receipts are English-only for now — most printers have no Arabic
+      // font ROM, so Kurdish glyphs print as replacement garbage. The `language`
+      // setting still drives the on-screen / browser receipt.
+      language:       'en',
       paperWidth,
       tableNum:       body.tableNum,
       guests:         body.guests,
@@ -177,6 +184,7 @@ export async function POST(req: NextRequest) {
       surcharge:      body.surcharge,
       total:          body.total,
       paymentMethod:  body.paymentMethod,
+      paymentMethodType: body.paymentMethodType ?? null,
       amountPaid:     body.amountPaid,
       change:         body.change,
       note:           body.note,

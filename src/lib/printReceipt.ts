@@ -20,6 +20,7 @@ export interface ReceiptPrintBody {
   surcharge:     number
   total:         number
   paymentMethod: string
+  paymentMethodType?: string | null
   amountPaid:    number
   change:        number
   note?:         string | null
