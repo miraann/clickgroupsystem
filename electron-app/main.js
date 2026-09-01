@@ -56,14 +56,25 @@ function clearSavedSlug() {
   try { fs.unlinkSync(STATE_FILE) } catch { /* ignore */ }
 }
 
-// Pull the restaurant slug the web app stored in localStorage and persist it.
+// Pull the restaurant slug the web app stored in localStorage and persist it so
+// the next launch can open straight on the staff PIN screen. Runs after every
+// navigation, including in-app SPA route changes (which is how the app moves
+// once you're logged in), so a fresh email + PIN login is actually remembered.
+// The binding is only forgotten when the slug is genuinely gone from
+// localStorage while sitting on the restaurant-login page — i.e. the user chose
+// "Change restaurant account" — not merely because an expired session bounced
+// them there.
 async function syncSlugFromPage() {
   if (!mainWindow) return
   try {
     const slug = await mainWindow.webContents.executeJavaScript(
       'localStorage.getItem("restaurant_slug")', true,
     )
-    if (slug) saveSlug(slug)
+    if (slug && String(slug).trim()) {
+      saveSlug(String(slug))
+    } else if (mainWindow.webContents.getURL().includes('/restaurant-login')) {
+      clearSavedSlug()
+    }
   } catch { /* ignore */ }
 }
 
@@ -89,17 +100,12 @@ function createWindow() {
   mainWindow.loadURL(savedSlug ? `${APP_BASE}/pos/${savedSlug}/login` : APP_URL)
   mainWindow.setMenuBarVisibility(false)
 
-  // Keep the saved slug in sync with the web app's localStorage. After any
-  // navigation we read restaurant_slug back out and persist it, and if the user
-  // deliberately goes to the restaurant-login page we forget the binding.
-  mainWindow.webContents.on('did-finish-load', () => {
-    const url = mainWindow.webContents.getURL()
-    if (url.includes('/restaurant-login')) {
-      clearSavedSlug()
-    } else {
-      syncSlugFromPage()
-    }
-  })
+  // Keep the saved slug in lock-step with the web app's localStorage across
+  // full page loads and in-app SPA navigations alike (the app uses client-side
+  // routing after login, so did-finish-load fires only once).
+  mainWindow.webContents.on('did-finish-load',      syncSlugFromPage)
+  mainWindow.webContents.on('did-navigate',         syncSlugFromPage)
+  mainWindow.webContents.on('did-navigate-in-page', syncSlugFromPage)
 
   // Minimize to tray instead of closing
   mainWindow.on('close', (e) => {
@@ -345,8 +351,29 @@ function printBytes(base64Bytes, ip, port) {
   })
 }
 
+// ── Single instance ──────────────────────────────────────────────────────────
+// Relaunching from the desktop / Start-menu shortcut while the previous copy is
+// still alive in the system tray must NOT start a second process. Two Electron
+// instances share one userData directory and race for the on-disk cookie /
+// localStorage store; whichever loses the lock silently falls back to empty
+// in-memory storage. That is the reported bug — the app "forgets" the one-time
+// email login and the dashboard spins forever because every Supabase query then
+// runs unauthenticated.
+const gotTheLock = app.requestSingleInstanceLock()
+
+app.on('second-instance', () => {
+  // A second launch was attempted — just surface the window we already have.
+  if (!mainWindow) return
+  if (mainWindow.isMinimized()) mainWindow.restore()
+  mainWindow.show()
+  mainWindow.focus()
+})
+
 // ── App lifecycle ─────────────────────────────────────────────────────────────
 app.whenReady().then(() => {
+  // Second copy of the app — the running instance just got the focus ping above.
+  if (!gotTheLock) { app.quit(); return }
+
   // Wrap every IPC handler with an origin check on the calling frame.
   const handle = (channel, fn) => {
     ipcMain.handle(channel, async (event, args) => {
