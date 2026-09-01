@@ -61,14 +61,24 @@ function JobRow({ job, t }: { job: PrintJob; t: ReturnType<typeof useLanguage>['
         </div>
         <p className="text-[11px] text-white/35 truncate">
           {kindLabel}{job.detail ? ` · ${job.detail}` : ''}
-          {job.attempts > 1 ? ` · ×${job.attempts}` : ''}
+          {job.status === 'failed' && job.attempts > 1 ? ` · ×${job.attempts}` : ''}
         </p>
         {job.status === 'failed' && job.error && (
           <p className="text-[11px] text-rose-300/80 mt-1 break-words">{job.error}</p>
         )}
       </div>
       <div className="flex flex-col items-end gap-1.5 shrink-0">
-        <StatusPill status={job.status} t={t} />
+        <div className="flex items-center gap-1.5">
+          {job.prints >= 1 && (
+            <span
+              title={`${t.pq_success} ×${job.prints}`}
+              className="inline-flex items-center px-1.5 py-0.5 rounded-lg border border-emerald-500/25 bg-emerald-500/10 text-emerald-400 text-[10px] font-bold tabular-nums shrink-0"
+            >
+              ×{job.prints}
+            </span>
+          )}
+          <StatusPill status={job.status} t={t} />
+        </div>
         <div className="flex items-center gap-1">
           {(job.status === 'failed' || job.status === 'success') && (
             <button

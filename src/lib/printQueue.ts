@@ -23,7 +23,10 @@ export interface PrintJob {
   detail?:   string
   status:    PrintJobStatus
   error?:    string
+  /** every run of this job — failed attempts and manual retries included */
   attempts:  number
+  /** how many of those runs actually reached the printer (i.e. copies printed) */
+  prints:    number
   createdAt: number
   updatedAt: number
 }
@@ -48,7 +51,7 @@ const EMPTY: PrintJob[] = []
 function rebuildSnapshot() {
   snapshot = jobs.map(j => ({
     id: j.id, kind: j.kind, title: j.title, detail: j.detail,
-    status: j.status, error: j.error, attempts: j.attempts,
+    status: j.status, error: j.error, attempts: j.attempts, prints: j.prints,
     createdAt: j.createdAt, updatedAt: j.updatedAt,
   }))
 }
@@ -91,8 +94,9 @@ async function processNext(): Promise<void> {
   let ok = false
   try {
     await next.run()
-    next.status = 'success'
-    next.error  = undefined
+    next.status  = 'success'
+    next.error   = undefined
+    next.prints += 1
     ok = true
   } catch (e) {
     next.status = 'failed'
@@ -132,6 +136,7 @@ export function enqueuePrint(spec: {
     detail: spec.detail,
     status: 'queued',
     attempts: 0,
+    prints: 0,
     createdAt: now,
     updatedAt: now,
     run: spec.run,
