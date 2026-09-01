@@ -9,6 +9,11 @@ const APP_BASE     = 'https://clickgroupsystem.vercel.app'
 const APP_URL      = `${APP_BASE}/dashboard`
 const ALLOWED_ORIGIN = new URL(APP_BASE).origin
 
+// Give the on-disk HTTP cache real headroom so the Next.js JS/CSS chunks (there
+// are a lot of them) survive across launches and never get evicted — first paint
+// after the first run then costs no chunk downloads.
+app.commandLine.appendSwitch('disk-cache-size', String(512 * 1024 * 1024))
+
 // True only when an IPC message originates from a frame served by our own site.
 // Blocks a redirected / compromised page from driving local printers or the LAN scan.
 function fromTrustedFrame(event) {
@@ -44,38 +49,62 @@ function readSavedSlug() {
   }
 }
 
-function saveSlug(slug) {
-  try {
-    if (slug && slug.trim()) {
-      fs.writeFileSync(STATE_FILE, JSON.stringify({ slug: slug.trim() }), 'utf8')
-    }
-  } catch { /* ignore */ }
-}
+// Slug we've already written to disk this session. Seeded from disk so the first
+// sync after launch is normally a no-op, and used to skip writes when nothing
+// changed.
+let lastPersistedSlug = readSavedSlug()
 
-function clearSavedSlug() {
-  try { fs.unlinkSync(STATE_FILE) } catch { /* ignore */ }
+function persistSlug(slug) {
+  const next = slug && slug.trim() ? slug.trim() : null
+  if (next === lastPersistedSlug) return   // unchanged — no disk I/O at all
+  lastPersistedSlug = next
+  if (next) {
+    fs.promises.writeFile(STATE_FILE, JSON.stringify({ slug: next }), 'utf8').catch(() => {})
+  } else {
+    fs.promises.unlink(STATE_FILE).catch(() => {})
+  }
 }
 
 // Pull the restaurant slug the web app stored in localStorage and persist it so
-// the next launch can open straight on the staff PIN screen. Runs after every
-// navigation, including in-app SPA route changes (which is how the app moves
-// once you're logged in), so a fresh email + PIN login is actually remembered.
-// The binding is only forgotten when the slug is genuinely gone from
-// localStorage while sitting on the restaurant-login page — i.e. the user chose
-// "Change restaurant account" — not merely because an expired session bounced
-// them there.
-async function syncSlugFromPage() {
+// the next launch can open straight on the staff PIN screen.
+//
+// The Next.js App Router navigates by calling history.pushState/replaceState,
+// which fires `did-navigate-in-page` on every in-app screen change (and again
+// when the payment panel opens). Doing a renderer round-trip plus a *synchronous*
+// fs write on the browser process for each of those is what made screen-to-screen
+// navigation feel sluggish in the desktop app but fine in a browser. So the sync
+// is now:
+//   - debounced — coalesced to one executeJavaScript ~700ms after nav settles
+//   - a no-op when the URL hasn't changed (state-only pushState, e.g. the
+//     payment overlay)
+//   - never blocking — the disk write is async and only runs when the slug
+//     actually changed
+// The binding is only forgotten when the slug is genuinely gone from localStorage
+// while sitting on the restaurant-login page — i.e. the user chose "Change
+// restaurant account" — not merely because an expired session bounced them there.
+let slugSyncTimer = null
+let lastSyncedUrl = ''
+
+function syncSlugFromPage({ force = false } = {}) {
   if (!mainWindow) return
-  try {
-    const slug = await mainWindow.webContents.executeJavaScript(
-      'localStorage.getItem("restaurant_slug")', true,
-    )
-    if (slug && String(slug).trim()) {
-      saveSlug(String(slug))
-    } else if (mainWindow.webContents.getURL().includes('/restaurant-login')) {
-      clearSavedSlug()
-    }
-  } catch { /* ignore */ }
+  const url = mainWindow.webContents.getURL()
+  if (!force && url === lastSyncedUrl) return
+  lastSyncedUrl = url
+  clearTimeout(slugSyncTimer)
+  slugSyncTimer = setTimeout(async () => {
+    if (!mainWindow) return
+    try {
+      const raw = await mainWindow.webContents.executeJavaScript(
+        'localStorage.getItem("restaurant_slug")', true,
+      )
+      const slug = raw && String(raw).trim() ? String(raw).trim() : null
+      if (slug) {
+        persistSlug(slug)
+      } else if (mainWindow.webContents.getURL().includes('/restaurant-login')) {
+        persistSlug(null)
+      }
+    } catch { /* ignore */ }
+  }, 700)
 }
 
 // ── Window ────────────────────────────────────────────────────────────────────
@@ -86,11 +115,21 @@ function createWindow() {
     minWidth:  900,
     minHeight: 600,
     title: 'ClickGroup POS',
+    // Match the app's base background so navigations don't flash white.
+    backgroundColor: '#022658',
+    // Paint the window only once the first frame is ready — no blank shell.
+    show: false,
     icon: path.join(__dirname, 'build', 'icon.png'),
     webPreferences: {
       preload:         path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration:  false,
+      // POS often lives minimized in the tray. Don't throttle timers / rАF /
+      // Supabase realtime while hidden so reopening is instant, not a catch-up.
+      backgroundThrottling: false,
+      // No text inputs in a POS need spell-check; skip the dictionary load and
+      // the per-keystroke checking on every numpad / name field.
+      spellcheck: false,
     },
   })
 
@@ -100,12 +139,17 @@ function createWindow() {
   mainWindow.loadURL(savedSlug ? `${APP_BASE}/pos/${savedSlug}/login` : APP_URL)
   mainWindow.setMenuBarVisibility(false)
 
+  // Reveal on first paint. Safety net: show anyway if that event is missed so
+  // the app can never get stuck as a tray-only ghost.
+  const showTimer = setTimeout(() => { if (mainWindow) mainWindow.show() }, 10000)
+  mainWindow.once('ready-to-show', () => { clearTimeout(showTimer); mainWindow.show() })
+
   // Keep the saved slug in lock-step with the web app's localStorage across
   // full page loads and in-app SPA navigations alike (the app uses client-side
   // routing after login, so did-finish-load fires only once).
-  mainWindow.webContents.on('did-finish-load',      syncSlugFromPage)
-  mainWindow.webContents.on('did-navigate',         syncSlugFromPage)
-  mainWindow.webContents.on('did-navigate-in-page', syncSlugFromPage)
+  mainWindow.webContents.on('did-finish-load',      () => syncSlugFromPage({ force: true }))
+  mainWindow.webContents.on('did-navigate',         () => syncSlugFromPage({ force: true }))
+  mainWindow.webContents.on('did-navigate-in-page', () => syncSlugFromPage())
 
   // Minimize to tray instead of closing
   mainWindow.on('close', (e) => {
