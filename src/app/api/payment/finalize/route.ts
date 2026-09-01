@@ -33,108 +33,129 @@ export async function POST(req: NextRequest) {
     if (authErr) return authErr
 
     const supabase = await createClient()
-    let pinStaffName: string | null = null
 
-    // Resolve the cashier name from the staff row, scoped to the session's restaurant.
-    if (body.staffId) {
-      const { data: staffRecord } = await supabase
-        .from('staff').select('id, name')
-        .eq('id', body.staffId)
-        .eq('restaurant_id', session.rid)
-        .eq('status', 'active')
-        .maybeSingle()
-      if (staffRecord) pinStaffName = staffRecord.name
-    }
+    // ── 1. Every read we need, in a single round-trip ─────────────────────────
+    // None of these depend on each other, so fan them out instead of awaiting
+    // one at a time (this is the bulk of the old checkout latency). Conditional
+    // lookups resolve to { data: null } when their id wasn't supplied.
+    const nullRow = Promise.resolve({ data: null, error: null })
+    const [
+      staffRes,
+      itemsRes,
+      discountRes,
+      surchargeRes,
+      payMethodRes,
+      orderRes,
+      invSettingsRes,
+    ] = await Promise.all([
+      body.staffId
+        ? supabase.from('staff').select('id, name')
+            .eq('id', body.staffId)
+            .eq('restaurant_id', session.rid)
+            .eq('status', 'active')
+            .maybeSingle()
+        : nullRow,
 
-    // 1. Real subtotal from DB — never trust client-supplied prices
-    const { data: orderItems, error: itemsErr } = await supabase
-      .from('order_items')
-      .select('item_name, item_price, qty')
-      .eq('order_id', body.orderId)
-      .neq('status', 'void')
+      supabase.from('order_items')
+        .select('item_name, item_price, qty')
+        .eq('order_id', body.orderId)
+        .neq('status', 'void'),
 
-    if (itemsErr) return serverError(itemsErr)
+      body.discountId
+        ? supabase.from('discounts').select('type, value, min_order')
+            .eq('id', body.discountId)
+            .eq('restaurant_id', body.restaurantId)
+            .eq('active', true)
+            .maybeSingle()
+        : nullRow,
+
+      body.surchargeId
+        ? supabase.from('surcharges').select('type, value')
+            .eq('id', body.surchargeId)
+            .eq('restaurant_id', body.restaurantId)
+            .eq('active', true)
+            .maybeSingle()
+        : nullRow,
+
+      supabase.from('payment_methods').select('name')
+        .eq('id', body.paymentMethodId)
+        .eq('restaurant_id', body.restaurantId)
+        .eq('active', true)
+        .maybeSingle(),
+
+      supabase.from('orders').select('order_num')
+        .eq('id', body.orderId)
+        .maybeSingle(),
+
+      supabase.from('invoice_number_settings').select('*')
+        .eq('restaurant_id', body.restaurantId)
+        .maybeSingle(),
+    ])
+
+    // ── 2. Validate + compute the server-verified total ───────────────────────
+    // Failure precedence is unchanged: items → discount → surcharge → method.
+
+    // Real subtotal from DB — never trust client-supplied prices
+    const orderItems = itemsRes.data as { item_name: string; item_price: number; qty: number }[] | null
+    if (itemsRes.error) return serverError(itemsRes.error)
     if (!orderItems || orderItems.length === 0) {
       return NextResponse.json({ ok: false, error: 'No items on this order' }, { status: 400 })
     }
 
     const subtotal = orderItems.reduce((sum, i) => sum + (i.item_price ?? 0) * (i.qty ?? 1), 0)
 
-    // 2. Verify discount belongs to this restaurant and is still active
+    // Discount must belong to this restaurant and still be active
     let discountAmount = 0
     if (body.discountId) {
-      const { data: discount } = await supabase
-        .from('discounts')
-        .select('type, value, min_order')
-        .eq('id', body.discountId)
-        .eq('restaurant_id', body.restaurantId)
-        .eq('active', true)
-        .maybeSingle()
-
+      const discount = discountRes.data as { type: string; value: number; min_order: number | null } | null
       if (!discount) {
         return NextResponse.json({ ok: false, error: 'Discount not found or inactive' }, { status: 400 })
       }
       if (subtotal < (discount.min_order ?? 0)) {
         return NextResponse.json({ ok: false, error: 'Order total below discount minimum' }, { status: 400 })
       }
-
       discountAmount = discount.type === 'percentage'
         ? Math.round(subtotal * (discount.value ?? 0)) / 100
         : Math.min(discount.value ?? 0, subtotal)
     }
 
-    // 3. Verify surcharge belongs to this restaurant and is still active
+    // Surcharge must belong to this restaurant and still be active
     let surchargeAmount = 0
     if (body.surchargeId) {
-      const { data: surcharge } = await supabase
-        .from('surcharges')
-        .select('type, value')
-        .eq('id', body.surchargeId)
-        .eq('restaurant_id', body.restaurantId)
-        .eq('active', true)
-        .maybeSingle()
-
+      const surcharge = surchargeRes.data as { type: string; value: number } | null
       if (!surcharge) {
         return NextResponse.json({ ok: false, error: 'Surcharge not found or inactive' }, { status: 400 })
       }
-
       surchargeAmount = surcharge.type === 'percentage'
         ? Math.round(subtotal * (surcharge.value ?? 0)) / 100
         : (surcharge.value ?? 0)
     }
 
-    // 4. Verified total
+    // Verified total
     const finalTotal = Math.max(0, subtotal - discountAmount + surchargeAmount)
 
-    // 5. Verify payment method belongs to this restaurant
-    const { data: payMethod } = await supabase
-      .from('payment_methods')
-      .select('name')
-      .eq('id', body.paymentMethodId)
-      .eq('restaurant_id', body.restaurantId)
-      .eq('active', true)
-      .maybeSingle()
-
+    // Payment method must belong to this restaurant
+    const payMethod = payMethodRes.data as { name: string } | null
     if (!payMethod) {
       return NextResponse.json({ ok: false, error: 'Payment method not found or inactive' }, { status: 400 })
     }
 
+    const pinStaffName = (staffRes.data as { name?: string } | null)?.name ?? null
     const amountPaid   = (body.amountPaid ?? 0) > 0 ? body.amountPaid : finalTotal
     const changeAmount = Math.max(0, amountPaid - finalTotal)
     const now          = new Date().toISOString()
+    const cashier      = pinStaffName ?? (session.role === 'owner' ? 'Owner' : 'Staff')
+    const orderNum     = (orderRes.data as { order_num?: string } | null)?.order_num ?? ''
 
-    // 6. Resolve cashier name
-    const cashier = pinStaffName ?? (session.role === 'owner' ? 'Owner' : 'Staff')
+    // Invoice number, derived from the settings row we already read above
+    const invSettings = invSettingsRes.data as Record<string, unknown> | null
+    const invNum = invSettings
+      ? ((invSettings.current_num as number) ?? (invSettings.start_num as number) ?? 1001)
+      : 1001
+    const invPrefix  = (invSettings?.prefix as string) ?? 'INV-'
+    const invoiceNum = `${invPrefix}${invNum}`
 
-    // 7. Fetch order_num for the invoice
-    const { data: order } = await supabase
-      .from('orders')
-      .select('order_num')
-      .eq('id', body.orderId)
-      .maybeSingle()
-    const orderNum = (order as { order_num?: string } | null)?.order_num ?? ''
-
-    // 8. Mark order paid with server-verified total
+    // ── 3. Mark the order paid — the one write that must succeed ──────────────
     const { error: orderErr } = await supabase
       .from('orders')
       .update({
@@ -150,48 +171,12 @@ export async function POST(req: NextRequest) {
 
     if (orderErr) return serverError(orderErr)
 
-    // Mark table as dirty (needs cleaning) — skip for takeout/delivery
-    const tableSeq = parseInt(body.tableNum)
-    if (!isNaN(tableSeq)) {
-      await supabase
-        .from('tables')
-        .update({ status: 'dirty', updated_at: now })
-        .eq('restaurant_id', body.restaurantId)
-        .eq('seq', tableSeq)
-    }
-
-    // 9. Generate invoice number atomically
-    const { data: invSettings } = await supabase
-      .from('invoice_number_settings')
-      .select('*')
-      .eq('restaurant_id', body.restaurantId)
-      .maybeSingle()
-
-    let invoiceNum: string
-    if (invSettings) {
-      const num = (invSettings as Record<string, unknown>).current_num as number
-        ?? (invSettings as Record<string, unknown>).start_num as number
-        ?? 1001
-      const prefix = (invSettings as Record<string, unknown>).prefix as string ?? 'INV-'
-      invoiceNum = `${prefix}${num}`
-      await supabase
-        .from('invoice_number_settings')
-        .update({ current_num: num + 1, updated_at: now })
-        .eq('restaurant_id', body.restaurantId)
-    } else {
-      invoiceNum = 'INV-1001'
-      await supabase.from('invoice_number_settings').insert({
-        restaurant_id: body.restaurantId,
-        prefix:        'INV-',
-        start_num:     1001,
-        current_num:   1002,
-        reset_period:  'never',
-      })
-    }
-
-    // 10. Insert invoice with server-verified amounts
+    // ── 4. Side effects — best-effort, fired together ────────────────────────
+    // Inventory deduction still runs *after* the order is 'paid' (its RPC may
+    // key on status); table status, the invoice-number bump and the invoice row
+    // don't depend on one another, so they all go out in parallel.
     const invoiceItems = orderItems.map(i => ({
-      name:  (i as Record<string, unknown>).item_name as string ?? '',
+      name:  i.item_name ?? '',
       price: i.item_price,
       qty:   i.qty,
     }))
@@ -210,21 +195,51 @@ export async function POST(req: NextRequest) {
       total:          finalTotal,
       amount_paid:    amountPaid,
       change_amount:  changeAmount,
-      customer_id:    body.customerId   ?? null,
+      customer_id:    body.customerId    ?? null,
       customer_name:  body.customerName  ?? null,
       customer_phone: body.customerPhone ?? null,
     }
 
-    // 10b. Inventory deduction — atomic, row-locked, server-side only.
-    // (Notifications for low/out-of-stock/rapid-depletion fire automatically
-    // via the trg_inventory_stock_notify trigger on inventory_items.)
-    const { error: invDeductErr } = await supabase.rpc('fn_deduct_inventory_for_order', {
-      p_order_id:      body.orderId,
-      p_restaurant_id: body.restaurantId,
-    })
+    const tableSeq = parseInt(body.tableNum)
+
+    const [, , invDeductRes, invoiceRes] = await Promise.all([
+      // Mark table dirty (needs cleaning) — skip for takeout/delivery
+      isNaN(tableSeq)
+        ? nullRow
+        : supabase.from('tables')
+            .update({ status: 'dirty', updated_at: now })
+            .eq('restaurant_id', body.restaurantId)
+            .eq('seq', tableSeq),
+
+      // Generate the next invoice number atomically (or seed the row)
+      invSettings
+        ? supabase.from('invoice_number_settings')
+            .update({ current_num: invNum + 1, updated_at: now })
+            .eq('restaurant_id', body.restaurantId)
+        : supabase.from('invoice_number_settings').insert({
+            restaurant_id: body.restaurantId,
+            prefix:        'INV-',
+            start_num:     1001,
+            current_num:   1002,
+            reset_period:  'never',
+          }),
+
+      // Inventory deduction — atomic, row-locked, server-side only.
+      // (Notifications for low/out-of-stock/rapid-depletion fire automatically
+      // via the trg_inventory_stock_notify trigger on inventory_items.)
+      supabase.rpc('fn_deduct_inventory_for_order', {
+        p_order_id:      body.orderId,
+        p_restaurant_id: body.restaurantId,
+      }),
+
+      // Invoice with server-verified amounts
+      supabase.from('invoices').insert(invoicePayload),
+    ])
+
+    const invDeductErr = (invDeductRes as { error?: { message?: string } } | null)?.error
     if (invDeductErr) console.error('[Inventory deduction failed]', invDeductErr.message)
 
-    const { error: invErr1 } = await supabase.from('invoices').insert(invoicePayload)
+    const invErr1 = (invoiceRes as { error?: { message?: string } } | null)?.error
     if (invErr1) {
       // Retry without optional customer fields in case the column doesn't exist yet
       const { error: invErr2 } = await supabase.from('invoices').insert({
