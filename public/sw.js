@@ -1,10 +1,18 @@
-// ClickGroup POS — Service Worker v2
+// ClickGroup POS — Service Worker v3
 // Caches: Next.js static chunks, Supabase storage images, app shell pages (offline mode)
 
-const STATIC_CACHE = 'cg-static-v1'
+const STATIC_CACHE = 'cg-static-v2'
 const IMAGE_CACHE  = 'cg-images-v1'
 const SHELL_CACHE  = 'cg-shell-v1'
 const KNOWN_CACHES = [STATIC_CACHE, IMAGE_CACHE, SHELL_CACHE]
+
+// On localhost the dev server rebuilds JS/CSS chunks behind the same /_next/
+// URLs; caching them serves stale module factories and breaks HMR with
+// "module factory is not available". Detect dev and make fetch a no-op for
+// asset caching (push / notification handlers below are unaffected).
+const IS_DEV =
+  ['localhost', '127.0.0.1', '[::1]'].includes(self.location.hostname) ||
+  self.location.hostname.endsWith('.local')
 
 // ── Install ──────────────────────────────────────────────────────
 self.addEventListener('install', e => {
@@ -49,6 +57,7 @@ self.addEventListener('message', e => {
 // ── Fetch ─────────────────────────────────────────────────────────
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return
+  if (IS_DEV) return  // let the dev server serve fresh chunks, no SW caching
 
   const url = new URL(e.request.url)
 
