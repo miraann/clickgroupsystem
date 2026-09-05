@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import { AnimatePresence, motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
+import { usePermissions } from '@/lib/permissions/PermissionsContext'
+import { PermissionDenied } from '@/components/settings/PermissionDenied'
 import {
   Layers, LayoutGrid, Tag, UtensilsCrossed, Sliders, ChefHat,
   XCircle, Percent, Gift, Plus, CreditCard, CalendarDays,
@@ -42,9 +44,29 @@ const TABS: { key: TabKey; labelKey: string; icon: React.ElementType; color: str
   { key: 'payment-method', labelKey: 'menu_tab_payment_method', icon: CreditCard,      color: 'bg-indigo-500/70 text-white',  activeColor: 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/30' },
 ]
 
+// Each tab maps to its own leaf permission in the role editor's Menu
+// Management tree — a role can be granted "Item" without "Modifier", etc.
+const TAB_PERM_KEY: Record<TabKey, string> = {
+  'table-group':    'menu.table_group',
+  table:            'menu.table',
+  category:         'menu.category',
+  item:             'menu.item',
+  modifier:         'menu.modifier',
+  'kitchen-note':   'menu.kitchen_note',
+  'void-reason':    'menu.void_reason',
+  'event-offer':    'menu.event_offer',
+  discount:         'menu.discount',
+  'combo-discount': 'menu.combo_discount',
+  surcharge:        'menu.surcharge',
+  'payment-method': 'menu.payment_method',
+}
+
 export default function MenuSettingsPage() {
   const router = useRouter()
   const { t } = useLanguage()
+  const { isOwner, can, loading: permsLoading } = usePermissions()
+  const tabAllowed = (key: TabKey) => isOwner || can(TAB_PERM_KEY[key])
+  const visibleTabs = TABS.filter(tb => tabAllowed(tb.key))
   const [tab, setTab] = useState<TabKey>('table-group')
 
   useEffect(() => {
@@ -60,6 +82,17 @@ export default function MenuSettingsPage() {
     router.replace(url.pathname + url.search)
   }
 
+  // Land on a tab the role can actually see — covers the default
+  // 'table-group' and a hand-edited ?tab= query param pointing at one it can't.
+  useEffect(() => {
+    if (permsLoading || visibleTabs.length === 0 || tabAllowed(tab)) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- redirect only fires once permissions resolve and land on a disallowed tab
+    switchTab(visibleTabs[0].key)
+  }, [permsLoading, tab, visibleTabs]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (permsLoading) return null
+  if (visibleTabs.length === 0) return <PermissionDenied label={t.si_menu ?? 'Menu Management'} />
+
   return (
     <div className="flex flex-col h-full -m-6">
 
@@ -67,7 +100,7 @@ export default function MenuSettingsPage() {
       <div className="shrink-0 sticky top-0 z-20 backdrop-blur-xl border-b border-white/8 w-full" style={{ background: 'var(--app-anchor-90, rgba(2,38,88,0.9))' }}>
         <div className="overflow-x-auto scrollbar-touch">
           <div className="flex gap-1 px-6 md:px-12 2xl:px-24 3xl:px-44 pt-4 pb-0 min-w-max">
-            {TABS.map(({ key, labelKey, icon: Icon, color, activeColor }) => (
+            {visibleTabs.map(({ key, labelKey, icon: Icon, color, activeColor }) => (
               <button
                 key={key}
                 onClick={() => switchTab(key)}
@@ -95,18 +128,20 @@ export default function MenuSettingsPage() {
             transition={{ duration: 0.18 }}
             className="px-6 md:px-12 2xl:px-24 3xl:px-44 pb-10 2xl:pb-12 3xl:pb-16" style={{ paddingTop: '70px' }}
           >
-            {tab === 'table-group'    && <TableGroupPage />}
-            {tab === 'table'          && <TablePage />}
-            {tab === 'category'       && <CategoryPage />}
-            {tab === 'item'           && <ItemPage />}
-            {tab === 'modifier'       && <ModifierPage />}
-            {tab === 'kitchen-note'   && <KitchenNotePage />}
-            {tab === 'void-reason'    && <VoidReasonPage />}
-            {tab === 'event-offer'    && <EventOfferPage />}
-            {tab === 'discount'       && <DiscountPage />}
-            {tab === 'combo-discount' && <ComboDiscountPage />}
-            {tab === 'surcharge'      && <SurchargePage />}
-            {tab === 'payment-method' && <PaymentMethodPage />}
+            {/* tabAllowed() re-checked here (not just in visibleTabs above) so a
+                permitted tab can never render off a stale/tampered `tab` state */}
+            {tab === 'table-group'    && tabAllowed('table-group')    && <TableGroupPage />}
+            {tab === 'table'          && tabAllowed('table')          && <TablePage />}
+            {tab === 'category'       && tabAllowed('category')       && <CategoryPage />}
+            {tab === 'item'           && tabAllowed('item')           && <ItemPage />}
+            {tab === 'modifier'       && tabAllowed('modifier')       && <ModifierPage />}
+            {tab === 'kitchen-note'   && tabAllowed('kitchen-note')   && <KitchenNotePage />}
+            {tab === 'void-reason'    && tabAllowed('void-reason')    && <VoidReasonPage />}
+            {tab === 'event-offer'    && tabAllowed('event-offer')    && <EventOfferPage />}
+            {tab === 'discount'       && tabAllowed('discount')       && <DiscountPage />}
+            {tab === 'combo-discount' && tabAllowed('combo-discount') && <ComboDiscountPage />}
+            {tab === 'surcharge'      && tabAllowed('surcharge')      && <SurchargePage />}
+            {tab === 'payment-method' && tabAllowed('payment-method') && <PaymentMethodPage />}
           </motion.div>
         </AnimatePresence>
       </div>

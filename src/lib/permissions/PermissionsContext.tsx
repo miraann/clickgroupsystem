@@ -11,6 +11,7 @@ interface PermissionsContextValue {
   isOwner: boolean
   isPinStaff: boolean
   can: (key: string) => boolean
+  canAny: (prefix: string) => boolean
   loading: boolean
   reload: () => void
 }
@@ -22,6 +23,7 @@ const PermissionsContext = createContext<PermissionsContextValue>({
   isOwner: false,
   isPinStaff: false,
   can: () => false,
+  canAny: () => false,
   loading: true,
   reload: () => {},
 })
@@ -145,8 +147,21 @@ export function PermissionsProvider({ children }: { children: React.ReactNode })
     [isOwner, permissions],
   )
 
+  // Some permission tree entries are parent/group keys (e.g. "menu") that are
+  // never themselves stored true — only their leaf children are (e.g.
+  // "menu.item"). Use canAny to gate access on "has at least one permission
+  // under this prefix", which works for both a real leaf key and a group key.
+  const canAny = useCallback(
+    (prefix: string) => {
+      if (isOwner) return true
+      if (permissions[prefix] === true) return true
+      return Object.keys(permissions).some(k => k.startsWith(`${prefix}.`) && permissions[k] === true)
+    },
+    [isOwner, permissions],
+  )
+
   return (
-    <PermissionsContext.Provider value={{ permissions, roleName, staffName, isOwner, isPinStaff, can, loading, reload: load }}>
+    <PermissionsContext.Provider value={{ permissions, roleName, staffName, isOwner, isPinStaff, can, canAny, loading, reload: load }}>
       {children}
     </PermissionsContext.Provider>
   )

@@ -16,11 +16,17 @@ import type { LucideIcon } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { getSettingsModuleKey, isModuleEnabled } from '@/lib/modules'
 import { UpgradeWall, moduleLabel } from '@/components/ModuleGate'
+import { PermissionDenied } from '@/components/settings/PermissionDenied'
+import { usePermissions } from '@/lib/permissions/PermissionsContext'
 
 let _modCache: { restaurantId: string; modules: Record<string, boolean>; at: number } | null = null
 const CACHE_TTL = 30_000
 
-interface NavItem  { labelKey: TranslationKey; href: string; icon: LucideIcon; permKey?: string }
+// permKey may name a real leaf permission ("settings.users") or a group/parent
+// key ("menu") whose access is decided by canAny — "has at least one leaf
+// permission under this prefix". ownerOnly hides a page from every non-owner
+// regardless of permissions (used for power-user tools with no granular key).
+interface NavItem  { labelKey: TranslationKey; href: string; icon: LucideIcon; permKey?: string; ownerOnly?: boolean }
 interface NavGroup { labelKey: TranslationKey; items: NavItem[] }
 
 const NAV_GROUPS: NavGroup[] = [
@@ -67,9 +73,9 @@ const NAV_GROUPS: NavGroup[] = [
   {
     labelKey: 'sg_system',
     items: [
-      { labelKey: 'si_advanced',  href: '/dashboard/settings/advanced',  icon: Settings2    },
-      { labelKey: 'si_database',  href: '/dashboard/settings/database',  icon: Database     },
-      { labelKey: 'si_audit_log', href: '/dashboard/settings/audit-log', icon: ActivitySquare },
+      { labelKey: 'si_advanced',  href: '/dashboard/settings/advanced',  icon: Settings2,      ownerOnly: true },
+      { labelKey: 'si_database',  href: '/dashboard/settings/database',  icon: Database,       ownerOnly: true },
+      { labelKey: 'si_audit_log', href: '/dashboard/settings/audit-log', icon: ActivitySquare, permKey: 'settings.audit_log' },
     ],
   },
   {
@@ -89,6 +95,16 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
   const isHome      = pathname === '/dashboard/settings'
   const isWidePage  = pathname === '/dashboard/settings/whatsapp' || pathname === '/dashboard/settings/appearance' || pathname === '/dashboard/settings/audit-log' || pathname === '/dashboard/settings/delivery' || pathname === '/dashboard/settings/receipt' || pathname === '/dashboard/settings/users'
   const currentItem = NAV_GROUPS.flatMap(g => g.items).find(i => i.href === pathname || pathname.startsWith(i.href + '/'))
+
+  // Role-permission gate — separate from the plan/module gate below. Owner
+  // always passes; PIN/auth staff need the page's permKey (or must not be
+  // ownerOnly). Pages absent from NAV_GROUPS (none currently) are left open.
+  const { isOwner, canAny, loading: permsLoading } = usePermissions()
+  // Block rendering (rather than briefly showing then hiding) while
+  // permissions are still resolving — isOwner/canAny aren't trustworthy yet.
+  const permCheckPending = !isHome && !!currentItem && permsLoading
+  const permissionDenied = !isHome && !!currentItem && !permsLoading && !isOwner &&
+    (currentItem.ownerOnly || (!!currentItem.permKey && !canAny(currentItem.permKey)))
 
 
 const [moduleEnabled,  setModuleEnabled]  = useState<boolean | null>(null)
@@ -177,9 +193,13 @@ const [moduleEnabled,  setModuleEnabled]  = useState<boolean | null>(null)
         ) : pathname === '/dashboard/settings/menu' || pathname.startsWith('/dashboard/settings/menu/') ? (
           /* Menu sub-pages — menu layout owns all spacing via its own -m-6 + fluid px */
           <div className="h-full">
-            {moduleEnabled === false && activeModuleKey
-              ? <div className="p-6 max-w-2xl mx-auto"><UpgradeWall moduleName={moduleLabel(activeModuleKey)} /></div>
-              : children}
+            {permCheckPending
+              ? null
+              : moduleEnabled === false && activeModuleKey
+                ? <div className="p-6 max-w-2xl mx-auto"><UpgradeWall moduleName={moduleLabel(activeModuleKey)} /></div>
+                : permissionDenied
+                  ? <div className="p-6 max-w-2xl mx-auto"><PermissionDenied label={currentItem && t[currentItem.labelKey]} /></div>
+                  : children}
           </div>
         ) : (
           <div className="p-4 sm:p-6">
@@ -192,9 +212,13 @@ const [moduleEnabled,  setModuleEnabled]  = useState<boolean | null>(null)
                 exit={{ opacity: 0, y: -10, scale: 0.98 }}
                 transition={{ duration: 0.22, ease: 'circOut' }}
               >
-                {moduleEnabled === false && activeModuleKey
-                  ? <UpgradeWall moduleName={moduleLabel(activeModuleKey)} />
-                  : children}
+                {permCheckPending
+                  ? null
+                  : moduleEnabled === false && activeModuleKey
+                    ? <UpgradeWall moduleName={moduleLabel(activeModuleKey)} />
+                    : permissionDenied
+                      ? <PermissionDenied label={currentItem && t[currentItem.labelKey]} />
+                      : children}
               </motion.div>
             </AnimatePresence>
           </div>

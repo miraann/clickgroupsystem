@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { logAudit } from '@/lib/logAudit'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
-import { isModuleEnabled } from '@/lib/modules'
+import { isModuleEnabled, MODULES } from '@/lib/modules'
 import { QRCodeSVG } from 'qrcode.react'
 import {
   Users, Plus, Pencil, Trash2, X, ToggleLeft, ToggleRight,
@@ -286,15 +286,25 @@ const PERM_MODULE_MAP: Record<string, string | null> = {
   'settings.whatsapp':       null,
 }
 
-function filterPermTree(tree: PermNode[], modules: Record<string, boolean>): PermNode[] {
-  return tree.flatMap(node => {
+// Leaves whose module is off can't be granted — the toggle for the parent's
+// restaurant plan lives in /seller, not here. They still show, just locked,
+// so "Select All" isn't silently incomplete with no explanation.
+function moduleDisabledLeaves(tree: PermNode[], modules: Record<string, boolean>): Set<string> {
+  const disabled = new Set<string>()
+  const walk = (node: PermNode, inherited: boolean) => {
     const modKey = PERM_MODULE_MAP[node.key] ?? null
-    if (modKey !== null && !isModuleEnabled(modules, modKey)) return []
-    if (!node.children) return [node]
-    const filteredChildren = filterPermTree(node.children, modules)
-    if (filteredChildren.length === 0) return []
-    return [{ ...node, children: filteredChildren }]
-  })
+    const nodeDisabled = inherited || (modKey !== null && !isModuleEnabled(modules, modKey))
+    if (!node.children) { if (nodeDisabled) disabled.add(node.key); return }
+    node.children.forEach(c => walk(c, nodeDisabled))
+  }
+  tree.forEach(n => walk(n, false))
+  return disabled
+}
+
+function moduleLabelFor(key: string): string | null {
+  const modKey = PERM_MODULE_MAP[key]
+  if (!modKey) return null
+  return MODULES.find(m => m.key === modKey)?.label ?? modKey
 }
 
 function leafKeys(node: PermNode): string[] {
@@ -310,36 +320,50 @@ function parentState(node: PermNode, perms: Permissions): boolean | 'mixed' {
   return 'mixed'
 }
 
-function PermRow({ node, perms, depth = 0, onChange }: { node: PermNode; perms: Permissions; depth?: number; onChange: (key: string, val: boolean) => void }) {
+function PermRow({ node, perms, depth = 0, onChange, disabledLeaves }: {
+  node: PermNode; perms: Permissions; depth?: number
+  onChange: (key: string, val: boolean) => void
+  disabledLeaves: Set<string>
+}) {
   const [open, setOpen] = useState(false)
   const isParent = !!node.children?.length
+  const allLeaves = isParent ? leafKeys(node) : [node.key]
+  const enabledLeaves = allLeaves.filter(k => !disabledLeaves.has(k))
+  const locked = enabledLeaves.length === 0
   const state = isParent ? parentState(node, perms) : !!perms[node.key]
   const checked = state === true
   const mixed = state === 'mixed'
   const toggle = () => {
-    if (isParent) { const target = state !== true; leafKeys(node).forEach(k => onChange(k, target)) }
+    if (locked) return
+    if (isParent) { const target = state !== true; enabledLeaves.forEach(k => onChange(k, target)) }
     else onChange(node.key, !checked)
   }
+  const requiresModule = locked ? moduleLabelFor(isParent ? (allLeaves[0] ?? node.key) : node.key) : null
   return (
     <>
-      <div className={cn('flex items-center gap-3 px-4 py-3 border-b border-white/5 hover:bg-white/3 transition-colors', depth > 0 && 'ps-12 bg-black/20')}>
+      <div className={cn('flex items-center gap-3 px-4 py-3 border-b border-white/5 transition-colors', depth > 0 && 'ps-12 bg-black/20', locked ? 'opacity-50' : 'hover:bg-white/3')}>
         {isParent
           ? <button onClick={() => setOpen(o => !o)} className="w-5 h-5 flex items-center justify-center text-white/30 hover:text-white/70 transition-colors shrink-0">
               {open ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
             </button>
           : <span className="w-5 shrink-0" />}
-        <button onClick={toggle} className={cn('w-5 h-5 rounded flex items-center justify-center border transition-all shrink-0',
-          checked ? 'bg-amber-500 border-amber-500' : mixed ? 'bg-amber-500/40 border-amber-500/60' : 'bg-white/5 border-white/20 hover:border-white/40')}>
-          {checked && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
-          {mixed && <div className="w-2 h-0.5 bg-white rounded-full" />}
+        <button onClick={toggle} disabled={locked} className={cn('w-5 h-5 rounded flex items-center justify-center border transition-all shrink-0',
+          locked ? 'bg-white/5 border-white/10 cursor-not-allowed' : checked ? 'bg-amber-500 border-amber-500' : mixed ? 'bg-amber-500/40 border-amber-500/60' : 'bg-white/5 border-white/20 hover:border-white/40')}>
+          {checked && !locked && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
+          {mixed && !locked && <div className="w-2 h-0.5 bg-white rounded-full" />}
         </button>
         <span onClick={isParent ? () => setOpen(o => !o) : toggle}
-          className="text-sm flex-1 cursor-pointer select-none text-white">
+          className={cn('text-sm flex-1 select-none text-white', locked ? 'cursor-not-allowed' : 'cursor-pointer')}>
           {node.label}
         </span>
+        {locked && requiresModule && (
+          <span className="text-[10px] px-1.5 py-0.5 rounded-md font-medium border border-white/10 bg-white/5 text-white/35 shrink-0">
+            🔒 requires {requiresModule}
+          </span>
+        )}
       </div>
       {isParent && open && node.children!.map(child => (
-        <PermRow key={child.key} node={child} perms={perms} depth={depth + 1} onChange={onChange} />
+        <PermRow key={child.key} node={child} perms={perms} depth={depth + 1} onChange={onChange} disabledLeaves={disabledLeaves} />
       ))}
     </>
   )
@@ -572,8 +596,12 @@ export default function UsersPage() {
     setRoleStaff(prev => prev.map(s => s.id === staffId ? { ...s, role_id: resolvedRoleId } : s))
     setAssigningId(null)
   }
-  const visiblePermTree = filterPermTree(PERMISSION_TREE, restaurantModules)
-  const selectAll = () => { const all: Permissions = {}; visiblePermTree.flatMap(n => leafKeys(n)).forEach(k => { all[k] = true }); setPerms(all); setSavedPerms(false) }
+  const disabledLeaves = moduleDisabledLeaves(PERMISSION_TREE, restaurantModules)
+  const selectAll = () => {
+    const all: Permissions = {}
+    PERMISSION_TREE.flatMap(n => leafKeys(n)).forEach(k => { if (!disabledLeaves.has(k)) all[k] = true })
+    setPerms(all); setSavedPerms(false)
+  }
   const clearAll = () => { setPerms({}); setSavedPerms(false) }
 
   const filtered = users.filter(u =>
@@ -835,7 +863,7 @@ export default function UsersPage() {
                       <span className="text-white/15">·</span>
                       <button onClick={clearAll} className="text-[11px] text-white/60 hover:text-white/90 transition-colors">Clear All</button>
                     </div>
-                    <div>{visiblePermTree.map(node => <PermRow key={node.key} node={node} perms={perms} onChange={changePermission} />)}</div>
+                    <div>{PERMISSION_TREE.map(node => <PermRow key={node.key} node={node} perms={perms} onChange={changePermission} disabledLeaves={disabledLeaves} />)}</div>
                   </>
                 )}
 
