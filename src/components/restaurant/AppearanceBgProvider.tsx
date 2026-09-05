@@ -1,9 +1,6 @@
 'use client'
 import { useEffect } from 'react'
-import { createClient } from '@/lib/supabase/client'
-
-let _cache: { bg: string; anchor: string; primary: string; text: string; textMuted: string } | null = null
-let _cacheFor: string | null = null
+import { useRestaurant } from '@/hooks/useRestaurant'
 
 function hexToRgb(hex: string) {
   return {
@@ -60,42 +57,39 @@ function applyVars(anchor: string, bg: string, primary: string, text = '#ffffff'
 }
 
 export default function AppearanceBgProvider({ children }: { children: React.ReactNode }) {
+  const { restaurant } = useRestaurant()
+
+  // Instant paint from the localStorage cache to avoid a flash before the
+  // shared restaurant row resolves.
   useEffect(() => {
-    const id = localStorage.getItem('restaurant_id')
+    const id = typeof window !== 'undefined' ? localStorage.getItem('restaurant_id') : null
     if (!id) return
-
-    // Instant paint from cache to avoid flash
-    const stored = localStorage.getItem('_app_bg_cache')
-    if (stored) {
-      try {
-        const c = JSON.parse(stored)
-        if (c.forId === id) applyVars(c.anchor, c.bg, c.primary || '#f59e0b', c.text || '#ffffff', c.textMuted || '#94a3b8')
-      } catch {}
-    }
-
-    if (_cache && _cacheFor === id) {
-      applyVars(_cache.anchor, _cache.bg, _cache.primary, _cache.text, _cache.textMuted)
-      return
-    }
-
-    const supabase = createClient()
-    supabase.from('restaurants').select('settings').eq('id', id).maybeSingle()
-      .then(({ data }) => {
-        const s         = (data?.settings ?? {}) as Record<string, unknown>
-        const style     = (s.sidebar_style        as string) || 'default'
-        const cc        = (s.sidebar_custom_color as string) || '#022658'
-        const ct        = (s.sidebar_custom_type  as string) || 'solid'
-        const primary   = (s.primary_color        as string) || '#f59e0b'
-        const text      = (s.text_color           as string) || '#ffffff'
-        const textMuted = (s.text_muted_color     as string) || '#94a3b8'
-        const bg        = computeBg(style, cc, ct)
-        const anchor    = computeAnchor(style, cc, ct)
-        _cache    = { bg, anchor, primary, text, textMuted }
-        _cacheFor = id
-        applyVars(anchor, bg, primary, text, textMuted)
-        localStorage.setItem('_app_bg_cache', JSON.stringify({ forId: id, bg, anchor, primary, text, textMuted }))
-      })
+    try {
+      const stored = localStorage.getItem('_app_bg_cache')
+      if (!stored) return
+      const c = JSON.parse(stored)
+      if (c.forId === id) applyVars(c.anchor, c.bg, c.primary || '#f59e0b', c.text || '#ffffff', c.textMuted || '#94a3b8')
+    } catch {}
   }, [])
+
+  // Recompute + apply whenever the shared settings blob changes.
+  useEffect(() => {
+    const id = typeof window !== 'undefined' ? localStorage.getItem('restaurant_id') : null
+    if (!id || !restaurant) return
+    const s         = restaurant.settings ?? {}
+    const style     = (s.sidebar_style        as string) || 'default'
+    const cc        = (s.sidebar_custom_color as string) || '#022658'
+    const ct        = (s.sidebar_custom_type  as string) || 'solid'
+    const primary   = (s.primary_color        as string) || '#f59e0b'
+    const text      = (s.text_color           as string) || '#ffffff'
+    const textMuted = (s.text_muted_color     as string) || '#94a3b8'
+    const bg        = computeBg(style, cc, ct)
+    const anchor    = computeAnchor(style, cc, ct)
+    applyVars(anchor, bg, primary, text, textMuted)
+    try {
+      localStorage.setItem('_app_bg_cache', JSON.stringify({ forId: id, bg, anchor, primary, text, textMuted }))
+    } catch {}
+  }, [restaurant])
 
   return <>{children}</>
 }

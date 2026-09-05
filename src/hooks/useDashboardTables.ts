@@ -18,7 +18,6 @@ export interface TableWithStatus {
 }
 
 export interface DashboardFullData {
-  restaurant: { name: string; logo_url: string | null; settings: Record<string, unknown>; menu_slug: string | null } | null
   tables: TableWithStatus[]
   groups: { id: string; name: string; color: string }[]
 }
@@ -29,17 +28,14 @@ async function fetchDashboardData(restaurantId: string): Promise<DashboardFullDa
   const supabase = createClient()
   const today = new Date().toISOString().slice(0, 10)
 
-  // All 5 queries run in a single parallel batch — no sequential round-trips
+  // The `restaurants` row is no longer fetched here — it comes from the shared
+  // `useRestaurant` SWR cache (one round-trip per session, not one per screen).
   const [
-    { data: rest },
     { data: dbTables },
     { data: orders },
     { data: grps },
     { data: todayRes },
   ] = await Promise.all([
-    supabase.from('restaurants')
-      .select('name, logo_url, settings, menu_slug')
-      .eq('id', restaurantId).maybeSingle(),
     supabase.from('tables')
       .select('id, seq, table_number, capacity, shape, group_id, status')
       .eq('restaurant_id', restaurantId).eq('active', true).order('table_number'),
@@ -56,9 +52,33 @@ async function fetchDashboardData(restaurantId: string): Promise<DashboardFullDa
       .in('status', ['pending', 'confirmed']),
   ])
 
+  // Verify each active order still has non-void items; auto-close ones whose
+  // items were all voided. (This was previously a second waterfall in the
+  // dashboard page — folded in here so table status has one source of truth.)
+  const orderIds = (orders ?? []).map(o => o.id)
+  let liveOrderIds = new Set<string>(orderIds)
+  if (orderIds.length > 0) {
+    const { data: itemRows } = await supabase
+      .from('order_items').select('order_id, status').in('order_id', orderIds)
+    const withItems     = new Set((itemRows ?? []).map(i => i.order_id))
+    const withLiveItems  = new Set((itemRows ?? []).filter(i => i.status !== 'void').map(i => i.order_id))
+    // Keep orders that have a live item OR no items yet (brand-new guest/delivery race).
+    liveOrderIds = new Set(orderIds.filter(id => !withItems.has(id) || withLiveItems.has(id)))
+    const staleIds = orderIds.filter(id => withItems.has(id) && !withLiveItems.has(id))
+    if (staleIds.length > 0) {
+      // fire-and-forget — don't block the grid on the cleanup write.
+      // (.then() is what actually dispatches a supabase-js query.)
+      supabase.from('orders')
+        .update({ status: 'closed', updated_at: new Date().toISOString() })
+        .in('id', staleIds)
+        .then(() => {}, () => {})
+    }
+  }
+
   // Build order map keyed by table seq number
   const orderMap = new Map<number, { guests: number; total: number; openedAt: string; orderId: string }>()
   for (const o of orders ?? []) {
+    if (!liveOrderIds.has(o.id)) continue
     orderMap.set(Number(o.table_number), {
       orderId:  o.id,
       guests:   o.guests ?? 0,
@@ -91,8 +111,6 @@ async function fetchDashboardData(restaurantId: string): Promise<DashboardFullDa
   })
 
   return {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    restaurant: rest ? { name: rest.name, logo_url: rest.logo_url, settings: ((rest as any).settings as Record<string, unknown>) ?? {}, menu_slug: (rest as any).menu_slug ?? null } : null,
     tables,
     groups: (grps ?? []) as { id: string; name: string; color: string }[],
   }

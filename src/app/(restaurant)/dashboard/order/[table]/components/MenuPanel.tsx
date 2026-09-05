@@ -6,11 +6,11 @@ import type { DbCategory, DbMenuItem } from '../types'
 
 const itemGridVariants = {
   hidden:  {},
-  visible: { transition: { staggerChildren: 0.04 } },
+  visible: { transition: { staggerChildren: 0.012 } },
 }
 const itemVariants = {
-  hidden:  { opacity: 0, scale: 0.95 },
-  visible: { opacity: 1, scale: 1, transition: { duration: 0.15, ease: 'easeOut' as const } },
+  hidden:  { opacity: 0, scale: 0.97 },
+  visible: { opacity: 1, scale: 1, transition: { duration: 0.12, ease: 'easeOut' as const } },
 }
 
 interface Props {
@@ -20,15 +20,37 @@ interface Props {
   onCategory:      (id: string) => void
   visible:         DbMenuItem[]
   draftQty:        (id: string) => number
+  loading?:        boolean
   onItemTap:       (item: DbMenuItem) => void
   formatPrice:     (n: number) => string
 }
 
 export function MenuPanel({
   mobilePanel, categories, activeCategory, onCategory,
-  visible, draftQty, onItemTap, formatPrice,
+  visible, draftQty, loading, onItemTap, formatPrice,
 }: Props) {
   const { t: tr } = useLanguage()
+
+  // First-ever menu load (nothing cached yet) — light shimmer grid.
+  if (loading && categories.length === 0) {
+    return (
+      <div className={cn('flex-1 flex-col overflow-hidden', mobilePanel === 'menu' ? 'flex' : 'hidden sm:flex')}>
+        <div className="shrink-0 flex items-center gap-2 px-4 py-3 border-b border-white/8">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="h-9 w-24 rounded-xl skeleton-shimmer" />
+          ))}
+        </div>
+        <div className="flex-1 overflow-y-auto p-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
+            {Array.from({ length: 9 }).map((_, i) => (
+              <div key={i} className="rounded-2xl skeleton-shimmer" style={{ aspectRatio: '3/2' }} />
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className={cn('flex-1 flex-col overflow-hidden', mobilePanel === 'menu' ? 'flex' : 'hidden sm:flex')}>
       {/* Category scroll */}

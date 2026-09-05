@@ -10,15 +10,17 @@ import { logAudit } from '@/lib/logAudit'
 import { ConfirmPayDialog } from './payment/ConfirmPayDialog'
 import { MemberPicker }     from './payment/MemberPicker'
 import { CustomerPicker }   from './payment/CustomerPicker'
-import type { Item, DbDiscount, DbSurcharge, DbPayMethod, ActionTab } from './payment/types'
+import type { Item, DbDiscount, DbSurcharge, ActionTab } from './payment/types'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { mutate as swrMutate } from 'swr'
 import { SWR_KEY } from '@/hooks/useDashboardTables'
 import type { DashboardFullData } from '@/hooks/useDashboardTables'
+import { useCheckoutData } from '@/hooks/useCheckoutData'
 
 interface Props {
   orderId:      string
   restaurantId: string
+  orderNum?:    string | null
   tableNum:     string
   guests:       number
   items:        Item[]
@@ -46,11 +48,11 @@ const ACTION_TABS: { id: ActionTab; labelKey: 'pay_tab_surcharge' | 'pay_tab_gra
 
 const NUMPAD = ['7','8','9','4','5','6','1','2','3','0','00','.']
 
-export default function PaymentScreen({ orderId, restaurantId, tableNum, guests, items, total, onClose, onPaid }: Props) {
+export default function PaymentScreen({ orderId, restaurantId, orderNum: orderNumProp, tableNum, guests, items, total, onClose, onPaid }: Props) {
   const { can, isOwner, isPinStaff, staffName, roleName } = usePermissions()
   const { t } = useLanguage()
   const p = (key: string) => isOwner || can(key)
-  const [payMethods, setPayMethods]       = useState<DbPayMethod[]>([])
+  const { checkout } = useCheckoutData(restaurantId)
   const [method, setMethod]               = useState<string>('')
   const [entered, setEntered]             = useState('')
   const [paying, setPaying]               = useState(false)
@@ -64,11 +66,12 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
   const [changeAmt, setChangeAmt]         = useState(0)
   const [generatedInvoiceNum, setGeneratedInvoiceNum] = useState('')
   const [generatedOrderNum, setGeneratedOrderNum]     = useState('')
-  const [orderNum, setOrderNum]                       = useState('')
-  const [previewInvoiceNum, setPreviewInvoiceNum]     = useState('')
-  const [discounts, setDiscounts]         = useState<DbDiscount[]>([])
+  const orderNum          = orderNumProp ?? ''
+  const previewInvoiceNum = checkout.invoicePreview
+  const payMethods        = checkout.payMethods
+  const discounts         = checkout.discounts
+  const surcharges        = checkout.surcharges
   const [appliedDiscount, setApplied]     = useState<DbDiscount | null>(null)
-  const [surcharges, setSurcharges]       = useState<DbSurcharge[]>([])
   const [appliedSurcharge, setAppliedSur] = useState<DbSurcharge | null>(null)
   const [invoiceNote, setInvoiceNote]     = useState('')
   const [plName, setPlName]               = useState('')
@@ -119,54 +122,14 @@ export default function PaymentScreen({ orderId, restaurantId, tableNum, guests,
     : (isPinStaff && staffName)  ? staffName
     : (authFullName || staffName || roleName || 'Staff')
 
-  // Load payment methods
+  // Reference data (methods / discounts / surcharges / invoice #) comes from
+  // the shared `useCheckoutData` SWR cache, prewarmed by the order screen.
+  // Pick the default payment method once it arrives.
   useEffect(() => {
-    supabase
-      .from('payment_methods')
-      .select('id, name, icon_type, is_default')
-      .eq('restaurant_id', restaurantId)
-      .eq('active', true)
-      .order('sort_order')
-      .then(({ data }) => {
-        const methods = (data ?? []) as DbPayMethod[]
-        setPayMethods(methods)
-        const def = methods.find(m => m.is_default) ?? methods[0]
-        if (def) setMethod(def.id)
-      })
-    supabase
-      .from('discounts')
-      .select('id,name,type,value,min_order,active')
-      .eq('restaurant_id', restaurantId)
-      .eq('active', true)
-      .order('sort_order')
-      .then(({ data }) => setDiscounts((data ?? []) as DbDiscount[]))
-    supabase
-      .from('surcharges')
-      .select('id,name,type,value,applied_to,active')
-      .eq('restaurant_id', restaurantId)
-      .eq('active', true)
-      .order('sort_order')
-      .then(({ data }) => setSurcharges((data ?? []) as DbSurcharge[]))
-    supabase
-      .from('orders')
-      .select('order_num')
-      .eq('id', orderId)
-      .maybeSingle()
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .then(({ data }) => { if (data) setOrderNum((data as any).order_num ?? '') })
-    supabase
-      .from('invoice_number_settings')
-      .select('prefix, current_num, start_num')
-      .eq('restaurant_id', restaurantId)
-      .maybeSingle()
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .then(({ data }) => {
-        if (data) {
-          const num = (data as any).current_num ?? (data as any).start_num ?? 1001
-          setPreviewInvoiceNum(`${(data as any).prefix ?? 'INV-'}${num}`)
-        }
-      })
-  }, [restaurantId, orderId]) // eslint-disable-line react-hooks/exhaustive-deps
+    if (method || payMethods.length === 0) return
+    const def = payMethods.find(m => m.is_default) ?? payMethods[0]
+    if (def) setMethod(def.id)
+  }, [payMethods, method])
 
   const discountAmount  = appliedDiscount
     ? appliedDiscount.type === 'percentage'

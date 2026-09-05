@@ -41,24 +41,22 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
       sessionStorage.getItem('pos_session_active') === '1' || isSessionFresh()
 
     if (sessionActive && (localStorage.getItem('pos_staff_id') || localStorage.getItem('owner_session') === 'true')) {
-      // Confirm the signed server cookie before rendering. localStorage alone is
-      // not trusted — src/proxy.ts is the hard gate, this avoids a content flash
-      // and handles a cleared/expired cookie.
+      // src/proxy.ts is the hard server-side gate on every /dashboard/* route,
+      // so render immediately from the trusted-enough localStorage session and
+      // confirm the signed cookie in the background. Only an explicit failure
+      // (or a cleared/expired cookie) bounces to login.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setReady(true)
       fetch('/api/restaurant/verify')
-        .then(r => (r.ok ? r.json() : null))
+        .then(async r => { try { return await r.json() } catch { return null } })
         .then(data => {
-          if (!data?.ok) {
+          if (data && data.ok === false) {
             clearStaffSession()
             fetch('/api/restaurant/logout', { method: 'POST' }).catch(() => {})
             router.replace(`/pos/${slug}/login`)
-            return
           }
-          setReady(true)
         })
-        .catch(() => {
-          clearStaffSession()
-          router.replace(`/pos/${slug}/login`)
-        })
+        .catch(() => { /* offline / transient — proxy.ts still gates the route */ })
       return
     }
 

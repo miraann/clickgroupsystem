@@ -1,5 +1,5 @@
 'use client'
-import { ShoppingBag, ChefHat } from 'lucide-react'
+import { ShoppingBag, ChefHat, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { DraftRow } from './DraftRow'
 import { SentRow } from './SentRow'
@@ -15,6 +15,7 @@ interface Props {
   draftTotal:   number
   sentItems:    DbOrderItem[]
   sentTotal:    number
+  loading?:     boolean
   formatPrice:  (n: number) => string
   onQty:        (itemId: string, delta: number) => void
   onRemove:     (itemId: string, qty: number) => void
@@ -25,7 +26,7 @@ interface Props {
 export function OrderPanel({
   activeTab, setActiveTab, mobilePanel,
   draft, draftEntries, draftTotal,
-  sentItems, sentTotal,
+  sentItems, sentTotal, loading,
   formatPrice, onQty, onRemove, onEdit, onAction,
 }: Props) {
   const { t: tr } = useLanguage()
@@ -86,12 +87,18 @@ export function OrderPanel({
           )
         ) : (
           sentItems.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full gap-3 pb-10">
-              <div className="w-16 h-16 rounded-2xl bg-white/4 border border-white/8 flex items-center justify-center">
-                <ChefHat className="w-7 h-7 text-white/15" />
+            loading ? (
+              <div className="flex items-center justify-center h-full">
+                <Loader2 className="w-6 h-6 text-white/20 animate-spin" />
               </div>
-              <p className="text-sm text-white/25">{tr.ord_nothing_sent}</p>
-            </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full gap-3 pb-10">
+                <div className="w-16 h-16 rounded-2xl bg-white/4 border border-white/8 flex items-center justify-center">
+                  <ChefHat className="w-7 h-7 text-white/15" />
+                </div>
+                <p className="text-sm text-white/25">{tr.ord_nothing_sent}</p>
+              </div>
+            )
           ) : (
             <div className="p-3 space-y-2">
               {sentItems.map(i => (

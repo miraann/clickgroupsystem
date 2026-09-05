@@ -1,6 +1,7 @@
 'use client'
-import { createContext, useContext, useEffect, useState, useCallback } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useRestaurant } from '@/hooks/useRestaurant'
 
 type Permissions = Record<string, boolean>
 
@@ -30,6 +31,12 @@ const PermissionsContext = createContext<PermissionsContextValue>({
 
 export function PermissionsProvider({ children }: { children: React.ReactNode }) {
   const supabase = createClient()
+
+  // Shared restaurant row — lets the Supabase-auth branch below skip its own
+  // `restaurants` query when the cache is already warm.
+  const { restaurant } = useRestaurant()
+  const restaurantRef = useRef(restaurant)
+  restaurantRef.current = restaurant
 
   const [permissions, setPermissions] = useState<Permissions>({})
   const [roleName, setRoleName]       = useState<string | null>(null)
@@ -98,13 +105,17 @@ export function PermissionsProvider({ children }: { children: React.ReactNode })
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { setLoading(false); return }
 
-      const { data: restaurant } = await supabase
-        .from('restaurants')
-        .select('owner_id')
-        .eq('id', restaurantId)
-        .maybeSingle()
+      let ownerId = restaurantRef.current?.owner_id ?? null
+      if (ownerId == null) {
+        const { data } = await supabase
+          .from('restaurants')
+          .select('owner_id')
+          .eq('id', restaurantId)
+          .maybeSingle()
+        ownerId = (data?.owner_id as string | null) ?? null
+      }
 
-      if (restaurant?.owner_id === user.id) {
+      if (ownerId === user.id) {
         setIsOwner(true)
         setIsPinStaff(false)
         setRoleName('Owner')

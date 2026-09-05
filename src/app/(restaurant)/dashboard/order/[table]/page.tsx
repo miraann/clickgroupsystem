@@ -4,10 +4,13 @@ import { useParams, useSearchParams, useRouter } from 'next/navigation'
 import { AlertCircle, WifiOff, RefreshCw, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import dynamic from 'next/dynamic'
+import { mutate as swrMutate } from 'swr'
 
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import { usePermissions } from '@/lib/permissions/PermissionsContext'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
+import { useCheckoutData } from '@/hooks/useCheckoutData'
+import { SWR_KEY as DASH_KEY } from '@/hooks/useDashboardTables'
 
 import { useOrderState } from './useOrderState'
 import { OrderHeader }      from './components/OrderHeader'
@@ -18,7 +21,8 @@ import { GuestEditModal }   from './components/GuestEditModal'
 import { OrderedItemModal } from './components/OrderedItemModal'
 import { ItemModal }        from './components/ItemModal'
 
-const PaymentScreen = dynamic(() => import('@/components/restaurant/payment-screen'), { ssr: false })
+const importPaymentScreen = () => import('@/components/restaurant/payment-screen')
+const PaymentScreen = dynamic(importPaymentScreen, { ssr: false })
 
 function OrderPage() {
   const { table }      = useParams<{ table: string }>()
@@ -47,6 +51,14 @@ function OrderPage() {
   // ── Master hook ───────────────────────────────────────────────
   const order = useOrderState(table, guestCount)
 
+  // ── Prewarm the payment path so tapping "Pay" is instant ──────
+  // Reference data (methods/discounts/surcharges/invoice #) into SWR cache…
+  useCheckoutData(order.restaurantId)
+  // …and the code-split PaymentScreen chunk itself, once Pay is reachable.
+  useEffect(() => {
+    if (order.sentItems.length > 0) importPaymentScreen().catch(() => {})
+  }, [order.sentItems.length])
+
   // ── Save guest count ─────────────────────────────────────────
   const saveGuestCount = async (count: number) => {
     setGuestCount(count)
@@ -59,7 +71,8 @@ function OrderPage() {
   const [mounted, setMounted] = useState(false)
   useEffect(() => { const t = requestAnimationFrame(() => setMounted(true)); return () => cancelAnimationFrame(t) }, [])
 
-  if (order.loading) return null
+  // First-ever load with nothing in any cache yet — brief full-screen hold.
+  if (order.loading && order.menuLoading) return null
 
   if (order.initError) return (
     <div className="flex items-center justify-center h-screen p-6" style={{ background: 'var(--app-bg, #022658)' }}>
@@ -101,6 +114,7 @@ function OrderPage() {
           draftTotal={order.draftTotal}
           sentItems={order.sentItems}
           sentTotal={order.sentTotal}
+          loading={order.loading}
           formatPrice={formatPrice}
           onQty={(id, d) => order.draftChange(id, d)}
           onRemove={(id, qty) => order.draftChange(id, -qty)}
@@ -115,6 +129,7 @@ function OrderPage() {
           onCategory={order.setActiveCategory}
           visible={order.visible}
           draftQty={order.draftQty}
+          loading={order.menuLoading}
           onItemTap={order.draftAdd}
           formatPrice={formatPrice}
         />
@@ -247,18 +262,22 @@ function OrderPage() {
         <PaymentScreen
           orderId={order.orderId}
           restaurantId={order.restaurantId}
+          orderNum={order.orderNum}
           tableNum={isTakeout ? tr.ord_takeout : table}
           guests={guestCount}
           items={order.sentItems.map(i => ({ name: i.item_name, price: i.item_price, qty: i.qty }))}
           total={order.grandTotal}
           onClose={() => window.history.back()}
           onPaid={() => {
-            if (order.restaurantId) {
-              order.supabase.channel(`cfd-sync-${order.restaurantId}`)
+            const rid = order.restaurantId
+            if (rid) {
+              order.supabase.channel(`cfd-sync-${rid}`)
                 .send({ type: 'broadcast', event: 'table_change', payload: { table: 'idle' } })
                 .catch(() => {})
+              // force the dashboard to re-pull fresh table status on arrival
+              swrMutate(DASH_KEY(rid))
             }
-            window.location.href = '/dashboard'
+            router.replace('/dashboard')
           }}
         />
       )}

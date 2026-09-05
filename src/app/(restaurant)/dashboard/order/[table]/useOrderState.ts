@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { assignOrderNumber } from '@/lib/orderNumber'
 import { printKitchenTicket } from '@/lib/printKitchenTicket'
@@ -7,31 +7,43 @@ import { enqueuePrint } from '@/lib/printQueue'
 import { logAudit } from '@/lib/logAudit'
 import { sendPush } from '@/lib/push'
 import { enqueueOrder, getQueueCount, syncAllQueued } from '@/lib/offlineQueue'
-import type {
-  DbCategory, DbMenuItem, KitchenNote, DraftEntry, DbOrderItem,
-} from './types'
+import { useRestaurant } from '@/hooks/useRestaurant'
+import { useOrderMenu } from '@/hooks/useOrderMenu'
+import type { DraftEntry, DbOrderItem, DbMenuItem } from './types'
 
 export function useOrderState(table: string, guestCount: number) {
   const supabase = createClient()
 
-  // ── Restaurant / order identity ──────────────────────────────
-  const [restaurantId, setRestaurantId]     = useState<string | null>(null)
-  const [restaurantName, setRestaurantName] = useState<string>('')
-  const [orderId, setOrderId]               = useState<string | null>(null)
-  const [orderNum, setOrderNum]             = useState<string | null>(null)
+  // ── Restaurant identity (from localStorage, no query) ─────────
+  const [restaurantId] = useState<string | null>(() =>
+    typeof window !== 'undefined' ? localStorage.getItem('restaurant_id') : null,
+  )
+  const { restaurant } = useRestaurant(restaurantId)
+  const restaurantName = restaurant?.name ?? ''
 
-  // ── Menu data ────────────────────────────────────────────────
-  const [dbItems, setDbItems]             = useState<DbOrderItem[]>([])
-  const [categories, setCategories]       = useState<DbCategory[]>([])
-  const [menuItems, setMenuItems]         = useState<DbMenuItem[]>([])
-  const [kitchenNotes, setKitchenNotes]   = useState<KitchenNote[]>([])
-  const [catStationMap, setCatStationMap] = useState<Map<string, string>>(new Map())
+  // ── Menu data (shared SWR cache, reused between table opens) ──
+  const { menu, loading: menuLoading } = useOrderMenu(restaurantId)
+  const { categories, menuItems, kitchenNotes } = menu
+  const catStationMap = useMemo(
+    () => new Map<string, string>(menu.catStationMap),
+    [menu.catStationMap],
+  )
+
+  // ── Order identity ───────────────────────────────────────────
+  const [orderId, setOrderId]   = useState<string | null>(null)
+  const [orderNum, setOrderNum] = useState<string | null>(null)
+
+  // ── Ordered items (order-specific) ───────────────────────────
+  const [dbItems, setDbItems] = useState<DbOrderItem[]>([])
 
   // ── Draft (items not yet sent) ───────────────────────────────
   const [draft, setDraft] = useState<Map<string, DraftEntry>>(new Map())
 
   // ── UI state owned by the hook ───────────────────────────────
-  const [activeCategory, setActiveCategory] = useState<string>('')
+  // `activeCategory` derives its default from the (cached) menu so no effect
+  // is needed to seed it; an explicit user pick takes precedence.
+  const [pickedCategory, setActiveCategory] = useState<string>('')
+  const activeCategory = pickedCategory || categories[0]?.id || ''
   const [activeTab, setActiveTab]           = useState<'ordering' | 'ordered'>('ordering')
   const [sending, setSending]               = useState(false)
   const [sendError, setSendError]           = useState<string | null>(null)
@@ -94,43 +106,28 @@ export function useOrderState(table: string, guestCount: number) {
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Init ─────────────────────────────────────────────────────
+  // ── Init — only the order-specific reads; menu comes from cache ─
   const init = useCallback(async () => {
     setLoading(true); setInitError(null)
 
-    const rid = typeof window !== 'undefined' ? (localStorage.getItem('restaurant_id') ?? '') : ''
+    const rid = restaurantId ?? ''
     if (!rid) { setInitError('Restaurant not found.'); setLoading(false); return }
 
-    // All 6 queries fire in one parallel batch — no serial round-trips
-    const [restRes, catsRes, itemsRes, notesRes, existingRes, stationCatRes] = await Promise.all([
-      supabase.from('restaurants').select('id,name').eq('id', rid).maybeSingle(),
-      supabase.from('menu_categories').select('id,name,color').eq('restaurant_id', rid).eq('active', true).order('sort_order'),
-      supabase.from('menu_items').select('id,name,price,category_id,image_url').eq('restaurant_id', rid).eq('available', true).order('sort_order'),
-      supabase.from('kitchen_notes').select('id,text').eq('restaurant_id', rid).eq('active', true).order('sort_order'),
-      supabase.from('orders').select('id,order_num').eq('restaurant_id', rid).eq('table_number', parseInt(table)).eq('status', 'active').order('created_at', { ascending: false }).limit(1).maybeSingle(),
-      supabase.from('kds_station_categories').select('station_id,category_id'),
-    ])
+    const { data: existing, error: existingErr } = await supabase
+      .from('orders')
+      .select('id,order_num')
+      .eq('restaurant_id', rid)
+      .eq('table_number', parseInt(table))
+      .eq('status', 'active')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
 
-    const rest = restRes.data
-    if (!rest) { setInitError('Restaurant not found.'); setLoading(false); return }
-    setRestaurantId(rest.id)
-    setRestaurantName(rest.name ?? '')
+    if (existingErr) { setInitError(existingErr.message); setLoading(false); return }
 
-    const cats  = (catsRes.data  ?? []) as DbCategory[]
-    const items = (itemsRes.data ?? []) as DbMenuItem[]
-    const notes = (notesRes.data ?? []) as KitchenNote[]
-    setCategories(cats)
-    setMenuItems(items)
-    setKitchenNotes(notes)
-    if (cats.length > 0) setActiveCategory(c => c || cats[0].id)
-
-    const csMap = new Map<string, string>()
-    for (const a of (stationCatRes.data ?? [])) csMap.set(a.category_id, a.station_id)
-    setCatStationMap(csMap)
-
-    const oid = existingRes.data?.id ?? null
+    const oid = existing?.id ?? null
     setOrderId(oid)
-    setOrderNum((existingRes.data as { id: string; order_num?: string | null } | null)?.order_num ?? null)
+    setOrderNum((existing as { id: string; order_num?: string | null } | null)?.order_num ?? null)
 
     if (oid) {
       const { data: orderItems } = await supabase
@@ -139,9 +136,11 @@ export function useOrderState(table: string, guestCount: number) {
       const loaded = (orderItems ?? []) as DbOrderItem[]
       setDbItems(loaded)
       if (loaded.length > 0) setActiveTab('ordered')
+    } else {
+      setDbItems([])
     }
     setLoading(false)
-  }, [table, guestCount]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [table, restaurantId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { initRef.current = init }, [init])
   useEffect(() => { init() }, [init])
@@ -466,7 +465,7 @@ export function useOrderState(table: string, guestCount: number) {
     activeTab, setActiveTab,
     sending, setSending,
     sendError, setSendError,
-    loading, initError, init,
+    loading, menuLoading, initError, init,
     editingId, setEditingId,
     actionItem, setActionItem,
     showPayment, setShowPayment,

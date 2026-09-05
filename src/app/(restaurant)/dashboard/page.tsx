@@ -19,6 +19,7 @@ import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { Lang, LANG_META } from '@/lib/i18n/translations'
 import { useDashboardTables, SWR_KEY, type DashboardFullData } from '@/hooks/useDashboardTables'
+import { useRestaurant } from '@/hooks/useRestaurant'
 import { usePermissions } from '@/lib/permissions/PermissionsContext'
 import { getStaffHome } from '@/lib/permissions/staffHome'
 import InvoiceModal from '@/components/restaurant/invoice-modal'
@@ -1196,6 +1197,8 @@ export default function TablesPage() {
 
   // SWR: tables with live status (occupied/reserved/available) — instant on return navigation
   const { data: swrData } = useDashboardTables(cachedRestaurantId)
+  // Shared restaurant row (name/logo/settings/menu_slug) — one round-trip per session
+  const { restaurant } = useRestaurant(cachedRestaurantId)
 
   const [filter, setFilter] = useState<TableStatus | 'all'>('all')
   const [groupFilter, setGroupFilter] = useState<string | 'all'>('all')
@@ -1223,14 +1226,14 @@ export default function TablesPage() {
 
   const audioCtxRef = useRef<AudioContext | null>(null)
 
-  // ── Derived from SWR (no extra state needed) ─────────────────────
-  const restaurant       = swrData?.restaurant ?? null
+  // ── Derived (no extra state needed) ─────────────────────────────
+  const settings         = (restaurant?.settings ?? {}) as Record<string, unknown>
   const groups           = (swrData?.groups ?? []) as TableGroup[]
-  const showDeliveryButton = swrData?.restaurant?.settings?.show_delivery_button !== false
-  const showTakeoutButton  = swrData?.restaurant?.settings?.show_takeout_button  !== false
-  const tableDesign        = ((swrData?.restaurant?.settings as Record<string,unknown>)?.table_design       as TableDesign) || 'glass'
-  const navButtonStyle     = ((swrData?.restaurant?.settings as Record<string,unknown>)?.nav_button_style   as string)      || 'glass'
-  const primaryColorHex    = ((swrData?.restaurant?.settings as Record<string,unknown>)?.primary_color      as string)      || '#f59e0b'
+  const showDeliveryButton = settings.show_delivery_button !== false
+  const showTakeoutButton  = settings.show_takeout_button  !== false
+  const tableDesign        = (settings.table_design     as TableDesign) || 'glass'
+  const navButtonStyle     = (settings.nav_button_style  as string)     || 'glass'
+  const primaryColorHex    = (settings.primary_color     as string)     || '#f59e0b'
   const VIBRANT_BTN: Record<string, string> = {
     reports: '#f59e0b', audit: '#6366f1', staff: '#10b981',
     kds: '#f97316', guests: '#8b5cf6', language: '#06b6d4',
@@ -1258,12 +1261,12 @@ export default function TablesPage() {
 
   // Sync sound/alert settings from restaurant config
   useEffect(() => {
-    if (!swrData?.restaurant?.settings) return
-    const rs = swrData.restaurant.settings
+    if (!restaurant?.settings) return
+    const rs = restaurant.settings as Record<string, unknown>
     soundsEnabledRef.current = rs.sounds_enabled !== false
     alertRepeatMsRef.current = Number(rs.alert_repeat_seconds ?? 30) * 1000
     alertSoundRef.current    = (rs.alert_sound as string) || 'classic'
-  }, [swrData?.restaurant?.settings]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [restaurant?.settings]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Unlock AudioContext on first user interaction (browser autoplay policy)
   useEffect(() => {
@@ -1379,25 +1382,21 @@ export default function TablesPage() {
     ctx.state === 'running' ? play() : ctx.resume().then(play).catch(() => {})
   }, [])
 
+  // Only the badge counts + waiter calls live here now. Table status
+  // (occupied/reserved/available) is owned entirely by useDashboardTables'
+  // SWR fetcher — no more duplicate orders/reservations/order_items waterfall.
   const fetchOrders = useCallback(async () => {
     const supabase = createClient()
     const storedId = typeof window !== 'undefined' ? localStorage.getItem('restaurant_id') : null
     if (!storedId) return
 
-    const today = new Date().toISOString().slice(0, 10)
-
-    // Single parallel batch — no sequential restaurant pre-fetch needed
     const [
       { count: pendingCnt },
-      { data: orders },
-      { data: todayRes },
       { count: deliveryCnt },
       guestPendingRes,
       { data: waiterCallsData },
     ] = await Promise.all([
       supabase.from('order_items').select('id, orders!inner(source, restaurant_id)', { count: 'exact', head: true }).eq('status', 'pending').eq('orders.restaurant_id', storedId).not('orders.source', 'eq', 'delivery'),
-      supabase.from('orders').select('id, table_number, guests, total, created_at').eq('restaurant_id', storedId).eq('status', 'active'),
-      supabase.from('reservations').select('table_id').eq('restaurant_id', storedId).eq('date', today).in('status', ['pending', 'confirmed']),
       supabase.from('delivery_orders').select('id', { count: 'exact', head: true }).eq('restaurant_id', storedId).eq('status', 'pending'),
       supabase.from('order_items').select('id, orders!inner(source, restaurant_id)', { count: 'exact', head: true }).eq('status', 'pending').eq('orders.restaurant_id', storedId).eq('orders.source', 'guest'),
       supabase.from('waiter_calls').select('id, table_number, table_name, created_at').eq('restaurant_id', storedId).eq('status', 'pending').order('created_at'),
@@ -1412,59 +1411,6 @@ export default function TablesPage() {
     setPendingCount(pendingCnt ?? 0)
     setDeliveryCount(deliveryCnt ?? 0)
     setGuestPendingCount(guestPendingRes?.count ?? 0)
-
-    const resSet = new Set<string>((todayRes ?? []).map((r: { table_id: string | null }) => r.table_id).filter(Boolean) as string[])
-
-    // Build verified order map — only orders that still have non-void items
-    const map = new Map<number, { guests: number; total: number; openedAt: string }>()
-    const orderIds = (orders ?? []).map(o => o.id)
-    if (orderIds.length > 0) {
-      const { data: allItemsData } = await supabase
-        .from('order_items').select('order_id, status').in('order_id', orderIds)
-      const activeOrderIds = new Set((allItemsData ?? []).filter(i => i.status !== 'void').map(i => i.order_id))
-      const ordersWithItems = new Set((allItemsData ?? []).map(i => i.order_id))
-
-      // Auto-close only orders that HAD items but all are now void.
-      // Skip zero-item orders — they may be brand-new guest/delivery orders where
-      // items haven't been inserted yet (race condition with realtime trigger).
-      const staleIds = orderIds.filter(id => ordersWithItems.has(id) && !activeOrderIds.has(id))
-      if (staleIds.length > 0) {
-        await supabase.from('orders')
-          .update({ status: 'closed', updated_at: new Date().toISOString() })
-          .in('id', staleIds)
-      }
-
-      orders?.filter(o => activeOrderIds.has(o.id)).forEach(o => {
-        map.set(Number(o.table_number), {
-          guests:   o.guests ?? 0,
-          total:    o.total  ?? 0,
-          openedAt: new Date(o.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
-        })
-      })
-    }
-
-    // Push verified status into the SWR cache — avoids extra network round-trip
-    swrMutate(
-      SWR_KEY(storedId),
-      (prev: DashboardFullData | undefined) => {
-        if (!prev) return prev
-        return {
-          ...prev,
-          tables: prev.tables.map(t => {
-            const order = map.get(t.number)
-            if (order) return { ...t, status: 'occupied' as const, ...order }
-            if (resSet.has(t.id)) return { ...t, status: 'reserved' as const }
-            if (t.status === 'occupied' || t.status === 'reserved') {
-              // eslint-disable-next-line @typescript-eslint/no-unused-vars
-              const { guests: _g, orderTotal: _ot, openedAt: _oa, ...base } = t
-              return { ...base, status: 'available' as const }
-            }
-            return t
-          }),
-        }
-      },
-      false // optimistic — don't revalidate again
-    )
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -1519,9 +1465,16 @@ export default function TablesPage() {
   useEffect(() => { fetchRef.current = fetchOrders }, [fetchOrders])
 
   useEffect(() => {
+    // Revalidate the table grid (SWR) + refresh the badge counts together.
+    const refresh = () => {
+      const storedId = typeof window !== 'undefined' ? localStorage.getItem('restaurant_id') : null
+      if (storedId) swrMutate(SWR_KEY(storedId))
+      fetchRef.current()
+    }
+
     fetchRef.current()
-    const onVisible = () => { if (document.visibilityState === 'visible') fetchRef.current() }
-    const onFocus   = () => fetchRef.current()
+    const onVisible = () => { if (document.visibilityState === 'visible') refresh() }
+    const onFocus   = () => refresh()
     document.addEventListener('visibilitychange', onVisible)
     window.addEventListener('focus', onFocus)
 
@@ -1537,10 +1490,10 @@ export default function TablesPage() {
               playNewOrderAlert()
             }
           }
-          fetchRef.current()
+          refresh()
         })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' },
-        () => fetchRef.current())
+        () => refresh())
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'waiter_calls' },
         (payload) => {
           const row = payload.new as WaiterCall & { restaurant_id?: string }
@@ -1551,7 +1504,7 @@ export default function TablesPage() {
           setShowWaiterPanel(true)
         })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'waiter_calls' },
-        () => fetchRef.current())
+        () => refresh())
       .subscribe()
 
     return () => {
@@ -1676,9 +1629,9 @@ export default function TablesPage() {
                 <ChefHat size={26} />
               </Link>
             )}
-            {can('dashboard.cfd') && swrData?.restaurant?.menu_slug && (
+            {can('dashboard.cfd') && restaurant?.menu_slug && (
               <button
-                onClick={() => window.open(`/cfd/${swrData.restaurant!.menu_slug}`, 'CFD', 'width=1024,height=768,menubar=no,toolbar=no,location=no,status=no')}
+                onClick={() => window.open(`/cfd/${restaurant.menu_slug}`, 'CFD', 'width=1024,height=768,menubar=no,toolbar=no,location=no,status=no')}
                 className="hidden lg:flex w-14 h-14 rounded-xl bg-blue-500/10 border border-blue-500/20 items-center justify-center text-blue-400 hover:bg-blue-500/20 hover:border-blue-500/40 transition-all active:scale-95"
                 title="Customer Facing Display"
               >
@@ -1799,9 +1752,9 @@ export default function TablesPage() {
               <ChefHat className="w-[18px] h-[18px] sm:w-5 sm:h-5 md:w-[26px] md:h-[26px]" />
             </Link>
           )}
-          {can('dashboard.cfd') && swrData?.restaurant?.menu_slug && (
+          {can('dashboard.cfd') && restaurant?.menu_slug && (
             <button
-              onClick={() => window.open(`/cfd/${swrData.restaurant!.menu_slug}`, 'CFD', 'width=1024,height=768,menubar=no,toolbar=no,location=no,status=no')}
+              onClick={() => window.open(`/cfd/${restaurant.menu_slug}`, 'CFD', 'width=1024,height=768,menubar=no,toolbar=no,location=no,status=no')}
               className="shrink-0 flex w-8 h-8 sm:w-11 sm:h-11 md:w-14 md:h-14 rounded-xl bg-blue-500/10 border border-blue-500/20 items-center justify-center text-blue-400 hover:bg-blue-500/20 hover:border-blue-500/40 transition-all active:scale-95"
               title="Customer Facing Display"
             >
@@ -1951,14 +1904,14 @@ export default function TablesPage() {
           <motion.div
             key={`${filter}-${groupFilter}`}
             className="flex flex-wrap gap-2"
-            variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.04 } } }}
+            variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.012 } } }}
             initial="hidden"
             animate="visible"
           >
             {filtered.map(table => (
               <motion.div
                 key={table.id}
-                variants={{ hidden: { opacity: 0, y: 8 }, visible: { opacity: 1, y: 0, transition: { duration: 0.18, ease: 'easeOut' } } }}
+                variants={{ hidden: { opacity: 0, y: 4 }, visible: { opacity: 1, y: 0, transition: { duration: 0.14, ease: 'easeOut' } } }}
               >
                 <TableCard table={table} hasWaiterCall={waiterCalls.some(c => c.table_number === table.label)} onSelect={handleSelect} onLongPress={handleLongPress} cur={cur} formatPrice={formatPrice} design={tableDesign} />
               </motion.div>

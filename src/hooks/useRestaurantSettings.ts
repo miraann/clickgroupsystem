@@ -1,50 +1,36 @@
 'use client'
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useRestaurant, mutateRestaurant } from '@/hooks/useRestaurant'
 
 export type SaveState = 'idle' | 'saving' | 'saved' | 'error'
 
 /**
- * Generic hook for settings pages that read/write to the `restaurants.settings`
- * JSON column. Handles: load from DB, merge defaults, save full state, autoSave
- * single-key toggle (optimistic UI + background write).
+ * Generic hook for settings pages that read/write the `restaurants.settings`
+ * JSON column. The READ is served from the shared `useRestaurant` SWR cache
+ * (one round-trip per session), while writes still go straight to the DB and
+ * then refresh the shared cache.
  *
  * Usage:
  *   const { settings, setSettings, loading, saveState, save, autoSave } =
  *     useRestaurantSettings(DEFAULTS)
  */
 export function useRestaurantSettings<T extends object>(defaults: T) {
-  // Stable client — one instance per hook mount
   const supabase = useMemo(() => createClient(), [])
+  const { restaurant, loading: restLoading, revalidate } = useRestaurant()
 
-  const [restaurantId, setRestaurantId] = useState<string | null>(null)
-  const [settings,     setSettings]     = useState<T>(defaults)
-  const [loading,      setLoading]      = useState(true)
-  const [loadError,    setLoadError]    = useState<string | null>(null)
-  const [saveState,    setSaveState]    = useState<SaveState>('idle')
+  const [settings,  setSettings]  = useState<T>(defaults)
+  const [saveState, setSaveState] = useState<SaveState>('idle')
 
-  // ── Load ────────────────────────────────────────────────────
-  const load = useCallback(async () => {
-    setLoading(true)
-    setLoadError(null)
-    const id = typeof window !== 'undefined' ? (localStorage.getItem('restaurant_id') ?? '') : ''
-    const { data, error } = await supabase
-      .from('restaurants')
-      .select('id, settings')
-      .eq('id', id)
-      .maybeSingle()
+  const restaurantId = restaurant?.id ?? null
 
-    if (error) { setLoadError(error.message); setLoading(false); return }
-    if (!data)  { setLoading(false); return }
-
-    setRestaurantId(data.id)
-    // Merge DB values onto defaults so missing keys always get a safe fallback
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    setSettings(s => ({ ...s, ...((data.settings ?? {}) as any) }))
-    setLoading(false)
-  }, [supabase])
-
-  useEffect(() => { load() }, [load])
+  // Merge DB values onto defaults whenever the shared row changes. `defaults`
+  // is captured once so a caller passing an inline object literal doesn't loop.
+  const defaultsRef = useRef(defaults)
+  useEffect(() => {
+    if (!restaurant) return
+    setSettings({ ...defaultsRef.current, ...(restaurant.settings as Partial<T>) })
+  }, [restaurant])
 
   // ── Internal: fetch-then-merge write ────────────────────────
   // Re-reads the current JSON blob so concurrent writes from other tabs
@@ -56,12 +42,13 @@ export function useRestaurantSettings<T extends object>(defaults: T) {
       .select('settings')
       .eq('id', restaurantId)
       .maybeSingle()
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const existing = (data?.settings ?? {}) as Record<string, unknown>
+    const merged = { ...existing, ...patch }
     const { error } = await supabase
       .from('restaurants')
-      .update({ settings: { ...existing, ...patch } })
+      .update({ settings: merged })
       .eq('id', restaurantId)
+    if (!error) mutateRestaurant(restaurantId, { settings: merged })
     return error ?? null
   }, [restaurantId, supabase])
 
@@ -79,7 +66,6 @@ export function useRestaurantSettings<T extends object>(defaults: T) {
   }, [pushToDb, settings])
 
   // ── Auto-save a partial patch (for toggles) ──────────────────
-  // Optimistically updates local state, then writes to DB in background.
   const autoSave = useCallback(async (patch: Partial<T>) => {
     setSettings(s => ({ ...s, ...patch }))
     await pushToDb(patch as Record<string, unknown>)
@@ -89,11 +75,11 @@ export function useRestaurantSettings<T extends object>(defaults: T) {
     restaurantId,
     settings,
     setSettings,
-    loading,
-    loadError,
+    loading: restLoading && !restaurant,
+    loadError: null as string | null,
     saveState,
     save,
     autoSave,
-    retry: load,
+    retry: revalidate,
   }
 }
