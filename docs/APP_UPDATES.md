@@ -1,0 +1,117 @@
+# In-app updates (EXE + APK)
+
+Both native builds are **thin WebView shells** that load the live web app from
+Vercel, so web / UI / business-logic changes ship the moment Vercel deploys — no
+reinstall, nothing to do here.
+
+This flow only updates the **native shell**:
+
+| Build | What an update ships | Mechanism |
+|---|---|---|
+| Windows `.exe` (`electron-app/`) | `main.js` / `preload.js` — printing, tray, cache tuning | [`electron-updater`](https://www.electron.build/auto-update) reads `latest.yml` from GitHub Releases |
+| Android `.apk` × 4 flavors (`android/`) | `MainActivity.java`, plugins, `AndroidManifest.xml`, native config | `UpdaterPlugin` reads `android-latest.json` from GitHub Releases, downloads the APK, launches the OS installer |
+
+The user triggers it from **Settings → Advanced → "App version & updates"**
+(`src/app/(restaurant)/dashboard/settings/advanced/page.tsx`, backed by
+`src/lib/appUpdate.ts`). Electron also does one silent check ~8 s after launch.
+
+Hosting: **GitHub Releases** on `miraann/clickgroupsystem` (public repo — no token
+needed for clients to download).
+
+---
+
+## Cutting a release
+
+Pick the next version, e.g. `1.2`. Do the version bumps **in the same commit** so
+`git describe` / the release tag line up:
+
+1. `electron-app/package.json` → `"version": "1.2.0"`
+2. `android/app/build.gradle` → `versionCode 3`, `versionName "1.2"`
+   (`versionCode` MUST increase — it's what the APK compares)
+3. `android-latest.json` (repo root) → bump `versionCode` / `versionName` and
+   point each `url` at the new tag's assets.
+
+### Build the EXE
+
+```bash
+cd electron-app
+npm install            # first time only (pulls electron-updater)
+npm run build:win
+# → electron-app/dist/ClickGroup POS Setup 1.2.0.exe
+#   electron-app/dist/ClickGroup POS Setup 1.2.0.exe.blockmap
+#   electron-app/dist/latest.yml
+```
+
+`npm run release:win` instead will build **and** publish to GitHub Releases in one
+step if `GH_TOKEN` is set (`export GH_TOKEN=<a repo-scoped PAT>`).
+
+### Build the 4 APKs
+
+```bash
+npx cap sync android
+cd android
+./gradlew assembleCashierRelease assembleDriverRelease \
+          assembleSellerRelease  assembleCfdRelease
+# → android/app/build/outputs/apk/<flavor>/release/app-<flavor>-release.apk
+```
+
+Release signing needs `android/keystore.properties` + the keystore (git-ignored —
+see `docs/ANDROID_APPS.md`). Without them the build falls back to the debug key
+and the output is **not** an in-place update for real installs.
+
+### Publish the GitHub release
+
+```bash
+gh release create v1.2 \
+  "electron-app/dist/latest.yml" \
+  "electron-app/dist/ClickGroup POS Setup 1.2.0.exe" \
+  "electron-app/dist/ClickGroup POS Setup 1.2.0.exe.blockmap" \
+  "android/app/build/outputs/apk/cashier/release/app-cashier-release.apk" \
+  "android/app/build/outputs/apk/driver/release/app-driver-release.apk" \
+  "android/app/build/outputs/apk/seller/release/app-seller-release.apk" \
+  "android/app/build/outputs/apk/cfd/release/app-cfd-release.apk" \
+  "android-latest.json" \
+  --title "v1.2" --notes "What changed in the native shell…"
+```
+
+- `electron-updater` finds `latest.yml` + the `.exe` automatically via the
+  `publish` block in `electron-app/package.json`.
+- The APK checks `https://github.com/miraann/clickgroupsystem/releases/latest/download/android-latest.json`
+  (the `latest/download/` path always resolves to the newest non-prerelease
+  release), reads the entry for its own `applicationId`, and compares
+  `versionCode`.
+
+Mark the release **pre-release** while testing so `latest/download/` keeps
+pointing at the previous stable one.
+
+---
+
+## `android-latest.json` shape
+
+```json
+{
+  "flavors": {
+    "com.clickgroup.pos":        { "versionCode": 3, "versionName": "1.2",        "url": "https://github.com/miraann/clickgroupsystem/releases/download/v1.2/app-cashier-release.apk", "notes": "…" },
+    "com.clickgroup.pos.driver": { "versionCode": 3, "versionName": "1.2-driver", "url": "https://github.com/miraann/clickgroupsystem/releases/download/v1.2/app-driver-release.apk", "notes": "…" },
+    "com.clickgroup.pos.seller": { "versionCode": 3, "versionName": "1.2-seller", "url": "https://github.com/miraann/clickgroupsystem/releases/download/v1.2/app-seller-release.apk", "notes": "…" },
+    "com.clickgroup.pos.cfd":    { "versionCode": 3, "versionName": "1.2-cfd",    "url": "https://github.com/miraann/clickgroupsystem/releases/download/v1.2/app-cfd-release.apk", "notes": "…" }
+  }
+}
+```
+
+`notes` is optional free text shown under "Version X is available".
+
+---
+
+## First-run Android permission
+
+The APK needs **"Install unknown apps"** for its own package. On the first
+"Download & install" tap `UpdaterPlugin` opens that system screen and the card
+shows a hint to grant it and tap again. After that it's one tap.
+`REQUEST_INSTALL_PACKAGES` is declared in `android/app/src/main/AndroidManifest.xml`.
+
+## Testing
+
+See the "Verification" section of the implementation plan — in short: publish a
+release with a higher version than what's installed, open Settings → Advanced,
+and run "Check for updates".

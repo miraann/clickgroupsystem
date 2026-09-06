@@ -64,3 +64,11 @@ A copy of all eight, renamed, plus `SHA256SUMS.txt`, is written to `android/dist
 
 The APKs load `https://clickgroupsystem.vercel.app/...`, so the `/cfd` pairing
 page (`src/app/cfd/page.tsx`) must be deployed to Vercel before the CFD APK works.
+
+## In-app updates
+
+Users update in place from **Settings → Advanced → "App version & updates"** — no
+reinstall. `UpdaterPlugin` (`android/app/.../UpdaterPlugin.java`) checks an
+`android-latest.json` GitHub release asset, downloads the matching flavor's APK,
+and launches the OS installer. `versionCode` in `android/app/build.gradle` must
+increase every release. Full runbook: **`docs/APP_UPDATES.md`**.

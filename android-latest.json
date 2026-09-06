@@ -1,0 +1,29 @@
+{
+  "_comment": "Uploaded as a GitHub release asset each release; the APK fetches releases/latest/download/android-latest.json and compares versionCode for its own applicationId. Keep in sync with android/app/build.gradle. See docs/APP_UPDATES.md.",
+  "flavors": {
+    "com.clickgroup.pos": {
+      "versionCode": 2,
+      "versionName": "1.1",
+      "url": "https://github.com/miraann/clickgroupsystem/releases/download/v1.1/app-cashier-release.apk",
+      "notes": "First self-update-capable build."
+    },
+    "com.clickgroup.pos.driver": {
+      "versionCode": 2,
+      "versionName": "1.1-driver",
+      "url": "https://github.com/miraann/clickgroupsystem/releases/download/v1.1/app-driver-release.apk",
+      "notes": "First self-update-capable build."
+    },
+    "com.clickgroup.pos.seller": {
+      "versionCode": 2,
+      "versionName": "1.1-seller",
+      "url": "https://github.com/miraann/clickgroupsystem/releases/download/v1.1/app-seller-release.apk",
+      "notes": "First self-update-capable build."
+    },
+    "com.clickgroup.pos.cfd": {
+      "versionCode": 2,
+      "versionName": "1.1-cfd",
+      "url": "https://github.com/miraann/clickgroupsystem/releases/download/v1.1/app-cfd-release.apk",
+      "notes": "First self-update-capable build."
+    }
+  }
+}

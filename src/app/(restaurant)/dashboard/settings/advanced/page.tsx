@@ -10,6 +10,10 @@ import {
 import { cn } from '@/lib/utils'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { createClient } from '@/lib/supabase/client'
+import {
+  getRuntime, getCurrentVersion, checkForUpdate, downloadUpdate, installUpdate,
+  subscribeUpdateEvents, type AppRuntime,
+} from '@/lib/appUpdate'
 import { useRestaurantSettings } from '@/hooks/useRestaurantSettings'
 import { SaveButton } from '@/components/ui/SaveButton'
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch'
@@ -66,6 +70,153 @@ function readCache(key: string): { count: number; cachedAt: string | null } {
 function formatTime(iso: string | null) {
   if (!iso) return 'Never'
   return new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
+
+// ── App version & updates ────────────────────────────────────────
+// Updates the installed native shell in place — no reinstall:
+//   electron → electron-updater (GitHub Releases)
+//   android  → native Updater plugin (downloads + launches the APK installer)
+//   web      → nothing to do, shows an informational note
+type UpdPhase = 'idle' | 'checking' | 'uptodate' | 'available' | 'downloading' | 'ready' | 'perm' | 'error'
+
+function AppUpdateCard() {
+  const { t } = useLanguage()
+  const [runtime, setRuntime] = useState<AppRuntime>('web')
+  const [version, setVersion] = useState('—')
+  const [phase,   setPhase]   = useState<UpdPhase>('idle')
+  const [latest,  setLatest]  = useState<string | null>(null)
+  const [notes,   setNotes]   = useState<string | null>(null)
+  const [url,     setUrl]     = useState<string | null>(null)
+  const [percent, setPercent] = useState(0)
+
+  useEffect(() => {
+    setRuntime(getRuntime())
+    getCurrentVersion().then(setVersion).catch(() => {})
+  }, [])
+
+  // Electron pushes progress / lifecycle events from electron-updater
+  useEffect(() => subscribeUpdateEvents(e => {
+    if      (e.type === 'progress')          { setPhase('downloading'); setPercent(Math.round(e.percent ?? 0)) }
+    else if (e.type === 'update-downloaded') { setPhase('ready') }
+    else if (e.type === 'update-available')  { setPhase('available'); if (e.version) setLatest(e.version) }
+    else if (e.type === 'error')             { setPhase('error') }
+  }), [])
+
+  const check = async () => {
+    setPhase('checking')
+    try {
+      const info = await checkForUpdate()
+      setLatest(info.latest); setNotes(info.notes); setUrl(info.url)
+      setPhase(info.available ? 'available' : 'uptodate')
+    } catch {
+      setPhase('error')
+    }
+  }
+
+  const download = async () => {
+    setPhase('downloading'); setPercent(0)
+    try {
+      await downloadUpdate(url, p => setPercent(Math.round(p)))
+      if (getRuntime() === 'android') setPhase('idle')   // OS installer took over
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : ''
+      setPhase(/perm|install|unknown/i.test(msg) ? 'perm' : 'error')
+    }
+  }
+
+  const busy = phase === 'checking' || phase === 'downloading'
+
+  return (
+    <motion.div variants={ITEM} className="rounded-2xl border border-white/10 bg-white/3 backdrop-blur-xl overflow-hidden">
+      <div className="px-5 py-4 border-b border-white/8 flex items-center gap-3">
+        <RefreshCw className="w-4 h-4 text-sky-400" />
+        <p className="text-sm font-semibold text-white">{t.upd_title}</p>
+      </div>
+
+      <div className="px-5 py-4 space-y-4">
+        <p className="text-xs text-white/35">{t.upd_subtitle}</p>
+
+        <div className="flex items-center gap-2 text-xs text-white/40">
+          <span>{t.upd_current}</span>
+          <span className="font-mono text-white/70">{version}</span>
+        </div>
+
+        {runtime === 'web' ? (
+          <div className="flex items-start gap-2 p-3 rounded-xl bg-sky-500/8 border border-sky-500/15">
+            <AlertCircle className="w-4 h-4 text-sky-400 shrink-0 mt-0.5" />
+            <p className="text-xs text-sky-400/80 leading-relaxed">{t.upd_web_note}</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="flex items-center gap-3 flex-wrap">
+              {(phase === 'idle' || phase === 'uptodate' || phase === 'error' || phase === 'checking' || phase === 'perm') && (
+                <button
+                  onClick={check}
+                  disabled={busy}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-sky-500/15 border border-sky-500/25 text-sky-400 text-sm font-medium hover:bg-sky-500/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {phase === 'checking' ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                  {phase === 'checking' ? t.upd_checking : t.upd_check}
+                </button>
+              )}
+
+              {phase === 'available' && (
+                <button
+                  onClick={download}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-sky-500/15 border border-sky-500/25 text-sky-400 text-sm font-medium hover:bg-sky-500/25 transition-all"
+                >
+                  <Download className="w-4 h-4" />
+                  {t.upd_download}
+                </button>
+              )}
+
+              {phase === 'downloading' && (
+                <span className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white/60 text-sm font-medium">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  {t.upd_downloading.replace('{p}', String(percent))}
+                </span>
+              )}
+
+              {phase === 'ready' && (
+                <button
+                  onClick={() => installUpdate()}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 text-sm font-medium hover:bg-emerald-500/25 transition-all"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  {t.upd_restart}
+                </button>
+              )}
+            </div>
+
+            {phase === 'uptodate' && (
+              <p className="text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-lg inline-flex items-center gap-1.5">
+                <Check className="w-3.5 h-3.5" /> {t.upd_uptodate}
+              </p>
+            )}
+
+            {phase === 'available' && (
+              <div className="text-xs text-white/50 space-y-1">
+                <p className="text-sky-400">{t.upd_available.replace('{v}', latest ?? '')}</p>
+                {notes && <p className="text-white/35 whitespace-pre-line leading-relaxed">{notes}</p>}
+              </div>
+            )}
+
+            {phase === 'perm' && (
+              <p className="text-xs text-amber-400/80 bg-amber-500/8 border border-amber-500/15 px-3 py-2 rounded-lg flex items-start gap-2">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" /> {t.upd_perm_note}
+              </p>
+            )}
+
+            {phase === 'error' && (
+              <p className="text-xs text-rose-400/80 bg-rose-500/8 border border-rose-500/15 px-3 py-2 rounded-lg flex items-start gap-2">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" /> {t.upd_error}
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+    </motion.div>
+  )
 }
 
 // ── Page ─────────────────────────────────────────────────────────
@@ -449,6 +600,9 @@ export default function AdvancedPage() {
           )}
         </div>
       </motion.div>
+
+      {/* App version & updates */}
+      <AppUpdateCard />
 
       {/* Coming soon */}
       <motion.div variants={ITEM} className="rounded-2xl border border-white/8 bg-white/2 px-5 py-4 space-y-3">

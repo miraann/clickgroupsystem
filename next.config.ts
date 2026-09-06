@@ -1,7 +1,21 @@
 import type { NextConfig } from "next";
 import path from "path";
+import { readFileSync } from "fs";
+
+// Stamp the web build with the package.json version so the "App version &
+// updates" card on /dashboard/settings/advanced can show it in a plain browser.
+const APP_VERSION = (() => {
+  try {
+    return JSON.parse(readFileSync(path.join(process.cwd(), "package.json"), "utf8")).version as string;
+  } catch {
+    return "0.0.0";
+  }
+})();
 
 const nextConfig: NextConfig = {
+  env: {
+    NEXT_PUBLIC_APP_VERSION: APP_VERSION,
+  },
   // Disable Turbopack for dev — avoids the Windows Rust resolver
   // "Next.js package not found" HMR bug in Next.js 15-16 on Windows.
   // Re-enable once the upstream Turbopack path-resolution bug is patched.

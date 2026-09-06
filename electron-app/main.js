@@ -1,4 +1,5 @@
 const { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, shell } = require('electron')
+const { autoUpdater } = require('electron-updater')
 const net  = require('net')
 const os   = require('os')
 const path = require('path')
@@ -31,6 +32,34 @@ const BATCH_SIZE    = 40   // concurrent host probes
 
 let mainWindow = null
 let tray       = null
+
+// ── Auto-update (electron-updater over GitHub Releases) ───────────────────────
+// The desktop app is a thin shell around the live web app, so an update here only
+// ships changes to *this* native layer (printing, tray, cache tuning, this file).
+// The renderer drives it from Settings → Advanced; nothing downloads without a
+// click. `latest.yml` + the NSIS installer are published as GitHub release assets
+// (see docs/APP_UPDATES.md).
+autoUpdater.autoDownload = false
+autoUpdater.autoInstallOnAppQuit = true
+
+function sendUpdate(payload) {
+  try { mainWindow?.webContents.send('updates:event', payload) } catch { /* window gone */ }
+}
+
+// Minimal x.y.z compare — enough to tell "is the release newer than us".
+function semverGt(a, b) {
+  const pa = String(a).split('-')[0].split('.').map(Number)
+  const pb = String(b).split('-')[0].split('.').map(Number)
+  for (let i = 0; i < 3; i++) {
+    if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) > (pb[i] || 0)
+  }
+  return false
+}
+
+autoUpdater.on('update-available',  (info) => sendUpdate({ type: 'update-available', version: info?.version }))
+autoUpdater.on('update-downloaded', (info) => sendUpdate({ type: 'update-downloaded', version: info?.version }))
+autoUpdater.on('download-progress', (p)    => sendUpdate({ type: 'progress', percent: p?.percent ?? 0 }))
+autoUpdater.on('error',             (err)  => sendUpdate({ type: 'error', message: String(err?.message || err) }))
 
 // ── Persisted login state ─────────────────────────────────────────────────────
 // Remembers which restaurant this device is bound to so the app opens straight
@@ -476,8 +505,38 @@ app.whenReady().then(() => {
     })
   })
 
+  // ── Update IPC — driven by the Advanced settings page ──────────────────────
+  handle('updates:getVersion', async () => app.getVersion())
+
+  handle('updates:check', async () => {
+    try {
+      const r       = await autoUpdater.checkForUpdates()
+      const version = r?.updateInfo?.version ?? null
+      const notes   = typeof r?.updateInfo?.releaseNotes === 'string' ? r.updateInfo.releaseNotes : null
+      return { available: version ? semverGt(version, app.getVersion()) : false, version, notes }
+    } catch (e) {
+      return { available: false, version: null, notes: null, error: String(e?.message || e) }
+    }
+  })
+
+  handle('updates:download', async () => {
+    try { await autoUpdater.downloadUpdate(); return { ok: true } }
+    catch (e) { return { ok: false, error: String(e?.message || e) } }
+  })
+
+  handle('updates:install', async () => {
+    app.isQuitting = true
+    // Let the IPC reply flush before the app tears down.
+    setImmediate(() => autoUpdater.quitAndInstall())
+    return { ok: true }
+  })
+
   createWindow()
   createTray()
+
+  // One quiet check shortly after launch; the result surfaces in the Advanced
+  // card (nothing is downloaded — autoDownload is off).
+  setTimeout(() => { autoUpdater.checkForUpdates().catch(() => {}) }, 8000)
 })
 
 app.on('window-all-closed', (e) => {

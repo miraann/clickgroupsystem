@@ -906,6 +906,21 @@ const en = {
   adv_cs_feature_flags:   'Feature Flags',
   adv_cs_audit_export:    'Audit Log Export',
 
+  // ── App version & updates (advanced page) ────────────────────
+  upd_title:              'App version & updates',
+  upd_subtitle:           'Update the installed app without reinstalling it.',
+  upd_current:            'Installed version',
+  upd_check:              'Check for updates',
+  upd_checking:           'Checking…',
+  upd_uptodate:           "You're on the latest version",
+  upd_available:          'Version {v} is available',
+  upd_download:           'Download & install',
+  upd_downloading:        'Downloading… {p}%',
+  upd_restart:            'Restart to finish updating',
+  upd_web_note:           'This is the web app — it updates automatically every time the page loads.',
+  upd_error:              'Update failed. Check your connection and try again.',
+  upd_perm_note:          'Allow “Install unknown apps” for ClickGroup in the system screen that just opened, then tap Download & install again.',
+
   // ── Database page ─────────────────────────────────────────────
   db_title:                 'Database',
   db_subtitle:              'Backup, restore, data export, and privacy controls.',

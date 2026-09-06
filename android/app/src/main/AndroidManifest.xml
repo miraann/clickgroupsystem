@@ -42,6 +42,8 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- Required for push notifications on Android 13+ -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- In-app self-update: download + launch the APK installer (UpdaterPlugin) -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <!-- WiFi state — used by TcpPlugin to detect local subnet -->
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
