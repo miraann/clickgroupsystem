@@ -88,6 +88,9 @@ function AppUpdateCard() {
   const [notes,   setNotes]   = useState<string | null>(null)
   const [url,     setUrl]     = useState<string | null>(null)
   const [percent, setPercent] = useState(0)
+  // Legacy APK with no native Updater plugin — can't self-install, so the
+  // download button just opens the APK in the browser.
+  const [manual,  setManual]  = useState(false)
 
   useEffect(() => {
     setRuntime(getRuntime())
@@ -107,13 +110,20 @@ function AppUpdateCard() {
     try {
       const info = await checkForUpdate()
       setLatest(info.latest); setNotes(info.notes); setUrl(info.url)
+      setManual(!!info.pluginMissing)
       setPhase(info.available ? 'available' : 'uptodate')
     } catch {
+      setManual(false)
       setPhase('error')
     }
   }
 
   const download = async () => {
+    // Legacy APK: no plugin to install through — hand the APK to the browser.
+    if (manual) {
+      if (url) window.open(url, '_blank', 'noopener,noreferrer')
+      return
+    }
     setPhase('downloading'); setPercent(0)
     try {
       await downloadUpdate(url, p => setPercent(Math.round(p)))
@@ -198,6 +208,11 @@ function AppUpdateCard() {
               <div className="text-xs text-white/50 space-y-1">
                 <p className="text-sky-400">{t.upd_available.replace('{v}', latest ?? '')}</p>
                 {notes && <p className="text-white/35 whitespace-pre-line leading-relaxed">{notes}</p>}
+                {manual && (
+                  <p className="text-amber-400/80 bg-amber-500/8 border border-amber-500/15 px-3 py-2 rounded-lg flex items-start gap-2 mt-1">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" /> {t.upd_manual_note}
+                  </p>
+                )}
               </div>
             )}
 

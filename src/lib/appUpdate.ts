@@ -25,6 +25,11 @@ export interface UpdateInfo {
   notes:     string | null
   /** APK download URL (android only); null for electron/web */
   url:       string | null
+  /**
+   * Android only: the installed APK predates the native `Updater` plugin, so it
+   * can't self-install. The UI falls back to opening `url` in the browser.
+   */
+  pluginMissing?: boolean
 }
 
 export interface UpdateEvent {
@@ -34,8 +39,23 @@ export interface UpdateEvent {
   message?: string
 }
 
-const ANDROID_MANIFEST_URL =
-  'https://github.com/miraann/clickgroupsystem/releases/latest/download/android-latest.json'
+// Fetched from a same-origin route handler that proxies the GitHub release
+// asset server-side — the APK WebView can't reach the GitHub CDN directly
+// (no CORS headers). See src/app/api/app-update/android/route.ts.
+const ANDROID_MANIFEST_URL = '/api/app-update/android'
+
+// ── Timeout guard ───────────────────────────────────────────────
+// A missing/old native plugin can leave a bridge call pending forever, and a
+// stalled fetch has no deadline of its own — never let either freeze the UI.
+function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)
+    p.then(
+      v => { clearTimeout(timer); resolve(v) },
+      e => { clearTimeout(timer); reject(e) },
+    )
+  })
+}
 
 // ── Runtime detection ────────────────────────────────────────────
 export function getRuntime(): AppRuntime {
@@ -69,7 +89,8 @@ export async function getCurrentVersion(): Promise<string> {
     }
     if (rt === 'android') {
       const u = await androidUpdater()
-      const r = await u.getCurrentVersion()
+      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+      const r = await withTimeout<any>(u.getCurrentVersion(), 4000, 'Updater.getCurrentVersion')
       return String(r?.versionName ?? '—')
     }
   } catch { /* fall through to build stamp */ }
@@ -96,18 +117,34 @@ export async function checkForUpdate(): Promise<UpdateInfo> {
 
   if (runtime === 'android') {
     const u = await androidUpdater()
-    const info = await u.getCurrentVersion()
+
+    // An APK built before the native Updater plugin leaves this call pending
+    // forever — time out and treat it as "plugin missing" rather than freeze.
+    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+    let info: any = null
+    try {
+      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+      info = await withTimeout<any>(u.getCurrentVersion(), 4000, 'Updater.getCurrentVersion')
+    } catch { /* legacy APK without the plugin, or a wedged bridge */ }
+    const pluginMissing = !info
     const pkg  = String(info?.packageName ?? 'com.clickgroup.pos')
     const currentCode = Number(info?.versionCode ?? 0)
 
-    const res = await fetch(ANDROID_MANIFEST_URL, { cache: 'no-store' })
+    const res = await fetch(ANDROID_MANIFEST_URL, {
+      cache: 'no-store',
+      signal: AbortSignal.timeout(12_000),
+    })
     if (!res.ok) throw new Error(`Release manifest returned ${res.status}`)
     const manifest = await res.json()
     const entry = manifest?.flavors?.[pkg]
     if (!entry) {
-      return { runtime, current, latest: null, available: false, notes: null, url: null }
+      return { runtime, current, latest: null, available: false, notes: null, url: null, pluginMissing }
     }
-    const available = Number(entry.versionCode ?? 0) > currentCode
+    // With no readable install code (legacy APK) the compare can't be trusted —
+    // surface the update anyway so the user can install it by hand.
+    const available = pluginMissing
+      ? true
+      : Number(entry.versionCode ?? 0) > currentCode
     return {
       runtime,
       current,
@@ -115,6 +152,7 @@ export async function checkForUpdate(): Promise<UpdateInfo> {
       available,
       notes:     entry.notes ?? null,
       url:       available ? (entry.url ?? null) : null,
+      pluginMissing,
     }
   }
 

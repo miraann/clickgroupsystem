@@ -920,6 +920,7 @@ const en = {
   upd_web_note:           'This is the web app — it updates automatically every time the page loads.',
   upd_error:              'Update failed. Check your connection and try again.',
   upd_perm_note:          'Allow “Install unknown apps” for ClickGroup in the system screen that just opened, then tap Download & install again.',
+  upd_manual_note:        'This app is too old to update itself — “Download & install” opens the new version in your browser; open the downloaded APK file to finish.',
 
   // ── Database page ─────────────────────────────────────────────
   db_title:                 'Database',

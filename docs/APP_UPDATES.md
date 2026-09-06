@@ -89,7 +89,12 @@ gh release create v1.2 \
 - The APK checks `https://github.com/miraann/clickgroupsystem/releases/latest/download/android-latest.json`
   (the `latest/download/` path always resolves to the newest non-prerelease
   release), reads the entry for its own `applicationId`, and compares
-  `versionCode`.
+  `versionCode`. The WebView can't fetch that URL directly — the GitHub CDN
+  sends no CORS headers — so `src/lib/appUpdate.ts` calls the same-origin proxy
+  `GET /api/app-update/android` (`src/app/api/app-update/android/route.ts`),
+  which fetches the release asset server-side and echoes the JSON back. The APK
+  binary itself is still pulled straight from GitHub by native Java code, which
+  has no CORS constraint.
 
 Mark the release **pre-release** while testing so `latest/download/` keeps
 pointing at the previous stable one.
@@ -119,6 +124,16 @@ The APK needs **"Install unknown apps"** for its own package. On the first
 "Download & install" tap `UpdaterPlugin` opens that system screen and the card
 shows a hint to grant it and tap again. After that it's one tap.
 `REQUEST_INSTALL_PACKAGES` is declared in `android/app/src/main/AndroidManifest.xml`.
+
+## Legacy APKs (pre-`UpdaterPlugin`)
+
+An APK built before the `Updater` plugin existed can't self-install, and its
+bridge call for the missing plugin never returns. `checkForUpdate()` times that
+call out (4 s), flags `pluginMissing`, and — because it can't read the installed
+`versionCode` or `applicationId` — assumes the **cashier** flavor and offers the
+update anyway. "Download & install" then just `window.open()`s the APK URL in the
+system browser so the user can install v1.1+ by hand; from then on the plugin is
+present and updates are one tap.
 
 ## Testing
 
