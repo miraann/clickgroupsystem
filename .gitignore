@@ -44,3 +44,6 @@ next-env.d.ts
 electron-app/node_modules
 electron-app/build
 electron-app/dist
+
+# staged release assets (built locally, uploaded to GitHub Releases)
+dist-release/

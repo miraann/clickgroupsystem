@@ -4,25 +4,25 @@
     "com.clickgroup.pos": {
       "versionCode": 2,
       "versionName": "1.1",
-      "url": "https://github.com/miraann/clickgroupsystem/releases/download/v1.1/app-cashier-release.apk",
+      "url": "https://github.com/miraann/clickgroupsystem/releases/download/v1.1/ClickGroup-Cashier-release.apk",
       "notes": "First self-update-capable build."
     },
     "com.clickgroup.pos.driver": {
       "versionCode": 2,
       "versionName": "1.1-driver",
-      "url": "https://github.com/miraann/clickgroupsystem/releases/download/v1.1/app-driver-release.apk",
+      "url": "https://github.com/miraann/clickgroupsystem/releases/download/v1.1/ClickGroup-Driver-release.apk",
       "notes": "First self-update-capable build."
     },
     "com.clickgroup.pos.seller": {
       "versionCode": 2,
       "versionName": "1.1-seller",
-      "url": "https://github.com/miraann/clickgroupsystem/releases/download/v1.1/app-seller-release.apk",
+      "url": "https://github.com/miraann/clickgroupsystem/releases/download/v1.1/ClickGroup-Seller-release.apk",
       "notes": "First self-update-capable build."
     },
     "com.clickgroup.pos.cfd": {
       "versionCode": 2,
       "versionName": "1.1-cfd",
-      "url": "https://github.com/miraann/clickgroupsystem/releases/download/v1.1/app-cfd-release.apk",
+      "url": "https://github.com/miraann/clickgroupsystem/releases/download/v1.1/ClickGroup-CFD-release.apk",
       "notes": "First self-update-capable build."
     }
   }
