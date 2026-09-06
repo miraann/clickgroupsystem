@@ -596,7 +596,7 @@ export default function DevicePage() {
       try {
         const result = await androidTcp.getBluetoothDevices()
         if (result.permissionDenied) {
-          alert('Bluetooth permission denied. Please grant permission in Android settings.')
+          alert('Bluetooth permission denied. Open Android Settings → Apps → ClickGroup → Permissions → Nearby devices and allow it, then try again.')
           return
         }
         const fresh: DetectedDevice[] = result.devices.map(d => ({

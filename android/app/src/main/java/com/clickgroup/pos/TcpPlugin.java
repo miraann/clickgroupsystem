@@ -1,5 +1,6 @@
 package com.clickgroup.pos;
 
+import android.Manifest;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
@@ -9,10 +10,13 @@ import android.os.Build;
 
 import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
+import com.getcapacitor.PermissionState;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
+import com.getcapacitor.annotation.Permission;
+import com.getcapacitor.annotation.PermissionCallback;
 
 import java.io.OutputStream;
 import java.net.Inet4Address;
@@ -30,8 +34,21 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
-@CapacitorPlugin(name = "TcpPlugin")
+@CapacitorPlugin(
+    name = "TcpPlugin",
+    permissions = {
+        @Permission(
+            alias = "bluetooth",
+            strings = {
+                Manifest.permission.BLUETOOTH_SCAN,
+                Manifest.permission.BLUETOOTH_CONNECT
+            }
+        )
+    }
+)
 public class TcpPlugin extends Plugin {
+
+    static final String BT_ALIAS = "bluetooth";
 
     private static final UUID SPP_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
     private final ExecutorService executor = Executors.newCachedThreadPool();
@@ -170,8 +187,62 @@ public class TcpPlugin extends Plugin {
 
     // ── Bluetooth SPP printer ─────────────────────────────────────────────────
 
+    // Runtime BLUETOOTH_CONNECT / BLUETOOTH_SCAN only exist on Android 12 (API 31)+.
+    // Below that the legacy install-time BLUETOOTH permission is always granted.
+    private boolean hasBtPermission() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return true;
+        return getPermissionState(BT_ALIAS) == PermissionState.GRANTED;
+    }
+
     @PluginMethod
     public void getBluetoothDevices(PluginCall call) {
+        if (!hasBtPermission()) {
+            requestPermissionForAlias(BT_ALIAS, call, "btPermissionCallback");
+            return;
+        }
+        doGetBluetoothDevices(call);
+    }
+
+    @PluginMethod
+    public void printBluetooth(PluginCall call) {
+        String address = call.getString("address", "");
+        String data    = call.getString("data", "");
+
+        if (address == null || address.isEmpty() || data == null || data.isEmpty()) {
+            call.reject("address and data are required");
+            return;
+        }
+
+        if (!hasBtPermission()) {
+            requestPermissionForAlias(BT_ALIAS, call, "btPermissionCallback");
+            return;
+        }
+        doPrintBluetooth(call);
+    }
+
+    // Resumes the original call once the user answers the permission dialog.
+    @PermissionCallback
+    private void btPermissionCallback(PluginCall call) {
+        boolean isPrint = "printBluetooth".equals(call.getMethodName());
+
+        if (hasBtPermission()) {
+            if (isPrint) doPrintBluetooth(call);
+            else         doGetBluetoothDevices(call);
+            return;
+        }
+
+        // User denied the prompt (or picked "Don't ask again").
+        if (isPrint) {
+            call.reject("Bluetooth permission denied — enable in Android Settings → Apps → ClickGroup → Permissions");
+        } else {
+            JSObject result = new JSObject();
+            result.put("devices", new JSArray());
+            result.put("permissionDenied", true);
+            call.resolve(result);
+        }
+    }
+
+    private void doGetBluetoothDevices(PluginCall call) {
         try {
             BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
             JSArray devices = new JSArray();
@@ -200,18 +271,9 @@ public class TcpPlugin extends Plugin {
         }
     }
 
-    @PluginMethod
-    public void printBluetooth(PluginCall call) {
-        String address = call.getString("address", "");
-        String data    = call.getString("data", "");
-
-        if (address == null || address.isEmpty() || data == null || data.isEmpty()) {
-            call.reject("address and data are required");
-            return;
-        }
-
-        final String finalAddr = address.toUpperCase();
-        final String finalData = data;
+    private void doPrintBluetooth(PluginCall call) {
+        final String finalAddr = call.getString("address", "").toUpperCase();
+        final String finalData = call.getString("data", "");
 
         executor.submit(() -> {
             BluetoothSocket socket = null;
