@@ -288,34 +288,24 @@ public class TcpPlugin extends Plugin {
                 socket = device.createRfcommSocketToServiceRecord(SPP_UUID);
                 socket.connect();
 
-                // Many BT SPP thermal printers aren't ready to receive for a
-                // moment after the RFCOMM link comes up — data written in that
-                // window is silently dropped. Give the printer time to settle.
-                try { Thread.sleep(300); } catch (InterruptedException ignored) {}
-
                 byte[] bytes = android.util.Base64.decode(finalData, android.util.Base64.DEFAULT);
                 OutputStream out = socket.getOutputStream();
 
-                // These printers have a tiny receive buffer and no flow control.
-                // Writing the whole payload at once — then closing the socket
-                // right after write() — truncates anything past the buffer
-                // (write() only queues into the OS stack, flush() is a no-op,
-                // close() drops bytes still in flight): the printer feeds blank
-                // paper. Send small chunks slower than the print head consumes
-                // them, then wait for the link to drain before closing.
-                final int CHUNK = 128;
-                int wrote = 0;
-                for (int off = 0; off < bytes.length; off += CHUNK) {
-                    int len = Math.min(CHUNK, bytes.length - off);
-                    out.write(bytes, off, len);
-                    out.flush();
-                    wrote += len;
-                    try { Thread.sleep(40); } catch (InterruptedException ignored) {}
+                // Write the whole job promptly. Trickling it in tiny slow chunks
+                // makes fast printers treat a mid-stream gap as end-of-job and cut
+                // early; moderate blocks with no delay just avoid one huge write.
+                final int BLOCK = 4096;
+                for (int off = 0; off < bytes.length; off += BLOCK) {
+                    out.write(bytes, off, Math.min(BLOCK, bytes.length - off));
                 }
+                out.flush();
 
-                // Drain delay proportional to payload size (~1 ms per 4 bytes),
-                // clamped, so RFCOMM finishes transmitting before we close.
-                long drain = Math.min(5000L, Math.max(600L, bytes.length / 4L));
+                // The real fix: BluetoothSocket.flush() is a no-op and close()
+                // discards whatever is still queued in the OS Bluetooth stack, so
+                // closing right after write() truncates the tail (or, for a big
+                // job, almost all of it). Wait for the bytes to actually drain —
+                // scaled to payload size — before closing.
+                long drain = Math.min(6000L, Math.max(800L, bytes.length / 10L));
                 try { Thread.sleep(drain); } catch (InterruptedException ignored) {}
 
                 try { socket.close(); } catch (Exception ignored) {}
@@ -323,7 +313,7 @@ public class TcpPlugin extends Plugin {
 
                 JSObject result = new JSObject();
                 result.put("ok", true);
-                result.put("bytesWritten", wrote);
+                result.put("bytesWritten", bytes.length);
                 call.resolve(result);
             } catch (SecurityException e) {
                 if (socket != null) { try { socket.close(); } catch (Exception ignored) {} }
