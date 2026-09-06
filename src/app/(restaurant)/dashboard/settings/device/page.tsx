@@ -372,7 +372,8 @@ export default function DevicePage() {
   // ── Init ──────────────────────────────────────────────────
   useEffect(() => {
     const init = async () => {
-      const { data: rest } = await supabase.from('restaurants').select('id').eq('id', typeof window !== 'undefined' ? (localStorage.getItem('restaurant_id') ?? '') : '').maybeSingle()
+      const storedRid = typeof window !== 'undefined' ? localStorage.getItem('restaurant_id') : null
+      const rest = storedRid ? { id: storedRid } : null
       if (!rest) { setKdsError('Restaurant not found'); setKdsLoading(false); setPrtLoading(false); return }
       setRestaurantId(rest.id)
       await Promise.all([loadKds(rest.id), loadPrinters(rest.id)])

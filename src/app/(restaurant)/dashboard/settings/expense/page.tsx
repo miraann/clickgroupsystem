@@ -98,11 +98,8 @@ export default function ExpensePage() {
     supabase.auth.getUser().then(({ data: { user } }) => {
       setCashierName(user?.user_metadata?.full_name ?? user?.email ?? 'Staff')
     })
-    supabase.from('restaurants').select('id').eq('id', typeof window !== 'undefined' ? (localStorage.getItem('restaurant_id') ?? '') : '').maybeSingle().then(({ data: rest }) => {
-      if (!rest) return
-      setRestaurantId(rest.id)
-      load(rest.id)
-    })
+    const rid = typeof window !== 'undefined' ? localStorage.getItem('restaurant_id') : null
+    if (rid) { setRestaurantId(rid); load(rid) }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {

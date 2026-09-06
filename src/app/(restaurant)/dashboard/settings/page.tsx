@@ -217,9 +217,9 @@ export default function SettingsHomePage() {
         {/* Search */}
         <motion.div
           className="flex justify-center mb-10"
-          initial={{ opacity: 0, y: 16 }}
+          initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.45, delay: 0.09, ease: 'circOut' }}
+          transition={{ duration: 0.2, ease: 'easeOut' }}
         >
           <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/10 w-full max-w-md focus-within:border-amber-500/40 transition-colors">
             <Search className="w-4 h-4 text-white/40 shrink-0" />
@@ -250,21 +250,21 @@ export default function SettingsHomePage() {
                   <section key={section.groupKey} className="mx-auto" style={{ maxWidth: 1200 }}>
                     <motion.p
                       className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45 text-center mb-4"
-                      initial={{ opacity: 0, y: 12 }}
+                      initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.4, ease: 'circOut', delay: 0.14 + si * 0.045 }}
+                      transition={{ duration: 0.2, ease: 'easeOut', delay: 0.02 + si * 0.02 }}
                     >
                       {t[section.groupKey]}
                     </motion.p>
                     <div className="flex flex-wrap gap-3 justify-center">
                       {visibleItems.map(item => {
-                        const delay = 0.18 + tileIdx++ * 0.04
+                        const delay = 0.04 + tileIdx++ * 0.012
                         return (
                           <motion.div
                             key={item.id}
-                            initial={{ opacity: 0, y: 22 }}
+                            initial={{ opacity: 0, y: 8 }}
                             animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.45, ease: 'circOut', delay }}
+                            transition={{ duration: 0.18, ease: 'easeOut', delay }}
                           >
                             <Tile
                               item={item}

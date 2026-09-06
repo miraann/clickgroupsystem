@@ -114,9 +114,8 @@ export default function ReportPage() {
   }, [getBounds]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    supabase.from('restaurants').select('id').eq('id', typeof window !== 'undefined' ? (localStorage.getItem('restaurant_id') ?? '') : '').maybeSingle().then(({ data }) => {
-      if (data?.id) { setRestaurantId(data.id); load(data.id, range, dateFrom, dateTo) }
-    })
+    const rid = typeof window !== 'undefined' ? localStorage.getItem('restaurant_id') : null
+    if (rid) { setRestaurantId(rid); load(rid, range, dateFrom, dateTo) }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleRange = (r: Range) => { setRange(r); if (restaurantId) load(restaurantId, r, dateFrom, dateTo) }

@@ -381,7 +381,8 @@ export default function KdsMonitorPage() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const { data: rest } = await supabase.from('restaurants').select('id').eq('id', typeof window !== 'undefined' ? (localStorage.getItem('restaurant_id') ?? '') : '').maybeSingle()
+    const storedRid = typeof window !== 'undefined' ? localStorage.getItem('restaurant_id') : null
+    const rest = storedRid ? { id: storedRid } : null
     if (!rest) { setLoading(false); return }
 
     const [{ data: items }, { data: tablesData }] = await Promise.all([
@@ -435,7 +436,7 @@ export default function KdsMonitorPage() {
     setRecords(result)
     setFiltered(result)
     setLoading(false)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => { load() }, [load])
 

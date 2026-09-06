@@ -56,7 +56,8 @@ export default function OrderNumberPage() {
   // ── Load ───────────────────────────────────────────────────
   const load = useCallback(async () => {
     setLoading(true); setError(null)
-    const { data: rest } = await supabase.from('restaurants').select('id').eq('id', typeof window !== 'undefined' ? (localStorage.getItem('restaurant_id') ?? '') : '').maybeSingle()
+    const storedRid = typeof window !== 'undefined' ? localStorage.getItem('restaurant_id') : null
+    const rest = storedRid ? { id: storedRid } : null
     if (!rest) { setError('Restaurant not found'); setLoading(false); return }
     setRestaurantId(rest.id)
 

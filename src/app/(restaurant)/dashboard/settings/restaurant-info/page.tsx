@@ -67,11 +67,11 @@ const PAGE: Variants = {
 }
 const FIELDS: Variants = {
   hidden: {},
-  show:   { transition: { staggerChildren: 0.28 } },
+  show:   { transition: { staggerChildren: 0.03 } },
 }
 const FIELD_ITEM: Variants = {
-  hidden: { opacity: 0, y: -10 },
-  show:   { opacity: 1, y: 0, transition: { duration: 0.55, ease: 'circOut' as const } },
+  hidden: { opacity: 0, y: -6 },
+  show:   { opacity: 1, y: 0, transition: { duration: 0.2, ease: 'easeOut' as const } },
 }
 
 // ── Skeleton helpers ─────────────────────────────────────────
@@ -135,7 +135,7 @@ export default function RestaurantInfoPage() {
     setLoadError(null)
     const { data, error } = await supabase
       .from('restaurants')
-      .select('*')
+      .select('id, name, email, phone, address, logo_url, settings')
       .eq('id', typeof window !== 'undefined' ? (localStorage.getItem('restaurant_id') ?? '') : '')
       .maybeSingle()
 

@@ -1,6 +1,5 @@
 'use client'
 import { usePathname, useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import {
@@ -13,14 +12,11 @@ import {
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import type { TranslationKey } from '@/lib/i18n/translations'
 import type { LucideIcon } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
 import { getSettingsModuleKey, isModuleEnabled } from '@/lib/modules'
 import { UpgradeWall, moduleLabel } from '@/components/ModuleGate'
 import { PermissionDenied } from '@/components/settings/PermissionDenied'
 import { usePermissions } from '@/lib/permissions/PermissionsContext'
-
-let _modCache: { restaurantId: string; modules: Record<string, boolean>; at: number } | null = null
-const CACHE_TTL = 30_000
+import { useRestaurant } from '@/hooks/useRestaurant'
 
 // permKey may name a real leaf permission ("settings.users") or a group/parent
 // key ("menu") whose access is decided by canAny — "has at least one leaf
@@ -90,7 +86,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
   const pathname = usePathname()
   const router   = useRouter()
   const { t, isRTL } = useLanguage()
-  const supabase = createClient()
+  const { restaurant } = useRestaurant()
 
   const isHome      = pathname === '/dashboard/settings'
   const isWidePage  = pathname === '/dashboard/settings/whatsapp' || pathname === '/dashboard/settings/appearance' || pathname === '/dashboard/settings/audit-log' || pathname === '/dashboard/settings/delivery' || pathname === '/dashboard/settings/receipt' || pathname === '/dashboard/settings/users'
@@ -107,31 +103,12 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
     (currentItem.ownerOnly || (!!currentItem.permKey && !canAny(currentItem.permKey)))
 
 
-const [moduleEnabled,  setModuleEnabled]  = useState<boolean | null>(null)
-  const [activeModuleKey, setActiveModuleKey] = useState<string | null>(null)
-  useEffect(() => {
-    const key = getSettingsModuleKey(pathname)
-    setActiveModuleKey(key)
-    if (!key) { setModuleEnabled(null); return }
-
-    const restaurantId = localStorage.getItem('restaurant_id')
-    if (!restaurantId) { setModuleEnabled(null); return }
-
-    if (_modCache && _modCache.restaurantId === restaurantId && Date.now() - _modCache.at < CACHE_TTL) {
-      setModuleEnabled(isModuleEnabled(_modCache.modules, key))
-      return
-    }
-
-    supabase.from('restaurants')
-      .select('settings')
-      .eq('id', restaurantId)
-      .maybeSingle()
-      .then(({ data }) => {
-        const modules = ((data?.settings as Record<string, unknown>)?.modules ?? {}) as Record<string, boolean>
-        _modCache = { restaurantId, modules, at: Date.now() }
-        setModuleEnabled(isModuleEnabled(modules, key))
-      })
-  }, [pathname]) // eslint-disable-line react-hooks/exhaustive-deps
+  // Module gate — derived from the shared useRestaurant() settings cache, so
+  // it costs no extra query and is instant on any warm navigation.
+  const activeModuleKey = getSettingsModuleKey(pathname)
+  const moduleEnabled: boolean | null = !activeModuleKey || !restaurant
+    ? null
+    : isModuleEnabled(((restaurant.settings as Record<string, unknown>)?.modules ?? {}) as Record<string, boolean>, activeModuleKey)
 
   return (
     <div className="h-screen flex flex-col overflow-hidden" style={{ background: 'var(--app-bg, #022658)' }}>
