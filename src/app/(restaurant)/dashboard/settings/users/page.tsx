@@ -35,15 +35,15 @@ type Status = 'active' | 'inactive'
 interface StaffUser { id: string; name: string; email: string; phone: string; role: Role; pin: string; color: string; status: Status }
 
 const ROLES: { value: Role; label: string; color: string; bg: string; gradColor: string; permissions: string[] }[] = [
-  { value: 'owner',   label: 'Owner',   color: 'text-violet-400', bg: 'bg-violet-500/15 border-violet-500/25',  gradColor: 'from-violet-500 to-purple-600',
+  { value: 'owner',   label: 'خاوەن - Owner - المالك',        color: 'text-violet-400', bg: 'bg-violet-500/15 border-violet-500/25',  gradColor: 'from-violet-500 to-purple-600',
     permissions: ['Full access to all features', 'Manage staff & roles', 'View all reports', 'Change settings'] },
-  { value: 'manager', label: 'Manager', color: 'text-indigo-400', bg: 'bg-indigo-500/15 border-indigo-500/25',  gradColor: 'from-indigo-500 to-blue-600',
+  { value: 'manager', label: 'بەڕێوەبەر - Manager - المدير',    color: 'text-indigo-400', bg: 'bg-indigo-500/15 border-indigo-500/25',  gradColor: 'from-indigo-500 to-blue-600',
     permissions: ['Manage orders', 'Manage menu', 'View reports', 'Manage tables', 'Apply discounts'] },
-  { value: 'cashier', label: 'Cashier', color: 'text-amber-400',  bg: 'bg-amber-500/15 border-amber-500/25',    gradColor: 'from-emerald-500 to-teal-600',
+  { value: 'cashier', label: 'کاشێر - Cashier - أمين الصندوق',  color: 'text-amber-400',  bg: 'bg-amber-500/15 border-amber-500/25',    gradColor: 'from-emerald-500 to-teal-600',
     permissions: ['Process orders', 'Accept payments', 'Apply discounts', 'View daily report'] },
-  { value: 'waiter',  label: 'Waiter',  color: 'text-emerald-400',bg: 'bg-emerald-500/15 border-emerald-500/25', gradColor: 'from-amber-500 to-orange-500',
+  { value: 'waiter',  label: 'گارسۆن - Waiter - النادل',        color: 'text-emerald-400',bg: 'bg-emerald-500/15 border-emerald-500/25', gradColor: 'from-amber-500 to-orange-500',
     permissions: ['Create orders', 'Manage tables', 'Send to kitchen'] },
-  { value: 'chef',    label: 'Chef',    color: 'text-rose-400',   bg: 'bg-rose-500/15 border-rose-500/25',      gradColor: 'from-rose-500 to-pink-600',
+  { value: 'chef',    label: 'چێشتلێنەر - Chef - الطاهي',       color: 'text-rose-400',   bg: 'bg-rose-500/15 border-rose-500/25',      gradColor: 'from-rose-500 to-pink-600',
     permissions: ['View kitchen orders', 'Update order status'] },
 ]
 const ROLE_COLORS: Record<Role, string> = { owner: 'from-violet-500 to-purple-600', manager: 'from-indigo-500 to-blue-600', cashier: 'from-emerald-500 to-teal-600', waiter: 'from-amber-500 to-orange-500', chef: 'from-rose-500 to-pink-600' }
@@ -216,6 +216,114 @@ const PERMISSION_TREE: PermNode[] = [
   },
 ]
 
+// Kurdish + Arabic for each permission label. The role editor shows all three as
+// "کوردی - English - عربي" (see triLabel). Keyed by node.key; any key missing
+// here just shows the English label on its own.
+const PERM_L10N: Record<string, { ku: string; ar: string }> = {
+  dashboard:                       { ku: 'داشبۆرد', ar: 'لوحة التحكم' },
+  'dashboard.access':              { ku: 'دەستگەیشتن بە پەڕەی داشبۆرد', ar: 'الوصول إلى صفحة لوحة التحكم' },
+  'dashboard.header_buttons':      { ku: 'دوگمەکانی سەرەوە', ar: 'أزرار الرأس' },
+  'dashboard.btn_reports':         { ku: 'ڕاپۆرتەکان ($)', ar: 'التقارير ($)' },
+  'dashboard.btn_audit_log':       { ku: 'لۆگی چاودێری', ar: 'سجل التدقيق' },
+  'dashboard.btn_staff':           { ku: 'ستاف', ar: 'الموظفون' },
+  'dashboard.btn_waiter':          { ku: 'بانگی گارسۆن', ar: 'نداءات النادل' },
+  'dashboard.btn_kds':             { ku: 'KDS', ar: 'KDS' },
+  'dashboard.cfd':                 { ku: 'پیشاندەری CFD', ar: 'شاشة CFD' },
+  'dashboard.btn_guests':          { ku: 'میوانەکان', ar: 'الضيوف' },
+  'dashboard.btn_language':        { ku: 'زمان', ar: 'اللغة' },
+  'dashboard.btn_inventory_bell':  { ku: 'زەنگی ئاگادارکردنەوە', ar: 'جرس الإشعارات' },
+  'dashboard.btn_print_queue':     { ku: 'ڕیزی چاپکردن', ar: 'قائمة انتظار الطباعة' },
+  'dashboard.activity_toast':      { ku: 'پۆپەپی چالاکی', ar: 'إشعارات النشاط المنبثقة' },
+  'dashboard.nav_buttons':         { ku: 'ڕێنیشاندەری خوارەوە', ar: 'التنقل السفلي' },
+  'dashboard.btn_new_order':       { ku: 'داواکاری نوێ', ar: 'طلب جديد' },
+  'dashboard.btn_qr_orders':       { ku: 'داواکاری QR', ar: 'طلبات QR' },
+  'dashboard.btn_delivery':        { ku: 'گەیاندن', ar: 'التوصيل' },
+  'dashboard.btn_takeout':         { ku: 'دەرکردن', ar: 'السفري' },
+  'dashboard.btn_settings':        { ku: 'ڕێکخستنەکان', ar: 'الإعدادات' },
+  'dashboard.page_access':         { ku: 'دەستگەیشتن بە پەڕەکان', ar: 'الوصول إلى الصفحات' },
+  dine_in:                         { ku: 'داشبۆرد (لەناوخۆ)', ar: 'لوحة التحكم (صالة)' },
+  delivery:                        { ku: 'داواکاری گەیاندن', ar: 'طلبات التوصيل' },
+  takeout:                         { ku: 'داواکاری QR / دەرکردن', ar: 'طلبات QR / السفري' },
+  kds:                             { ku: 'مۆنیتەری KDS', ar: 'شاشة KDS' },
+  guests:                          { ku: 'میوانەکان', ar: 'الضيوف' },
+  cfd:                             { ku: 'پیشاندەری CFD', ar: 'شاشة CFD' },
+  driver_screen:                   { ku: 'شاشەی شۆفێر', ar: 'شاشة السائق' },
+  'dashboard.order_screen':        { ku: 'دوگمەکانی شاشەی داواکاری', ar: 'أزرار شاشة الطلب' },
+  'dashboard.order.guest_edit':    { ku: 'دەستکاری ژمارەی میوان', ar: 'تعديل عدد الضيوف' },
+  'dashboard.order.send_kitchen':  { ku: 'ناردن بۆ چێشتخانە', ar: 'إرسال إلى المطبخ' },
+  'dashboard.pay':                 { ku: 'پارەدان', ar: 'الدفع' },
+  'dashboard.cfd_order':           { ku: 'CFD (شاشەی داواکاری)', ar: 'CFD (شاشة الطلب)' },
+  'dashboard.void':                { ku: 'سڕینەوەی بەرهەم', ar: 'إلغاء الصنف' },
+  'dashboard.item_discount':       { ku: 'داشکاندنی بەرهەم', ar: 'خصم الصنف' },
+  'dashboard.transfer':            { ku: 'گواستنەوەی بەرهەم', ar: 'نقل الصنف' },
+  'dashboard.price':               { ku: 'گۆڕینی نرخ', ar: 'تغيير السعر' },
+  payment_screen:                  { ku: 'دوگمەکانی شاشەی پارەدان', ar: 'أزرار شاشة الدفع' },
+  'dashboard.surcharge':           { ku: 'زیادکراو', ar: 'رسوم إضافية' },
+  'dashboard.gratuity':            { ku: 'بەخشین', ar: 'إكرامية' },
+  'dashboard.discount':            { ku: 'داشکاندن', ar: 'خصم' },
+  'dashboard.note':                { ku: 'تێبینی', ar: 'ملاحظة' },
+  'dashboard.split_bill':          { ku: 'دابەشکردنی پسوڵە', ar: 'تقسيم الفاتورة' },
+  'dashboard.pay_later':           { ku: 'دواتر پارەدان', ar: 'الدفع لاحقاً' },
+  'dashboard.receipt':             { ku: 'چاپی پسوڵە', ar: 'طباعة الإيصال' },
+  'payment_screen.wa':             { ku: 'واتساپ (WA)', ar: 'واتساب (WA)' },
+  'dashboard.drawer':              { ku: 'دراوەر', ar: 'الدرج' },
+  'dashboard.member':              { ku: 'ئەندام', ar: 'عضو' },
+  'dashboard.customer':            { ku: 'کڕیار', ar: 'عميل' },
+  manage_delivery:                 { ku: 'بەڕێوەبردنی گەیاندن', ar: 'إدارة التوصيل' },
+  'manage_delivery.departure':     { ku: 'ڕۆیشتن / تەواوکردنی داواکاری', ar: 'المغادرة / إنهاء الطلبات' },
+  'manage_delivery.view_report':   { ku: 'بینینی ڕاپۆرت', ar: 'عرض التقرير' },
+  'manage_delivery.be_driver':     { ku: 'بوون بە گەیەنەر', ar: 'العمل كموصّل' },
+  finance:                         { ku: 'دارایی', ar: 'المالية' },
+  'finance.expense':               { ku: 'خەرجی', ar: 'المصروفات' },
+  'finance.pay_later':             { ku: 'دواتر پارەدان', ar: 'الدفع لاحقاً' },
+  'finance.receipt':               { ku: 'مێژووی پسوڵە', ar: 'سجل الإيصالات' },
+  'finance.sales':                 { ku: 'ڕاپۆرتی فرۆشتن', ar: 'تقرير المبيعات' },
+  'finance.report':                { ku: 'ڕاپۆرتی تەواو', ar: 'التقرير الكامل' },
+  menu:                            { ku: 'بەڕێوەبردنی مێنیو', ar: 'إدارة القائمة' },
+  'menu.table_group':              { ku: 'گروپی مێز', ar: 'مجموعة الطاولات' },
+  'menu.table':                    { ku: 'مێز', ar: 'طاولة' },
+  'menu.category':                 { ku: 'پۆل', ar: 'الفئة' },
+  'menu.item':                     { ku: 'بەرهەم', ar: 'الصنف' },
+  'menu.modifier':                 { ku: 'گۆڕەر', ar: 'المُعدِّل' },
+  'menu.kitchen_note':             { ku: 'تێبینی چێشتخانە', ar: 'ملاحظة المطبخ' },
+  'menu.void_reason':              { ku: 'هۆکاری سڕینەوە', ar: 'سبب الإلغاء' },
+  'menu.event_offer':              { ku: 'ڕووداو و پێشکەش', ar: 'الحدث والعرض' },
+  'menu.discount':                 { ku: 'داشکاندن', ar: 'خصم' },
+  'menu.surcharge':                { ku: 'زیادکراو', ar: 'رسوم إضافية' },
+  'menu.payment_method':           { ku: 'شێوازی پارەدان', ar: 'طريقة الدفع' },
+  'menu.online_menu':              { ku: 'مێنیوی ئۆنلاین', ar: 'القائمة أونلاين' },
+  'menu.combo_discount':           { ku: 'داشکاندنی کۆمبۆ', ar: 'خصم الكومبو' },
+  'menu.order_number':             { ku: 'ژمارەی داواکاری', ar: 'رقم الطلب' },
+  'menu.invoice_number':           { ku: 'ژمارەی پسوڵە', ar: 'رقم الفاتورة' },
+  settings:                        { ku: 'دەستگەیشتن بە ڕێکخستنەکان', ar: 'الوصول إلى الإعدادات' },
+  'settings.general':              { ku: 'گشتی', ar: 'عام' },
+  'settings.restaurant_info':      { ku: 'زانیاری ڕێستۆرانت', ar: 'معلومات المطعم' },
+  'settings.preference':           { ku: 'پەسەندکراوەکان', ar: 'التفضيلات' },
+  'settings.device':               { ku: 'ئامێر', ar: 'الجهاز' },
+  'settings.operations':           { ku: 'کردارەکان', ar: 'العمليات' },
+  'settings.dine_in':              { ku: 'لەناوخۆ', ar: 'صالة الطعام' },
+  'settings.delivery':             { ku: 'گەیاندن', ar: 'التوصيل' },
+  'settings.takeout':              { ku: 'دەرکردن', ar: 'السفري' },
+  'settings.bar':                  { ku: 'کافێ بار', ar: 'بار القهوة' },
+  'settings.reservation':          { ku: 'جێگیرکردن', ar: 'الحجز' },
+  'settings.kds_monitor':          { ku: 'مۆنیتەری KDS', ar: 'شاشة KDS' },
+  'settings.inventory':            { ku: 'کۆگا', ar: 'المخزون' },
+  'settings.sg_finance':           { ku: 'دارایی', ar: 'المالية' },
+  'settings.void_items':           { ku: 'سڕینەوەی بەرهەمەکان', ar: 'إلغاء الأصناف' },
+  'settings.people':               { ku: 'کەسەکان', ar: 'الأشخاص' },
+  'settings.audit_log':            { ku: 'لۆگی چاودێری', ar: 'سجل التدقيق' },
+  'settings.users':                { ku: 'بەکارهێنەران', ar: 'المستخدمون' },
+  'settings.member':               { ku: 'ئەندامان', ar: 'الأعضاء' },
+  'settings.customer':             { ku: 'کڕیارەکان', ar: 'العملاء' },
+  'settings.marketing':            { ku: 'بازاڕگەری', ar: 'التسويق' },
+  'settings.whatsapp':             { ku: 'واتساپ', ar: 'واتساب' },
+}
+
+function triLabel(node: PermNode): string {
+  const l = PERM_L10N[node.key]
+  return l ? `${l.ku} - ${node.label} - ${l.ar}` : node.label
+}
+
 // Maps each permission key to the module that must be enabled for it to show.
 // null = always visible regardless of module settings.
 const PERM_MODULE_MAP: Record<string, string | null> = {
@@ -367,7 +475,7 @@ function PermRow({ node, perms, depth = 0, onChange, disabledLeaves }: {
         </button>
         <span onClick={isParent ? () => setOpen(o => !o) : toggle}
           className={cn('text-sm flex-1 select-none text-white', locked ? 'cursor-not-allowed' : 'cursor-pointer')}>
-          {node.label}
+          {triLabel(node)}
         </span>
         {locked && requiresModule && (
           <span className="text-[10px] px-1.5 py-0.5 rounded-md font-medium border border-white/10 bg-white/5 text-white/35 shrink-0">
