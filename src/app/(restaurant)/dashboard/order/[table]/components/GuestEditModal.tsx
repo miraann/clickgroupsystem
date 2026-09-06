@@ -1,6 +1,7 @@
 'use client'
 import { Users, Delete } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 interface Props {
   table:      string
@@ -12,6 +13,7 @@ interface Props {
 }
 
 export function GuestEditModal({ table, guestCount, guestDraft, onKey, onConfirm, onClose }: Props) {
+  const { t: tr } = useLanguage()
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center" onClick={onClose}>
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
@@ -22,8 +24,8 @@ export function GuestEditModal({ table, guestCount, guestDraft, onKey, onConfirm
         <div className="px-5 py-4 border-b border-white/8 bg-amber-500/10">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-white/40 mb-0.5">Table {table}</p>
-              <p className="text-lg font-bold text-amber-400">Update Guests</p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-white/40 mb-0.5">{tr.kds_table} {table}</p>
+              <p className="text-lg font-bold text-amber-400">{tr.ord_update_guests}</p>
             </div>
             <div className="w-12 h-12 rounded-2xl bg-amber-500/15 border border-amber-500/25 flex items-center justify-center text-lg font-bold text-white">
               T{table}
@@ -35,8 +37,8 @@ export function GuestEditModal({ table, guestCount, guestDraft, onKey, onConfirm
           <div className="w-11 h-11 rounded-2xl bg-amber-500/15 border border-amber-500/25 flex items-center justify-center mx-auto mb-2.5">
             <Users className="w-5 h-5 text-amber-400" />
           </div>
-          <p className="text-base font-bold text-white">How many guests?</p>
-          <p className="text-xs text-white/30 mt-0.5">Current: {guestCount}</p>
+          <p className="text-base font-bold text-white">{tr.ord_how_many_guests}</p>
+          <p className="text-xs text-white/30 mt-0.5">{tr.ord_current_guests} {guestCount}</p>
         </div>
 
         <div className="flex items-center justify-center h-16 border-b border-white/8">
@@ -69,7 +71,7 @@ export function GuestEditModal({ table, guestCount, guestDraft, onKey, onConfirm
             onClick={onClose}
             className="w-full h-10 rounded-xl bg-white/6 hover:bg-white/10 text-white/50 text-sm font-medium transition-all active:scale-95"
           >
-            Cancel
+            {tr.cancel}
           </button>
         </div>
       </div>

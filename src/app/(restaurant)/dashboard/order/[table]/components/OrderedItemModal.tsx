@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils'
 import { usePermissions } from '@/lib/permissions/PermissionsContext'
 import { createClient } from '@/lib/supabase/client'
 import { logAudit } from '@/lib/logAudit'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 import type { DbOrderItem } from '../types'
 
 interface Props {
@@ -27,6 +28,7 @@ export function OrderedItemModal({
   onVoid, onPriceChange, onDiscount, onTransferred, onClose,
 }: Props) {
   const { can, isOwner } = usePermissions()
+  const { t: tr } = useLanguage()
   const ap = (key: string) => isOwner || can(key)
 
   const [view, setView]                     = useState<View>('menu')
@@ -62,7 +64,7 @@ export function OrderedItemModal({
 
   const handleTransfer = async () => {
     const tbl = parseInt(targetTable)
-    if (!tbl || tbl === parseInt(currentTable)) { setErr('Enter a different table number'); return }
+    if (!tbl || tbl === parseInt(currentTable)) { setErr(tr.ord_table_hint); return }
     setWorking(true); setErr(null)
 
     const { data: existing } = await supabase
@@ -96,10 +98,10 @@ export function OrderedItemModal({
   }
 
   const actions = [
-    { id: 'void'     as View, icon: <Trash2 className="w-6 h-6" />,        label: 'Void',     sub: 'Remove item',          color: 'border-rose-500/30 bg-rose-500/10 text-rose-400 hover:bg-rose-500/18',        perm: 'dashboard.void'          },
-    { id: 'discount' as View, icon: <Tag className="w-6 h-6" />,            label: 'Discount', sub: 'Apply item discount',   color: 'border-amber-500/30 bg-amber-500/10 text-amber-400 hover:bg-amber-500/18',   perm: 'dashboard.item_discount' },
-    { id: 'transfer' as View, icon: <ArrowRightLeft className="w-6 h-6" />, label: 'Transfer', sub: 'Move to another table', color: 'border-blue-500/30 bg-blue-500/10 text-blue-400 hover:bg-blue-500/18',       perm: 'dashboard.transfer'      },
-    { id: 'price'    as View, icon: <DollarSign className="w-6 h-6" />,     label: 'Price',    sub: 'Change item price',     color: 'border-violet-500/30 bg-violet-500/10 text-violet-400 hover:bg-violet-500/18', perm: 'dashboard.price'        },
+    { id: 'void'     as View, icon: <Trash2 className="w-6 h-6" />,        label: tr.ord_act_void,     sub: tr.ord_remove_item, color: 'bg-rose-800 text-white hover:bg-rose-700',     perm: 'dashboard.void'          },
+    { id: 'discount' as View, icon: <Tag className="w-6 h-6" />,            label: tr.ord_act_discount, sub: tr.ord_apply_disc,  color: 'bg-amber-800 text-white hover:bg-amber-700',   perm: 'dashboard.item_discount' },
+    { id: 'transfer' as View, icon: <ArrowRightLeft className="w-6 h-6" />, label: tr.ord_transfer,     sub: tr.ord_move_table,  color: 'bg-blue-800 text-white hover:bg-blue-700',     perm: 'dashboard.transfer'      },
+    { id: 'price'    as View, icon: <DollarSign className="w-6 h-6" />,     label: tr.ord_act_price,    sub: tr.ord_change_price, color: 'bg-violet-800 text-white hover:bg-violet-700', perm: 'dashboard.price'         },
   ]
 
   return (
@@ -121,11 +123,11 @@ export function OrderedItemModal({
             <div className="grid grid-cols-2 gap-3">
               {actions.filter(a => ap(a.perm)).map(a => (
                 <button key={a.id} onClick={() => setView(a.id)}
-                  className={cn('flex flex-col items-center justify-center gap-2 py-5 rounded-2xl border transition-all active:scale-95', a.color)}>
+                  className={cn('flex flex-col items-center justify-center gap-2 py-5 rounded-2xl transition-all active:scale-95', a.color)}>
                   {a.icon}
                   <div className="text-center">
                     <p className="text-sm font-semibold">{a.label}</p>
-                    <p className="text-[10px] opacity-60 mt-0.5">{a.sub}</p>
+                    <p className="text-[10px] opacity-70 mt-0.5">{a.sub}</p>
                   </div>
                 </button>
               ))}
@@ -134,7 +136,7 @@ export function OrderedItemModal({
 
           {view === 'void' && (
             <div className="space-y-4">
-              <p className="text-xs text-white/40 font-semibold uppercase tracking-wider">Select void reason <span className="text-rose-400">*</span></p>
+              <p className="text-xs text-white/40 font-semibold uppercase tracking-wider">{tr.ord_select_void} <span className="text-rose-400">*</span></p>
               {loadingReasons ? (
                 <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 text-white/30 animate-spin" /></div>
               ) : (
@@ -151,17 +153,17 @@ export function OrderedItemModal({
                 </div>
               )}
               <div>
-                <label className="block text-xs text-white/40 mb-1.5">Or write custom reason</label>
+                <label className="block text-xs text-white/40 mb-1.5">{tr.ord_or_custom}</label>
                 <input value={customReason} onChange={e => { setCustomReason(e.target.value); setSelectedReasonId(null) }}
-                  placeholder="Custom reason…"
+                  placeholder={tr.ord_custom_reason}
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-rose-500/50 transition-colors" />
               </div>
-              {!canVoid && <p className="text-xs text-rose-400/70">A void reason is required.</p>}
+              {!canVoid && <p className="text-xs text-rose-400/70">{tr.ord_void_reason_req}</p>}
               <div className="grid grid-cols-2 gap-3">
-                <button onClick={() => setView('menu')} className="py-3 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 text-sm font-medium transition-all active:scale-95">Back</button>
+                <button onClick={() => setView('menu')} className="py-3 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 text-sm font-medium transition-all active:scale-95">{tr.back}</button>
                 <button onClick={() => { if (!canVoid) return; logAudit(restaurantId, 'void_item', { item_name: item.item_name, qty: item.qty, price: item.item_price, reason: voidReasonText, table: currentTable }, item.id); onVoid(voidReasonText) }} disabled={!canVoid}
-                  className="py-3 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/30 text-rose-400 text-sm font-semibold transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed">
-                  Void Item
+                  className="py-3 rounded-xl bg-rose-700 hover:bg-rose-600 text-white text-sm font-semibold transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed">
+                  {tr.ord_void_item}
                 </button>
               </div>
             </div>
@@ -173,25 +175,25 @@ export function OrderedItemModal({
                 {(['pct', 'fixed'] as const).map(t => (
                   <button key={t} onClick={() => setDiscountType(t)}
                     className={cn('flex-1 py-2 rounded-lg text-xs font-semibold transition-all', discountType === t ? 'bg-amber-500 text-white' : 'text-white/40 hover:text-white/70')}>
-                    {t === 'pct' ? 'Percentage %' : 'Fixed $'}
+                    {t === 'pct' ? tr.ord_pct : tr.ord_fixed_dollar}
                   </button>
                 ))}
               </div>
               <div>
-                <label className="block text-xs text-white/40 mb-1.5">{discountType === 'pct' ? 'Discount %' : 'Discount amount ($)'}</label>
+                <label className="block text-xs text-white/40 mb-1.5">{discountType === 'pct' ? tr.ord_disc_pct : tr.ord_disc_amount}</label>
                 <input type="number" min="0" value={discountVal} onChange={e => setDiscountVal(e.target.value)} placeholder="0"
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500/50 transition-colors" />
               </div>
               {discountVal && (
                 <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-white/4 border border-white/8">
-                  <span className="text-xs text-white/40">New price per item</span>
+                  <span className="text-xs text-white/40">{tr.ord_new_price}</span>
                   <span className="text-sm font-bold text-amber-400">{formatPrice(discountedPrice)}</span>
                 </div>
               )}
               <div className="grid grid-cols-2 gap-3">
-                <button onClick={() => setView('menu')} className="py-3 rounded-xl bg-white/5 text-white/60 text-sm font-medium transition-all active:scale-95">Back</button>
+                <button onClick={() => setView('menu')} className="py-3 rounded-xl bg-white/5 text-white/60 text-sm font-medium transition-all active:scale-95">{tr.back}</button>
                 <button onClick={() => { logAudit(restaurantId, 'apply_discount', { item_name: item.item_name, qty: item.qty, original_price: item.item_price, discounted_price: discountedPrice, discount_type: discountType, discount_val: discountVal, table: currentTable }, item.id); onDiscount(discountedPrice) }} disabled={!discountVal}
-                  className="py-3 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white text-sm font-semibold transition-all active:scale-95">Apply</button>
+                  className="py-3 rounded-xl bg-amber-700 hover:bg-amber-600 disabled:opacity-40 text-white text-sm font-semibold transition-all active:scale-95">{tr.ord_apply}</button>
               </div>
             </div>
           )}
@@ -199,17 +201,17 @@ export function OrderedItemModal({
           {view === 'transfer' && (
             <div className="space-y-4">
               <div>
-                <label className="block text-xs text-white/40 mb-1.5">Target table number</label>
-                <input type="number" min="1" value={targetTable} onChange={e => { setTargetTable(e.target.value); setErr(null) }} placeholder="e.g. 5"
+                <label className="block text-xs text-white/40 mb-1.5">{tr.ord_target_table}</label>
+                <input type="number" min="1" value={targetTable} onChange={e => { setTargetTable(e.target.value); setErr(null) }} placeholder={tr.ord_table_ph}
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500/50 transition-colors" />
               </div>
               {err && <p className="text-xs text-rose-400">{err}</p>}
               <div className="grid grid-cols-2 gap-3">
-                <button onClick={() => setView('menu')} className="py-3 rounded-xl bg-white/5 text-white/60 text-sm font-medium transition-all active:scale-95">Back</button>
+                <button onClick={() => setView('menu')} className="py-3 rounded-xl bg-white/5 text-white/60 text-sm font-medium transition-all active:scale-95">{tr.back}</button>
                 <button onClick={handleTransfer} disabled={!targetTable || working}
-                  className="py-3 rounded-xl bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 text-blue-400 text-sm font-semibold transition-all active:scale-95 flex items-center justify-center gap-2">
+                  className="py-3 rounded-xl bg-blue-700 hover:bg-blue-600 text-white text-sm font-semibold transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-40">
                   {working ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRightLeft className="w-4 h-4" />}
-                  Transfer
+                  {tr.ord_transfer}
                 </button>
               </div>
             </div>
@@ -218,18 +220,18 @@ export function OrderedItemModal({
           {view === 'price' && (
             <div className="space-y-4">
               <div>
-                <label className="block text-xs text-white/40 mb-1.5">New price per item ($)</label>
+                <label className="block text-xs text-white/40 mb-1.5">{tr.ord_new_price_dollar}</label>
                 <input type="number" min="0" step="0.5" value={newPrice} onChange={e => setNewPrice(e.target.value)}
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-violet-500/50 transition-colors" />
               </div>
               <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-white/4 border border-white/8">
-                <span className="text-xs text-white/40">New line total</span>
+                <span className="text-xs text-white/40">{tr.ord_new_line_total}</span>
                 <span className="text-sm font-bold text-violet-400">{formatPrice((parseFloat(newPrice) || 0) * item.qty)}</span>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <button onClick={() => setView('menu')} className="py-3 rounded-xl bg-white/5 text-white/60 text-sm font-medium transition-all active:scale-95">Back</button>
+                <button onClick={() => setView('menu')} className="py-3 rounded-xl bg-white/5 text-white/60 text-sm font-medium transition-all active:scale-95">{tr.back}</button>
                 <button onClick={() => { logAudit(restaurantId, 'edit_price', { item_name: item.item_name, qty: item.qty, old_price: item.item_price, new_price: parseFloat(newPrice) || 0, table: currentTable }, item.id); onPriceChange(parseFloat(newPrice) || 0) }} disabled={!newPrice}
-                  className="py-3 rounded-xl bg-violet-500/20 hover:bg-violet-500/30 border border-violet-500/30 text-violet-400 text-sm font-semibold transition-all active:scale-95">Save Price</button>
+                  className="py-3 rounded-xl bg-violet-700 hover:bg-violet-600 disabled:opacity-40 text-white text-sm font-semibold transition-all active:scale-95">{tr.ord_save_price}</button>
               </div>
             </div>
           )}

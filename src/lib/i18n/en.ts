@@ -179,6 +179,8 @@ const en = {
   ord_guests:           'guests',
   ord_menu_tab:         'Menu',
   ord_order_tab:        'Order',
+  ord_refresh:          'Refresh',
+  ord_home:             'Home',
   ord_send_kitchen:     'Send to Kitchen',
   ord_sending:          'Sending…',
   ord_pay:              'Pay',
@@ -208,7 +210,7 @@ const en = {
   ord_pick_1:           'Pick 1',
   ord_up_to:            'Up to',
   ord_save_later:       'Save for Later',
-  ord_add_notes:        'Tap to add notes & modifiers…',
+  ord_add_notes:        'Add note',
 
   // ── Order — Order Panel ───────────────────────────────────────
   ord_ordering:         'Ordering',
@@ -246,6 +248,10 @@ const en = {
   ord_select_void:      'Select void reason',
   ord_custom_reason:    'Custom reason…',
   ord_or_custom:        'Or write custom reason',
+  ord_act_void:         'Void',
+  ord_act_discount:     'Discount',
+  ord_act_price:        'Price',
+  ord_apply:            'Apply',
 
   // ── Order — Guest Edit Modal ──────────────────────────────────
   ord_how_many_guests:  'How many guests?',

@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils'
 import { DraftRow } from './DraftRow'
 import { SentRow } from './SentRow'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
-import type { DbOrderItem, DbMenuItem, DraftEntry } from '../types'
+import type { DbOrderItem, DbMenuItem, DraftEntry, KitchenNote } from '../types'
 
 interface Props {
   activeTab:    'ordering' | 'ordered'
@@ -13,6 +13,7 @@ interface Props {
   draft:        Map<string, DraftEntry>
   draftEntries: { item: DbMenuItem; entry: DraftEntry }[]
   draftTotal:   number
+  kitchenNotes: KitchenNote[]
   sentItems:    DbOrderItem[]
   sentTotal:    number
   loading?:     boolean
@@ -25,7 +26,7 @@ interface Props {
 
 export function OrderPanel({
   activeTab, setActiveTab, mobilePanel,
-  draft, draftEntries, draftTotal,
+  draft, draftEntries, draftTotal, kitchenNotes,
   sentItems, sentTotal, loading,
   formatPrice, onQty, onRemove, onEdit, onAction,
 }: Props) {
@@ -33,15 +34,15 @@ export function OrderPanel({
   return (
     <div className={cn(
       'shrink-0 flex-col border-r border-white/8 bg-white/[0.01]',
-      mobilePanel === 'order' ? 'flex w-full sm:w-80 xl:w-96' : 'hidden sm:flex sm:w-80 xl:w-96'
+      mobilePanel === 'order' ? 'flex w-full sm:w-[380px] xl:w-[440px]' : 'hidden sm:flex sm:w-[380px] xl:w-[440px]'
     )}>
       {/* Tabs */}
       <div className="shrink-0 flex border-b border-white/8">
         {(['ordering', 'ordered'] as const).map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab)}
-            className={cn('flex-1 py-3.5 text-xs font-bold uppercase tracking-wider transition-all relative touch-manipulation',
+            className={cn('flex-1 py-3.5 sm:py-4 text-xs sm:text-sm font-bold uppercase tracking-wider transition-all relative touch-manipulation',
               activeTab === tab ? 'text-amber-400' : 'text-white/25 hover:text-white/45')}>
-            <span className="flex items-center justify-center gap-1.5">
+            <span className="flex items-center justify-center gap-1.5 sm:gap-2">
               {tab === 'ordering' ? tr.ord_ordering : tr.ord_ordered}
               {tab === 'ordering' && draft.size > 0 && (
                 <span className="px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-400 text-xs font-bold tabular-nums">
@@ -63,20 +64,21 @@ export function OrderPanel({
       <div className="flex-1 overflow-y-auto">
         {activeTab === 'ordering' ? (
           draftEntries.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full gap-3 pb-10">
-              <div className="w-16 h-16 rounded-2xl bg-white/4 border border-white/8 flex items-center justify-center">
-                <ShoppingBag className="w-7 h-7 text-white/15" />
+            <div className="flex flex-col items-center justify-center h-full gap-3 sm:gap-4 pb-10">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-white/4 border border-white/8 flex items-center justify-center">
+                <ShoppingBag className="w-7 h-7 sm:w-9 sm:h-9 text-white/15" />
               </div>
-              <p className="text-sm text-white/25">{tr.ord_no_items_yet}</p>
-              <p className="text-xs text-white/15">{tr.ord_tap_menu}</p>
+              <p className="text-sm sm:text-base text-white/25">{tr.ord_no_items_yet}</p>
+              <p className="text-xs sm:text-sm text-white/15">{tr.ord_tap_menu}</p>
             </div>
           ) : (
-            <div className="p-3 space-y-2">
+            <div className="p-3 sm:p-4 space-y-2 sm:space-y-2.5">
               {draftEntries.map(({ item, entry }) => (
                 <DraftRow
                   key={item.id}
                   item={item}
                   entry={entry}
+                  kitchenNotes={kitchenNotes}
                   onQty={d => onQty(item.id, d)}
                   onRemove={() => onRemove(item.id, entry.qty)}
                   onEdit={() => onEdit(item.id)}
@@ -92,15 +94,15 @@ export function OrderPanel({
                 <Loader2 className="w-6 h-6 text-white/20 animate-spin" />
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center h-full gap-3 pb-10">
-                <div className="w-16 h-16 rounded-2xl bg-white/4 border border-white/8 flex items-center justify-center">
-                  <ChefHat className="w-7 h-7 text-white/15" />
+              <div className="flex flex-col items-center justify-center h-full gap-3 sm:gap-4 pb-10">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-white/4 border border-white/8 flex items-center justify-center">
+                  <ChefHat className="w-7 h-7 sm:w-9 sm:h-9 text-white/15" />
                 </div>
-                <p className="text-sm text-white/25">{tr.ord_nothing_sent}</p>
+                <p className="text-sm sm:text-base text-white/25">{tr.ord_nothing_sent}</p>
               </div>
             )
           ) : (
-            <div className="p-3 space-y-2">
+            <div className="p-3 sm:p-4 space-y-2 sm:space-y-2.5">
               {sentItems.map(i => (
                 <SentRow key={i.id} item={i} onAction={() => onAction(i)} formatPrice={formatPrice} />
               ))}
@@ -111,19 +113,19 @@ export function OrderPanel({
 
       {/* Subtotal strip */}
       {activeTab === 'ordering' && draftEntries.length > 0 && (
-        <div className="shrink-0 px-4 py-3 border-t border-white/8 flex items-center justify-between">
-          <span className="text-xs text-white/30">{draftEntries.reduce((s, o) => s + o.entry.qty, 0)} {tr.ord_items}</span>
-          <span className="text-sm font-bold text-white/60 tabular-nums">{formatPrice(draftTotal)}</span>
+        <div className="shrink-0 px-4 py-3 sm:px-5 sm:py-4 border-t border-white/8 flex items-center justify-between">
+          <span className="text-xs sm:text-sm text-white/30">{draftEntries.reduce((s, o) => s + o.entry.qty, 0)} {tr.ord_items}</span>
+          <span className="text-sm sm:text-base font-bold text-white/60 tabular-nums">{formatPrice(draftTotal)}</span>
         </div>
       )}
       {activeTab === 'ordered' && sentItems.length > 0 && (
-        <div className="shrink-0 px-4 py-3 border-t border-white/8 flex items-center justify-between">
-          <span className="text-xs text-white/30">
+        <div className="shrink-0 px-4 py-3 sm:px-5 sm:py-4 border-t border-white/8 flex items-center justify-between">
+          <span className="text-xs sm:text-sm text-white/30">
             {sentItems.filter(i => i.status === 'ready').length > 0 ? `${sentItems.filter(i => i.status === 'ready').length} ${tr.ord_ready} · ` : ''}
             {sentItems.filter(i => i.status === 'cooking').length > 0 ? `${sentItems.filter(i => i.status === 'cooking').length} ${tr.ord_cooking} · ` : ''}
             {sentItems.filter(i => i.status === 'sent').length} {tr.ord_in_queue}
           </span>
-          <span className="text-sm font-bold text-white/60 tabular-nums">{formatPrice(sentTotal)}</span>
+          <span className="text-sm sm:text-base font-bold text-white/60 tabular-nums">{formatPrice(sentTotal)}</span>
         </div>
       )}
     </div>

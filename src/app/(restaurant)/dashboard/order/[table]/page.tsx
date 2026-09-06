@@ -51,6 +51,15 @@ function OrderPage() {
   // ── Master hook ───────────────────────────────────────────────
   const order = useOrderState(table, guestCount)
 
+  // When the URL carries no ?guests= param (e.g. the table was opened from a
+  // dashboard tile), hydrate the count from the guests saved on the order.
+  useEffect(() => {
+    if (!guestCountParam && order.dbGuests && order.dbGuests > 0) {
+      setGuestCount(order.dbGuests)
+      setGuestDraft(order.dbGuests)
+    }
+  }, [order.dbGuests, guestCountParam])
+
   // ── Prewarm the payment path so tapping "Pay" is instant ──────
   // Reference data (methods/discounts/surcharges/invoice #) into SWR cache…
   useCheckoutData(order.restaurantId)
@@ -112,6 +121,7 @@ function OrderPage() {
           draft={order.draft}
           draftEntries={order.draftEntries}
           draftTotal={order.draftTotal}
+          kitchenNotes={order.kitchenNotes}
           sentItems={order.sentItems}
           sentTotal={order.sentTotal}
           loading={order.loading}

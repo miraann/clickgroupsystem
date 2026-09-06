@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { X, Minus, Plus, Send, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 import type { DbMenuItem, KitchenNote, DraftEntry, ModifierGroup } from '../types'
 
 interface Props {
@@ -18,6 +19,7 @@ interface Props {
 }
 
 export function ItemModal({ item, entry, kitchenNotes, supabase, formatPrice, sending, onConfirm, onConfirmAndSend, onClose }: Props) {
+  const { t: tr } = useLanguage()
   const [local, setLocal]         = useState<DraftEntry>({ ...entry, selectedOptions: [...entry.selectedOptions] })
   const [modGroups, setModGroups] = useState<ModifierGroup[]>([])
   const [loadingMods, setLoadingMods] = useState(true)
@@ -83,14 +85,14 @@ export function ItemModal({ item, entry, kitchenNotes, supabase, formatPrice, se
             </button>
             <div className="absolute bottom-3 left-5">
               <h2 className="text-lg font-bold text-white drop-shadow-lg">{item.name}</h2>
-              <p className="text-sm font-semibold text-amber-400 tabular-nums mt-0.5">{formatPrice(effectivePrice)} each</p>
+              <p className="text-sm font-semibold text-amber-400 tabular-nums mt-0.5">{formatPrice(effectivePrice)} {tr.ord_each}</p>
             </div>
           </div>
         ) : (
           <div className="shrink-0 flex items-center justify-between px-5 pt-5 pb-4 border-b border-white/8">
             <div>
               <h2 className="text-base font-semibold text-white">{item.name}</h2>
-              <p className="text-sm text-amber-400 tabular-nums mt-0.5">{formatPrice(effectivePrice)} each</p>
+              <p className="text-sm text-amber-400 tabular-nums mt-0.5">{formatPrice(effectivePrice)} {tr.ord_each}</p>
             </div>
             <button onClick={onClose} className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-all active:scale-95">
               <X className="w-4 h-4" />
@@ -100,7 +102,7 @@ export function ItemModal({ item, entry, kitchenNotes, supabase, formatPrice, se
 
         <div className="flex-1 overflow-y-auto p-5 space-y-5">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-white/60 font-medium">Quantity</span>
+            <span className="text-sm text-white/60 font-medium">{tr.ord_qty}</span>
             <div className="flex items-center gap-2">
               <button onClick={() => setLocal(e => ({ ...e, qty: Math.max(1, e.qty - 1) }))}
                 className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 text-white/50 flex items-center justify-center active:scale-90 transition-all">
@@ -116,7 +118,7 @@ export function ItemModal({ item, entry, kitchenNotes, supabase, formatPrice, se
 
           {kitchenNotes.length > 0 && (
             <div>
-              <p className="text-xs text-white/40 font-semibold mb-2.5 uppercase tracking-wider">Kitchen Notes</p>
+              <p className="text-xs text-white/40 font-semibold mb-2.5 uppercase tracking-wider">{tr.ord_kitchen_notes}</p>
               <div className="flex flex-wrap gap-2">
                 {kitchenNotes.map(note => (
                   <button key={note.id} onClick={() => toggleNote(note.id)}
@@ -132,11 +134,11 @@ export function ItemModal({ item, entry, kitchenNotes, supabase, formatPrice, se
           )}
 
           <div>
-            <p className="text-xs text-white/40 font-semibold mb-2 uppercase tracking-wider">Custom Note</p>
+            <p className="text-xs text-white/40 font-semibold mb-2 uppercase tracking-wider">{tr.ord_custom_note}</p>
             <input
               value={local.customNote}
               onChange={e => setLocal(en => ({ ...en, customNote: e.target.value }))}
-              placeholder="e.g. No onions, well done…"
+              placeholder={tr.ord_custom_note_ph}
               className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500/50 transition-colors"
             />
           </div>
@@ -147,8 +149,8 @@ export function ItemModal({ item, entry, kitchenNotes, supabase, formatPrice, se
             <div key={group.id}>
               <div className="flex items-center gap-2 mb-2.5">
                 <p className="text-xs text-white/40 font-semibold uppercase tracking-wider">{group.name}</p>
-                {group.required && <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-rose-500/15 text-rose-400 border border-rose-500/20">Required</span>}
-                <span className="text-[10px] text-white/25">{group.max_select === 1 ? 'Pick 1' : `Up to ${group.max_select}`}</span>
+                {group.required && <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-rose-500/15 text-rose-400 border border-rose-500/20">{tr.mod_required}</span>}
+                <span className="text-[10px] text-white/25">{group.max_select === 1 ? tr.ord_pick_1 : `${tr.ord_up_to} ${group.max_select}`}</span>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 {group.options.map(opt => {
@@ -175,11 +177,11 @@ export function ItemModal({ item, entry, kitchenNotes, supabase, formatPrice, se
           <button onClick={() => onConfirmAndSend(local)} disabled={sending}
             className="w-full py-3.5 rounded-2xl bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white text-sm font-bold transition-all active:scale-95 flex items-center justify-center gap-2">
             {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-            Send to Kitchen · {formatPrice(effectivePrice * local.qty)}
+            {tr.ord_send_kitchen} · {formatPrice(effectivePrice * local.qty)}
           </button>
           <button onClick={() => onConfirm(local)}
             className="w-full py-2.5 rounded-2xl bg-white/6 hover:bg-white/10 border border-white/10 text-white/60 text-sm font-medium transition-all active:scale-95">
-            Save for Later
+            {tr.ord_save_later}
           </button>
         </div>
       </div>

@@ -2462,13 +2462,13 @@ function GuestNumpad({
 
   // ── Table header (shared) ──────────────────────────────────
   const TableHeader = (
-    <div className={cn('px-5 py-4 border-b border-white/8', cfg.bg)}>
+    <div className={cn('px-5 py-4 md:px-6 md:py-5 border-b border-white/8', cfg.bg)}>
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-white/40 mb-0.5">{tr.kds_table} {table.label}</p>
-          <p className={cn('text-lg font-bold', cfg.text)}>{statusLabel}</p>
+          <p className="text-xs md:text-sm font-semibold uppercase tracking-wider text-white/40 mb-0.5">{tr.kds_table} {table.label}</p>
+          <p className={cn('text-lg md:text-xl font-bold', cfg.text)}>{statusLabel}</p>
         </div>
-        <div className={cn('w-12 h-12 rounded-2xl border flex items-center justify-center text-lg font-bold text-white', cfg.bg, cfg.border)}>
+        <div className={cn('w-12 h-12 md:w-14 md:h-14 rounded-2xl border flex items-center justify-center text-lg md:text-xl font-bold text-white', cfg.bg, cfg.border)}>
           {table.label}
         </div>
       </div>
@@ -2479,7 +2479,7 @@ function GuestNumpad({
     <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={onClose}>
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
       <div
-        className="relative w-80 rounded-3xl border border-white/15 bg-[#0d1220]/98 backdrop-blur-2xl shadow-2xl overflow-hidden"
+        className="relative w-80 sm:w-96 md:w-[440px] rounded-3xl border border-white/15 bg-[#0d1220]/98 backdrop-blur-2xl shadow-2xl overflow-hidden"
         onClick={e => e.stopPropagation()}
       >
         {TableHeader}
@@ -2487,17 +2487,17 @@ function GuestNumpad({
         {view === 'numpad' ? (
           <>
             {/* Guest count header */}
-            <div className="px-6 pt-5 pb-4 text-center border-b border-white/8">
-              <div className="w-11 h-11 rounded-2xl bg-amber-500/15 border border-amber-500/25 flex items-center justify-center mx-auto mb-2.5">
-                <Users className="w-5 h-5 text-amber-400" />
+            <div className="px-6 pt-5 pb-4 md:pt-6 md:pb-5 text-center border-b border-white/8">
+              <div className="w-11 h-11 md:w-14 md:h-14 rounded-2xl bg-amber-500/15 border border-amber-500/25 flex items-center justify-center mx-auto mb-2.5">
+                <Users className="w-5 h-5 md:w-7 md:h-7 text-amber-400" />
               </div>
-              <p className="text-base font-bold text-white">{tr.ord_how_many_guests}</p>
-              <p className="text-xs text-white/30 mt-0.5">{tr.gn_up_to} {table.capacity}</p>
+              <p className="text-base md:text-xl font-bold text-white">{tr.ord_how_many_guests}</p>
+              <p className="text-xs md:text-sm text-white/30 mt-0.5">{tr.gn_up_to} {table.capacity}</p>
             </div>
 
             {/* Display */}
-            <div className="flex items-center justify-center h-16 border-b border-white/8">
-              <span className={cn('text-5xl font-bold tabular-nums transition-all', value ? 'text-white' : 'text-white/15')}>
+            <div className="flex items-center justify-center h-16 md:h-20 border-b border-white/8">
+              <span className={cn('text-5xl md:text-6xl font-bold tabular-nums transition-all', value ? 'text-white' : 'text-white/15')}>
                 {value || '0'}
               </span>
             </div>
@@ -2507,26 +2507,26 @@ function GuestNumpad({
               {KEYS.map(k => (
                 <button key={k} onClick={() => k === '✓' ? confirm() : press(k)}
                   className={cn(
-                    'h-14 text-xl font-semibold flex items-center justify-center transition-all active:scale-95 touch-manipulation',
+                    'h-14 sm:h-16 md:h-20 text-xl md:text-3xl font-semibold flex items-center justify-center transition-all active:scale-95 touch-manipulation',
                     k === '✓' ? 'bg-amber-500 text-white hover:bg-amber-600 shadow-lg shadow-amber-500/20'
                       : k === '⌫' ? 'bg-[#0d1220] text-rose-400/70 hover:bg-rose-500/10'
                       : 'bg-[#0d1220] text-white/80 hover:bg-white/8'
                   )}>
-                  {k === '⌫' ? <Delete className="w-5 h-5" /> : k}
+                  {k === '⌫' ? <Delete className="w-5 h-5 md:w-7 md:h-7" /> : k}
                 </button>
               ))}
             </div>
 
             {/* Footer */}
-            <div className="grid grid-cols-2 gap-2 p-3 border-t border-white/8">
+            <div className="grid grid-cols-2 gap-2 p-3 md:p-4 border-t border-white/8">
               <button
                 onClick={() => setView('reserve')}
-                className="h-10 rounded-xl bg-indigo-500/15 border border-indigo-500/25 text-indigo-400 text-sm font-medium flex items-center justify-center gap-1.5 active:scale-95 transition-all touch-manipulation"
+                className="h-10 md:h-12 rounded-xl bg-indigo-500/15 border border-indigo-500/25 text-indigo-400 text-sm md:text-base font-medium flex items-center justify-center gap-1.5 active:scale-95 transition-all touch-manipulation"
               >
-                <Coffee className="w-4 h-4" />{tr.gn_reserve}
+                <Coffee className="w-4 h-4 md:w-5 md:h-5" />{tr.gn_reserve}
               </button>
               <button onClick={onClose}
-                className="h-10 rounded-xl bg-white/5 border border-white/10 text-white/50 text-sm font-medium flex items-center justify-center active:scale-95 transition-all touch-manipulation">
+                className="h-10 md:h-12 rounded-xl bg-white/5 border border-white/10 text-white/50 text-sm md:text-base font-medium flex items-center justify-center active:scale-95 transition-all touch-manipulation">
                 {tr.cancel}
               </button>
             </div>
@@ -2611,13 +2611,13 @@ function GuestNumpad({
 
             {/* Footer */}
             {!resSaved && (
-              <div className="grid grid-cols-2 gap-2 p-3 border-t border-white/8">
+              <div className="grid grid-cols-2 gap-2 p-3 md:p-4 border-t border-white/8">
                 <button onClick={() => setView('numpad')}
-                  className="h-10 rounded-xl bg-white/5 border border-white/10 text-white/50 text-sm font-medium flex items-center justify-center active:scale-95 transition-all">
+                  className="h-10 md:h-12 rounded-xl bg-white/5 border border-white/10 text-white/50 text-sm md:text-base font-medium flex items-center justify-center active:scale-95 transition-all">
                   {tr.back}
                 </button>
                 <button onClick={handleReserve} disabled={resSaving}
-                  className="h-10 rounded-xl bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 text-white text-sm font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-all">
+                  className="h-10 md:h-12 rounded-xl bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 text-white text-sm md:text-base font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-all">
                   {resSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                   {resSaving ? tr.pay_saving : tr.confirm}
                 </button>

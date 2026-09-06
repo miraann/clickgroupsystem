@@ -32,6 +32,9 @@ export function useOrderState(table: string, guestCount: number) {
   // ── Order identity ───────────────────────────────────────────
   const [orderId, setOrderId]   = useState<string | null>(null)
   const [orderNum, setOrderNum] = useState<string | null>(null)
+  // Guest count saved on the existing order — lets the page hydrate the header
+  // when the URL carries no ?guests= param (e.g. opening the table from a tile).
+  const [dbGuests, setDbGuests] = useState<number | null>(null)
 
   // ── Ordered items (order-specific) ───────────────────────────
   const [dbItems, setDbItems] = useState<DbOrderItem[]>([])
@@ -115,7 +118,7 @@ export function useOrderState(table: string, guestCount: number) {
 
     const { data: existing, error: existingErr } = await supabase
       .from('orders')
-      .select('id,order_num')
+      .select('id,order_num,guests')
       .eq('restaurant_id', rid)
       .eq('table_number', parseInt(table))
       .eq('status', 'active')
@@ -125,9 +128,11 @@ export function useOrderState(table: string, guestCount: number) {
 
     if (existingErr) { setInitError(existingErr.message); setLoading(false); return }
 
-    const oid = existing?.id ?? null
+    const ex = existing as { id: string; order_num?: string | null; guests?: number | null } | null
+    const oid = ex?.id ?? null
     setOrderId(oid)
-    setOrderNum((existing as { id: string; order_num?: string | null } | null)?.order_num ?? null)
+    setOrderNum(ex?.order_num ?? null)
+    setDbGuests(ex?.guests ?? null)
 
     if (oid) {
       const { data: orderItems } = await supabase
@@ -454,7 +459,7 @@ export function useOrderState(table: string, guestCount: number) {
   return {
     supabase,
     // identity
-    restaurantId, restaurantName, orderId, orderNum,
+    restaurantId, restaurantName, orderId, orderNum, dbGuests,
     // data
     dbItems, setDbItems,
     categories, menuItems, kitchenNotes,

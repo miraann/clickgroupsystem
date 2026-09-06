@@ -405,79 +405,79 @@ export default function PaymentScreen({ orderId, restaurantId, orderNum: orderNu
       <div className="flex flex-1 overflow-hidden">
 
         {/* ── Left: Receipt (desktop only) ── */}
-        <div className="hidden md:flex md:w-80 xl:w-96 shrink-0 flex-col border-r border-white/8">
-
-          {/* Order meta */}
-          <div className="shrink-0 p-5 border-b border-white/8 space-y-1.5">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-amber-500/15 border border-amber-500/25 flex items-center justify-center shrink-0">
-                <Users className="w-4 h-4 text-amber-400" />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-white">{isNaN(parseInt(tableNum)) ? tableNum : `${t.kds_table} ${tableNum}`}{guests > 0 ? ` · ${guests} ${t.pay_guests}` : ''}</p>
-                <p className="text-xs text-white/30">{isNaN(parseInt(tableNum)) ? tableNum : t.pay_dine_in}</p>
-              </div>
+        <div className="hidden md:flex md:w-80 xl:w-96 shrink-0 flex-col border-r border-white/8 bg-[#0a0e17] p-3">
+          <div
+            className="flex flex-col flex-1 min-h-0 w-full rounded-md bg-[#f7f5ec] text-neutral-800 font-bold shadow-xl shadow-black/40 overflow-hidden"
+            style={{ fontFamily: "'Courier New', ui-monospace, SFMono-Regular, Menlo, monospace" }}
+          >
+            {/* Paper header */}
+            <div className="shrink-0 px-5 pt-5 pb-2.5 text-center">
+              <p className="text-[15px] font-bold uppercase tracking-[0.35em] text-neutral-900">{t.pay_receipt}</p>
+              <p className="text-[11px] text-neutral-500 mt-1.5">
+                {isNaN(parseInt(tableNum)) ? tableNum : `${t.kds_table} ${tableNum}`}
+                {guests > 0 ? ` · ${guests} ${t.pay_guests}` : ''}
+              </p>
             </div>
-            <div className="space-y-1 pt-1">
+
+            {/* Meta */}
+            <div className="shrink-0 mx-5 py-2.5 border-y border-dashed border-neutral-400/70 space-y-1">
               {[
                 [t.pay_invoice, generatedInvoiceNum || previewInvoiceNum || '—'],
                 [t.pay_order,   orderNum ? orderNum : '—'],
                 [t.pay_time,    timeStr],
               ].map(([k, v]) => (
-                <div key={k} className="flex items-center justify-between">
-                  <span className="text-xs text-white/30">{k}</span>
-                  <span className="text-xs text-white/60 tabular-nums font-mono">{v}</span>
+                <div key={k} className="flex items-center justify-between text-[11px]">
+                  <span className="text-neutral-500">{k}</span>
+                  <span className="text-neutral-700 tabular-nums" dir="ltr">{v}</span>
                 </div>
               ))}
             </div>
-          </div>
 
-          {/* Items */}
-          <div className="flex-1 overflow-y-auto">
-            <div className="p-4 space-y-3">
-              {items.map((item, i) => (
-                <div key={i} className="flex items-start justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-amber-400/70 tabular-nums w-4 shrink-0">{item.qty}</span>
-                      <p className="text-sm text-white/80 truncate">{item.name}</p>
+            {/* Items */}
+            <div className="flex-1 min-h-0 overflow-y-auto px-5 py-3">
+              <div className="space-y-2.5">
+                {items.map((item, i) => (
+                  <div key={i} className="leading-tight">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="text-[13px] font-bold text-neutral-900 truncate">
+                        <span className="text-neutral-500">{item.qty}×</span> {item.name}
+                      </span>
+                      <span className="text-[15px] font-bold text-neutral-900 tabular-nums shrink-0">
+                        {formatPrice(item.price * item.qty)}
+                      </span>
                     </div>
-                    <p className="text-xs text-white/25 ml-6">×{formatPrice(item.price)}</p>
+                    <p className="text-[11px] text-neutral-400 tabular-nums">×{formatPrice(item.price)}</p>
                   </div>
-                  <span className="text-sm font-semibold text-white/70 tabular-nums shrink-0">
-                    {formatPrice(item.price * item.qty)}
-                  </span>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
 
-          {/* Totals */}
-          <div className="shrink-0 border-t border-white/8 p-4 space-y-2">
-            {invoiceNote && (
-              <div className="px-3 py-2 rounded-xl bg-cyan-500/8 border border-cyan-500/20 text-xs text-cyan-300/70 italic">
-                {invoiceNote}
+            {/* Totals */}
+            <div className="shrink-0 mx-5 mb-4 pt-2.5 border-t border-dashed border-neutral-400/70 space-y-1.5">
+              {invoiceNote && (
+                <p className="text-[11px] italic text-neutral-500 pb-1">“{invoiceNote}”</p>
+              )}
+              <div className="flex justify-between text-[12px] text-neutral-500">
+                <span>{t.pay_subtotal}</span>
+                <span className="tabular-nums">{formatPrice(total)}</span>
               </div>
-            )}
-            <div className="flex justify-between text-sm text-white/40">
-              <span>{t.pay_subtotal}</span>
-              <span className="tabular-nums">{formatPrice(total)}</span>
-            </div>
-            {appliedDiscount && (
-              <div className="flex justify-between text-sm text-emerald-400">
-                <span>{appliedDiscount.name}</span>
-                <span className="tabular-nums">−{formatPrice(discountAmount)}</span>
+              {appliedDiscount && (
+                <div className="flex justify-between text-[12px] text-emerald-700">
+                  <span>{appliedDiscount.name}</span>
+                  <span className="tabular-nums">−{formatPrice(discountAmount)}</span>
+                </div>
+              )}
+              {appliedSurcharge && (
+                <div className="flex justify-between text-[12px] text-neutral-600">
+                  <span>{appliedSurcharge.name}</span>
+                  <span className="tabular-nums">+{formatPrice(surchargeAmount)}</span>
+                </div>
+              )}
+              <div className="flex justify-between items-baseline pt-2 mt-1 border-t-2 border-double border-neutral-800">
+                <span className="text-[13px] font-bold uppercase tracking-wide text-neutral-900">{t.pay_total}</span>
+                <span className="text-[24px] font-extrabold text-neutral-900 tabular-nums">{formatPrice(finalTotal)}</span>
               </div>
-            )}
-            {appliedSurcharge && (
-              <div className="flex justify-between text-sm text-lime-400">
-                <span>{appliedSurcharge.name}</span>
-                <span className="tabular-nums">+{formatPrice(surchargeAmount)}</span>
-              </div>
-            )}
-            <div className="flex justify-between text-base font-bold text-white pt-1 border-t border-white/8">
-              <span>{t.pay_total}</span>
-              <span className="text-amber-400 tabular-nums">{formatPrice(finalTotal)}</span>
+              <p className="text-center text-[10px] tracking-[0.3em] text-neutral-400 pt-2">• • • • • • •</p>
             </div>
           </div>
         </div>

@@ -13,31 +13,31 @@ interface Props {
 export function SentRow({ item, onAction, formatPrice }: Props) {
   const { t: tr } = useLanguage()
   const statusCfg = item.status === 'ready'
-    ? { bg: 'bg-emerald-500/8',  border: 'border-emerald-500/25', badge: 'bg-emerald-500/20 text-emerald-400', label: tr.ord_status_ready   }
+    ? { bg: 'bg-emerald-500/8',  border: 'border-emerald-500/25', badge: 'bg-emerald-500 text-white', label: tr.ord_status_ready   }
     : item.status === 'cooking'
-    ? { bg: 'bg-blue-500/8',     border: 'border-blue-500/20',    badge: 'bg-blue-500/20 text-blue-400',       label: tr.ord_status_cooking }
+    ? { bg: 'bg-blue-500/8',     border: 'border-blue-500/20',    badge: 'bg-blue-500 text-white',    label: tr.ord_status_cooking }
     : item.status === 'queued'
-    ? { bg: 'bg-amber-500/6',    border: 'border-amber-500/20',   badge: 'bg-amber-500/20 text-amber-400',     label: tr.ord_status_queued  }
-    : { bg: 'bg-white/4',        border: 'border-white/8',        badge: 'bg-white/8 text-white/35',           label: tr.ord_status_sent    }
+    ? { bg: 'bg-amber-500/6',    border: 'border-amber-500/20',   badge: 'bg-amber-500 text-white',   label: tr.ord_status_queued  }
+    : { bg: 'bg-white/4',        border: 'border-white/8',        badge: 'bg-slate-600 text-white',   label: tr.ord_status_sent    }
 
   return (
     <button
       onClick={onAction}
-      className={cn('w-full rounded-xl border overflow-hidden text-left transition-all active:scale-[0.99] touch-manipulation', statusCfg.bg, statusCfg.border)}
+      className={cn('w-full rounded-xl sm:rounded-2xl border overflow-hidden text-start transition-all active:scale-[0.99] touch-manipulation', statusCfg.bg, statusCfg.border)}
     >
-      <div className="flex items-center gap-2.5 px-3 py-2.5">
+      <div className="flex items-center gap-2.5 sm:gap-3 px-3 py-2.5 sm:px-4 sm:py-3.5">
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-white/85 truncate leading-tight">{item.item_name}</p>
-          <p className="text-xs text-white/40 tabular-nums mt-0.5">{formatPrice(item.item_price * item.qty)}</p>
+          <p className="text-sm sm:text-lg font-semibold text-white/90 truncate leading-tight">{item.item_name}</p>
+          <p className="text-base sm:text-lg font-bold text-amber-400 tabular-nums mt-0.5 sm:mt-1">{formatPrice(item.item_price * item.qty)}</p>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <span className="text-xs font-bold text-white/40 tabular-nums">×{item.qty}</span>
-          <span className={cn('text-[10px] font-bold px-1.5 py-0.5 rounded-md', statusCfg.badge)}>{statusCfg.label}</span>
-          <ChevronRight className="w-3.5 h-3.5 text-white/20" />
+        <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+          <span className="text-sm sm:text-base font-bold text-white/60 tabular-nums">×{item.qty}</span>
+          <span className={cn('text-xs sm:text-sm font-bold px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg', statusCfg.badge)}>{statusCfg.label}</span>
+          <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-white/25" />
         </div>
       </div>
       {item.note && (
-        <p className="px-3 pb-2 text-[11px] text-cyan-400/60 italic leading-tight">📝 {item.note}</p>
+        <p className="px-3 pb-2 sm:px-4 sm:pb-3 text-[11px] sm:text-xs text-cyan-400/70 italic leading-snug">📝 {item.note}</p>
       )}
     </button>
   )
