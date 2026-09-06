@@ -2,10 +2,11 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import useSWR from 'swr'
-import { Delete, ChefHat, Clock, Loader2, CheckCircle2, Download } from 'lucide-react'
+import { Delete, ChefHat, Clock, Loader2, CheckCircle2, Download, ArrowLeftRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { getStaffHome } from '@/lib/permissions/staffHome'
+import { getRuntime } from '@/lib/appUpdate'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 const supabase = createClient()
@@ -47,13 +48,16 @@ export default function POSLoginPage() {
   const [pin, setPin]   = useState('')
   const [status, setStatus] = useState<'idle' | 'checking' | 'success' | 'error'>('idle')
   const [shake, setShake]   = useState(false)
-  const [time, setTime]     = useState(new Date())
+  const [time, setTime]     = useState<Date | null>(null)
   const [deferredInstall, setDeferredInstall] = useState<any>(null)
   const [installed, setInstalled]             = useState(false)
   const [isAndroid, setIsAndroid]             = useState(false)
+  // True inside the native APK / Electron shell — the install button is web-only.
+  const [isNativeShell, setIsNativeShell]     = useState(false)
 
   useEffect(() => {
     if (typeof window === 'undefined') return
+    setIsNativeShell(getRuntime() !== 'web')
     setIsAndroid(/Android/i.test(navigator.userAgent))
     if (window.matchMedia('(display-mode: standalone)').matches) { setInstalled(true); return }
     const handler = (e: Event) => { e.preventDefault(); setDeferredInstall(e) }
@@ -70,8 +74,9 @@ export default function POSLoginPage() {
     setDeferredInstall(null)
   }
 
-  // Clock tick
+  // Clock tick — first value is set on mount so SSR and client markup match (no hydration mismatch)
   useEffect(() => {
+    setTime(new Date())
     const t = setInterval(() => setTime(new Date()), 1000)
     return () => clearInterval(t)
   }, [])
@@ -152,8 +157,8 @@ export default function POSLoginPage() {
   }, [handleKey])
 
   const dateLocale = DATE_LOCALE[lang] ?? 'en-US'
-  const formattedTime = time.toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit', hour12: true })
-  const formattedDate = time.toLocaleDateString(dateLocale, { weekday: 'long', month: 'long', day: 'numeric' })
+  const formattedTime = time?.toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit', hour12: true }) ?? ' '
+  const formattedDate = time?.toLocaleDateString(dateLocale, { weekday: 'long', month: 'long', day: 'numeric' }) ?? ' '
 
   return (
     <div className="min-h-screen bg-[#022658] flex flex-col items-center justify-center overflow-hidden relative select-none">
@@ -192,24 +197,24 @@ export default function POSLoginPage() {
       </div>
 
       {/* PIN card */}
-      <div className="relative z-10 w-full max-w-sm px-4">
+      <div className="relative z-10 w-full max-w-sm sm:max-w-md md:max-w-xl lg:max-w-2xl px-4">
 
         {/* Restaurant logo / icon */}
         <div className="flex flex-col items-center mb-8">
-          <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-amber-400/20 to-orange-500/20 border border-amber-500/20 flex items-center justify-center mb-4 shadow-2xl shadow-amber-500/10 overflow-hidden">
+          <div className="w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 rounded-3xl bg-gradient-to-br from-amber-400/20 to-orange-500/20 border border-amber-500/20 flex items-center justify-center mb-4 shadow-2xl shadow-amber-500/10 overflow-hidden">
             {restaurant?.logo_url
               ? <img src={restaurant.logo_url} alt={restaurant.name} className="w-full h-full object-cover" />
-              : <ChefHat className="w-9 h-9 text-amber-400" />}
+              : <ChefHat className="w-9 h-9 sm:w-11 sm:h-11 md:w-14 md:h-14 text-amber-400" />}
           </div>
-          <h1 className="text-2xl font-bold text-white">{t.pl_enter_pin}</h1>
-          <p className="text-white/35 text-sm mt-1">{t.pl_pin_subtitle}</p>
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white">{t.pl_enter_pin}</h1>
+          <p className="text-white/35 text-sm sm:text-base md:text-lg mt-1">{t.pl_pin_subtitle}</p>
         </div>
 
         {/* PIN dots */}
-        <div className={cn('flex justify-center gap-5 mb-8', shake && 'animate-[pinShake_0.45s_ease-in-out]')}>
+        <div className={cn('flex justify-center gap-5 sm:gap-6 md:gap-8 mb-8 md:mb-10', shake && 'animate-[pinShake_0.45s_ease-in-out]')}>
           {[0, 1, 2, 3, 4, 5].map(i => (
             <div key={i} className={cn(
-              'w-5 h-5 rounded-full border-2 transition-all duration-150',
+              'w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8 rounded-full border-2 transition-all duration-150',
               status === 'success'   ? 'bg-emerald-400 border-emerald-400 scale-110'
               : status === 'error'  ? 'bg-rose-400 border-rose-400'
               : status === 'checking' && i < pin.length ? 'bg-amber-400 border-amber-400 scale-110 animate-pulse'
@@ -240,8 +245,8 @@ export default function POSLoginPage() {
         </div>
 
         {/* Number pad */}
-        <div className="rounded-3xl border border-white/10 bg-white/4 backdrop-blur-2xl p-4 shadow-2xl shadow-black/40">
-          <div className="grid grid-cols-3 gap-3" dir="ltr">
+        <div className="rounded-3xl border border-white/10 bg-white/4 backdrop-blur-2xl p-4 sm:p-5 md:p-7 shadow-2xl shadow-black/40">
+          <div className="grid grid-cols-3 gap-3 sm:gap-4 md:gap-5" dir="ltr">
             {KEYS.map(key => {
               const isAction = key === 'del' || key === 'clr'
               const disabled = status === 'checking' || status === 'success'
@@ -251,13 +256,13 @@ export default function POSLoginPage() {
                   onClick={() => handleKey(key)}
                   disabled={disabled}
                   className={cn(
-                    'relative h-[68px] rounded-2xl font-semibold text-2xl transition-all duration-100 touch-manipulation active:scale-[0.92] disabled:opacity-40',
+                    'relative h-[68px] sm:h-[92px] md:h-[150px] rounded-2xl md:rounded-3xl font-semibold text-2xl sm:text-3xl md:text-5xl transition-all duration-100 touch-manipulation active:scale-[0.92] disabled:opacity-40',
                     isAction
-                      ? 'bg-white/5 border border-white/8 text-white/45 hover:bg-white/10 hover:text-white/70 text-base'
+                      ? 'bg-white/5 border border-white/8 text-white/45 hover:bg-white/10 hover:text-white/70 text-base sm:text-lg md:text-2xl'
                       : 'bg-white/8 border border-white/12 text-white hover:bg-white/14 hover:border-white/20 active:bg-white/20 shadow-sm'
                   )}
                 >
-                  {key === 'del' ? <Delete className="w-5 h-5 mx-auto" /> : key === 'clr' ? t.pl_clr : key}
+                  {key === 'del' ? <Delete className="w-5 h-5 sm:w-7 sm:h-7 md:w-11 md:h-11 mx-auto" /> : key === 'clr' ? t.pl_clr : key}
                 </button>
               )
             })}
@@ -268,7 +273,7 @@ export default function POSLoginPage() {
           {t.pl_forgot}
         </p>
 
-        <div className="mt-3 flex justify-center">
+        <div className="mt-4 flex justify-center">
           <button
             onClick={() => {
               ['restaurant_id','restaurant_name','restaurant_slug','owner_session',
@@ -277,13 +282,15 @@ export default function POSLoginPage() {
               sessionStorage.removeItem('pos_session_active')
               router.replace('/restaurant-login')
             }}
-            className="text-xs text-white/15 hover:text-white/40 transition-colors underline underline-offset-2"
+            className="flex items-center gap-2 px-4 py-2 sm:px-5 sm:py-2.5 rounded-2xl text-xs sm:text-sm font-semibold transition-all active:scale-95 border bg-white/8 border-white/15 text-white/70 hover:bg-white/14 hover:text-white hover:border-white/25"
           >
+            <ArrowLeftRight className="w-4 h-4" />
             {t.pl_change_account}
           </button>
         </div>
 
-        {/* Install App button */}
+        {/* Install App button — web only; hidden inside the native APK / Electron shell */}
+        {!isNativeShell && (
         <div className="mt-5 flex justify-center">
           {isAndroid ? (
             // Android: download and install the native APK
@@ -318,6 +325,7 @@ export default function POSLoginPage() {
             </button>
           ) : null}
         </div>
+        )}
       </div>
 
       <style jsx>{`
