@@ -42,8 +42,18 @@ npm run build:win
 #   electron-app/dist/latest.yml
 ```
 
-`npm run release:win` instead will build **and** publish to GitHub Releases in one
-step if `GH_TOKEN` is set (`export GH_TOKEN=<a repo-scoped PAT>`).
+**Prefer `npm run release:win`** — it builds **and** uploads to GitHub Releases in
+one step if `GH_TOKEN` is set (`export GH_TOKEN=<a repo-scoped PAT>`), and it
+uploads the `.exe` under the exact name `latest.yml` expects. Doing it by hand
+(below) needs one rename first, because electron-builder writes `latest.yml`
+pointing at a hyphenated name while the file on disk has spaces:
+
+```bash
+cd electron-app/dist
+mv "ClickGroup POS Setup 1.2.0.exe"          "ClickGroup-POS-Setup-1.2.0.exe"
+mv "ClickGroup POS Setup 1.2.0.exe.blockmap" "ClickGroup-POS-Setup-1.2.0.exe.blockmap"
+cd ../..
+```
 
 ### Build the 4 APKs
 
@@ -64,8 +74,8 @@ and the output is **not** an in-place update for real installs.
 ```bash
 gh release create v1.2 \
   "electron-app/dist/latest.yml" \
-  "electron-app/dist/ClickGroup POS Setup 1.2.0.exe" \
-  "electron-app/dist/ClickGroup POS Setup 1.2.0.exe.blockmap" \
+  "electron-app/dist/ClickGroup-POS-Setup-1.2.0.exe" \
+  "electron-app/dist/ClickGroup-POS-Setup-1.2.0.exe.blockmap" \
   "android/app/build/outputs/apk/cashier/release/app-cashier-release.apk" \
   "android/app/build/outputs/apk/driver/release/app-driver-release.apk" \
   "android/app/build/outputs/apk/seller/release/app-seller-release.apk" \
