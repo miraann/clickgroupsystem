@@ -32,8 +32,12 @@ async function grantSession(
   role: 'owner' | 'staff',
   body: Record<string, unknown>,
   clearPending: boolean,
+  staff?: { sid: string; rlid: string | null },
 ): Promise<NextResponse> {
-  const token = await createRestaurantToken(restaurantId, role)
+  const token = await createRestaurantToken(restaurantId, role, {
+    sid:  staff?.sid,
+    rlid: staff?.rlid ?? undefined,
+  })
   const res = NextResponse.json(body)
   res.cookies.set(RESTAURANT_COOKIE, token, { ...COOKIE_OPTS, maxAge: 8 * 3600 })
   if (clearPending) res.cookies.set(RESTAURANT_PENDING_COOKIE, '', { ...COOKIE_OPTS, maxAge: 0 })
@@ -139,7 +143,7 @@ export async function POST(req: NextRequest) {
         permissions: rolePermissions,
         roleName,
       },
-    }, false)
+    }, false, { sid: staffRow.id as string, rlid: (staffRow.role_id as string | null) ?? null })
   } catch {
     return NextResponse.json({ error: 'Internal error.' }, { status: 500 })
   }

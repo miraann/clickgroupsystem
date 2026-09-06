@@ -224,7 +224,7 @@ export default function AdvancedPage() {
   const { t } = useLanguage()
   const supabase = useMemo(() => createClient(), [])
   const { restaurantId, settings, setSettings, loading, saveState, save } =
-    useRestaurantSettings<AdvancedSettings>(DEFAULTS)
+    useRestaurantSettings<AdvancedSettings>(DEFAULTS, '@owner')
 
   const [isOnline,     setIsOnline]     = useState(true)
   const [caching,      setCaching]      = useState(false)

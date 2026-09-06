@@ -78,7 +78,7 @@ const TOGGLE = 'bg-violet-500'
 export default function CoffeeBarPage() {
   const { t } = useLanguage()
   const { settings: cfg, setSettings: setCfg, loading, saveState, save, autoSave } =
-    useRestaurantSettings<BarSettings>(DEFAULTS)
+    useRestaurantSettings<BarSettings>(DEFAULTS, 'settings.bar')
 
   return (
     <motion.div variants={PAGE} initial="hidden" animate="show" className="space-y-6 max-w-2xl">

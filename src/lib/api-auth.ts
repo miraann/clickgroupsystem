@@ -12,7 +12,7 @@ import {
   verifySellerToken, SELLER_COOKIE,
 } from '@/lib/session'
 
-type Guard<T> =
+export type Guard<T> =
   | { session: T; error: null }
   | { session: null; error: NextResponse }
 

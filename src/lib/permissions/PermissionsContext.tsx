@@ -2,6 +2,7 @@
 import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRestaurant } from '@/hooks/useRestaurant'
+import { hasPermission } from '@/lib/permissions/check'
 
 type Permissions = Record<string, boolean>
 
@@ -169,14 +170,11 @@ export function PermissionsProvider({ children }: { children: React.ReactNode })
 
   // Some permission tree entries are parent/group keys (e.g. "menu") that are
   // never themselves stored true — only their leaf children are (e.g.
-  // "menu.item"). Use canAny to gate access on "has at least one permission
-  // under this prefix", which works for both a real leaf key and a group key.
+  // "menu.item"). canAny gates on "has at least one permission under this
+  // prefix" (or the key itself), working for both a real leaf and a group key.
+  // Shares hasPermission() with the server-side requirePermission guard.
   const canAny = useCallback(
-    (prefix: string) => {
-      if (isOwner) return true
-      if (permissions[prefix] === true) return true
-      return Object.keys(permissions).some(k => k.startsWith(`${prefix}.`) && permissions[k] === true)
-    },
+    (prefix: string) => isOwner || hasPermission(permissions, prefix),
     [isOwner, permissions],
   )
 

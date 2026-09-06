@@ -23,6 +23,25 @@ signing certs and cannot be applied from code alone.
 | L5 | Touched routes return generic error text; details go to `console.error`. |
 | — | `.github/workflows/ci.yml` — lint (non-blocking) + typecheck + build on every push/PR. |
 | Seller panel | `src/app/api/seller/restaurants/route.ts` (behind `requireSeller`) now backs the list / create / edit / suspend / delete flows — the modals + list page no longer touch Supabase directly. **Create auto-provisions** the auth user + `restaurant_secrets` (hashed password + owner PIN) via `src/lib/provision.ts`, so `scripts/provision-auth-users.mjs` is only a one-time backfill. Delete also removes the auth user. Owner email is now required (it's the login username). |
+| Settings role gate (follow-up to `7d1cf46`) | **Layout gate**: `settings/layout.tsx` now default-**denies** any `/dashboard/settings/*` route with no `NAV_GROUPS`/`EXTRA_PERM_MAP` entry for non-owners (was: unmapped routes rendered to anyone who could open Settings). **Server enforcement**: post-C1 every staff of a restaurant shares one Supabase auth user, so RLS can't tell roles apart — role permissions are now checked server-side by `requirePermission()` (`src/lib/permissions/server.ts`), keyed off `sid`/`rlid` added to the signed `__pos_restaurant` token at PIN login (`src/lib/session.ts`, `api/pos/login`). Guarded routes: `api/settings/roles` + `api/settings/staff` (`settings.users`), `api/settings/restaurant` (the `restaurants.settings` blob — caller passes its `permKey`, backs `useRestaurantSettings`), `api/settings/database` (owner-only + owner-PIN re-verify for restore / GDPR-delete). `hasPermission()` (`src/lib/permissions/check.ts`) is shared with the client `canAny`. |
+
+**Still client-side + tenant-RLS only (follow-up, not privilege-escalation):** the
+other ~28 settings pages write directly to Supabase — menu management, devices/
+printers, delivery zones, expenses, inventory, members, customers, currencies,
+whatsapp templates, void reasons, surcharges, tables. Tenant RLS scopes them to
+the restaurant; a same-restaurant role can still edit them via a direct client
+call regardless of its `settings.*` permissions. Move behind guarded routes if
+per-role control of those is required.
+
+**Middleware (`src/proxy.ts`) is intentionally not the enforcement point for
+role permissions:** it runs on the Edge with no DB access, has no staff identity,
+and its failure mode is an HTML redirect (wrong for a JSON API caller). It stays
+the coarse signed-cookie gate for `/dashboard/*` pages; per-permission checks
+live in the route handlers via `requirePermission()`.
+
+> **Existing PIN sessions:** a staff token minted before this change carries no
+> `rlid`; guarded routes return 403 for it until the user re-enters their PIN
+> (8 h token TTL). Only the 4 guarded mutation classes are affected.
 
 ---
 

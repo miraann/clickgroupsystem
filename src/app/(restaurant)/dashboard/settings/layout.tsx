@@ -25,6 +25,14 @@ import { useRestaurant } from '@/hooks/useRestaurant'
 interface NavItem  { labelKey: TranslationKey; href: string; icon: LucideIcon; permKey?: string; ownerOnly?: boolean }
 interface NavGroup { labelKey: TranslationKey; items: NavItem[] }
 
+// Routes that have a real settings page but no NAV_GROUPS entry (no tile / nav
+// item). They must still be gated — otherwise a deep link renders to any staff
+// who can reach /dashboard/settings. Value is the permKey (canAny) required.
+const EXTRA_PERM_MAP: Record<string, string> = {
+  '/dashboard/settings/sales':  'finance.report',
+  '/dashboard/settings/report': 'finance.report',
+}
+
 const NAV_GROUPS: NavGroup[] = [
   {
     labelKey: 'sg_general',
@@ -91,16 +99,24 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
   const isHome      = pathname === '/dashboard/settings'
   const isWidePage  = pathname === '/dashboard/settings/whatsapp' || pathname === '/dashboard/settings/appearance' || pathname === '/dashboard/settings/audit-log' || pathname === '/dashboard/settings/delivery' || pathname === '/dashboard/settings/receipt' || pathname === '/dashboard/settings/users'
   const currentItem = NAV_GROUPS.flatMap(g => g.items).find(i => i.href === pathname || pathname.startsWith(i.href + '/'))
+  const extraKey = Object.entries(EXTRA_PERM_MAP)
+    .find(([base]) => pathname === base || pathname.startsWith(base + '/'))?.[1]
+  const knownRoute = !!currentItem || !!extraKey
 
   // Role-permission gate — separate from the plan/module gate below. Owner
-  // always passes; PIN/auth staff need the page's permKey (or must not be
-  // ownerOnly). Pages absent from NAV_GROUPS (none currently) are left open.
+  // always passes. Every other settings sub-page is DENIED by default unless it
+  // resolves to a permKey (NAV_GROUPS or EXTRA_PERM_MAP) the role satisfies; an
+  // ownerOnly page or an unmapped route is denied for all non-owners.
   const { isOwner, canAny, loading: permsLoading } = usePermissions()
   // Block rendering (rather than briefly showing then hiding) while
   // permissions are still resolving — isOwner/canAny aren't trustworthy yet.
-  const permCheckPending = !isHome && !!currentItem && permsLoading
-  const permissionDenied = !isHome && !!currentItem && !permsLoading && !isOwner &&
-    (currentItem.ownerOnly || (!!currentItem.permKey && !canAny(currentItem.permKey)))
+  const permCheckPending = !isHome && permsLoading
+  const permissionDenied = !isHome && !permsLoading && !isOwner && (
+    !knownRoute ||
+    currentItem?.ownerOnly === true ||
+    (!!currentItem?.permKey && !canAny(currentItem.permKey)) ||
+    (!!extraKey && !canAny(extraKey))
+  )
 
 
   // Module gate — derived from the shared useRestaurant() settings cache, so

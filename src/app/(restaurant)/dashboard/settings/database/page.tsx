@@ -33,14 +33,6 @@ const RETENTION_OPTIONS = [
   { value: 365, labelKey: 'db_ret_1yr' as const },
 ]
 
-// Tables exported by full backup (all have restaurant_id)
-const EXPORT_TABLES = [
-  'menu_categories', 'menu_items', 'staff', 'tables', 'table_groups',
-  'customers', 'members', 'reservations', 'discounts', 'payment_methods',
-  'surcharges', 'void_reasons', 'kitchen_notes', 'customer_feedback',
-  'delivery_zones', 'inventory_categories', 'inventory_items',
-]
-
 // ── Animation ────────────────────────────────────────────────────
 const CONTAINER: Variants = {
   hidden: {},
@@ -56,7 +48,7 @@ export default function DatabasePage() {
   const { t } = useLanguage()
   const supabase = useMemo(() => createClient(), [])
   const { restaurantId, settings, setSettings, loading, saveState, save } =
-    useRestaurantSettings<DbSettings>(DEFAULTS)
+    useRestaurantSettings<DbSettings>(DEFAULTS, '@owner')
 
   // Storage counts
   type StatKey = 'db_orders' | 'db_customers' | 'db_menu_items' | 'db_staff' | 'db_members' | 'db_reservations'
@@ -71,13 +63,12 @@ export default function DatabasePage() {
   const [cleanResult,  setCleanResult]  = useState<string | null>(null)
   const [cleanError,   setCleanError]   = useState(false)
 
-  // GDPR modal
+  // GDPR modal — PIN is verified server-side by /api/settings/database
   const [gdprModal,    setGdprModal]    = useState(false)
   const [gdprConfirm,  setGdprConfirm]  = useState('')
   const [gdprDeleting, setGdprDeleting] = useState(false)
   const [gdprDone,     setGdprDone]     = useState(false)
   const [gdprError,    setGdprError]    = useState(false)
-  const [ownerPin,     setOwnerPin]     = useState<string | null>(null)
 
   // Restore
   const fileRef = useRef<HTMLInputElement>(null)
@@ -86,6 +77,7 @@ export default function DatabasePage() {
   const [restorePreview, setRestorePreview] = useState<Record<string, number>>({})
   const [restoreData,    setRestoreData]    = useState<Record<string, unknown[]> | null>(null)
   const [restoreError,   setRestoreError]   = useState<string | null>(null)
+  const [restorePin,     setRestorePin]     = useState('')
 
   // ── Load storage counts ─────────────────────────────────────────
   useEffect(() => {
@@ -113,51 +105,26 @@ export default function DatabasePage() {
     load()
   }, [restaurantId, supabase])
 
-  // ── Load owner PIN (required to confirm GDPR deletion) ──────────
-  useEffect(() => {
-    if (!restaurantId) return
-    supabase
-      .from('restaurants')
-      .select('settings')
-      .eq('id', restaurantId)
-      .maybeSingle()
-      .then(({ data }) => {
-        const s = (data?.settings ?? {}) as Record<string, unknown>
-        setOwnerPin(typeof s.owner_pin === 'string' && s.owner_pin ? s.owner_pin : null)
-      })
-  }, [restaurantId, supabase])
-
   // ── Export backup ───────────────────────────────────────────────
   const handleExport = async () => {
     if (!restaurantId) return
     setExporting(true)
-    const result: Record<string, unknown[]> = {}
-
-    // Orders with nested items
-    const { data: orders } = await supabase
-      .from('orders')
-      .select('*, order_items(*)')
-      .eq('restaurant_id', restaurantId)
-    result.orders = orders ?? []
-
-    // All other tables in parallel
-    await Promise.all(
-      EXPORT_TABLES.map(async (table) => {
-        const { data } = await supabase.from(table).select('*').eq('restaurant_id', restaurantId)
-        result[table] = data ?? []
+    try {
+      const res = await fetch('/api/settings/database', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'export' }),
       })
-    )
+      const json = await res.json()
+      if (!res.ok) throw new Error(json?.error ?? 'Export failed')
 
-    const blob = new Blob(
-      [JSON.stringify({ exported_at: new Date().toISOString(), restaurant_id: restaurantId, tables: result }, null, 2)],
-      { type: 'application/json' }
-    )
-    const url = URL.createObjectURL(blob)
-    const a   = document.createElement('a')
-    a.href     = url
-    a.download = `backup-${restaurantId}-${new Date().toISOString().slice(0, 10)}.json`
-    a.click()
-    URL.revokeObjectURL(url)
+      const blob = new Blob([JSON.stringify(json, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a   = document.createElement('a')
+      a.href     = url
+      a.download = `backup-${restaurantId}-${new Date().toISOString().slice(0, 10)}.json`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch { /* silent — button returns to idle */ }
     setExporting(false)
   }
 
@@ -167,37 +134,39 @@ export default function DatabasePage() {
     setCleaning(true)
     setCleanResult(null)
     setCleanError(false)
-    const cutoff = new Date()
-    cutoff.setDate(cutoff.getDate() - settings.retention_days)
-    const { count, error } = await supabase
-      .from('orders')
-      .delete({ count: 'exact' })
-      .eq('restaurant_id', restaurantId)
-      .in('status', ['completed', 'cancelled', 'void'])
-      .lt('created_at', cutoff.toISOString())
+    try {
+      const res = await fetch('/api/settings/database', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'wipe-orders', retention_days: settings.retention_days }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json?.error ?? 'Cleanup failed')
+      setCleanResult(t.db_removed_records.replace('{n}', String(json.deleted ?? 0)))
+    } catch (e) {
+      setCleanError(true)
+      setCleanResult(t.db_cleanup_error.replace('{msg}', e instanceof Error ? e.message : 'error'))
+    }
     setCleaning(false)
-    setCleanError(!!error)
-    setCleanResult(error
-      ? t.db_cleanup_error.replace('{msg}', error.message)
-      : t.db_removed_records.replace('{n}', String(count ?? 0)))
   }
 
   // ── GDPR delete ─────────────────────────────────────────────────
   const handleGdprDelete = async () => {
-    if (!restaurantId || !ownerPin) return
-    if (gdprConfirm !== ownerPin) { setGdprError(true); return }
+    if (!restaurantId || gdprConfirm.length < 4) return
     setGdprError(false)
     setGdprDeleting(true)
-    await Promise.all([
-      supabase.from('customers').delete().eq('restaurant_id', restaurantId),
-      supabase.from('members').delete().eq('restaurant_id', restaurantId),
-      supabase.from('reservations').delete().eq('restaurant_id', restaurantId),
-      supabase.from('customer_feedback').delete().eq('restaurant_id', restaurantId),
-    ])
-    setGdprDeleting(false)
-    setGdprModal(false)
-    setGdprDone(true)
-    setTimeout(() => setGdprDone(false), 5000)
+    try {
+      const res = await fetch('/api/settings/database', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'gdpr-delete', pin: gdprConfirm }),
+      })
+      if (!res.ok) { setGdprError(true); setGdprDeleting(false); return }
+      setGdprDeleting(false)
+      setGdprModal(false)
+      setGdprDone(true)
+      setTimeout(() => setGdprDone(false), 5000)
+    } catch {
+      setGdprError(true); setGdprDeleting(false)
+    }
   }
 
   // ── Restore: parse file ─────────────────────────────────────────
@@ -226,27 +195,18 @@ export default function DatabasePage() {
     reader.readAsText(file)
   }
 
-  // ── Restore: upsert ─────────────────────────────────────────────
+  // ── Restore: upsert (server-side, owner PIN required) ───────────
   const handleRestore = async () => {
-    if (!restoreData || !restaurantId) return
+    if (!restoreData || !restaurantId || restorePin.length < 4) return
     setRestoreState('restoring')
     setRestoreError(null)
     try {
-      for (const [table, rows] of Object.entries(restoreData)) {
-        if (!Array.isArray(rows) || rows.length === 0) continue
-        if (table === 'orders') {
-          const orderRows = rows.map((r) => {
-            const { order_items: _, ...row } = r as Record<string, unknown>
-            return row
-          })
-          const allItems = rows.flatMap((r) => ((r as Record<string, unknown>).order_items ?? []) as unknown[])
-          await supabase.from('orders').upsert(orderRows as never[], { onConflict: 'id', ignoreDuplicates: false })
-          if (allItems.length > 0)
-            await supabase.from('order_items').upsert(allItems as never[], { onConflict: 'id', ignoreDuplicates: false })
-        } else {
-          await supabase.from(table).upsert(rows as never[], { onConflict: 'id', ignoreDuplicates: false })
-        }
-      }
+      const res = await fetch('/api/settings/database', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'restore', pin: restorePin, tables: restoreData }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error ?? 'Restore failed')
       setRestoreState('done')
     } catch (err) {
       setRestoreError(err instanceof Error ? err.message : 'Restore failed')
@@ -258,6 +218,7 @@ export default function DatabasePage() {
     setRestoreState('idle')
     setRestoreData(null)
     setRestoreError(null)
+    setRestorePin('')
     if (fileRef.current) fileRef.current.value = ''
   }
 
@@ -499,13 +460,24 @@ export default function DatabasePage() {
                   </div>
                 ))}
               </div>
+              <input
+                type="password"
+                inputMode="numeric"
+                autoComplete="off"
+                maxLength={8}
+                value={restorePin}
+                onChange={e => setRestorePin(e.target.value.replace(/\D/g, ''))}
+                placeholder={t.db_modal_enter_pin}
+                className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm text-white placeholder-white/25 focus:outline-none focus:border-violet-500/50 transition-all tracking-[0.4em]"
+              />
               <div className="flex gap-3 pt-1">
                 <button onClick={resetRestore}
                   className="flex-1 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/50 text-sm hover:bg-white/8 transition-all">
                   {t.cancel}
                 </button>
                 <button onClick={handleRestore}
-                  className="flex-1 py-2.5 rounded-xl bg-violet-500/20 border border-violet-500/30 text-violet-300 text-sm font-medium hover:bg-violet-500/30 transition-all flex items-center justify-center gap-2">
+                  disabled={restorePin.length < 4}
+                  className="flex-1 py-2.5 rounded-xl bg-violet-500/20 border border-violet-500/30 text-violet-300 text-sm font-medium hover:bg-violet-500/30 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2">
                   <Upload className="w-4 h-4" /> {t.db_restore_now}
                 </button>
               </div>
@@ -588,13 +560,9 @@ export default function DatabasePage() {
                   onChange={e => { setGdprConfirm(e.target.value.replace(/\D/g, '')); setGdprError(false) }}
                   placeholder={t.db_modal_pin_ph}
                   autoFocus
-                  disabled={!ownerPin}
-                  className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm text-white placeholder-white/20 focus:outline-none focus:border-rose-500/50 transition-all disabled:opacity-40 disabled:cursor-not-allowed tracking-[0.4em]"
+                  className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm text-white placeholder-white/20 focus:outline-none focus:border-rose-500/50 transition-all tracking-[0.4em]"
                 />
-                {!ownerPin && (
-                  <p className="text-xs text-amber-400/80 mt-1.5">{t.db_modal_no_pin}</p>
-                )}
-                {gdprError && ownerPin && (
+                {gdprError && (
                   <p className="text-xs text-rose-400 mt-1.5">{t.db_modal_pin_wrong}</p>
                 )}
               </div>
@@ -606,7 +574,7 @@ export default function DatabasePage() {
                 </button>
                 <button
                   onClick={handleGdprDelete}
-                  disabled={!ownerPin || gdprConfirm.length < 4 || gdprDeleting}
+                  disabled={gdprConfirm.length < 4 || gdprDeleting}
                   className="flex-1 py-2.5 rounded-xl bg-rose-500 hover:bg-rose-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium transition-all flex items-center justify-center gap-2"
                 >
                   {gdprDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}

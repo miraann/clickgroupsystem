@@ -59,17 +59,28 @@ export const RESTAURANT_COOKIE = '__pos_restaurant'
 export type RestaurantRole = 'owner' | 'staff'
 
 export interface RestaurantSession {
-  rid:  string          // restaurant_id
-  role: RestaurantRole
-  exp:  number          // unix seconds
+  rid:   string          // restaurant_id
+  role:  RestaurantRole
+  exp:   number          // unix seconds
+  sid?:  string          // staff_id — set for staff PIN sessions only
+  rlid?: string          // role_id  — set for staff PIN sessions only; keys server-side permission checks
+}
+
+interface RestaurantTokenOpts {
+  sid?:   string
+  rlid?:  string
+  ttlMs?: number
 }
 
 export async function createRestaurantToken(
   rid: string,
   role: RestaurantRole,
-  ttlMs = 8 * 3600 * 1000,
+  opts: RestaurantTokenOpts = {},
 ): Promise<string> {
+  const { sid, rlid, ttlMs = 8 * 3600 * 1000 } = opts
   const payload: RestaurantSession = { rid, role, exp: Math.floor((Date.now() + ttlMs) / 1000) }
+  if (sid)  payload.sid  = sid
+  if (rlid) payload.rlid = rlid
   return sign(toBase64Url(enc.encode(JSON.stringify(payload))))
 }
 

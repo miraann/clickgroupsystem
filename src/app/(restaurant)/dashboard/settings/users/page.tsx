@@ -3,7 +3,6 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
-import { logAudit } from '@/lib/logAudit'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { isModuleEnabled, MODULES } from '@/lib/modules'
 import { QRCodeSVG } from 'qrcode.react'
@@ -15,6 +14,20 @@ import {
 } from 'lucide-react'
 import { AnimatedList, AnimatedItem } from '@/components/ui/AnimatedList'
 import { motion, AnimatePresence } from 'framer-motion'
+
+// Staff + role mutations go through guarded API routes (server-side
+// `settings.users` permission check) — a client Supabase write here would let any
+// staff session edit roles/PINs directly.
+async function api<T = unknown>(path: string, method: string, body: unknown): Promise<T> {
+  const res = await fetch(path, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  const json = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(json?.error ?? 'Request failed')
+  return json as T
+}
 
 // ─── Staff types ────────────────────────────────────────────
 type Role = 'owner' | 'manager' | 'cashier' | 'waiter' | 'chef'
@@ -418,6 +431,7 @@ export default function UsersPage() {
   const [creatingRole, setCreatingRole] = useState(false)
   const [savingPerms, setSavingPerms] = useState(false)
   const [savedPerms, setSavedPerms] = useState(false)
+  const [permError, setPermError] = useState<string | null>(null)
   const [deletingRoleId, setDeletingRoleId] = useState<string | null>(null)
   const [rightTab, setRightTab]     = useState<'permissions' | 'staff' | 'message'>('permissions')
   const [messageText, setMessageText] = useState('')
@@ -496,37 +510,41 @@ export default function UsersPage() {
     // role_id is NOT NULL in DB — fall back to "No Role" role when none selected
     const noRoleId = roles.find(r => r.name === 'No Role')?.id ?? null
     const resolvedRoleId = editCustomRoleId ?? noRoleId
-    if (editId) {
-      const { data, error } = await supabase.from('staff').update({ name: form.name, email: form.email || null, phone: form.phone || null, role: form.role, pin: form.pin, color, status: form.status, role_id: resolvedRoleId, updated_at: new Date().toISOString() }).eq('id', editId).select().single()
-      if (error) { setSaveError(error.message); setSaving(false); return }
-      if (data) {
+    try {
+      if (editId) {
+        const { staff: data } = await api<{ staff: StaffUser & { email: string | null; phone: string | null } }>(
+          '/api/settings/staff', 'PATCH',
+          { id: editId, name: form.name, email: form.email || null, phone: form.phone || null, role: form.role, pin: form.pin, color, status: form.status, role_id: resolvedRoleId },
+        )
         setUsers(us => us.map(u => u.id === editId ? { ...u, name: data.name, email: data.email ?? '', phone: data.phone ?? '', role: data.role as Role, pin: data.pin, color: data.color, status: data.status as Status } : u))
         setRoleStaff(prev => prev.map(s => s.id === editId ? { ...s, role_id: resolvedRoleId } : s))
-      }
-    } else {
-      const { data, error } = await supabase.from('staff').insert({ restaurant_id: restaurantId, name: form.name, email: form.email || null, phone: form.phone || null, role: form.role, pin: form.pin, color, status: form.status, role_id: resolvedRoleId }).select().single()
-      if (error) { setSaveError(error.message); setSaving(false); return }
-      if (data) {
+      } else {
+        const { staff: data } = await api<{ staff: StaffUser & { email: string | null; phone: string | null } }>(
+          '/api/settings/staff', 'POST',
+          { name: form.name, email: form.email || null, phone: form.phone || null, role: form.role, pin: form.pin, color, status: form.status, role_id: resolvedRoleId },
+        )
         setUsers(us => [...us, { id: data.id, name: data.name, email: data.email ?? '', phone: data.phone ?? '', role: data.role as Role, pin: data.pin, color: data.color, status: data.status as Status }])
         setRoleStaff(prev => [...prev, { id: data.id, name: data.name, email: data.email ?? '', role: data.role, role_id: resolvedRoleId }])
       }
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : 'Save failed'); setSaving(false); return
     }
-    logAudit(restaurantId, editId ? 'edit' : 'add', { entity: 'staff', name: form.name, role: form.role }, editId ?? undefined)
     setSaving(false); setModal(null)
   }
   async function savePin() {
     if (newPin.length !== 6 || !selectedUser) return
     setSaving(true)
-    await supabase.from('staff').update({ pin: newPin, updated_at: new Date().toISOString() }).eq('id', selectedUser.id)
-    setUsers(us => us.map(u => u.id === selectedUser.id ? { ...u, pin: newPin } : u))
-    if (restaurantId) logAudit(restaurantId, 'edit', { entity: 'staff_pin', name: selectedUser.name }, selectedUser.id)
+    try {
+      await api('/api/settings/staff', 'PATCH', { id: selectedUser.id, pin: newPin })
+      setUsers(us => us.map(u => u.id === selectedUser.id ? { ...u, pin: newPin } : u))
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : 'Reset failed'); setSaving(false); return
+    }
     setSaving(false); setModal(null)
   }
   async function del(id: string) {
     if (deleteConfirm === id) {
-      const name = users.find(u => u.id === id)?.name
-      await supabase.from('staff').delete().eq('id', id)
-      if (restaurantId) logAudit(restaurantId, 'delete', { entity: 'staff', name }, id)
+      try { await api('/api/settings/staff', 'DELETE', { id }) } catch { /* leave row on failure */ return }
       setUsers(us => us.filter(u => u.id !== id)); setDeleteConfirm(null)
     } else {
       setDeleteConfirm(id)
@@ -535,8 +553,7 @@ export default function UsersPage() {
   }
   async function toggleStatus(u: StaffUser) {
     const next: Status = u.status === 'active' ? 'inactive' : 'active'
-    await supabase.from('staff').update({ status: next, updated_at: new Date().toISOString() }).eq('id', u.id)
-    if (restaurantId) logAudit(restaurantId, 'toggle', { entity: 'staff_status', name: u.name, status: next }, u.id)
+    try { await api('/api/settings/staff', 'PATCH', { id: u.id, status: next }) } catch { return }
     setUsers(us => us.map(s => s.id === u.id ? { ...s, status: next } : s))
   }
 
@@ -545,18 +562,21 @@ export default function UsersPage() {
   const changePermission = (key: string, val: boolean) => { setPerms(p => ({ ...p, [key]: val })); setSavedPerms(false) }
   const createRole = async () => {
     if (!restaurantId || !newRoleName.trim()) return
-    setCreatingRole(true)
-    const { data, error } = await supabase.from('restaurant_roles').insert({ restaurant_id: restaurantId, name: newRoleName.trim(), permissions: {} }).select().single()
+    setCreatingRole(true); setPermError(null)
+    try {
+      const { role } = await api<{ role: RoleRecord }>('/api/settings/roles', 'POST', { name: newRoleName.trim() })
+      setNewRoleName(''); setAddingRole(false); await loadRoles(restaurantId); selectRole(role)
+    } catch (e) { setPermError(e instanceof Error ? e.message : 'Could not create role') }
     setCreatingRole(false)
-    if (!error && data) { logAudit(restaurantId, 'add', { entity: 'role', name: newRoleName.trim() }, data.id); setNewRoleName(''); setAddingRole(false); await loadRoles(restaurantId); selectRole(data as RoleRecord) }
   }
   const savePermissions = async () => {
     if (!selectedRoleId || !restaurantId) return
-    setSavingPerms(true)
-    await supabase.from('restaurant_roles').update({ permissions: perms }).eq('id', selectedRoleId)
-    const roleName = roles.find(r => r.id === selectedRoleId)?.name
-    logAudit(restaurantId, 'edit', { entity: 'role_permissions', name: roleName }, selectedRoleId)
-    setSavingPerms(false); setSavedPerms(true); loadRoles(restaurantId)
+    setSavingPerms(true); setPermError(null)
+    try {
+      await api('/api/settings/roles', 'PATCH', { id: selectedRoleId, permissions: perms })
+      setSavedPerms(true); loadRoles(restaurantId)
+    } catch (e) { setPermError(e instanceof Error ? e.message : 'Could not save permissions') }
+    setSavingPerms(false)
   }
   const sendRoleMessage = async () => {
     if (!restaurantId || !messageText.trim() || !selectedRoleId) return
@@ -578,13 +598,13 @@ export default function UsersPage() {
 
   const deleteRole = async (id: string) => {
     if (!restaurantId) return
-    const roleName = roles.find(r => r.id === id)?.name
-    setDeletingRoleId(id)
-    await supabase.from('restaurant_roles').delete().eq('id', id)
-    logAudit(restaurantId, 'delete', { entity: 'role', name: roleName }, id)
+    setDeletingRoleId(id); setPermError(null)
+    try {
+      await api('/api/settings/roles', 'DELETE', { id })
+      if (selectedRoleId === id) { setSelectedRoleId(null); setPerms({}) }
+      loadRoles(restaurantId)
+    } catch (e) { setPermError(e instanceof Error ? e.message : 'Could not delete role') }
     setDeletingRoleId(null)
-    if (selectedRoleId === id) { setSelectedRoleId(null); setPerms({}) }
-    loadRoles(restaurantId)
   }
   const assignRole = async (staffId: string, roleId: string | null) => {
     if (!restaurantId) return
@@ -592,8 +612,10 @@ export default function UsersPage() {
     const noRoleId = roles.find(r => r.name === 'No Role')?.id ?? null
     const resolvedRoleId = roleId ?? noRoleId
     setAssigningId(staffId)
-    await supabase.from('staff').update({ role_id: resolvedRoleId }).eq('id', staffId)
-    setRoleStaff(prev => prev.map(s => s.id === staffId ? { ...s, role_id: resolvedRoleId } : s))
+    try {
+      await api('/api/settings/staff', 'PATCH', { id: staffId, role_id: resolvedRoleId })
+      setRoleStaff(prev => prev.map(s => s.id === staffId ? { ...s, role_id: resolvedRoleId } : s))
+    } catch { /* keep previous assignment on failure */ }
     setAssigningId(null)
   }
   const disabledLeaves = moduleDisabledLeaves(PERMISSION_TREE, restaurantModules)
@@ -847,7 +869,8 @@ export default function UsersPage() {
                   </div>
                   {rightTab === 'permissions' && (
                     <div className="ms-auto flex items-center gap-3">
-                      {savedPerms && <span className="flex items-center gap-1 text-xs text-emerald-400"><Check className="w-3 h-3" /> Saved</span>}
+                      {permError && <span className="text-xs text-rose-400">{permError}</span>}
+                      {savedPerms && !permError && <span className="flex items-center gap-1 text-xs text-emerald-400"><Check className="w-3 h-3" /> Saved</span>}
                       <button onClick={savePermissions} disabled={savingPerms}
                         className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-bold text-white bg-amber-500 hover:bg-amber-400 disabled:opacity-50 transition-all active:scale-95">
                         {savingPerms ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />} Save

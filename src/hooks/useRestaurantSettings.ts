@@ -1,6 +1,5 @@
 'use client'
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRestaurant, mutateRestaurant } from '@/hooks/useRestaurant'
 
 export type SaveState = 'idle' | 'saving' | 'saved' | 'error'
@@ -8,15 +7,19 @@ export type SaveState = 'idle' | 'saving' | 'saved' | 'error'
 /**
  * Generic hook for settings pages that read/write the `restaurants.settings`
  * JSON column. The READ is served from the shared `useRestaurant` SWR cache
- * (one round-trip per session), while writes still go straight to the DB and
- * then refresh the shared cache.
+ * (one round-trip per session). Writes go through the guarded
+ * `/api/settings/restaurant` route, which enforces `permKey` server-side, then
+ * refresh the shared cache.
+ *
+ * `permKey` is the role permission the calling page requires (e.g.
+ * 'settings.appearance'); pass '@owner' for owner-only pages. Read-only callers
+ * may omit it.
  *
  * Usage:
  *   const { settings, setSettings, loading, saveState, save, autoSave } =
- *     useRestaurantSettings(DEFAULTS)
+ *     useRestaurantSettings(DEFAULTS, 'settings.appearance')
  */
-export function useRestaurantSettings<T extends object>(defaults: T) {
-  const supabase = useMemo(() => createClient(), [])
+export function useRestaurantSettings<T extends object>(defaults: T, permKey?: string) {
   const { restaurant, loading: restLoading, revalidate } = useRestaurant()
 
   const [settings,  setSettings]  = useState<T>(defaults)
@@ -32,25 +35,25 @@ export function useRestaurantSettings<T extends object>(defaults: T) {
     setSettings({ ...defaultsRef.current, ...(restaurant.settings as Partial<T>) })
   }, [restaurant])
 
-  // ── Internal: fetch-then-merge write ────────────────────────
-  // Re-reads the current JSON blob so concurrent writes from other tabs
-  // don't clobber keys they didn't touch.
-  const pushToDb = useCallback(async (patch: Record<string, unknown>) => {
+  // ── Internal: guarded server write ─────────────────────────
+  // The route re-reads + merges the JSON blob server-side (so concurrent writes
+  // don't clobber untouched keys) and enforces `permKey`.
+  const pushToDb = useCallback(async (patch: Record<string, unknown>): Promise<Error | null> => {
     if (!restaurantId) return null
-    const { data } = await supabase
-      .from('restaurants')
-      .select('settings')
-      .eq('id', restaurantId)
-      .maybeSingle()
-    const existing = (data?.settings ?? {}) as Record<string, unknown>
-    const merged = { ...existing, ...patch }
-    const { error } = await supabase
-      .from('restaurants')
-      .update({ settings: merged })
-      .eq('id', restaurantId)
-    if (!error) mutateRestaurant(restaurantId, { settings: merged })
-    return error ?? null
-  }, [restaurantId, supabase])
+    try {
+      const res = await fetch('/api/settings/restaurant', {
+        method:  'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ patch, permKey: permKey ?? '@owner' }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) return new Error(json?.error ?? 'Save failed')
+      mutateRestaurant(restaurantId, { settings: json.settings })
+      return null
+    } catch (e) {
+      return e instanceof Error ? e : new Error('Save failed')
+    }
+  }, [restaurantId, permKey])
 
   // ── Save all current settings ────────────────────────────────
   const save = useCallback(async () => {

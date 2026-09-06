@@ -290,7 +290,7 @@ const PUSH_ITEMS = [
 export default function PreferencePage() {
   const { t, setLang } = useLanguage()
   const { settings: cfg, setSettings: setCfg, loading, saveState, save, autoSave } =
-    useRestaurantSettings<PrefSettings>(DEFAULTS)
+    useRestaurantSettings<PrefSettings>(DEFAULTS, 'settings.preference')
 
   const [previewingId, setPreviewingId] = useState<string | null>(null)
   const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)

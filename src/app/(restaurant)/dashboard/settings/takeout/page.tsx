@@ -67,7 +67,7 @@ function FadeSwitch({ id, children }: { id: string; children: React.ReactNode })
 export default function TakeoutSettingsPage() {
   const { t } = useLanguage()
   const { settings, setSettings, loading, saveState, save, autoSave } =
-    useRestaurantSettings<TakeoutSettings>(DEFAULTS)
+    useRestaurantSettings<TakeoutSettings>(DEFAULTS, 'settings.takeout')
 
   return (
     <motion.div className="space-y-6" variants={PAGE} initial="hidden" animate="show">

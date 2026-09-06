@@ -488,7 +488,7 @@ const PAGE: Variants = {
 export default function AppearancePage() {
   const { t } = useLanguage()
   const { settings: cfg, setSettings: setCfg, loading, saveState, save } =
-    useRestaurantSettings<AppearanceSettings>(DEFAULTS)
+    useRestaurantSettings<AppearanceSettings>(DEFAULTS, 'settings.appearance')
 
   const isCustom = cfg.sidebar_style === 'custom'
 
