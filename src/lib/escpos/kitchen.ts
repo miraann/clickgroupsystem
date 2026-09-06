@@ -1,4 +1,5 @@
 import { escpos, cols, enc, divBytes, rowBytes, concat } from './commands'
+import { toAscii } from './translate'
 
 export interface KitchenPayload {
   tableNum:   string
@@ -14,13 +15,19 @@ export function buildKitchenBytes(d: KitchenPayload): Uint8Array {
   const W   = cols(d.paperWidth)
   const div = (ch = '-') => divBytes(W, ch)
 
-  const header = d.orderNum
-    ? rowBytes(`Table ${d.tableNum}`, d.orderNum, W)
-    : enc(`Table ${d.tableNum}\n`)
+  // Kitchen printers are the same cheap thermal units as the receipt side —
+  // no Arabic/Kurdish font ROM — so force every dynamic value to printable
+  // ASCII, exactly like buildReceiptBytes does. Raw UTF-8 item names print as
+  // replacement garbage (or nothing) on these printers.
+  const tx = (s?: string | null) => toAscii(s)
+
+  const orderNum = tx(d.orderNum)
+  const header = orderNum
+    ? rowBytes(`Table ${tx(d.tableNum)}`, orderNum, W)
+    : enc(`Table ${tx(d.tableNum)}\n`)
 
   const parts: Uint8Array[] = [
     escpos.init(),
-    escpos.doubleStrike(true),
 
     // ── Header ───────────────────────────────────────────────
     escpos.alignCenter(),
@@ -42,10 +49,11 @@ export function buildKitchenBytes(d: KitchenPayload): Uint8Array {
       const qtyPad = String(item.qty).padStart(2)
       const rows: Uint8Array[] = [
         escpos.boldOn(),
-        enc(` ${qtyPad}x  ${item.name}\n`),
+        enc(` ${qtyPad}x  ${tx(item.name)}\n`),
         escpos.boldOff(),
       ]
-      if (item.note?.trim()) rows.push(enc(`      >> ${item.note.trim()}\n`))
+      const n = tx(item.note)
+      if (n) rows.push(enc(`      >> ${n}\n`))
       return rows
     }),
 

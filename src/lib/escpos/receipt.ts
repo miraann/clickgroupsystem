@@ -79,7 +79,6 @@ export function buildReceiptBytes(d: ReceiptPayload): Uint8Array {
 
   const parts: Uint8Array[] = [
     escpos.init(),
-    escpos.doubleStrike(true),
 
     // ── Logo bitmap (centered) ────────────────────────────
     ...(d.logoBitmap ? [escpos.alignCenter(), d.logoBitmap] : []),

@@ -288,15 +288,42 @@ public class TcpPlugin extends Plugin {
                 socket = device.createRfcommSocketToServiceRecord(SPP_UUID);
                 socket.connect();
 
+                // Many BT SPP thermal printers aren't ready to receive for a
+                // moment after the RFCOMM link comes up — data written in that
+                // window is silently dropped. Give the printer time to settle.
+                try { Thread.sleep(300); } catch (InterruptedException ignored) {}
+
                 byte[] bytes = android.util.Base64.decode(finalData, android.util.Base64.DEFAULT);
                 OutputStream out = socket.getOutputStream();
-                out.write(bytes);
-                out.flush();
-                socket.close();
+
+                // These printers have a tiny receive buffer and no flow control.
+                // Writing the whole payload at once — then closing the socket
+                // right after write() — truncates anything past the buffer
+                // (write() only queues into the OS stack, flush() is a no-op,
+                // close() drops bytes still in flight): the printer feeds blank
+                // paper. Send small chunks slower than the print head consumes
+                // them, then wait for the link to drain before closing.
+                final int CHUNK = 128;
+                int wrote = 0;
+                for (int off = 0; off < bytes.length; off += CHUNK) {
+                    int len = Math.min(CHUNK, bytes.length - off);
+                    out.write(bytes, off, len);
+                    out.flush();
+                    wrote += len;
+                    try { Thread.sleep(40); } catch (InterruptedException ignored) {}
+                }
+
+                // Drain delay proportional to payload size (~1 ms per 4 bytes),
+                // clamped, so RFCOMM finishes transmitting before we close.
+                long drain = Math.min(5000L, Math.max(600L, bytes.length / 4L));
+                try { Thread.sleep(drain); } catch (InterruptedException ignored) {}
+
+                try { socket.close(); } catch (Exception ignored) {}
                 socket = null;
 
                 JSObject result = new JSObject();
                 result.put("ok", true);
+                result.put("bytesWritten", wrote);
                 call.resolve(result);
             } catch (SecurityException e) {
                 if (socket != null) { try { socket.close(); } catch (Exception ignored) {} }
