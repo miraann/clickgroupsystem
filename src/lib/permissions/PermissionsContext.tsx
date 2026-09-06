@@ -68,36 +68,45 @@ export function PermissionsProvider({ children }: { children: React.ReactNode })
       }
 
       // ── PIN staff login (no Supabase Auth session) ──────────
-      // Re-fetch from DB to verify the staff member is real and get live permissions
-      // instead of trusting localStorage values that could be tampered.
+      // Seed instantly from the values the PIN login wrote to localStorage so
+      // the dashboard is interactive on first paint, then re-verify the staff
+      // row + live permissions in the background (writes are gated at the API
+      // layer regardless).
       const staffId = localStorage.getItem('pos_staff_id')
       if (staffId) {
-        const { data: staffRecord } = await supabase
+        let seeded: Permissions = {}
+        try { seeded = JSON.parse(localStorage.getItem('pos_role_permissions') ?? '{}') } catch { seeded = {} }
+        setPermissions(seeded)
+        setIsOwner(false)
+        setIsPinStaff(true)
+        setStaffName(localStorage.getItem('pos_staff_name') ?? null)
+        setRoleName(localStorage.getItem('pos_role_name') ?? localStorage.getItem('pos_staff_role') ?? null)
+        setLoading(false)
+
+        supabase
           .from('staff')
           .select('id, name, role_id, restaurant_roles(name, permissions)')
           .eq('id', staffId)
           .eq('restaurant_id', restaurantId)
           .maybeSingle()
-
-        if (!staffRecord) {
-          // Staff ID not found in this restaurant — clear the stale/tampered session
-          localStorage.removeItem('pos_staff_id')
-          localStorage.removeItem('pos_role_permissions')
-          setLoading(false)
-          return
-        }
-
-        const roleRaw = staffRecord.restaurant_roles
-        const role = roleRaw
-          ? ((Array.isArray(roleRaw) ? roleRaw[0] : roleRaw) as { name: string; permissions: Permissions })
-          : null
-
-        setPermissions(role?.permissions ?? {})
-        setIsOwner(false)
-        setIsPinStaff(true)
-        setStaffName(localStorage.getItem('pos_staff_name') ?? null)
-        setRoleName(role?.name ?? localStorage.getItem('pos_role_name') ?? localStorage.getItem('pos_staff_role') ?? null)
-        setLoading(false)
+          .then(({ data: staffRecord }) => {
+            if (!staffRecord) {
+              // Staff row gone/tampered — drop the session
+              localStorage.removeItem('pos_staff_id')
+              localStorage.removeItem('pos_role_permissions')
+              setPermissions({})
+              setIsPinStaff(false)
+              return
+            }
+            const roleRaw = staffRecord.restaurant_roles
+            const role = roleRaw
+              ? ((Array.isArray(roleRaw) ? roleRaw[0] : roleRaw) as { name: string; permissions: Permissions })
+              : null
+            const livePerms = role?.permissions ?? {}
+            setPermissions(livePerms)
+            setRoleName(role?.name ?? localStorage.getItem('pos_role_name') ?? localStorage.getItem('pos_staff_role') ?? null)
+            try { localStorage.setItem('pos_role_permissions', JSON.stringify(livePerms)) } catch {}
+          })
         return
       }
 

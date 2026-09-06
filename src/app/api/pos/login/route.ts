@@ -103,9 +103,10 @@ export async function POST(req: NextRequest) {
     }
 
     // ── Staff PIN path ─────────────────────────────────────────────
+    // Pull the role (name + permissions) in the same round-trip as the staff row.
     const { data: staffRow } = await supabase
       .from('staff')
-      .select('id, name, role, color, role_id')
+      .select('id, name, role, color, role_id, restaurant_roles(name, permissions)')
       .eq('restaurant_id', restaurant.id)
       .eq('pin', enteredPin)
       .eq('status', 'active')
@@ -119,20 +120,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Incorrect PIN.' }, { status: 401 })
     }
 
-    // Role permissions
-    let rolePermissions: Record<string, boolean> = {}
-    let roleName: string | null = null
-    if (staffRow.role_id) {
-      const { data: roleRow } = await supabase
-        .from('restaurant_roles')
-        .select('name, permissions')
-        .eq('id', staffRow.role_id)
-        .maybeSingle()
-      if (roleRow) {
-        rolePermissions = (roleRow.permissions as Record<string, boolean>) ?? {}
-        roleName = roleRow.name as string
-      }
-    }
+    const roleRaw = (staffRow as { restaurant_roles?: unknown }).restaurant_roles
+    const role = roleRaw
+      ? ((Array.isArray(roleRaw) ? roleRaw[0] : roleRaw) as { name: string; permissions: Record<string, boolean> })
+      : null
+    const rolePermissions: Record<string, boolean> = role?.permissions ?? {}
+    const roleName: string | null = role?.name ?? null
 
     return grantSession(req, restaurant.id, 'staff', {
       ok: true,

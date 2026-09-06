@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
+import useSWR from 'swr'
 import { Delete, ChefHat, Clock, Loader2, CheckCircle2, Download } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
@@ -28,8 +29,21 @@ export default function POSLoginPage() {
   const slug = params.slug as string
   const { t, lang } = useLanguage()
 
-  const [restaurant, setRestaurant]   = useState<Restaurant | null>(null)
-  const [loadingRest, setLoadingRest] = useState(true)
+  // Restaurant name/logo for the PIN card — cosmetic, cached across mounts.
+  const { data: restaurant } = useSWR<Restaurant | null>(
+    slug ? `restaurant-public-${slug}` : null,
+    async () => {
+      const { data } = await supabase
+        .from('restaurant_public')
+        .select('id, name, logo_url')
+        .eq('menu_slug', slug)
+        .maybeSingle()
+      return (data as Restaurant) ?? null
+    },
+    { revalidateOnFocus: false, dedupingInterval: 300_000, keepPreviousData: true },
+  )
+  const loadingRest = restaurant === undefined
+
   const [pin, setPin]   = useState('')
   const [status, setStatus] = useState<'idle' | 'checking' | 'success' | 'error'>('idle')
   const [shake, setShake]   = useState(false)
@@ -61,20 +75,6 @@ export default function POSLoginPage() {
     const t = setInterval(() => setTime(new Date()), 1000)
     return () => clearInterval(t)
   }, [])
-
-  // Resolve slug → real restaurant id + info
-  useEffect(() => {
-    if (!slug) return
-    supabase
-      .from('restaurant_public')
-      .select('id, name, logo_url')
-      .eq('menu_slug', slug)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data) setRestaurant(data as Restaurant)
-        setLoadingRest(false)
-      })
-  }, [slug])
 
   // Auto-submit when 6 digits entered — PIN verification is now server-side
   const checkPin = useCallback(async (enteredPin: string) => {
@@ -108,7 +108,7 @@ export default function POSLoginPage() {
       localStorage.setItem('pos_session_ts',  Date.now().toString())
       sessionStorage.setItem('pos_session_active', '1')
       setStatus('success')
-      setTimeout(() => router.push('/dashboard'), 1100)
+      setTimeout(() => router.push('/dashboard'), 350)
       return
     }
 
@@ -127,7 +127,7 @@ export default function POSLoginPage() {
     sessionStorage.setItem('pos_session_active', '1')
 
     setStatus('success')
-    setTimeout(() => router.push(getStaffHome(staff.permissions ?? {}, restaurant.menu_slug ?? slug)), 1100)
+    setTimeout(() => router.push(getStaffHome(staff.permissions ?? {}, restaurant.menu_slug ?? slug)), 350)
   }, [slug, router])
 
   const handleKey = useCallback((key: Key) => {
