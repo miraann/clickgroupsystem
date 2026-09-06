@@ -1,11 +1,7 @@
 'use client'
-import { useEffect, useState } from 'react'
 import { Lock, ArrowUpCircle } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
 import { MODULES, isModuleEnabled } from '@/lib/modules'
-
-let _cache: { restaurantId: string; modules: Record<string, boolean>; at: number } | null = null
-const CACHE_TTL = 30_000
+import { useRestaurant } from '@/hooks/useRestaurant'
 
 export function UpgradeWall({ moduleName }: { moduleName: string }) {
   return (
@@ -32,32 +28,19 @@ export function moduleLabel(key: string): string {
   return MODULES.find(m => m.key === key)?.label ?? key
 }
 
-/** Wraps content with a module access check. Shows upgrade wall if disabled. */
+/**
+ * Wraps content with a module access check. Reads plan modules from the shared
+ * `useRestaurant` SWR cache — no dedicated `restaurants` query, and instant on
+ * any navigation where that cache is already warm.
+ */
 export function ModuleGate({ moduleKey, children }: { moduleKey: string; children: React.ReactNode }) {
-  const supabase = createClient()
-  const [enabled, setEnabled] = useState<boolean | null>(null)
+  const { restaurant, loading } = useRestaurant()
 
-  useEffect(() => {
-    const restaurantId = localStorage.getItem('restaurant_id')
-    if (!restaurantId) { setEnabled(true); return }
+  const hasTenant = typeof window !== 'undefined' && !!localStorage.getItem('restaurant_id')
+  if (!hasTenant) return <>{children}</>                 // no tenant bound → fail open
+  if (!restaurant) return loading ? null : <>{children}</> // still resolving → hold; gave up → fail open
 
-    if (_cache && _cache.restaurantId === restaurantId && Date.now() - _cache.at < CACHE_TTL) {
-      setEnabled(isModuleEnabled(_cache.modules, moduleKey))
-      return
-    }
-
-    supabase.from('restaurants')
-      .select('settings')
-      .eq('id', restaurantId)
-      .maybeSingle()
-      .then(({ data }) => {
-        const modules = ((data?.settings as Record<string, unknown>)?.modules ?? {}) as Record<string, boolean>
-        _cache = { restaurantId, modules, at: Date.now() }
-        setEnabled(isModuleEnabled(modules, moduleKey))
-      })
-  }, [moduleKey]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  if (enabled === null) return null
-  if (!enabled) return <UpgradeWall moduleName={moduleLabel(moduleKey)} />
+  const modules = ((restaurant.settings as Record<string, unknown>)?.modules ?? {}) as Record<string, boolean>
+  if (!isModuleEnabled(modules, moduleKey)) return <UpgradeWall moduleName={moduleLabel(moduleKey)} />
   return <>{children}</>
 }

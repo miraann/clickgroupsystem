@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import NextImage from 'next/image'
 import { mutate as swrMutate } from 'swr'
 import { useDeliveryOrders } from '@/hooks/useDeliveryOrders'
+import { useRestaurant } from '@/hooks/useRestaurant'
 import { ModuleGate } from '@/components/ModuleGate'
 import { usePermissions } from '@/lib/permissions/PermissionsContext'
 import { getStaffHome } from '@/lib/permissions/staffHome'
@@ -22,11 +23,11 @@ import { notifyDriver, buildStatusWhatsAppMessage, buildWhatsAppDeepLink } from 
 
 const CONTAINER: Variants = {
   hidden: {},
-  show:   { transition: { staggerChildren: 0.07 } },
+  show:   { transition: { staggerChildren: 0.03 } },
 }
 const ITEM: Variants = {
-  hidden: { opacity: 0, y: 18 },
-  show:   { opacity: 1, y: 0, transition: { duration: 0.42, ease: 'circOut' as const } },
+  hidden: { opacity: 0, y: 8 },
+  show:   { opacity: 1, y: 0, transition: { duration: 0.22, ease: 'easeOut' as const } },
 }
 function Skel({ className }: { className?: string }) {
   return <div className={cn('animate-pulse rounded-2xl bg-white/8', className)} />
@@ -141,9 +142,12 @@ export default function DeliveryOrdersPage() {
   }, [permsLoading, isOwner, permissions, can, router])
 
   // Read restaurantId from localStorage immediately so SWR can serve cache on re-mount
-  const [restaurantId, setRestaurantId] = useState<string | null>(() =>
+  const [restaurantId] = useState<string | null>(() =>
     typeof window !== 'undefined' ? localStorage.getItem('restaurant_id') : null
   )
+
+  // Shared restaurant row (settings/modules) — one round-trip per session
+  const { restaurant } = useRestaurant(restaurantId)
 
   // SWR: delivery orders — shows cached data instantly on return navigation, revalidates in background
   const { data: swrOrders, isLoading: swrLoading, mutate: reloadOrders } = useDeliveryOrders(restaurantId)
@@ -181,33 +185,21 @@ export default function DeliveryOrdersPage() {
   }, [swrOrders, swrLoading])
 
   const load = useCallback(async () => {
-    // If restaurantId not yet known, resolve it first
-    if (!restaurantId) {
-      const { data: rest } = await supabase.from('restaurants').select('id').eq('id', typeof window !== 'undefined' ? (localStorage.getItem('restaurant_id') ?? '') : '').maybeSingle()
-      if (!rest) { setError('Restaurant not found'); setLoading(false); return }
-      setRestaurantId(rest.id)
-    }
+    if (!restaurantId) { setError('Restaurant not found'); setLoading(false); return }
     // Trigger SWR revalidation — it re-runs the fetcher and updates state via the effect above
     await reloadOrders()
     setLastRefresh(new Date())
-  }, [restaurantId, reloadOrders]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [restaurantId, reloadOrders])
 
   useEffect(() => { loadRef.current = load }, [load])
 
-  useEffect(() => {
-    // Initial load via SWR (already triggered by useDeliveryOrders)
-    const channel = supabase
-      .channel('delivery-orders-rt')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders' }, () => reloadOrders())
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'delivery_orders' }, () => reloadOrders())
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'delivery_orders' }, () => reloadOrders())
-      .subscribe()
-    return () => { supabase.removeChannel(channel) }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  // Realtime revalidation is handled inside useDeliveryOrders — no second channel here.
 
-  // Fetch WhatsApp templates
-  useEffect(() => {
-    if (!restaurantId) return
+  // WhatsApp templates — loaded lazily the first time a dropdown is opened.
+  const waTemplatesLoaded = useRef(false)
+  const loadWaTemplates = useCallback(() => {
+    if (waTemplatesLoaded.current || !restaurantId) return
+    waTemplatesLoaded.current = true
     supabase
       .from('whatsapp_templates')
       .select('id, name, message')
@@ -216,20 +208,19 @@ export default function DeliveryOrdersPage() {
       .then(({ data }) => setWaTemplates((data ?? []) as WaTemplate[]))
   }, [restaurantId]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Fetch all active staff as assignable drivers
+  // Active staff (assignable drivers) — only needed once an order reaches
+  // "preparing", so the query waits until that's true.
+  const needDrivers = orders.some(o => o.status === 'preparing')
   useEffect(() => {
-    if (!restaurantId) return
-    async function fetchDrivers() {
-      const { data } = await supabase
-        .from('staff')
-        .select('id, name, phone')
-        .eq('restaurant_id', restaurantId!)
-        .eq('status', 'active')
-        .order('name', { ascending: true })
-      setDrivers((data ?? []).map(s => ({ id: s.id, name: s.name, phone: s.phone ?? null })))
-    }
-    fetchDrivers()
-  }, [restaurantId]) // eslint-disable-line react-hooks/exhaustive-deps
+    if (!restaurantId || !needDrivers || drivers.length > 0) return
+    supabase
+      .from('staff')
+      .select('id, name, phone')
+      .eq('restaurant_id', restaurantId)
+      .eq('status', 'active')
+      .order('name', { ascending: true })
+      .then(({ data }) => setDrivers((data ?? []).map(s => ({ id: s.id, name: s.name, phone: s.phone ?? null }))))
+  }, [restaurantId, needDrivers]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const setProc = (k: string, v: boolean) =>
     setProcessing(p => { const s = new Set(p); v ? s.add(k) : s.delete(k); return s })
@@ -366,9 +357,7 @@ export default function DeliveryOrdersPage() {
 
     // If delivered → deduct inventory (mirrors payment-screen auto-deduct logic)
     if (newStatus === 'delivered' && restaurantId) {
-      const { data: restSettings } = await supabase
-        .from('restaurants').select('settings').eq('id', restaurantId).maybeSingle()
-      const autoDeduct = (restSettings?.settings as Record<string, unknown> | null)?.inventory_auto_deduct === true
+      const autoDeduct = (restaurant?.settings as Record<string, unknown> | undefined)?.inventory_auto_deduct === true
       if (autoDeduct) {
         const { data: orderItemsForInv } = await supabase
           .from('order_items')
@@ -664,10 +653,10 @@ export default function DeliveryOrdersPage() {
           {filtered.length === 0 ? (
             <motion.div
               key={`empty-${filter}`}
-              initial={{ opacity: 0, y: 18 }}
+              initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ delay: 0.05, duration: 0.38, ease: 'circOut' }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
               className="flex flex-col items-center justify-center py-20 gap-3"
             >
               <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center">
@@ -732,7 +721,10 @@ export default function DeliveryOrdersPage() {
                       </a>
                       <div className="relative">
                         <button
-                          onClick={() => setWhatsappDropdown(whatsappDropdown === order.delivery_id ? null : order.delivery_id)}
+                          onClick={() => {
+                            loadWaTemplates()
+                            setWhatsappDropdown(whatsappDropdown === order.delivery_id ? null : order.delivery_id)
+                          }}
                           className="flex items-center gap-1 text-xs text-[#25D366] hover:text-[#1fbd5a] transition-colors"
                         >
                           <WhatsAppIcon className="w-3.5 h-3.5" />
