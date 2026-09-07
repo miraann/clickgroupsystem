@@ -22,6 +22,11 @@ const DATE_LOCALE: Record<string, string> = {
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'clr', '0', 'del'] as const
 type Key = typeof KEYS[number]
 
+// Cashier APK, straight from the GitHub release. Bump the tag when cutting a new
+// release (see docs/APP_UPDATES.md — same place you bump android-latest.json).
+const CASHIER_APK_URL =
+  'https://github.com/miraann/clickgroupsystem/releases/download/v1.1/ClickGroup-Cashier-release.apk'
+
 interface Restaurant { id: string; name: string; logo_url?: string | null; menu_slug?: string | null }
 
 export default function POSLoginPage() {
@@ -300,8 +305,9 @@ export default function POSLoginPage() {
               </div>
             ) : (
               <a
-                href="/clickgroup-pos.apk"
-                download="ClickGroup-POS.apk"
+                href={CASHIER_APK_URL}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-semibold transition-all active:scale-95 border bg-amber-500/15 border-amber-500/25 text-amber-400 hover:bg-amber-500/25"
               >
                 <Download className="w-4 h-4" /> {t.pl_install_android}
