@@ -74,7 +74,14 @@ export function getRuntime(): AppRuntime {
 let _updater: any = null
 async function androidUpdater() {
   if (_updater) return _updater
-  const { registerPlugin } = await import('@capacitor/core')
+  // Prefer the already-loaded global — `@capacitor/core` is a lazy chunk, and a
+  // stalled chunk fetch would hang the whole check with no way to recover.
+  /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+  const glob = (window as any)?.Capacitor?.registerPlugin
+  const registerPlugin: (name: string) => unknown =
+    typeof glob === 'function'
+      ? glob
+      : (await withTimeout(import('@capacitor/core'), 5000, 'load @capacitor/core')).registerPlugin
   _updater = registerPlugin('Updater')
   return _updater
 }
@@ -116,48 +123,56 @@ export async function checkForUpdate(): Promise<UpdateInfo> {
   }
 
   if (runtime === 'android') {
-    const u = await androidUpdater()
-
-    // An APK built before the native Updater plugin leaves this call pending
-    // forever — time out and treat it as "plugin missing" rather than freeze.
-    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-    let info: any = null
-    try {
-      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-      info = await withTimeout<any>(u.getCurrentVersion(), 4000, 'Updater.getCurrentVersion')
-    } catch { /* legacy APK without the plugin, or a wedged bridge */ }
-    const pluginMissing = !info
-    const pkg  = String(info?.packageName ?? 'com.clickgroup.pos')
-    const currentCode = Number(info?.versionCode ?? 0)
-
-    const res = await fetch(ANDROID_MANIFEST_URL, {
-      cache: 'no-store',
-      signal: AbortSignal.timeout(12_000),
-    })
-    if (!res.ok) throw new Error(`Release manifest returned ${res.status}`)
-    const manifest = await res.json()
-    const entry = manifest?.flavors?.[pkg]
-    if (!entry) {
-      return { runtime, current, latest: null, available: false, notes: null, url: null, pluginMissing }
-    }
-    // With no readable install code (legacy APK) the compare can't be trusted —
-    // surface the update anyway so the user can install it by hand.
-    const available = pluginMissing
-      ? true
-      : Number(entry.versionCode ?? 0) > currentCode
-    return {
-      runtime,
-      current,
-      latest:    entry.versionName ?? null,
-      available,
-      notes:     entry.notes ?? null,
-      url:       available ? (entry.url ?? null) : null,
-      pluginMissing,
-    }
+    // Overall deadline — no single await below may leave the UI stuck on
+    // "Checking…". Anything slower than this surfaces as a normal error.
+    return withTimeout(checkAndroid(runtime, current), 20_000, 'checkForUpdate(android)')
   }
 
   // web — always current
   return { runtime, current, latest: current, available: false, notes: null, url: null }
+}
+
+// Android update check, split out so checkForUpdate() can put an overall
+// deadline around it — see the withTimeout() call above.
+async function checkAndroid(runtime: AppRuntime, current: string): Promise<UpdateInfo> {
+  const u = await androidUpdater()
+
+  // An APK built before the native Updater plugin leaves this call pending
+  // forever — time out and treat it as "plugin missing" rather than freeze.
+  /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+  let info: any = null
+  try {
+    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+    info = await withTimeout<any>(u.getCurrentVersion(), 4000, 'Updater.getCurrentVersion')
+  } catch { /* legacy APK without the plugin, or a wedged bridge */ }
+  const pluginMissing = !info
+  const pkg  = String(info?.packageName ?? 'com.clickgroup.pos')
+  const currentCode = Number(info?.versionCode ?? 0)
+
+  const res = await fetch(ANDROID_MANIFEST_URL, {
+    cache: 'no-store',
+    signal: AbortSignal.timeout(12_000),
+  })
+  if (!res.ok) throw new Error(`Release manifest returned ${res.status}`)
+  const manifest = await res.json()
+  const entry = manifest?.flavors?.[pkg]
+  if (!entry) {
+    return { runtime, current, latest: null, available: false, notes: null, url: null, pluginMissing }
+  }
+  // With no readable install code (legacy APK) the compare can't be trusted —
+  // surface the update anyway so the user can install it by hand.
+  const available = pluginMissing
+    ? true
+    : Number(entry.versionCode ?? 0) > currentCode
+  return {
+    runtime,
+    current,
+    latest:    entry.versionName ?? null,
+    available,
+    notes:     entry.notes ?? null,
+    url:       available ? (entry.url ?? null) : null,
+    pluginMissing,
+  }
 }
 
 // ── Download (+ install on android) ──────────────────────────────
