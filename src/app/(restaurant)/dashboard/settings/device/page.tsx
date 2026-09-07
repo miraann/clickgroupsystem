@@ -1479,7 +1479,7 @@ export default function DevicePage() {
       {/* ══ KDS Modal ══ */}
       {kdsModal && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-[#0d1220]/95 backdrop-blur-2xl border border-white/15 rounded-3xl p-6 shadow-2xl">
+          <div className="w-full max-w-md bg-[#0d1220] border border-white/15 rounded-3xl p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-base font-semibold text-white">{kdsEditId ? t.edit : t.dev_add_station}</h2>
               <button onClick={() => setKdsModal(false)}
@@ -1525,12 +1525,13 @@ export default function DevicePage() {
                   <div className="flex flex-wrap gap-2">
                     {categories.map(c => {
                       const selected = kdsForm.category_ids.includes(c.id)
+                      const col = c.color || 'linear-gradient(160deg,#f59e0b,#b45309)'
                       return (
                         <button key={c.id} onClick={() => toggleCategory(c.id)}
                           className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all active:scale-95 border',
-                            selected ? 'border-transparent' : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/8')}
-                          style={selected ? { backgroundColor: c.color + '25', borderColor: c.color + '60', color: c.color } : {}}>
-                          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: c.color }} />
+                            selected ? 'border-transparent text-white' : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/8')}
+                          style={selected ? { background: col } : undefined}>
+                          <span className="w-2 h-2 rounded-full" style={{ background: selected ? '#fff' : col }} />
                           {c.name}
                           {selected && <Check className="w-3 h-3 ml-0.5" />}
                         </button>
@@ -1565,7 +1566,7 @@ export default function DevicePage() {
       {/* ══ Printer Modal ══ */}
       {prtModal && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-[#0d1220]/95 backdrop-blur-2xl border border-white/15 rounded-3xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+          <div className="w-full max-w-md bg-[#0d1220] border border-white/15 rounded-3xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
 
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-base font-semibold text-white">{prtEditId ? t.edit : t.dev_add_printer}</h2>
@@ -1596,8 +1597,8 @@ export default function DevicePage() {
                     return (
                       <button key={opt.value} onClick={() => togglePrtPurpose(opt.value)}
                         className={cn('flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium transition-all active:scale-95 border text-left',
-                          on ? 'border-transparent' : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/8')}
-                        style={on ? { backgroundColor: opt.color + '20', borderColor: opt.color + '50', color: opt.color } : {}}>
+                          on ? 'border-transparent text-white' : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/8')}
+                        style={on ? { backgroundColor: opt.color, borderColor: opt.color } : {}}>
                         {opt.icon}
                         <span className="text-xs flex-1">{opt.label}</span>
                         {on && <Check className="w-3.5 h-3.5 shrink-0" />}
@@ -1619,12 +1620,13 @@ export default function DevicePage() {
                     <div className="flex flex-wrap gap-2">
                       {categories.map(c => {
                         const selected = prtForm.category_ids.includes(c.id)
+                        const col = c.color || 'linear-gradient(160deg,#f59e0b,#b45309)'
                         return (
                           <button key={c.id} onClick={() => togglePrtCategory(c.id)}
                             className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all active:scale-95 border',
-                              selected ? 'border-transparent' : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/8')}
-                            style={selected ? { backgroundColor: c.color + '25', borderColor: c.color + '60', color: c.color } : {}}>
-                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: c.color }} />
+                              selected ? 'border-transparent text-white' : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/8')}
+                            style={selected ? { background: col } : undefined}>
+                            <span className="w-2 h-2 rounded-full" style={{ background: selected ? '#fff' : col }} />
                             {c.name}
                             {selected && <Check className="w-3 h-3 ml-0.5" />}
                           </button>
@@ -1643,17 +1645,17 @@ export default function DevicePage() {
                     <button key={opt.value} onClick={() => setPrtForm(f => ({ ...f, connection_type: opt.value }))}
                       className={cn('w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm transition-all active:scale-95 border text-left',
                         prtForm.connection_type === opt.value
-                          ? 'bg-amber-500/15 border-amber-500/40 text-white'
+                          ? 'bg-amber-500 border-amber-500 text-white'
                           : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/8')}>
-                      <span className={prtForm.connection_type === opt.value ? 'text-amber-400' : 'text-white/30'}>
+                      <span className={prtForm.connection_type === opt.value ? 'text-white' : 'text-white/30'}>
                         {opt.icon}
                       </span>
                       <div>
                         <p className="font-medium text-xs">{opt.label}</p>
-                        <p className="text-[10px] text-white/35 mt-0.5">{opt.desc}</p>
+                        <p className={cn('text-[10px] mt-0.5', prtForm.connection_type === opt.value ? 'text-white/75' : 'text-white/35')}>{opt.desc}</p>
                       </div>
                       {prtForm.connection_type === opt.value && (
-                        <Check className="w-4 h-4 text-amber-400 ml-auto shrink-0" />
+                        <Check className="w-4 h-4 text-white ml-auto shrink-0" />
                       )}
                     </button>
                   ))}
@@ -1730,7 +1732,7 @@ export default function DevicePage() {
                       className={cn(
                         'flex flex-col items-center px-2 py-2.5 rounded-xl text-xs font-medium transition-all active:scale-95 border',
                         prtForm.paper_width === pw.mm
-                          ? 'bg-amber-500/20 border-amber-500/50 text-amber-300'
+                          ? 'bg-amber-500 border-amber-500 text-white'
                           : 'bg-white/5 border-white/10 text-white/45 hover:bg-white/8'
                       )}>
                       <span className="font-semibold text-sm leading-none mb-0.5">{pw.label}</span>
