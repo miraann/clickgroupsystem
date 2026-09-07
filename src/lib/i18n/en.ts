@@ -928,6 +928,7 @@ const en = {
   upd_error:              'Update failed. Check your connection and try again.',
   upd_perm_note:          'Allow “Install unknown apps” for ClickGroup in the system screen that just opened, then tap Download & install again.',
   upd_manual_note:        'This app is too old to update itself — “Download & install” opens the new version in your browser; open the downloaded APK file to finish.',
+  upd_download_apk:       'Download latest APK',
 
   // ── Database page ─────────────────────────────────────────────
   db_title:                 'Database',

@@ -12,7 +12,7 @@ import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { createClient } from '@/lib/supabase/client'
 import {
   getRuntime, getCurrentVersion, checkForUpdate, downloadUpdate, installUpdate,
-  subscribeUpdateEvents, type AppRuntime,
+  subscribeUpdateEvents, CASHIER_APK_URL, type AppRuntime,
 } from '@/lib/appUpdate'
 import { useRestaurantSettings } from '@/hooks/useRestaurantSettings'
 import { SaveButton } from '@/components/ui/SaveButton'
@@ -227,6 +227,21 @@ function AppUpdateCard() {
                 <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" /> {t.upd_error}
               </p>
             )}
+          </div>
+        )}
+
+        {/* Always-available fallback — downloads the newest cashier APK straight
+            from GitHub, no version check, so it can't hang. */}
+        {runtime !== 'electron' && (
+          <div className="pt-3 border-t border-white/6">
+            <a
+              href={CASHIER_APK_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white/60 text-sm font-medium hover:bg-white/10 hover:text-white/80 transition-all"
+            >
+              <Download className="w-4 h-4" /> {t.upd_download_apk}
+            </a>
           </div>
         )}
       </div>

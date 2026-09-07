@@ -30,8 +30,9 @@ Pick the next version, e.g. `1.2`. Do the version bumps **in the same commit** s
    (`versionCode` MUST increase — it's what the APK compares)
 3. `android-latest.json` (repo root) → bump `versionCode` / `versionName` and
    point each `url` at the new tag's assets.
-4. `src/app/pos/[slug]/login/page.tsx` → `CASHIER_APK_URL` tag (the "Install
-   Android App" button on the PIN screen links straight to the release APK).
+4. `src/lib/appUpdate.ts` → `CASHIER_APK_URL` tag — the direct-download links
+   (the PIN screen's "Install Android App" button and the "Download latest APK"
+   fallback in Settings → Advanced) point straight at this release asset.
 
 ### Build the EXE
 

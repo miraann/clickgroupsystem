@@ -44,6 +44,15 @@ export interface UpdateEvent {
 // (no CORS headers). See src/app/api/app-update/android/route.ts.
 const ANDROID_MANIFEST_URL = '/api/app-update/android'
 
+/**
+ * Direct link to the current cashier APK on GitHub Releases — the no-frills
+ * fallback when the in-app updater can't run (e.g. an APK built before the
+ * native Updater plugin). Bump the tag when cutting a release; see
+ * docs/APP_UPDATES.md.
+ */
+export const CASHIER_APK_URL =
+  'https://github.com/miraann/clickgroupsystem/releases/download/v1.1/ClickGroup-Cashier-release.apk'
+
 // ── Timeout guard ───────────────────────────────────────────────
 // A missing/old native plugin can leave a bridge call pending forever, and a
 // stalled fetch has no deadline of its own — never let either freeze the UI.

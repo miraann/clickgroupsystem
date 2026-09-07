@@ -6,7 +6,7 @@ import { Delete, ChefHat, Clock, Loader2, CheckCircle2, Download, ArrowLeftRight
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { getStaffHome } from '@/lib/permissions/staffHome'
-import { getRuntime } from '@/lib/appUpdate'
+import { getRuntime, CASHIER_APK_URL } from '@/lib/appUpdate'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 const supabase = createClient()
@@ -21,11 +21,6 @@ const DATE_LOCALE: Record<string, string> = {
 
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'clr', '0', 'del'] as const
 type Key = typeof KEYS[number]
-
-// Cashier APK, straight from the GitHub release. Bump the tag when cutting a new
-// release (see docs/APP_UPDATES.md — same place you bump android-latest.json).
-const CASHIER_APK_URL =
-  'https://github.com/miraann/clickgroupsystem/releases/download/v1.1/ClickGroup-Cashier-release.apk'
 
 interface Restaurant { id: string; name: string; logo_url?: string | null; menu_slug?: string | null }
 
