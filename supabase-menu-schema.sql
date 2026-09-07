@@ -312,9 +312,9 @@ create table if not exists public.printers (
   id uuid default gen_random_uuid() primary key,
   restaurant_id uuid references public.restaurants(id) on delete cascade not null,
   name text not null,
-  purpose text default 'receipt' check (purpose in ('receipt', 'kitchen', 'label', 'bar')),
+  purpose text default 'receipt' check (purpose in ('receipt', 'kitchen', 'label', 'bar', 'report', 'reprint')),
   purposes text[] not null default array['receipt']::text[]
-    check (purposes <@ array['receipt','kitchen','label','bar']::text[] and cardinality(purposes) >= 1),
+    check (purposes <@ array['receipt','kitchen','label','bar','report','reprint']::text[] and cardinality(purposes) >= 1),
   connection_type text default 'ip' check (connection_type in ('ip', 'bluetooth', 'usb')),
   ip_address text,
   port int default 9100,

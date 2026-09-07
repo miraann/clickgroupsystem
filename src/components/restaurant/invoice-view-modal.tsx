@@ -68,7 +68,7 @@ export default function InvoiceViewModal({ invoice, restaurantId, onClose }: Pro
         supabase.from('receipt_settings').select('*').eq('restaurant_id', restaurantId).maybeSingle(),
         supabase.from('printers').select('*').eq('restaurant_id', restaurantId).eq('active', true).order('sort_order'),
       ])
-      const printer = pickPrinter(printerRows, 'receipt')
+      const printer = pickPrinter(printerRows, ['reprint', 'receipt'])
       if (printer?.paper_width) setPaperWidth(printer.paper_width)
       setRestaurantName(rest?.name ?? '')
       if (rsData) {

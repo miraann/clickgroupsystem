@@ -26,7 +26,7 @@ import {
   ChefHat, Tag, Printer, Wifi, Bluetooth,
   Usb, Receipt, UtensilsCrossed, Tag as LabelIcon,
   Wine, Activity, AlertCircle, CheckCircle2, WifiOff, Ruler,
-  ScanLine, Radio,
+  ScanLine, Radio, BarChart3, RotateCcw,
 } from 'lucide-react'
 
 // ── Types ──────────────────────────────────────────────────────
@@ -45,7 +45,7 @@ interface Category {
   color: string
 }
 
-type PrinterPurpose = 'receipt' | 'kitchen' | 'label' | 'bar'
+type PrinterPurpose = 'receipt' | 'kitchen' | 'label' | 'bar' | 'report' | 'reprint'
 type ConnectionType = 'ip' | 'bluetooth' | 'usb'
 
 interface PrinterDevice {
@@ -107,8 +107,10 @@ const EMPTY_PRINTER_FORM = {
 const PURPOSE_OPTIONS: { value: PrinterPurpose; label: string; icon: React.ReactNode; color: string }[] = [
   { value: 'receipt',  label: 'Receipt / Cashier', icon: <Receipt className="w-4 h-4" />,          color: '#10b981' },
   { value: 'kitchen',  label: 'Kitchen / Order',   icon: <UtensilsCrossed className="w-4 h-4" />,   color: '#f59e0b' },
-  { value: 'label',    label: 'Label Printer',      icon: <LabelIcon className="w-4 h-4" />,          color: '#3b82f6' },
   { value: 'bar',      label: 'Bar / Drinks',       icon: <Wine className="w-4 h-4" />,               color: '#8b5cf6' },
+  { value: 'label',    label: 'Label Printer',      icon: <LabelIcon className="w-4 h-4" />,          color: '#3b82f6' },
+  { value: 'report',   label: 'Daily Sales',        icon: <BarChart3 className="w-4 h-4" />,          color: '#06b6d4' },
+  { value: 'reprint',  label: 'Invoice Reprint',    icon: <RotateCcw className="w-4 h-4" />,          color: '#14b8a6' },
 ]
 
 const CONNECTION_OPTIONS: { value: ConnectionType; label: string; icon: React.ReactNode; desc: string }[] = [

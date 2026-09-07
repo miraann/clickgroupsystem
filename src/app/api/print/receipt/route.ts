@@ -134,7 +134,12 @@ export async function POST(req: NextRequest) {
       .eq('active', true)
       .order('sort_order')
 
-    const printer = pickPrinter(printerRows, 'receipt')
+    // A reprint of an old invoice (mode 'receipt') prefers a dedicated
+    // "Invoice Reprint" printer; a live payment always goes to the receipt one.
+    const printer = pickPrinter(
+      printerRows,
+      body.mode === 'receipt' ? ['reprint', 'receipt'] : ['receipt'],
+    )
 
     if (!printer) {
       return NextResponse.json(

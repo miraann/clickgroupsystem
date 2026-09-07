@@ -34,11 +34,12 @@ export async function POST(req: NextRequest) {
       .eq('active', true)
       .order('sort_order')
 
-    const printer = pickPrinter(printerRows, 'receipt')
+    // A dedicated "Daily Sales" printer if one is set, else the receipt printer.
+    const printer = pickPrinter(printerRows, ['report', 'receipt'])
 
     if (!printer) {
       return NextResponse.json(
-        { ok: false, error: 'No active Receipt / Cashier printer configured. Add one in Settings → Device → Printers.' },
+        { ok: false, error: 'No active Daily Sales / Receipt printer configured. Add one in Settings → Device → Printers.' },
         { status: 404 }
       )
     }
