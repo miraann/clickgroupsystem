@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Receipt, Save, Loader2, AlertCircle, Upload,
-  Check, ImageIcon, QrCode, Eye,
+  Check, ImageIcon, QrCode, Eye, Printer,
   FileText, Search, ChevronDown, ChevronUp,
   Hash, CheckCircle2, ToggleLeft, ToggleRight,
   RotateCcw, X, User, Clock,
@@ -14,6 +14,8 @@ import { motion, AnimatePresence, type Variants } from 'framer-motion'
 import { logAudit } from '@/lib/logAudit'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import InvoiceViewModal from '@/components/restaurant/invoice-view-modal'
+import { enqueuePrint } from '@/lib/printQueue'
+import { printReceiptBytes, reprintBodyFromInvoice } from '@/lib/printReceipt'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch'
 import { InvoicePrintTemplate } from '@/components/restaurant/InvoiceModal/InvoicePrintTemplate'
@@ -168,6 +170,19 @@ function AllInvoices({ restaurantId }: { restaurantId: string }) {
   const [dateTo, setDateTo]           = useState('')
   const [expanded, setExpanded]       = useState<string | null>(null)
   const [viewInvoice, setViewInvoice] = useState<StoredInvoice | null>(null)
+  const [printingId, setPrintingId]   = useState<string | null>(null)
+
+  // One-tap silent reprint to the configured Receipt / Cashier printer.
+  const reprint = (inv: StoredInvoice) => {
+    setPrintingId(inv.id)
+    const { done } = enqueuePrint({
+      kind:   'receipt',
+      title:  inv.table_num ? `Reprint · Table ${inv.table_num}` : 'Reprint',
+      detail: `#${inv.invoice_num}`,
+      run:    () => printReceiptBytes(reprintBodyFromInvoice(inv, restaurantId)),
+    })
+    done.finally(() => setPrintingId(cur => (cur === inv.id ? null : cur)))
+  }
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -339,6 +354,18 @@ function AllInvoices({ restaurantId }: { restaurantId: string }) {
                       <p className="text-[10px] text-white/40">کۆی گشتی</p>
                       <p className="text-sm font-bold text-white tabular-nums">{formatPrice(Number(inv.total))}</p>
                     </div>
+                    {/* Reprint — straight to the Receipt / Cashier printer */}
+                    <button
+                      onClick={e => { e.stopPropagation(); reprint(inv) }}
+                      disabled={printingId === inv.id}
+                      title="چاپکردنی پسووڵە"
+                      className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-500/70 hover:bg-emerald-500 text-white text-[11px] font-semibold active:scale-95 transition-all disabled:opacity-50"
+                    >
+                      {printingId === inv.id
+                        ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        : <Printer className="w-3.5 h-3.5" />}
+                      <span className="hidden sm:inline ml-0.5">چاپ</span>
+                    </button>
                     {/* View */}
                     <button
                       onClick={e => { e.stopPropagation(); setViewInvoice(inv) }}

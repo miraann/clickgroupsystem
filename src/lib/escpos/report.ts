@@ -1,4 +1,5 @@
 import { escpos, cols, enc, divBytes, rowBytes, concat } from './commands'
+import { toAscii, enPaymentMethod, enCurrencySymbol } from './translate'
 
 export interface DailySalesReportPayload {
   restaurantName: string
@@ -32,7 +33,11 @@ export interface DailySalesReportPayload {
 
 export function buildDailySalesReportBytes(d: DailySalesReportPayload): Uint8Array {
   const W   = cols(d.paperWidth)
-  const fmt = (n: number) => `${n.toLocaleString('en-US')}${d.currencySymbol ? ' ' + d.currencySymbol : ''}`
+  // Thermal printers here have no Arabic/Kurdish font ROM — force every dynamic
+  // value to printable ASCII, same as the receipt + kitchen builders.
+  const tx  = (s?: string | null) => toAscii(s)
+  const currency = enCurrencySymbol(d.currencySymbol)
+  const fmt = (n: number) => `${n.toLocaleString('en-US')}${currency ? ' ' + currency : ''}`
   const div = (ch = '-') => divBytes(W, ch)
   const row = (label: string, value: string) => rowBytes(label, value, W)
 
@@ -45,7 +50,7 @@ export function buildDailySalesReportBytes(d: DailySalesReportPayload): Uint8Arr
   const parts: Uint8Array[] = [
     escpos.init(),
     escpos.alignCenter(), escpos.boldOn(), escpos.doubleHeight(),
-    enc(d.restaurantName + '\n'),
+    enc((tx(d.restaurantName) || 'Restaurant') + '\n'),
     escpos.normalSize(),
     enc('DAILY SALES REPORT\n'),
     escpos.boldOff(),
@@ -65,13 +70,13 @@ export function buildDailySalesReportBytes(d: DailySalesReportPayload): Uint8Arr
 
   if (d.byPayment.length) {
     parts.push(section('Payment Methods'))
-    for (const pm of d.byPayment) parts.push(row(`${pm.method} x${pm.count}`, fmt(pm.total)))
+    for (const pm of d.byPayment) parts.push(row(`${enPaymentMethod(pm.method)} x${pm.count}`, fmt(pm.total)))
     parts.push(div('='))
   }
 
   if (d.orderTypes.length) {
     parts.push(section('Order Types'))
-    for (const ot of d.orderTypes) parts.push(row(`${ot.label} x${ot.count}`, fmt(ot.total)))
+    for (const ot of d.orderTypes) parts.push(row(`${tx(ot.label)} x${ot.count}`, fmt(ot.total)))
     parts.push(div('='))
   }
 
@@ -84,13 +89,13 @@ export function buildDailySalesReportBytes(d: DailySalesReportPayload): Uint8Arr
 
   if (d.topItems.length) {
     parts.push(section('Top Selling Items'))
-    d.topItems.forEach((item, i) => parts.push(row(`${i + 1}. ${item.name} x${item.qty}`, fmt(item.revenue))))
+    d.topItems.forEach((item, i) => parts.push(row(`${i + 1}. ${tx(item.name)} x${item.qty}`, fmt(item.revenue))))
     parts.push(div('='))
   }
 
   if (d.byCashier.length) {
     parts.push(section('By Cashier'))
-    for (const c of d.byCashier) parts.push(row(`${c.name} x${c.count}`, fmt(c.total)))
+    for (const c of d.byCashier) parts.push(row(`${tx(c.name)} x${c.count}`, fmt(c.total)))
     parts.push(div('='))
   }
 

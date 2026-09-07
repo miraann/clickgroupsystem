@@ -4,7 +4,7 @@ import { X, Printer, Loader2, ImageIcon, CheckCircle2, AlertCircle } from 'lucid
 import { createClient } from '@/lib/supabase/client'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import { enqueuePrint } from '@/lib/printQueue'
-import { printReceiptBytes } from '@/lib/printReceipt'
+import { printReceiptBytes, reprintBodyFromInvoice } from '@/lib/printReceipt'
 
 interface StoredInvoice {
   id: string
@@ -93,36 +93,12 @@ export default function InvoiceViewModal({ invoice, restaurantId, onClose }: Pro
   const handleHardwarePrint = async (): Promise<boolean> => {
     setPrintStatus('sending')
     setPrintError('')
-    const ts = new Date(invoice.created_at)
-    const allItems        = invoice.items ?? []
-    const regularItems    = allItems.filter(it => !it.isDeliveryFee)
-    const deliveryFeeItem = allItems.find(it => it.isDeliveryFee)
 
     const { done } = enqueuePrint({
       kind:   'receipt',
       title:  invoice.table_num ? `Receipt · Table ${invoice.table_num}` : 'Receipt',
       detail: invoice.invoice_num ? `#${invoice.invoice_num}` : undefined,
-      run: () => printReceiptBytes({
-        restaurantId,
-        tableNum:      invoice.table_num ?? '',
-        guests:        invoice.guests,
-        invoiceNum:    invoice.invoice_num,
-        orderNum:      invoice.order_num ?? '',
-        cashier:       invoice.cashier ?? '',
-        dateStr:       ts.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }),
-        timeStr:       ts.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
-        items:         regularItems.map(it => ({ name: it.name, qty: it.qty, price: it.price })),
-        subtotal:      Number(invoice.subtotal),
-        discount:      Number(invoice.discount),
-        surcharge:     deliveryFeeItem ? Number(deliveryFeeItem.price) : 0,
-        total:         Number(invoice.total),
-        paymentMethod: invoice.payment_method ?? '—',
-        amountPaid:    Number(invoice.amount_paid),
-        change:        Number(invoice.change_amount),
-        note:          null,
-        mode:          'receipt',
-        qrUrl:         rs.show_qr ? (rs.qr_url ?? null) : null,
-      }),
+      run: () => printReceiptBytes(reprintBodyFromInvoice(invoice, restaurantId)),
     })
 
     const ok = await done
