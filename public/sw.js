@@ -1,9 +1,14 @@
-// ClickGroup POS — Service Worker v3
+// ClickGroup POS — Service Worker v4
 // Caches: Next.js static chunks, Supabase storage images, app shell pages (offline mode)
+//
+// Bumped STATIC_CACHE / SHELL_CACHE to v3 so the `activate` step below purges the
+// old caches — some devices were pinned to a stale JS bundle (and a stale app
+// shell that referenced it) after a deploy. `skipWaiting` + `clients.claim`
+// below make this take over on the next app launch without a reinstall.
 
-const STATIC_CACHE = 'cg-static-v2'
+const STATIC_CACHE = 'cg-static-v3'
 const IMAGE_CACHE  = 'cg-images-v1'
-const SHELL_CACHE  = 'cg-shell-v1'
+const SHELL_CACHE  = 'cg-shell-v3'
 const KNOWN_CACHES = [STATIC_CACHE, IMAGE_CACHE, SHELL_CACHE]
 
 // On localhost the dev server rebuilds JS/CSS chunks behind the same /_next/
