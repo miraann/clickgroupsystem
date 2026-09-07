@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import { enqueuePrint } from '@/lib/printQueue'
 import { printReceiptBytes, reprintBodyFromInvoice } from '@/lib/printReceipt'
+import { pickPrinter } from '@/lib/printerPurpose'
 
 interface StoredInvoice {
   id: string
@@ -62,11 +63,12 @@ export default function InvoiceViewModal({ invoice, restaurantId, onClose }: Pro
 
   useEffect(() => {
     const load = async () => {
-      const [{ data: rest }, { data: rsData }, { data: printer }] = await Promise.all([
+      const [{ data: rest }, { data: rsData }, { data: printerRows }] = await Promise.all([
         supabase.from('restaurants').select('name').eq('id', restaurantId).maybeSingle(),
         supabase.from('receipt_settings').select('*').eq('restaurant_id', restaurantId).maybeSingle(),
-        supabase.from('printers').select('paper_width').eq('restaurant_id', restaurantId).eq('purpose', 'receipt').eq('active', true).limit(1).maybeSingle(),
+        supabase.from('printers').select('*').eq('restaurant_id', restaurantId).eq('active', true).order('sort_order'),
       ])
+      const printer = pickPrinter(printerRows, 'receipt')
       if (printer?.paper_width) setPaperWidth(printer.paper_width)
       setRestaurantName(rest?.name ?? '')
       if (rsData) {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { buildReceiptBytes, ReceiptPayload } from '@/lib/escpos'
+import { pickPrinter } from '@/lib/printerPurpose'
 import sharp from 'sharp'
 import QRCode from 'qrcode'
 import { requireRestaurantId } from '@/lib/supabase/api-guard'
@@ -126,15 +127,14 @@ export async function POST(req: NextRequest) {
     const { error: authError } = await requireRestaurantId(restaurantId)
     if (authError) return authError
 
-    const { data: printer } = await supabase
+    const { data: printerRows } = await supabase
       .from('printers')
       .select('*')
       .eq('restaurant_id', restaurantId)
-      .eq('purpose', 'receipt')
       .eq('active', true)
       .order('sort_order')
-      .limit(1)
-      .maybeSingle()
+
+    const printer = pickPrinter(printerRows, 'receipt')
 
     if (!printer) {
       return NextResponse.json(

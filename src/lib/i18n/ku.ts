@@ -246,6 +246,7 @@ const ku: Record<keyof typeof en, string> = {
   dev_station_name:     'ناوی ئیستگە',
   dev_printer_name:     'ناوی چاپەر',
   dev_purpose:          'مەبەست',
+  dev_purpose_multi:    'یەک یان زیاتر هەڵبژێرە',
   dev_printer_categories:      'پۆلە دیاریکراوەکان',
   dev_printer_categories_hint: 'بەتاڵ = هەموو پۆلەکان',
   dev_connection:       'پەیوەندی',

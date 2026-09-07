@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { buildKitchenBytes } from '@/lib/escpos'
+import { pickPrinter } from '@/lib/printerPurpose'
 import { requireRestaurantId } from '@/lib/supabase/api-guard'
 import { rateLimit } from '@/lib/rate-limit'
 
@@ -33,15 +34,14 @@ export async function POST(req: NextRequest) {
     const { error: authError } = await requireRestaurantId(body.restaurantId)
     if (authError) return authError
 
-    const { data: printer } = await supabase
+    const { data: rows } = await supabase
       .from('printers')
       .select('*')
       .eq('restaurant_id', body.restaurantId)
-      .eq('purpose', 'kitchen')
       .eq('active', true)
       .order('sort_order')
-      .limit(1)
-      .maybeSingle()
+
+    const printer = pickPrinter(rows, 'kitchen')
 
     if (!printer) {
       return NextResponse.json(

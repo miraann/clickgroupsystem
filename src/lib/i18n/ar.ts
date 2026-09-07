@@ -246,6 +246,7 @@ const ar: Record<keyof typeof en, string> = {
   dev_station_name:     'اسم المحطة',
   dev_printer_name:     'اسم الطابعة',
   dev_purpose:          'الغرض',
+  dev_purpose_multi:    'اختر واحداً أو أكثر',
   dev_printer_categories:      'الفئات المخصصة',
   dev_printer_categories_hint: 'فارغ = كل الفئات',
   dev_connection:       'الاتصال',

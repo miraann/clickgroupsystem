@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { motion, type Variants } from 'framer-motion'
 import { getAndroidTcp } from '@/lib/android-tcp'
+import { printerPurposes } from '@/lib/printerPurpose'
 
 const PAGE: Variants = {
   hidden: { opacity: 0, y: 20 },
@@ -50,7 +51,8 @@ type ConnectionType = 'ip' | 'bluetooth' | 'usb'
 interface PrinterDevice {
   id: string
   name: string
-  purpose: PrinterPurpose
+  purpose: PrinterPurpose        // legacy scalar — kept in sync with purposes[0]
+  purposes: PrinterPurpose[]     // roles this printer serves
   connection_type: ConnectionType
   ip_address: string | null
   port: number | null
@@ -91,7 +93,7 @@ const PAPER_WIDTHS = [
 
 const EMPTY_PRINTER_FORM = {
   name: '',
-  purpose: 'receipt' as PrinterPurpose,
+  purposes: ['receipt'] as PrinterPurpose[],
   connection_type: 'ip' as ConnectionType,
   ip_address: '',
   port: 9100,
@@ -365,7 +367,11 @@ export default function DevicePage() {
       arr.push(a.category_id)
       assignMap.set(a.printer_id, arr)
     }
-    setPrinters((data ?? []).map(p => ({ ...p, category_ids: assignMap.get(p.id) ?? [] })) as PrinterDevice[])
+    setPrinters((data ?? []).map(p => ({
+      ...p,
+      purposes:     printerPurposes(p),
+      category_ids: assignMap.get(p.id) ?? [],
+    })) as PrinterDevice[])
     setPrtLoading(false)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -754,7 +760,7 @@ export default function DevicePage() {
     setPrtEditId(p.id)
     setPrtForm({
       name:            p.name,
-      purpose:         p.purpose,
+      purposes:        p.purposes?.length ? [...p.purposes] : ['receipt'] as PrinterPurpose[],
       connection_type: p.connection_type,
       ip_address:      p.ip_address ?? '',
       port:            p.port ?? 9100,
@@ -774,12 +780,25 @@ export default function DevicePage() {
         : [...f.category_ids, catId],
     }))
   }
+  const togglePrtPurpose = (val: PrinterPurpose) => {
+    setPrtForm(f => {
+      const has = f.purposes.includes(val)
+      if (has && f.purposes.length === 1) return f   // keep at least one role
+      return {
+        ...f,
+        purposes: has
+          ? f.purposes.filter(v => v !== val)
+          : [...f.purposes, val],
+      }
+    })
+  }
   const handlePrtSave = async () => {
-    if (!prtForm.name.trim() || !restaurantId) return
+    if (!prtForm.name.trim() || prtForm.purposes.length === 0 || !restaurantId) return
     setPrtSaving(true)
     const payload = {
       name:            prtForm.name.trim(),
-      purpose:         prtForm.purpose,
+      purposes:        prtForm.purposes,
+      purpose:         prtForm.purposes[0] ?? 'receipt',   // keep the legacy scalar in sync
       connection_type: prtForm.connection_type,
       ip_address:      prtForm.connection_type === 'ip'        ? (prtForm.ip_address || null)  : null,
       port:            prtForm.connection_type === 'ip'        ? (prtForm.port || 9100)         : null,
@@ -806,7 +825,7 @@ export default function DevicePage() {
         )
       }
     }
-    logAudit(restaurantId, prtEditId ? 'edit' : 'add', { entity: 'printer', name: prtForm.name, purpose: prtForm.purpose, connection: prtForm.connection_type }, prtEditId ?? undefined)
+    logAudit(restaurantId, prtEditId ? 'edit' : 'add', { entity: 'printer', name: prtForm.name, purpose: prtForm.purposes.join(', '), connection: prtForm.connection_type }, prtEditId ?? undefined)
     setPrtSaving(false); setPrtModal(false)
     if (restaurantId) loadPrinters(restaurantId)
   }
@@ -1333,7 +1352,8 @@ export default function DevicePage() {
           ) : (
             <div className="space-y-3">
               {printers.map((p, i) => {
-                const purpose = purposeInfo(p.purpose)
+                const roles   = p.purposes?.length ? p.purposes : [p.purpose]
+                const purpose = purposeInfo(roles[0])
                 const conn    = connInfo(p.connection_type)
                 const connDetail = p.connection_type === 'ip'
                   ? `${p.ip_address ?? '—'}:${p.port ?? 9100}`
@@ -1356,10 +1376,15 @@ export default function DevicePage() {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-white truncate">{p.name}</p>
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
-                        <span className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-medium"
-                          style={{ backgroundColor: purpose.color + '20', color: purpose.color }}>
-                          {purpose.label}
-                        </span>
+                        {roles.map(r => {
+                          const info = purposeInfo(r)
+                          return (
+                            <span key={r} className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-medium"
+                              style={{ backgroundColor: info.color + '20', color: info.color }}>
+                              {info.label}
+                            </span>
+                          )
+                        })}
                         <span className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-medium bg-white/8 text-white/50">
                           {conn.icon}
                           {conn.label}
@@ -1558,24 +1583,30 @@ export default function DevicePage() {
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500/50 transition-colors" />
               </div>
 
-              {/* Purpose */}
+              {/* Purpose — a printer can serve more than one role */}
               <div>
-                <label className="block text-xs text-white/50 mb-2 font-medium">{t.dev_purpose}</label>
+                <label className="block text-xs text-white/50 mb-2 font-medium">
+                  {t.dev_purpose} <span className="text-white/25">({t.dev_purpose_multi})</span>
+                </label>
                 <div className="grid grid-cols-2 gap-2">
-                  {PURPOSE_OPTIONS.map(opt => (
-                    <button key={opt.value} onClick={() => setPrtForm(f => ({ ...f, purpose: opt.value }))}
-                      className={cn('flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium transition-all active:scale-95 border text-left',
-                        prtForm.purpose === opt.value ? 'border-transparent' : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/8')}
-                      style={prtForm.purpose === opt.value ? { backgroundColor: opt.color + '20', borderColor: opt.color + '50', color: opt.color } : {}}>
-                      {opt.icon}
-                      <span className="text-xs">{opt.label}</span>
-                    </button>
-                  ))}
+                  {PURPOSE_OPTIONS.map(opt => {
+                    const on = prtForm.purposes.includes(opt.value)
+                    return (
+                      <button key={opt.value} onClick={() => togglePrtPurpose(opt.value)}
+                        className={cn('flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium transition-all active:scale-95 border text-left',
+                          on ? 'border-transparent' : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/8')}
+                        style={on ? { backgroundColor: opt.color + '20', borderColor: opt.color + '50', color: opt.color } : {}}>
+                        {opt.icon}
+                        <span className="text-xs flex-1">{opt.label}</span>
+                        {on && <Check className="w-3.5 h-3.5 shrink-0" />}
+                      </button>
+                    )
+                  })}
                 </div>
               </div>
 
               {/* Categories (which menu categories print to this station, e.g. Salad / Hot Kitchen / Pizza) */}
-              {(prtForm.purpose === 'kitchen' || prtForm.purpose === 'bar') && (
+              {(prtForm.purposes.includes('kitchen') || prtForm.purposes.includes('bar')) && (
                 <div>
                   <label className="block text-xs text-white/50 mb-2 font-medium">
                     {t.dev_printer_categories} <span className="text-white/25">({t.dev_printer_categories_hint})</span>

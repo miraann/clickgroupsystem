@@ -440,6 +440,7 @@ const en = {
   dev_station_name:     'Station Name',
   dev_printer_name:     'Printer Name',
   dev_purpose:          'Purpose',
+  dev_purpose_multi:    'pick one or more',
   dev_printer_categories:      'Assigned Categories',
   dev_printer_categories_hint: 'empty = print all categories',
   dev_connection:       'Connection',

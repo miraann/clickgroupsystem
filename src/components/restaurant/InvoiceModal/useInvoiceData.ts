@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { pickPrinter } from '@/lib/printerPurpose'
 import { type ReceiptSettings, DEFAULT_RS } from './types'
 
 interface Params {
@@ -45,7 +46,7 @@ export function useInvoiceData({
         { data: rest },
         { data: rsData },
         { data: orderRecord },
-        { data: printer },
+        { data: printerRows },
       ] = await Promise.all([
         supabase.from('restaurants')
           .select('name')
@@ -60,14 +61,13 @@ export function useInvoiceData({
           .eq('id', orderId)
           .maybeSingle(),
         supabase.from('printers')
-          .select('paper_width')
+          .select('*')
           .eq('restaurant_id', restaurantId)
-          .eq('purpose', 'receipt')
           .eq('active', true)
-          .limit(1)
-          .maybeSingle(),
+          .order('sort_order'),
       ])
 
+      const printer = pickPrinter(printerRows, 'receipt')
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       if ((printer as any)?.paper_width) setPaperWidth((printer as any).paper_width)
 
