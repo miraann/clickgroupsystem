@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import { motion, type Variants } from 'framer-motion'
-import { Smartphone, Download, AlertCircle, ExternalLink } from 'lucide-react'
+import { Smartphone, Download, AlertCircle } from 'lucide-react'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import {
   ANDROID_APPS, APK_RELEASE_TAG, fetchAndroidManifest, type AndroidManifest,
@@ -17,8 +17,6 @@ const ITEM: Variants = {
   hidden: { opacity: 0, y: 16 },
   show:   { opacity: 1, y: 0, transition: { duration: 0.4, ease: 'circOut' as const } },
 }
-
-const RELEASE_URL = `https://github.com/miraann/clickgroupsystem/releases/tag/${APK_RELEASE_TAG}`
 
 export default function AppsPage() {
   const { t } = useLanguage()
@@ -95,18 +93,10 @@ export default function AppsPage() {
         })}
       </motion.div>
 
-      {/* Release link */}
+      {/* Release label */}
       <motion.div variants={ITEM} className="flex items-center justify-between text-xs text-white/30 px-1">
         <span>{t.apk_latest_release}</span>
-        <a
-          href={RELEASE_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 font-mono text-white/45 hover:text-white/70 transition-colors"
-        >
-          {APK_RELEASE_TAG}
-          <ExternalLink className="w-3 h-3" />
-        </a>
+        <span className="font-mono text-white/45">{APK_RELEASE_TAG}</span>
       </motion.div>
 
     </motion.div>

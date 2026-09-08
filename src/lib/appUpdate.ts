@@ -8,8 +8,9 @@
  * reinstall. This module only updates the *native shell* itself:
  *
  *   - electron → electron-updater over GitHub Releases (latest.yml + .exe)
- *   - android  → a native `Updater` Capacitor plugin: fetch an `android-latest.json`
- *                release asset, compare versionCode, download + launch the APK installer
+ *   - android  → a native `Updater` Capacitor plugin: fetch `/android-latest.json`
+ *                (served from Vercel), compare versionCode, download the APK from
+ *                /apps and launch the OS installer
  *   - web      → nothing to do; the browser always has the latest deploy
  *
  * All calls are feature-detected and safe to invoke in any runtime.
@@ -39,18 +40,19 @@ export interface UpdateEvent {
   message?: string
 }
 
-// Fetched from a same-origin route handler that proxies the GitHub release
-// asset server-side — the APK WebView can't reach the GitHub CDN directly
-// (no CORS headers). See src/app/api/app-update/android/route.ts.
-const ANDROID_MANIFEST_URL = '/api/app-update/android'
+// Update manifest + APK files are hosted on Vercel (in /public), so every
+// consumer — the WebView download page and the native Updater — hits the same
+// origin. No GitHub CDN, no CORS proxy.
+const ANDROID_MANIFEST_URL = '/android-latest.json'
+/** Directory (under /public) the APK files are served from. */
+const APK_DIR = '/apps'
 
 /**
- * GitHub release tag the direct APK links point at. Bump this on every release
- * (keep in sync with android/app/build.gradle + android-latest.json — see
- * docs/APP_UPDATES.md).
+ * Version label shown on the Settings → Apps page (and the git tag that carries
+ * the matching source). Bump on every release alongside android/app/build.gradle
+ * + public/android-latest.json — see docs/APP_UPDATES.md.
  */
 export const APK_RELEASE_TAG = 'v1.3'
-const APK_BASE = `https://github.com/miraann/clickgroupsystem/releases/download/${APK_RELEASE_TAG}`
 
 /**
  * One entry per restaurant-facing Android flavor for the Settings → Apps
@@ -61,9 +63,9 @@ export interface AndroidApp {
   id:      'cashier' | 'driver' | 'delivery' | 'cfd'
   /** applicationId — also the key in android-latest.json's `flavors` map */
   pkg:     string
-  /** release asset filename */
+  /** APK filename under /public/apps */
   asset:   string
-  /** direct download URL (built from APK_RELEASE_TAG) */
+  /** same-origin download path (`/apps/<asset>`) */
   url:     string
   /** /public path to the launcher icon */
   icon:    string
@@ -78,24 +80,24 @@ export const ANDROID_APPS: AndroidApp[] = (
     { id: 'delivery', pkg: 'com.clickgroup.pos.delivery', asset: 'ClickGroup-Delivery-release.apk', icon: '/app-icons/delivery.png', nameKey: 'apk_app_delivery', descKey: 'apk_desc_delivery' },
     { id: 'cfd',      pkg: 'com.clickgroup.pos.cfd',      asset: 'ClickGroup-CFD-release.apk',      icon: '/app-icons/cfd.png',      nameKey: 'apk_app_cfd',      descKey: 'apk_desc_cfd'      },
   ] as const
-).map(a => ({ ...a, url: `${APK_BASE}/${a.asset}` }))
+).map(a => ({ ...a, url: `${APK_DIR}/${a.asset}` }))
 
 /**
- * Direct link to the current cashier APK on GitHub Releases — the no-frills
- * fallback when the in-app updater can't run (e.g. an APK built before the
- * native Updater plugin). See docs/APP_UPDATES.md.
+ * Direct link to the current cashier APK — the no-frills fallback when the
+ * in-app updater can't run (e.g. an APK built before the native Updater
+ * plugin). See docs/APP_UPDATES.md.
  */
-export const CASHIER_APK_URL = `${APK_BASE}/ClickGroup-Cashier-release.apk`
+export const CASHIER_APK_URL = `${APK_DIR}/ClickGroup-Cashier-release.apk`
 
-/** Shape of the proxied android-latest.json (`GET /api/app-update/android`). */
+/** Shape of /android-latest.json. */
 export interface AndroidManifest {
   flavors?: Record<string, { versionCode?: number; versionName?: string; url?: string; notes?: string }>
 }
 
 /**
- * Fetch the published android-latest.json through the same-origin proxy so the
- * download page can show each app's current version / release notes. Best-effort
- * — callers render fine without it.
+ * Fetch the published android-latest.json so the download page can show each
+ * app's current version / release notes. Best-effort — callers render fine
+ * without it.
  */
 export async function fetchAndroidManifest(): Promise<AndroidManifest | null> {
   try {

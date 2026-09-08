@@ -8,15 +8,20 @@ This flow only updates the **native shell**:
 
 | Build | What an update ships | Mechanism |
 |---|---|---|
-| Windows `.exe` (`electron-app/`) | `main.js` / `preload.js` — printing, tray, cache tuning | [`electron-updater`](https://www.electron.build/auto-update) reads `latest.yml` from GitHub Releases |
-| Android `.apk` × 5 flavors (`android/`) | `MainActivity.java`, plugins, `AndroidManifest.xml`, native config | `UpdaterPlugin` reads `android-latest.json` from GitHub Releases, downloads the APK, launches the OS installer |
+| Windows `.exe` (`electron-app/`) | `main.js` / `preload.js` — printing, tray, cache tuning | [`electron-updater`](https://www.electron.build/auto-update) reads `latest.yml` from **GitHub Releases** |
+| Android `.apk` × 5 flavors (`android/`) | `MainActivity.java`, plugins, `AndroidManifest.xml`, native config | `UpdaterPlugin` reads `/android-latest.json` from **Vercel**, downloads the APK from `/apps`, launches the OS installer |
 
 The user triggers it from **Settings → Advanced → "App version & updates"**
 (`src/app/(restaurant)/dashboard/settings/advanced/page.tsx`, backed by
 `src/lib/appUpdate.ts`). Electron also does one silent check ~8 s after launch.
 
-Hosting: **GitHub Releases** on `miraann/clickgroupsystem` (public repo — no token
-needed for clients to download).
+Hosting:
+- **EXE** → GitHub Releases on `miraann/clickgroupsystem` (electron-updater needs
+  the `publish` block + `latest.yml` there).
+- **APKs** → committed to `public/apps/` and served from the Vercel deploy. The
+  update manifest is `public/android-latest.json` (served at `/android-latest.json`).
+  Nothing GitHub-side; a `git push` that Vercel deploys *is* the APK release. The
+  Settings → Apps page (`/dashboard/settings/apps`) lists them for manual install.
 
 ---
 
@@ -28,11 +33,13 @@ Pick the next version, e.g. `1.2`. Do the version bumps **in the same commit** s
 1. `electron-app/package.json` → `"version": "1.2.0"`
 2. `android/app/build.gradle` → `versionCode 3`, `versionName "1.2"`
    (`versionCode` MUST increase — it's what the APK compares)
-3. `android-latest.json` (repo root) → bump `versionCode` / `versionName` and
-   point each `url` at the new tag's assets.
-4. `src/lib/appUpdate.ts` → `CASHIER_APK_URL` tag — the direct-download links
-   (the PIN screen's "Install Android App" button and the "Download latest APK"
-   fallback in Settings → Advanced) point straight at this release asset.
+3. `public/android-latest.json` → bump `versionCode` / `versionName` for each
+   flavor that changed. The `url` fields already point at the stable
+   `https://clickgroupsystem.vercel.app/apps/ClickGroup-<Flavor>-release.apk`
+   paths — only touch them if the filenames change.
+4. `src/lib/appUpdate.ts` → `APK_RELEASE_TAG` (the version label on the
+   Settings → Apps page). APK URLs there are the fixed `/apps/...` paths, so
+   nothing else to change.
 
 ### Build the EXE
 
@@ -58,68 +65,74 @@ mv "ClickGroup POS Setup 1.2.0.exe.blockmap" "ClickGroup-POS-Setup-1.2.0.exe.blo
 cd ../..
 ```
 
-### Build the 5 APKs
+### Build + ship the 5 APKs
 
 ```bash
 npx cap sync android
 cd android
 ./gradlew assembleCashierRelease  assembleDriverRelease assembleDeliveryRelease \
           assembleSellerRelease   assembleCfdRelease
-# → android/app/build/outputs/apk/<flavor>/release/app-<flavor>-release.apk
+cd ..
+# copy the fresh builds into public/ under the stable names the manifest uses
+cp android/app/build/outputs/apk/cashier/release/app-cashier-release.apk   public/apps/ClickGroup-Cashier-release.apk
+cp android/app/build/outputs/apk/driver/release/app-driver-release.apk     public/apps/ClickGroup-Driver-release.apk
+cp android/app/build/outputs/apk/delivery/release/app-delivery-release.apk public/apps/ClickGroup-Delivery-release.apk
+cp android/app/build/outputs/apk/seller/release/app-seller-release.apk     public/apps/ClickGroup-Seller-release.apk
+cp android/app/build/outputs/apk/cfd/release/app-cfd-release.apk           public/apps/ClickGroup-CFD-release.apk
+git add public/apps public/android-latest.json android/app/build.gradle src/lib/appUpdate.ts
+git commit && git push          # Vercel deploys → the APK release is live
 ```
 
 Release signing needs `android/keystore.properties` + the keystore (git-ignored —
 see `docs/ANDROID_APPS.md`). Without them the build falls back to the debug key
-and the output is **not** an in-place update for real installs.
+and the output is **not** an in-place update for real installs. (`apksigner verify
+--print-certs public/apps/ClickGroup-Cashier-release.apk` should show
+`CN=ClickGroup Technology`.)
 
-### Publish the GitHub release
+Each APK is ~10 MB → ~50 MB of binaries live in `public/apps/` and in git
+history. The filenames are stable so the working tree stays ~50 MB, but every
+release adds another ~50 MB of history.
+
+### Publish the EXE (GitHub release)
+
+Only the Electron build still uses a GitHub release:
 
 ```bash
 gh release create v1.2 \
   "electron-app/dist/latest.yml" \
   "electron-app/dist/ClickGroup-POS-Setup-1.2.0.exe" \
   "electron-app/dist/ClickGroup-POS-Setup-1.2.0.exe.blockmap" \
-  "android/app/build/outputs/apk/cashier/release/app-cashier-release.apk" \
-  "android/app/build/outputs/apk/driver/release/app-driver-release.apk" \
-  "android/app/build/outputs/apk/delivery/release/app-delivery-release.apk" \
-  "android/app/build/outputs/apk/seller/release/app-seller-release.apk" \
-  "android/app/build/outputs/apk/cfd/release/app-cfd-release.apk" \
-  "android-latest.json" \
   --title "v1.2" --notes "What changed in the native shell…"
 ```
 
 - `electron-updater` finds `latest.yml` + the `.exe` automatically via the
-  `publish` block in `electron-app/package.json`.
-- The APK checks `https://github.com/miraann/clickgroupsystem/releases/latest/download/android-latest.json`
-  (the `latest/download/` path always resolves to the newest non-prerelease
-  release), reads the entry for its own `applicationId`, and compares
-  `versionCode`. The WebView can't fetch that URL directly — the GitHub CDN
-  sends no CORS headers — so `src/lib/appUpdate.ts` calls the same-origin proxy
-  `GET /api/app-update/android` (`src/app/api/app-update/android/route.ts`),
-  which fetches the release asset server-side and echoes the JSON back. The APK
-  binary itself is still pulled straight from GitHub by native Java code, which
-  has no CORS constraint.
-
-Mark the release **pre-release** while testing so `latest/download/` keeps
-pointing at the previous stable one.
+  `publish` block in `electron-app/package.json`. Mark it **pre-release** while
+  testing so `latest/download/` keeps pointing at the previous stable EXE.
+- The APK's native `Updater` fetches `/android-latest.json` from the same Vercel
+  origin (no CORS proxy needed), reads the entry for its own `applicationId`,
+  compares `versionCode`, then downloads the `url` (an absolute
+  `https://clickgroupsystem.vercel.app/apps/…` path) with native Java.
 
 ---
 
-## `android-latest.json` shape
+## `public/android-latest.json` shape
 
 ```json
 {
   "flavors": {
-    "com.clickgroup.pos":          { "versionCode": 3, "versionName": "1.2",          "url": "https://github.com/miraann/clickgroupsystem/releases/download/v1.2/app-cashier-release.apk",  "notes": "…" },
-    "com.clickgroup.pos.driver":   { "versionCode": 3, "versionName": "1.2-driver",   "url": "https://github.com/miraann/clickgroupsystem/releases/download/v1.2/app-driver-release.apk",   "notes": "…" },
-    "com.clickgroup.pos.delivery": { "versionCode": 3, "versionName": "1.2-delivery", "url": "https://github.com/miraann/clickgroupsystem/releases/download/v1.2/app-delivery-release.apk", "notes": "…" },
-    "com.clickgroup.pos.seller":   { "versionCode": 3, "versionName": "1.2-seller",   "url": "https://github.com/miraann/clickgroupsystem/releases/download/v1.2/app-seller-release.apk",   "notes": "…" },
-    "com.clickgroup.pos.cfd":      { "versionCode": 3, "versionName": "1.2-cfd",      "url": "https://github.com/miraann/clickgroupsystem/releases/download/v1.2/app-cfd-release.apk",      "notes": "…" }
+    "com.clickgroup.pos":          { "versionCode": 5, "versionName": "1.3",          "url": "https://clickgroupsystem.vercel.app/apps/ClickGroup-Cashier-release.apk",  "notes": "…" },
+    "com.clickgroup.pos.driver":   { "versionCode": 5, "versionName": "1.3-driver",   "url": "https://clickgroupsystem.vercel.app/apps/ClickGroup-Driver-release.apk",   "notes": "…" },
+    "com.clickgroup.pos.delivery": { "versionCode": 5, "versionName": "1.3-delivery", "url": "https://clickgroupsystem.vercel.app/apps/ClickGroup-Delivery-release.apk", "notes": "…" },
+    "com.clickgroup.pos.seller":   { "versionCode": 5, "versionName": "1.3-seller",   "url": "https://clickgroupsystem.vercel.app/apps/ClickGroup-Seller-release.apk",   "notes": "…" },
+    "com.clickgroup.pos.cfd":      { "versionCode": 5, "versionName": "1.3-cfd",      "url": "https://clickgroupsystem.vercel.app/apps/ClickGroup-CFD-release.apk",      "notes": "…" }
   }
 }
 ```
 
-`notes` is optional free text shown under "Version X is available".
+- The `url` **must be absolute** — native Java downloads it directly.
+- Bump a flavor's `versionCode` only when its APK actually changed; leaving it
+  put means no "update available" prompt for that app.
+- `notes` is optional free text shown under "Version X is available".
 
 ---
 
@@ -142,6 +155,9 @@ present and updates are one tap.
 
 ## Testing
 
-See the "Verification" section of the implementation plan — in short: publish a
-release with a higher version than what's installed, open Settings → Advanced,
-and run "Check for updates".
+- **APK**: bump a flavor's `versionCode` in `public/android-latest.json` above
+  what's installed, `git push`, wait for the Vercel deploy, then open
+  Settings → Advanced → "Check for updates" on that flavor.
+- **EXE**: publish a GitHub release with a higher `latest.yml` version than
+  what's installed; electron-updater picks it up on next launch (or via
+  "Check for updates").

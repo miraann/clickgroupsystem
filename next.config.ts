@@ -80,6 +80,25 @@ const nextConfig: NextConfig = {
         ],
       },
       {
+        // Android app updater manifest — must never be served stale.
+        source: '/android-latest.json',
+        headers: [
+          { key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' },
+          { key: 'Content-Type', value: 'application/json; charset=utf-8' },
+        ],
+      },
+      {
+        // Self-hosted APKs (public/apps). Stable filenames whose bytes change
+        // per release, so revalidate rather than cache long; hint the installer
+        // with the right MIME type and force a download in the browser.
+        source: '/apps/:file*.apk',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=0, must-revalidate' },
+          { key: 'Content-Type', value: 'application/vnd.android.package-archive' },
+          { key: 'Content-Disposition', value: 'attachment' },
+        ],
+      },
+      {
         source: '/:path*',
         headers: securityHeaders,
       },

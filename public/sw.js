@@ -1,5 +1,6 @@
-// ClickGroup POS — Service Worker v4
+// ClickGroup POS — Service Worker v5
 // Caches: Next.js static chunks, Supabase storage images, app shell pages (offline mode)
+// v5: bypass /apps/*.apk + /android-latest.json (self-hosted Android downloads)
 //
 // Bumped STATIC_CACHE / SHELL_CACHE to v3 so the `activate` step below purges the
 // old caches — some devices were pinned to a stale JS bundle (and a stale app
@@ -65,6 +66,11 @@ self.addEventListener('fetch', e => {
   if (IS_DEV) return  // let the dev server serve fresh chunks, no SW caching
 
   const url = new URL(e.request.url)
+
+  // 0. Self-hosted Android APKs + their update manifest — never intercept or
+  //    cache: the APKs are ~10 MB and both must always be the freshest bytes
+  //    from the latest deploy. Let the browser/plugin fetch them straight.
+  if (url.pathname === '/android-latest.json' || url.pathname.startsWith('/apps/')) return
 
   // 1. Next.js static assets — content-hashed, cache forever
   if (url.pathname.startsWith('/_next/static/')) {
