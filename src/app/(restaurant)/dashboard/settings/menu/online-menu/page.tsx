@@ -1,7 +1,7 @@
 ﻿'use client'
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
-import { Globe, Copy, Check, Loader2, Save, ExternalLink, UtensilsCrossed, Plus, Palette, LayoutGrid, Link2, Ticket, ScanFace, Eye, X } from 'lucide-react'
+import { Globe, Copy, Check, Loader2, Save, ExternalLink, UtensilsCrossed, Plus, Palette, LayoutGrid, Link2, Ticket, ScanFace, Clock, Eye, X } from 'lucide-react'
 import DiscountCodePage from '../discount-code/page'
 import { motion, AnimatePresence, type Variants } from 'framer-motion'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
@@ -42,6 +42,9 @@ interface MenuSettings {
   welcome_text:       string | null
   menu_enabled:       boolean
   face_scan_enabled:  boolean
+  order_hours_enabled: boolean
+  order_open_time:     string
+  order_close_time:    string
 }
 
 interface PreviewData {
@@ -58,6 +61,7 @@ const DEFAULT: MenuSettings = {
   item_style: 'grid', event_style: 'cards', social_style: 'pills',
   show_prices: true, show_descriptions: true, welcome_text: null,
   menu_enabled: true, face_scan_enabled: true,
+  order_hours_enabled: false, order_open_time: '10:00', order_close_time: '23:00',
 }
 
 // ── Preset quick-starts ────────────────────────────────────────
@@ -122,6 +126,13 @@ function PhonePreview({ s, data }: { s: MenuSettings; data: PreviewData | null }
           <p className="mt-1.5 text-[10px] px-5 leading-relaxed" style={{ color: mutedColor }}>
             {s.welcome_text || 'Welcome! Browse our menu.'}
           </p>
+
+          {s.order_hours_enabled && (
+            <span className="mt-1.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold"
+              style={{ background: p + '18', color: p }}>
+              <Clock className="w-2.5 h-2.5" /> {s.order_open_time}–{s.order_close_time}
+            </span>
+          )}
 
           {/* Categories */}
           {cats.length > 0 && (
@@ -636,6 +647,9 @@ export default function OnlineMenuTemplatePage({ linksSlot }: { linksSlot?: Reac
       welcome_text:      d.welcome_text       ?? null,
       menu_enabled:      d.menu_enabled       ?? true,
       face_scan_enabled: d.face_scan_enabled  ?? true,
+      order_hours_enabled: d.order_hours_enabled ?? false,
+      order_open_time:     d.order_open_time     ?? '10:00',
+      order_close_time:    d.order_close_time    ?? '23:00',
     })
   }, [swrData])
 
@@ -815,6 +829,42 @@ export default function OnlineMenuTemplatePage({ linksSlot }: { linksSlot?: Reac
                     <span className={cn('absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all duration-200',
                       settings.face_scan_enabled ? 'left-[22px]' : 'left-0.5')} />
                   </button>
+                </div>
+                <div className="border-t border-white/8" />
+
+                {/* Ordering hours */}
+                <div>
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="min-w-0 flex items-start gap-2.5">
+                      <Clock className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-sm text-white/80 font-medium">{t.om_order_hours}</p>
+                        <p className="text-xs text-white/30 mt-0.5">{t.om_order_hours_desc}</p>
+                      </div>
+                    </div>
+                    <button onClick={() => set('order_hours_enabled', !settings.order_hours_enabled)}
+                      className={cn('relative w-11 h-6 rounded-full border transition-all duration-200 shrink-0',
+                        settings.order_hours_enabled ? 'bg-amber-500 border-amber-500' : 'bg-white/8 border-white/15')}>
+                      <span className={cn('absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all duration-200',
+                        settings.order_hours_enabled ? 'left-[22px]' : 'left-0.5')} />
+                    </button>
+                  </div>
+                  {settings.order_hours_enabled && (
+                    <div className="mt-3 grid grid-cols-2 gap-3 ps-6">
+                      <div>
+                        <label className="block text-[10px] font-semibold text-white/40 uppercase tracking-wider mb-1">{t.om_order_hours_open}</label>
+                        <input type="time" value={settings.order_open_time}
+                          onChange={e => set('order_open_time', e.target.value || '10:00')}
+                          className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500/50 transition-all [color-scheme:dark]" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-semibold text-white/40 uppercase tracking-wider mb-1">{t.om_order_hours_close}</label>
+                        <input type="time" value={settings.order_close_time}
+                          onChange={e => set('order_close_time', e.target.value || '23:00')}
+                          className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500/50 transition-all [color-scheme:dark]" />
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div className="border-t border-white/8" />
                 {[

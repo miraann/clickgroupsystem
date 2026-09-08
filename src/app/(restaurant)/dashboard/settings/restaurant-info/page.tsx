@@ -126,6 +126,7 @@ export default function RestaurantInfoPage() {
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [saveState, setSaveState] = useState<SaveState>('idle')
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [logoError, setLogoError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -178,6 +179,7 @@ export default function RestaurantInfoPage() {
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
+    setLogoError(null)
     setLogoFile(file)
     const reader = new FileReader()
     reader.onload = (ev) => setLogoPreview(ev.target?.result as string)
@@ -188,21 +190,30 @@ export default function RestaurantInfoPage() {
   const handleSave = async () => {
     if (!restaurantId) return
     setSaveState('saving')
+    setLogoError(null)
 
     let logo_url: string | undefined
 
     // Upload logo if a new file was selected
     if (logoFile) {
-      const ext = logoFile.name.split('.').pop()
+      const ext = (logoFile.name.split('.').pop() || 'png').toLowerCase()
       const path = `${restaurantId}/logo.${ext}`
       const { error: uploadError } = await supabase.storage
         .from('logos')
         .upload(path, logoFile, { upsert: true, contentType: logoFile.type })
 
-      if (!uploadError) {
-        const { data: urlData } = supabase.storage.from('logos').getPublicUrl(path)
-        logo_url = urlData.publicUrl
+      if (uploadError) {
+        // Don't report a false "saved" — surface why the logo didn't upload.
+        setLogoError(uploadError.message)
+        setSaveState('error')
+        setTimeout(() => setSaveState('idle'), 3000)
+        return
       }
+
+      const { data: urlData } = supabase.storage.from('logos').getPublicUrl(path)
+      // Path is stable (upsert overwrites logo.<ext>), so bust the browser/CDN
+      // cache — otherwise a replaced logo keeps showing the old image.
+      logo_url = `${urlData.publicUrl}?v=${Date.now()}`
     }
 
     // Read existing settings first so we don't overwrite password/modules/inventory/etc.
@@ -244,6 +255,7 @@ export default function RestaurantInfoPage() {
       setTimeout(() => setSaveState('idle'), 3000)
     } else {
       logAudit(restaurantId, 'update_settings', { entity: 'restaurant_info', name: form.name })
+      if (logo_url) setLogoPreview(logo_url)
       setLogoFile(null)
       setSaveState('saved')
       setTimeout(() => setSaveState('idle'), 2500)
@@ -337,7 +349,8 @@ export default function RestaurantInfoPage() {
               <div className="space-y-1">
                 <p className="text-sm font-medium text-white/70">{t.ri_logo_label}</p>
                 <p className="text-xs text-white/30">{t.ri_logo_hint}</p>
-                {logoFile && <p className="text-xs text-amber-400">{t.ri_logo_new}</p>}
+                {logoFile && !logoError && <p className="text-xs text-amber-400">{t.ri_logo_new}</p>}
+                {logoError && <p className="text-xs text-rose-400">{t.ri_logo_upload_failed}: {logoError}</p>}
                 <button
                   onClick={() => fileRef.current?.click()}
                   className="mt-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-white/50 hover:bg-white/10 hover:text-white/70 transition-all active:scale-95"

@@ -143,6 +143,31 @@ function buildSocialHref(key: string, value: string) {
   }
 }
 
+// ── Ordering-hours window ─────────────────────────────────────
+// `open`/`close` are 'HH:MM' device-local strings. When close <= open the
+// window is treated as crossing midnight (e.g. 18:00 → 02:00).
+function withinOrderingWindow(open: string, close: string, now: Date = new Date()): boolean {
+  const toMin = (s: string) => {
+    const [h, m] = (s || '').split(':').map(Number)
+    return (Number.isFinite(h) ? h : 0) * 60 + (Number.isFinite(m) ? m : 0)
+  }
+  const cur = now.getHours() * 60 + now.getMinutes()
+  const start = toMin(open)
+  const end = toMin(close)
+  if (start === end) return true                 // full 24h
+  if (start < end) return cur >= start && cur < end
+  return cur >= start || cur < end               // crosses midnight
+}
+
+function fmtHour(s: string): string {
+  const [h, m] = (s || '').split(':').map(Number)
+  const hh = Number.isFinite(h) ? h : 0
+  const mm = Number.isFinite(m) ? m : 0
+  const ampm = hh < 12 ? 'AM' : 'PM'
+  const h12 = hh % 12 === 0 ? 12 : hh % 12
+  return `${h12}:${String(mm).padStart(2, '0')} ${ampm}`
+}
+
 
 // ── Status Micro-Animations ───────────────────────────────────
 function AnimCookingPot({ color }: { color: string }) {
@@ -453,6 +478,9 @@ function TrackOrderSection({
         <div className="mt-2 rounded-2xl px-4 py-4 space-y-3"
           style={{ background: cardBg, border: `1px solid ${cardBorder}` }}>
 
+          {/* Hint */}
+          <p className="text-xs" style={{ color: dimText }}>{t.gm_track_hint}</p>
+
           {/* Phone input */}
           <div className="flex gap-2">
             <div className="relative flex-1">
@@ -705,6 +733,12 @@ export default function DeliveryOrderPage() {
   const [menuEnabled,    setMenuEnabled]    = useState(true)
   const [faceScanEnabled, setFaceScanEnabled] = useState(true)
 
+  // Ordering-hours window
+  const [orderHoursEnabled, setOrderHoursEnabled] = useState(false)
+  const [orderOpenTime,     setOrderOpenTime]     = useState('10:00')
+  const [orderCloseTime,    setOrderCloseTime]    = useState('23:00')
+  const [nowTick,           setNowTick]           = useState(() => Date.now())
+
   // Delivery config
   const [deliveryEnabled, setDeliveryEnabled]         = useState(false)
   const [deliveryFee, setDeliveryFee]                 = useState(0)
@@ -774,6 +808,17 @@ export default function DeliveryOrderPage() {
     return () => { if (storyTimer.current) clearTimeout(storyTimer.current) }
   }, [storyIdx, storyKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Re-check the ordering window every 30s so it flips open/closed live
+  useEffect(() => {
+    if (!orderHoursEnabled) return
+    setNowTick(Date.now())
+    const id = setInterval(() => setNowTick(Date.now()), 30_000)
+    return () => clearInterval(id)
+  }, [orderHoursEnabled])
+
+  const orderingOpen = !orderHoursEnabled ||
+    withinOrderingWindow(orderOpenTime, orderCloseTime, new Date(nowTick))
+
   // ── SWR: cached menu data (instant on repeat visits) ──────────
   const { data: menuData, isLoading: menuLoading } = useRestaurantMenu(restaurantId ?? null)
 
@@ -803,6 +848,9 @@ export default function DeliveryOrderPage() {
       if (d.welcome_text)     setWelcomeText(d.welcome_text)
       if (d.menu_enabled      !== undefined) setMenuEnabled(d.menu_enabled)
       if (d.face_scan_enabled !== undefined) setFaceScanEnabled(d.face_scan_enabled)
+      if (d.order_hours_enabled !== undefined) setOrderHoursEnabled(d.order_hours_enabled)
+      if (d.order_open_time)  setOrderOpenTime(d.order_open_time)
+      if (d.order_close_time) setOrderCloseTime(d.order_close_time)
     }
 
     // Load delivery settings from restaurant.settings
@@ -1063,8 +1111,61 @@ export default function DeliveryOrderPage() {
         />
       </motion.div>
 
+      {/* ── Ordering closed notice ── */}
+      {!orderingOpen && (
+        <motion.div initial={{ opacity: 0, y: 16, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+          className="w-full max-w-sm mt-5 mx-auto px-4">
+          <div className="relative overflow-hidden rounded-3xl p-5"
+            style={{
+              background: tpl.isDark
+                ? `linear-gradient(160deg, ${primaryColor}26, ${primaryColor}0d)`
+                : `linear-gradient(160deg, ${primaryColor}1f, ${primaryColor}08)`,
+              border: `1px solid ${primaryColor}33`,
+              boxShadow: `0 18px 40px -18px ${primaryColor}66`,
+            }}>
+            {/* soft corner glow */}
+            <div className="pointer-events-none absolute -top-12 -end-12 w-36 h-36 rounded-full blur-3xl"
+              style={{ background: `${primaryColor}33` }} />
+
+            <div className="relative flex flex-col items-center text-center gap-3">
+              {/* icon badge */}
+              <div className="relative w-14 h-14 rounded-2xl flex items-center justify-center shrink-0"
+                style={{ background: `${primaryColor}22`, border: `1px solid ${primaryColor}44` }}>
+                <Clock className="w-7 h-7" style={{ color: primaryColor }} />
+                <span className="absolute -top-1 -end-1 w-3.5 h-3.5 rounded-full"
+                  style={{ background: '#ef4444', boxShadow: `0 0 0 3px ${tpl.isDark ? '#0d1420' : '#fdeeee'}` }} />
+              </div>
+
+              <div>
+                <p className="text-base font-extrabold tracking-tight"
+                  style={{ color: tpl.isDark ? '#fff' : '#111827' }}>{t.gm_ordering_closed}</p>
+                <p className="text-xs mt-1 leading-relaxed mx-auto max-w-[15rem]"
+                  style={{ color: tpl.isDark ? 'rgba(255,255,255,0.55)' : '#6b7280' }}>
+                  {t.gm_ordering_closed_body}
+                </p>
+              </div>
+
+              {/* hours pill */}
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold tabular-nums"
+                style={{
+                  background: tpl.isDark ? 'rgba(255,255,255,0.07)' : '#ffffff',
+                  border: `1px solid ${primaryColor}33`,
+                  color: primaryColor,
+                  boxShadow: tpl.isDark ? 'none' : `0 4px 12px ${primaryColor}1f`,
+                }}>
+                <span className="w-1.5 h-1.5 rounded-full" style={{ background: primaryColor }} />
+                {fmtHour(orderOpenTime)}
+                <span className="opacity-40">–</span>
+                {fmtHour(orderCloseTime)}
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
       {/* ── Category navigation ── */}
-      {categories.length > 0 && (
+      {orderingOpen && categories.length > 0 && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1], delay: 0.68 }} className="w-full mt-3 sm:mt-6 overflow-x-hidden">
           {categoryStyle === 'circles' ? (
             <div className="scroll-hide flex gap-3 sm:gap-5 overflow-x-auto px-4 sm:px-6 py-2 sm:py-4 justify-center"
@@ -1074,8 +1175,8 @@ export default function DeliveryOrderPage() {
                 return (
                   <button key={cat.id}
                     onClick={() => { setActiveId(cat.id); setShowItems(true) }}
-                    className="flex flex-col items-center gap-1.5 shrink-0 focus:outline-none">
-                    <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-full flex items-center justify-center shadow-md transition-all duration-200"
+                    className="flex flex-col items-center gap-2.5 sm:gap-4 shrink-0 focus:outline-none">
+                    <div className="w-20 h-20 sm:w-28 sm:h-28 rounded-full flex items-center justify-center overflow-hidden shadow-md transition-all duration-200"
                       style={{
                         background: cat.color,
                         outline: isActive ? `3px solid ${primaryColor}` : 'none',
@@ -1084,10 +1185,11 @@ export default function DeliveryOrderPage() {
                         transform: isActive ? 'scale(1.12)' : 'scale(1)',
                       }}>
                       {cat.icon
-                        ? <span style={{ fontSize: '2rem', lineHeight: 1 }} className="sm:text-[3.5rem]">{cat.icon}</span>
-                        : <span className="text-white text-2xl sm:text-3xl font-bold">{cat.name.charAt(0).toUpperCase()}</span>}
+                        ? <span className="flex items-center justify-center leading-none sm:text-[6rem]"
+                            style={{ fontSize: '3.9rem', lineHeight: 1, transform: 'translate(0.05em, -0.08em)' }}>{cat.icon}</span>
+                        : <span className="text-white text-6xl sm:text-7xl font-bold leading-none">{cat.name.charAt(0).toUpperCase()}</span>}
                     </div>
-                    <span className="text-xs font-semibold w-12 sm:w-16 text-center leading-tight line-clamp-1"
+                    <span className="relative z-[1] text-xs font-semibold w-12 sm:w-16 text-center leading-tight line-clamp-1"
                       style={{ color: isActive ? primaryColor : (tpl.isDark ? '#9ca3af' : '#6b7280') }}>
                       {cat.name}
                     </span>
@@ -1103,7 +1205,7 @@ export default function DeliveryOrderPage() {
                 return (
                   <button key={cat.id}
                     onClick={() => { setActiveId(cat.id); setShowItems(true) }}
-                    className="flex flex-col items-center gap-2 shrink-0 focus:outline-none">
+                    className="flex flex-col items-center gap-3 shrink-0 focus:outline-none">
                     <div className="w-20 h-20 rounded-2xl flex items-center justify-center shadow-md transition-all duration-200"
                       style={{
                         background: cat.color,
@@ -1115,7 +1217,7 @@ export default function DeliveryOrderPage() {
                         ? <span style={{ fontSize: '2.8rem', lineHeight: 1 }}>{cat.icon}</span>
                         : <span className="text-white text-2xl font-bold">{cat.name.charAt(0).toUpperCase()}</span>}
                     </div>
-                    <span className="text-xs font-semibold w-14 text-center leading-tight line-clamp-1"
+                    <span className="relative z-[1] text-xs font-semibold w-14 text-center leading-tight line-clamp-1"
                       style={{ color: isActive ? primaryColor : (tpl.isDark ? '#9ca3af' : '#6b7280') }}>
                       {cat.name}
                     </span>
@@ -1175,11 +1277,11 @@ export default function DeliveryOrderPage() {
       )}
 
       {/* ── Items view ── */}
-      {showItems && activeId && (() => {
+      {orderingOpen && showItems && activeId && (() => {
         const activeCat = categories.find(c => c.id === activeId)
         const catItems  = menuItems.filter(i => i.category_id === activeId)
         return (
-          <div className="w-full mt-4 px-4 pb-10 text-start">
+          <div className="w-full max-w-lg mx-auto mt-4 px-4 pb-10 text-start">
             <button onClick={() => setShowItems(false)}
               className={`mb-4 ml-2 flex items-center gap-1.5 text-sm font-semibold transition-colors ${tpl.backBtn}`}>
               ← {t.gm_back}
@@ -1204,17 +1306,17 @@ export default function DeliveryOrderPage() {
                     <div key={item.id}
                       className={`flex gap-3 rounded-2xl border shadow-sm overflow-hidden ${tpl.itemCardBg} ${tpl.itemCardBorder}`}
                       style={{ boxShadow: qty > 0 ? `0 0 0 2px ${primaryColor}` : undefined }}>
-                      <div className="w-20 h-20 shrink-0 bg-gray-100 overflow-hidden relative">
+                      <div className="w-24 self-stretch min-h-24 shrink-0 bg-gray-100 overflow-hidden relative">
                         {item.image_url
-                          ? <NextImage src={item.image_url} alt={item.name} fill className="object-cover" />
+                          ? <NextImage src={item.image_url} alt={item.name} fill className="object-contain" />
                           : <div className="w-full h-full flex items-center justify-center"><UtensilsCrossed className="w-5 h-5 text-gray-200" /></div>}
                       </div>
-                      <div className="flex flex-col justify-center flex-1 py-3 pr-3 gap-1.5">
+                      <div className="flex flex-col justify-center flex-1 py-3 pe-3 gap-1.5">
                         <p className={`text-sm font-bold line-clamp-1 ${tpl.itemNameColor}`}>{item.name}</p>
                         {showDescs && item.description && (
                           <p className="text-xs line-clamp-1" style={{ color: tpl.isDark ? 'rgba(255,255,255,0.4)' : '#9ca3af' }}>{item.description}</p>
                         )}
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between mt-0.5 mb-1">
                           {showPrices && <p className={`text-sm font-extrabold ${tpl.priceColor}`}>{formatPrice(item.price)}</p>}
                           {qty === 0 ? (
                             <button onClick={() => addOne(item.id)}
@@ -1315,42 +1417,43 @@ export default function DeliveryOrderPage() {
       })()}
 
       {/* ── Events & Social ── */}
-      {!showItems && (
+      {(!showItems || !orderingOpen) && (
         <>
           {events.length > 0 && (
-            <motion.div className="w-full mt-6"
+            <motion.div className="w-full max-w-2xl mx-auto mt-6"
               initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1], delay: 0.84 }}>
-              <h2 className={`text-lg font-bold mb-3 ps-4 text-start ${tpl.sectionTitle}`}>{t.gm_events_offers}</h2>
-              <div className="scroll-hide flex gap-5 overflow-x-auto ps-4 pe-6 pb-4 pt-2 justify-start"
+              <h2 className={`text-lg font-bold mb-3 px-4 text-center ${tpl.sectionTitle}`}>{t.gm_events_offers}</h2>
+              <div className="scroll-hide overflow-x-auto pb-4 pt-2"
                 style={{ scrollbarWidth: 'none' } as React.CSSProperties}>
-                {events.map((ev, idx) => (
-                  <motion.div key={ev.id} onClick={() => openStory(idx)}
-                    initial={{ opacity: 0, y: 32, scale: 0.92 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1], delay: 0.84 + idx * 0.12 }}
-                    className="shrink-0 rounded-2xl p-[3px] shadow-lg cursor-pointer active:scale-95 transition-transform"
-                    style={{ background: primaryColor, boxShadow: `0 4px 18px ${primaryColor}55` }}>
-                    <div className="relative rounded-[14px] overflow-hidden w-40 h-56">
-                      {ev.image_url
-                        ? <NextImage src={ev.image_url} alt={ev.title} fill className="object-cover" />
-                        : <div className="absolute inset-0 bg-gradient-to-br from-amber-400 to-orange-500" />}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-                      <div className="absolute bottom-0 left-0 right-0 p-2">
-                        <p className="text-white text-xs font-bold leading-snug line-clamp-2">{ev.title}</p>
-                        {ev.date_label && <p className="text-white/70 text-[10px] mt-0.5">{ev.date_label}</p>}
+                <div className="flex gap-5 w-max mx-auto px-4">
+                  {events.map((ev, idx) => (
+                    <motion.div key={ev.id} onClick={() => openStory(idx)}
+                      initial={{ opacity: 0, y: 32, scale: 0.92 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1], delay: 0.84 + idx * 0.12 }}
+                      className="shrink-0 rounded-2xl p-[3px] shadow-lg cursor-pointer active:scale-95 transition-transform"
+                      style={{ background: primaryColor, boxShadow: `0 4px 18px ${primaryColor}55` }}>
+                      <div className="relative rounded-[14px] overflow-hidden w-40 aspect-[9/16]">
+                        {ev.image_url
+                          ? <NextImage src={ev.image_url} alt={ev.title} fill className="object-cover" />
+                          : <div className="absolute inset-0 bg-gradient-to-br from-amber-400 to-orange-500" />}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+                        <div className="absolute bottom-0 left-0 right-0 p-2">
+                          <p className="text-white text-xs font-bold leading-snug line-clamp-2">{ev.title}</p>
+                          {ev.date_label && <p className="text-white/70 text-[10px] mt-0.5">{ev.date_label}</p>}
+                        </div>
                       </div>
-                    </div>
-                  </motion.div>
-                ))}
+                    </motion.div>
+                  ))}
+                </div>
               </div>
             </motion.div>
           )}
 
           {socialLinks.length > 0 && (
-            <motion.div className="w-full mt-4 pb-10"
+            <motion.div className="w-full max-w-2xl mx-auto mt-4 pb-10"
               initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1], delay: 1.06 }}>
-              <div className="scroll-hide flex gap-3 overflow-x-auto ps-4 pe-6 py-2 justify-start"
-                style={{ scrollbarWidth: 'none' } as React.CSSProperties}>
+              <div className="flex flex-wrap justify-center gap-3 px-4 py-2">
                 {socialLinks.map((s, idx) => {
                   const href = buildSocialHref(s.key, s.value)
                   return (
@@ -1376,7 +1479,7 @@ export default function DeliveryOrderPage() {
       )}
 
       {/* ── Floating cart button ── */}
-      {cartCount > 0 && !showCart && (
+      {orderingOpen && cartCount > 0 && !showCart && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-full max-w-sm px-4">
           <button
             onClick={() => setShowCart(true)}
@@ -1399,7 +1502,7 @@ export default function DeliveryOrderPage() {
       )}
 
       {/* ── Cart sheet ── */}
-      {showCart && (
+      {orderingOpen && showCart && (
         <div className="fixed inset-0 z-50 flex flex-col justify-end bg-black/40" onClick={() => setShowCart(false)}>
           <div className="bg-white rounded-t-3xl max-h-[85vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
             <div className="flex justify-center pt-3 pb-2">

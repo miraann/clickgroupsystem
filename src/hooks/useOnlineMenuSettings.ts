@@ -15,6 +15,9 @@ export interface OnlineMenuSettings {
   welcome_text:      string | null
   menu_enabled:      boolean
   face_scan_enabled: boolean
+  order_hours_enabled: boolean
+  order_open_time:     string
+  order_close_time:    string
 }
 
 export interface OnlineMenuPreview {
