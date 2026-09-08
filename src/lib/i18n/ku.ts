@@ -1308,7 +1308,7 @@ const ku: Record<keyof typeof en, string> = {
   apk_title:              'ئەپەکانی ئەندرۆید',
   apk_subtitle:           'ئەپەکانی کلیک گروپ دابگرە و لەسەر ئامێری ئەندرۆید دایبمەزرێنە.',
   apk_install_note:       'کلیک لە داگرتن بکە، پاشان فایلی APK بکەرەوە. ئەگەر ئەندرۆید داوای کرد، ڕێگە بە «دامەزراندنی ئەپی نەناسراو» بدە.',
-  apk_download:           'داگرتنی APK',
+  apk_download:           'دابەزاندن بۆ سیستیمی ئەندرۆید',
   apk_version:            'وەشانی {v}',
   apk_latest_release:     'دوایین بڵاوکردنەوە',
   apk_app_cashier:        'کلیک گروپ کاشێر',
