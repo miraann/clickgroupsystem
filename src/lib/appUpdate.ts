@@ -75,10 +75,10 @@ export interface AndroidApp {
 
 export const ANDROID_APPS: AndroidApp[] = (
   [
-    { id: 'cashier',  pkg: 'com.clickgroup.pos',          asset: 'ClickGroup-Cashier-release.apk',  icon: '/app-icons/cashier.png',  nameKey: 'apk_app_cashier',  descKey: 'apk_desc_cashier'  },
-    { id: 'driver',   pkg: 'com.clickgroup.pos.driver',   asset: 'ClickGroup-Driver-release.apk',   icon: '/app-icons/driver.png',   nameKey: 'apk_app_driver',   descKey: 'apk_desc_driver'   },
-    { id: 'delivery', pkg: 'com.clickgroup.pos.delivery', asset: 'ClickGroup-Delivery-release.apk', icon: '/app-icons/delivery.png', nameKey: 'apk_app_delivery', descKey: 'apk_desc_delivery' },
-    { id: 'cfd',      pkg: 'com.clickgroup.pos.cfd',      asset: 'ClickGroup-CFD-release.apk',      icon: '/app-icons/cfd.png',      nameKey: 'apk_app_cfd',      descKey: 'apk_desc_cfd'      },
+    { id: 'cashier',  pkg: 'com.clickgroup.pos',          asset: 'Cashier.apk',  icon: '/app-icons/cashier.png',  nameKey: 'apk_app_cashier',  descKey: 'apk_desc_cashier'  },
+    { id: 'driver',   pkg: 'com.clickgroup.pos.driver',   asset: 'Driver.apk',   icon: '/app-icons/driver.png',   nameKey: 'apk_app_driver',   descKey: 'apk_desc_driver'   },
+    { id: 'delivery', pkg: 'com.clickgroup.pos.delivery', asset: 'Delivery.apk', icon: '/app-icons/delivery.png', nameKey: 'apk_app_delivery', descKey: 'apk_desc_delivery' },
+    { id: 'cfd',      pkg: 'com.clickgroup.pos.cfd',      asset: 'CFD.apk',      icon: '/app-icons/cfd.png',      nameKey: 'apk_app_cfd',      descKey: 'apk_desc_cfd'      },
   ] as const
 ).map(a => ({ ...a, url: `${APK_DIR}/${a.asset}` }))
 
@@ -87,7 +87,7 @@ export const ANDROID_APPS: AndroidApp[] = (
  * in-app updater can't run (e.g. an APK built before the native Updater
  * plugin). See docs/APP_UPDATES.md.
  */
-export const CASHIER_APK_URL = `${APK_DIR}/ClickGroup-Cashier-release.apk`
+export const CASHIER_APK_URL = `${APK_DIR}/Cashier.apk`
 
 /** Shape of /android-latest.json. */
 export interface AndroidManifest {

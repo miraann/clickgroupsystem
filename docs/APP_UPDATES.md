@@ -35,8 +35,9 @@ Pick the next version, e.g. `1.2`. Do the version bumps **in the same commit** s
    (`versionCode` MUST increase — it's what the APK compares)
 3. `public/android-latest.json` → bump `versionCode` / `versionName` for each
    flavor that changed. The `url` fields already point at the stable
-   `https://clickgroupsystem.vercel.app/apps/ClickGroup-<Flavor>-release.apk`
-   paths — only touch them if the filenames change.
+   `https://clickgroupsystem.vercel.app/apps/<Flavor>.apk` paths
+   (`Cashier.apk`, `Driver.apk`, `Delivery.apk`, `Seller.apk`, `CFD.apk`) —
+   only touch them if the filenames change.
 4. `src/lib/appUpdate.ts` → `APK_RELEASE_TAG` (the version label on the
    Settings → Apps page). APK URLs there are the fixed `/apps/...` paths, so
    nothing else to change.
@@ -74,11 +75,11 @@ cd android
           assembleSellerRelease   assembleCfdRelease
 cd ..
 # copy the fresh builds into public/ under the stable names the manifest uses
-cp android/app/build/outputs/apk/cashier/release/app-cashier-release.apk   public/apps/ClickGroup-Cashier-release.apk
-cp android/app/build/outputs/apk/driver/release/app-driver-release.apk     public/apps/ClickGroup-Driver-release.apk
-cp android/app/build/outputs/apk/delivery/release/app-delivery-release.apk public/apps/ClickGroup-Delivery-release.apk
-cp android/app/build/outputs/apk/seller/release/app-seller-release.apk     public/apps/ClickGroup-Seller-release.apk
-cp android/app/build/outputs/apk/cfd/release/app-cfd-release.apk           public/apps/ClickGroup-CFD-release.apk
+cp android/app/build/outputs/apk/cashier/release/app-cashier-release.apk   public/apps/Cashier.apk
+cp android/app/build/outputs/apk/driver/release/app-driver-release.apk     public/apps/Driver.apk
+cp android/app/build/outputs/apk/delivery/release/app-delivery-release.apk public/apps/Delivery.apk
+cp android/app/build/outputs/apk/seller/release/app-seller-release.apk     public/apps/Seller.apk
+cp android/app/build/outputs/apk/cfd/release/app-cfd-release.apk           public/apps/CFD.apk
 git add public/apps public/android-latest.json android/app/build.gradle src/lib/appUpdate.ts
 git commit && git push          # Vercel deploys → the APK release is live
 ```
@@ -86,7 +87,7 @@ git commit && git push          # Vercel deploys → the APK release is live
 Release signing needs `android/keystore.properties` + the keystore (git-ignored —
 see `docs/ANDROID_APPS.md`). Without them the build falls back to the debug key
 and the output is **not** an in-place update for real installs. (`apksigner verify
---print-certs public/apps/ClickGroup-Cashier-release.apk` should show
+--print-certs public/apps/Cashier.apk` should show
 `CN=ClickGroup Technology`.)
 
 Each APK is ~10 MB → ~50 MB of binaries live in `public/apps/` and in git
@@ -120,11 +121,11 @@ gh release create v1.2 \
 ```json
 {
   "flavors": {
-    "com.clickgroup.pos":          { "versionCode": 5, "versionName": "1.3",          "url": "https://clickgroupsystem.vercel.app/apps/ClickGroup-Cashier-release.apk",  "notes": "…" },
-    "com.clickgroup.pos.driver":   { "versionCode": 5, "versionName": "1.3-driver",   "url": "https://clickgroupsystem.vercel.app/apps/ClickGroup-Driver-release.apk",   "notes": "…" },
-    "com.clickgroup.pos.delivery": { "versionCode": 5, "versionName": "1.3-delivery", "url": "https://clickgroupsystem.vercel.app/apps/ClickGroup-Delivery-release.apk", "notes": "…" },
-    "com.clickgroup.pos.seller":   { "versionCode": 5, "versionName": "1.3-seller",   "url": "https://clickgroupsystem.vercel.app/apps/ClickGroup-Seller-release.apk",   "notes": "…" },
-    "com.clickgroup.pos.cfd":      { "versionCode": 5, "versionName": "1.3-cfd",      "url": "https://clickgroupsystem.vercel.app/apps/ClickGroup-CFD-release.apk",      "notes": "…" }
+    "com.clickgroup.pos":          { "versionCode": 5, "versionName": "1.3",          "url": "https://clickgroupsystem.vercel.app/apps/Cashier.apk",  "notes": "…" },
+    "com.clickgroup.pos.driver":   { "versionCode": 5, "versionName": "1.3-driver",   "url": "https://clickgroupsystem.vercel.app/apps/Driver.apk",   "notes": "…" },
+    "com.clickgroup.pos.delivery": { "versionCode": 5, "versionName": "1.3-delivery", "url": "https://clickgroupsystem.vercel.app/apps/Delivery.apk", "notes": "…" },
+    "com.clickgroup.pos.seller":   { "versionCode": 5, "versionName": "1.3-seller",   "url": "https://clickgroupsystem.vercel.app/apps/Seller.apk",   "notes": "…" },
+    "com.clickgroup.pos.cfd":      { "versionCode": 5, "versionName": "1.3-cfd",      "url": "https://clickgroupsystem.vercel.app/apps/CFD.apk",      "notes": "…" }
   }
 }
 ```
