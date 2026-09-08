@@ -1314,7 +1314,6 @@ const ku: Record<keyof typeof en, string> = {
   apk_app_cashier:        'کلیک گروپ کاشێر',
   apk_app_driver:         'کلیک گروپ شۆفێر',
   apk_app_delivery:       'کلیک گروپ گەیاندن',
-  apk_app_seller:         'کلیک گروپ ئەدمین',
   apk_app_cfd:            'کلیک گروپ شاشەی کڕیار',
   apk_desc_cashier:       'تێرمیناڵی سەرەکیی فرۆشتن — مێز، داواکاری، پارەدان',
   apk_desc_driver:        'بۆ شۆفێرانی گەیاندن — داواکارییە دیاریکراوەکان',

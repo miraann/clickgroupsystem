@@ -52,9 +52,13 @@ const ANDROID_MANIFEST_URL = '/api/app-update/android'
 export const APK_RELEASE_TAG = 'v1.2'
 const APK_BASE = `https://github.com/miraann/clickgroupsystem/releases/download/${APK_RELEASE_TAG}`
 
-/** One entry per Android flavor for the Settings → Apps download page. */
+/**
+ * One entry per restaurant-facing Android flavor for the Settings → Apps
+ * download page. The `seller` flavor is deliberately excluded — it's the
+ * platform admin app, not something a restaurant tenant installs.
+ */
 export interface AndroidApp {
-  id:      'cashier' | 'driver' | 'delivery' | 'seller' | 'cfd'
+  id:      'cashier' | 'driver' | 'delivery' | 'cfd'
   /** applicationId — also the key in android-latest.json's `flavors` map */
   pkg:     string
   /** release asset filename */
@@ -63,7 +67,7 @@ export interface AndroidApp {
   url:     string
   /** /public path to the launcher icon */
   icon:    string
-  nameKey: 'apk_app_cashier' | 'apk_app_driver' | 'apk_app_delivery' | 'apk_app_seller' | 'apk_app_cfd'
+  nameKey: 'apk_app_cashier' | 'apk_app_driver' | 'apk_app_delivery' | 'apk_app_cfd'
   descKey?: 'apk_desc_cashier' | 'apk_desc_driver' | 'apk_desc_delivery' | 'apk_desc_cfd'
 }
 
@@ -72,7 +76,6 @@ export const ANDROID_APPS: AndroidApp[] = (
     { id: 'cashier',  pkg: 'com.clickgroup.pos',          asset: 'ClickGroup-Cashier-release.apk',  icon: '/app-icons/cashier.png',  nameKey: 'apk_app_cashier',  descKey: 'apk_desc_cashier'  },
     { id: 'driver',   pkg: 'com.clickgroup.pos.driver',   asset: 'ClickGroup-Driver-release.apk',   icon: '/app-icons/driver.png',   nameKey: 'apk_app_driver',   descKey: 'apk_desc_driver'   },
     { id: 'delivery', pkg: 'com.clickgroup.pos.delivery', asset: 'ClickGroup-Delivery-release.apk', icon: '/app-icons/delivery.png', nameKey: 'apk_app_delivery', descKey: 'apk_desc_delivery' },
-    { id: 'seller',   pkg: 'com.clickgroup.pos.seller',   asset: 'ClickGroup-Seller-release.apk',   icon: '/app-icons/seller.png',   nameKey: 'apk_app_seller'   },
     { id: 'cfd',      pkg: 'com.clickgroup.pos.cfd',      asset: 'ClickGroup-CFD-release.apk',      icon: '/app-icons/cfd.png',      nameKey: 'apk_app_cfd',      descKey: 'apk_desc_cfd'      },
   ] as const
 ).map(a => ({ ...a, url: `${APK_BASE}/${a.asset}` }))

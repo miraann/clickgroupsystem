@@ -1314,7 +1314,6 @@ const ar: Record<keyof typeof en, string> = {
   apk_app_cashier:        'ClickGroup كاشير',
   apk_app_driver:         'ClickGroup سائق',
   apk_app_delivery:       'ClickGroup توصيل',
-  apk_app_seller:         'ClickGroup أدمن',
   apk_app_cfd:            'ClickGroup شاشة العميل',
   apk_desc_cashier:       'نقطة البيع الرئيسية — الطاولات والطلبات والدفع',
   apk_desc_driver:        'لسائقي التوصيل — الطلبات والمسارات المسندة',

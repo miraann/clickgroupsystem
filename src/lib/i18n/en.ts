@@ -941,7 +941,6 @@ const en = {
   apk_app_cashier:        'ClickGroup Cashier',
   apk_app_driver:         'ClickGroup Driver',
   apk_app_delivery:       'ClickGroup Delivery',
-  apk_app_seller:         'ClickGroup Seller',
   apk_app_cfd:            'ClickGroup CFD',
   apk_desc_cashier:       'Main POS terminal — tables, orders, payments',
   apk_desc_driver:        'For delivery drivers — assigned orders and routes',
