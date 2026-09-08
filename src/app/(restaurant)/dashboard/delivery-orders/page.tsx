@@ -20,6 +20,7 @@ import { logAudit, type AuditAction } from '@/lib/logAudit'
 import { motion, AnimatePresence, type Variants } from 'framer-motion'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import { notifyDriver, buildStatusWhatsAppMessage, buildWhatsAppDeepLink } from '@/lib/delivery/notify'
+import { isDeliveryKiosk } from '@/lib/kioskMode'
 
 const CONTAINER: Variants = {
   hidden: {},
@@ -140,6 +141,10 @@ export default function DeliveryOrdersPage() {
     if (permsLoading || isOwner) return
     if (!can('delivery')) router.replace(getStaffHome(permissions))
   }, [permsLoading, isOwner, permissions, can, router])
+
+  // Delivery APK kiosk: no way out to Home / Driver — this is the only screen.
+  const [kiosk, setKiosk] = useState(false)
+  useEffect(() => { setKiosk(isDeliveryKiosk()) }, [])
 
   // Read restaurantId from localStorage immediately so SWR can serve cache on re-mount
   const [restaurantId] = useState<string | null>(() =>
@@ -507,19 +512,23 @@ export default function DeliveryOrdersPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => router.push('/dashboard/driver')}
-              className="flex items-center gap-2 px-5 h-12 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/25 transition-all active:scale-95 text-sm font-semibold"
-            >
-              <MonitorSmartphone className="w-5 h-5" />
-              Driver
-            </button>
-            <button
-              onClick={() => router.push('/dashboard')}
-              className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 transition-all active:scale-95"
-            >
-              <Home className="w-5 h-5" />
-            </button>
+            {!kiosk && (
+              <button
+                onClick={() => router.push('/dashboard/driver')}
+                className="flex items-center gap-2 px-5 h-12 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/25 transition-all active:scale-95 text-sm font-semibold"
+              >
+                <MonitorSmartphone className="w-5 h-5" />
+                Driver
+              </button>
+            )}
+            {!kiosk && (
+              <button
+                onClick={() => router.push('/dashboard')}
+                className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 transition-all active:scale-95"
+              >
+                <Home className="w-5 h-5" />
+              </button>
+            )}
             <button
               onClick={() => { setLoading(true); load() }}
               className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 transition-all active:scale-95"

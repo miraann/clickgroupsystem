@@ -7,7 +7,8 @@
 		"cleartext": false
 	},
 	"android": {
-		"backgroundColor": "#022658"
+		"backgroundColor": "#022658",
+		"appendUserAgent": "ClickGroupDelivery"
 	},
 	"plugins": {
 		"PushNotifications": {

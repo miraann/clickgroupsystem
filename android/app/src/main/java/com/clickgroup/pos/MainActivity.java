@@ -11,6 +11,7 @@ import android.os.Looper;
 import android.view.WindowManager;
 import android.webkit.WebView;
 import com.getcapacitor.BridgeActivity;
+import com.getcapacitor.WebViewListener;
 
 public class MainActivity extends BridgeActivity {
 
@@ -53,6 +54,24 @@ public class MainActivity extends BridgeActivity {
         super.onCreate(savedInstanceState);
         createNotificationChannel();
 
+        if (isDeliveryFlavor()) {
+            // Single-screen kiosk: the Delivery app may only show
+            // /dashboard/delivery-orders. The web KioskGuard handles in-app
+            // (SPA) navigation; this listener is the native backstop for full
+            // page loads to any other /dashboard route.
+            bridge.addWebViewListener(new WebViewListener() {
+                @Override
+                public void onPageCommitVisible(WebView view, String url) {
+                    enforceDeliveryScope(view, url);
+                }
+
+                @Override
+                public void onPageStarted(WebView view) {
+                    enforceDeliveryScope(view, view != null ? view.getUrl() : null);
+                }
+            });
+        }
+
         if (isCfdFlavor()) {
             // Customer-facing display: hold the screen on by default. The web
             // "Keep screen awake" toggle (localStorage cfd_keep_awake) can clear
@@ -88,6 +107,16 @@ public class MainActivity extends BridgeActivity {
 
         // Keep the saved slug in sync with the web app's localStorage.
         handler.postDelayed(this::syncSlug, 3000);
+    }
+
+    // Delivery kiosk: bounce any full-load navigation to a non-delivery-orders
+    // dashboard route back to the delivery-orders screen. Login / PIN screens and
+    // the encoded ?next= query are left alone.
+    private void enforceDeliveryScope(WebView view, String url) {
+        if (view == null || url == null) return;
+        if (!url.contains("clickgroupsystem.vercel.app/dashboard")) return;
+        if (url.contains("/dashboard/delivery-orders")) return;
+        view.post(() -> view.loadUrl(APP_BASE + DELIVERY_NEXT));
     }
 
     private void syncSlug() {

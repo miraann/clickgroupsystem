@@ -26,6 +26,14 @@ launcher name/icon colour, and the `server.url` each one boots to.
   path. Owner PIN and any staff PIN with the `delivery` permission both pass the
   delivery-orders page guard. To re-pair, tap "Change restaurant account" on the
   PIN screen (clears the saved slug, back to `/restaurant-login`).
+- `delivery` is a **single-screen kiosk** — no Home / dashboard, no other routes.
+  Its flavor config sets `android.appendUserAgent: "ClickGroupDelivery"`;
+  `src/lib/kioskMode.ts` reads that marker and three layers enforce the lock:
+  `KioskGuard` (in `(restaurant)/layout.tsx`) bounces any in-app nav to a
+  non-`/dashboard/delivery-orders` route straight back; the delivery-orders page
+  hides its Home / Driver buttons; and a `WebViewListener` in `MainActivity.java`
+  is the native backstop for full page loads. Other flavors are unaffected (no
+  UA marker).
 - `cfd` first run: `src/app/cfd/page.tsx` signs in with the restaurant
   email/password once, stores the menu slug in `localStorage['cfd_slug']`, then
   every later launch jumps straight to `/cfd/<slug>`. Open `/cfd?switch=1` to

@@ -9,6 +9,7 @@ import AppearanceBgProvider from '@/components/restaurant/AppearanceBgProvider'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import ActivityToast from '@/components/restaurant/ActivityToast'
 import PushNavigation from '@/components/restaurant/PushNavigation'
+import KioskGuard from '@/components/restaurant/KioskGuard'
 
 export default function RestaurantLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -24,6 +25,7 @@ export default function RestaurantLayout({ children }: { children: React.ReactNo
                 <PageTransition>{children}</PageTransition>
                 <ActivityToast />
                 <PushNavigation />
+                <KioskGuard />
               </div>
             </AppearanceBgProvider>
           </AuthGuard>
