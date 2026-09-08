@@ -51,7 +51,7 @@ const ANDROID_MANIFEST_URL = '/api/app-update/android'
  * docs/APP_UPDATES.md.
  */
 export const CASHIER_APK_URL =
-  'https://github.com/miraann/clickgroupsystem/releases/download/v1.1/ClickGroup-Cashier-release.apk'
+  'https://github.com/miraann/clickgroupsystem/releases/download/v1.2/ClickGroup-Cashier-release.apk'
 
 // ── Timeout guard ───────────────────────────────────────────────
 // A missing/old native plugin can leave a bridge call pending forever, and a

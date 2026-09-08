@@ -2,34 +2,34 @@
   "_comment": "Uploaded as a GitHub release asset each release; the APK fetches releases/latest/download/android-latest.json and compares versionCode for its own applicationId. Keep in sync with android/app/build.gradle. See docs/APP_UPDATES.md.",
   "flavors": {
     "com.clickgroup.pos": {
-      "versionCode": 3,
-      "versionName": "1.1",
-      "url": "https://github.com/miraann/clickgroupsystem/releases/download/v1.1/ClickGroup-Cashier-release.apk",
-      "notes": "Bluetooth thermal-printer fixes (nearby-devices permission prompt, reliable BT prints)."
+      "versionCode": 4,
+      "versionName": "1.2",
+      "url": "https://github.com/miraann/clickgroupsystem/releases/download/v1.2/ClickGroup-Cashier-release.apk",
+      "notes": "New app icon."
     },
     "com.clickgroup.pos.driver": {
-      "versionCode": 3,
-      "versionName": "1.1-driver",
-      "url": "https://github.com/miraann/clickgroupsystem/releases/download/v1.1/ClickGroup-Driver-release.apk",
-      "notes": "Bluetooth thermal-printer fixes (nearby-devices permission prompt, reliable BT prints)."
+      "versionCode": 4,
+      "versionName": "1.2-driver",
+      "url": "https://github.com/miraann/clickgroupsystem/releases/download/v1.2/ClickGroup-Driver-release.apk",
+      "notes": "New app icon."
     },
     "com.clickgroup.pos.delivery": {
-      "versionCode": 3,
-      "versionName": "1.1-delivery",
-      "url": "https://github.com/miraann/clickgroupsystem/releases/download/v1.1/ClickGroup-Delivery-release.apk",
-      "notes": "Delivery-desk app: first-run restaurant login, then staff PIN into the delivery-orders screen."
+      "versionCode": 4,
+      "versionName": "1.2-delivery",
+      "url": "https://github.com/miraann/clickgroupsystem/releases/download/v1.2/ClickGroup-Delivery-release.apk",
+      "notes": "New app icon."
     },
     "com.clickgroup.pos.seller": {
-      "versionCode": 3,
-      "versionName": "1.1-seller",
-      "url": "https://github.com/miraann/clickgroupsystem/releases/download/v1.1/ClickGroup-Seller-release.apk",
-      "notes": "Bluetooth thermal-printer fixes (nearby-devices permission prompt, reliable BT prints)."
+      "versionCode": 4,
+      "versionName": "1.2-seller",
+      "url": "https://github.com/miraann/clickgroupsystem/releases/download/v1.2/ClickGroup-Seller-release.apk",
+      "notes": "New app icon."
     },
     "com.clickgroup.pos.cfd": {
-      "versionCode": 3,
-      "versionName": "1.1-cfd",
-      "url": "https://github.com/miraann/clickgroupsystem/releases/download/v1.1/ClickGroup-CFD-release.apk",
-      "notes": "Bluetooth thermal-printer fixes (nearby-devices permission prompt, reliable BT prints)."
+      "versionCode": 4,
+      "versionName": "1.2-cfd",
+      "url": "https://github.com/miraann/clickgroupsystem/releases/download/v1.2/ClickGroup-CFD-release.apk",
+      "notes": "New app icon."
     }
   }
 }
