@@ -13,6 +13,12 @@
       "url": "https://github.com/miraann/clickgroupsystem/releases/download/v1.1/ClickGroup-Driver-release.apk",
       "notes": "Bluetooth thermal-printer fixes (nearby-devices permission prompt, reliable BT prints)."
     },
+    "com.clickgroup.pos.delivery": {
+      "versionCode": 3,
+      "versionName": "1.1-delivery",
+      "url": "https://github.com/miraann/clickgroupsystem/releases/download/v1.1/ClickGroup-Delivery-release.apk",
+      "notes": "Delivery-desk app: first-run restaurant login, then staff PIN into the delivery-orders screen."
+    },
     "com.clickgroup.pos.seller": {
       "versionCode": 3,
       "versionName": "1.1-seller",

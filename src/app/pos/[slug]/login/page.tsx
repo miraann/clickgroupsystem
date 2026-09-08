@@ -54,6 +54,14 @@ export default function POSLoginPage() {
   const [isAndroid, setIsAndroid]             = useState(false)
   // True inside the native APK / Electron shell — the install button is web-only.
   const [isNativeShell, setIsNativeShell]     = useState(false)
+  // Optional post-PIN destination (?next=/dashboard/…). The Delivery APK shell
+  // appends this so returning users land straight on the delivery screen; only
+  // internal /dashboard paths are honoured.
+  const [nextDest] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null
+    const n = new URLSearchParams(window.location.search).get('next')
+    return n && /^\/dashboard(\/|$)/.test(n) ? n : null
+  })
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -113,7 +121,7 @@ export default function POSLoginPage() {
       localStorage.setItem('pos_session_ts',  Date.now().toString())
       sessionStorage.setItem('pos_session_active', '1')
       setStatus('success')
-      setTimeout(() => router.push('/dashboard'), 350)
+      setTimeout(() => router.push(nextDest ?? '/dashboard'), 350)
       return
     }
 
@@ -132,8 +140,8 @@ export default function POSLoginPage() {
     sessionStorage.setItem('pos_session_active', '1')
 
     setStatus('success')
-    setTimeout(() => router.push(getStaffHome(staff.permissions ?? {}, restaurant.menu_slug ?? slug)), 350)
-  }, [slug, router])
+    setTimeout(() => router.push(nextDest ?? getStaffHome(staff.permissions ?? {}, restaurant.menu_slug ?? slug)), 350)
+  }, [slug, router, nextDest])
 
   const handleKey = useCallback((key: Key) => {
     if (status === 'checking' || status === 'success') return
@@ -280,7 +288,7 @@ export default function POSLoginPage() {
                'pos_staff_id','pos_staff_name','pos_staff_role','pos_staff_color',
                'pos_role_permissions','pos_role_name'].forEach(k => localStorage.removeItem(k))
               sessionStorage.removeItem('pos_session_active')
-              router.replace('/restaurant-login')
+              router.replace(`/restaurant-login${nextDest ? `?next=${encodeURIComponent(nextDest)}` : ''}`)
             }}
             className="flex items-center gap-2 px-4 py-2 sm:px-5 sm:py-2.5 rounded-2xl text-xs sm:text-sm font-semibold transition-all active:scale-95 border bg-white/8 border-white/15 text-white/70 hover:bg-white/14 hover:text-white hover:border-white/25"
           >

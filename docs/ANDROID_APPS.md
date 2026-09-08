@@ -1,6 +1,6 @@
 # ClickGroup Android apps
 
-One Capacitor project (`android/`) produces **four** separately-installable APKs.
+One Capacitor project (`android/`) produces **five** separately-installable APKs.
 Every flavor is the same WebView shell — they differ only by `applicationId`,
 launcher name/icon colour, and the `server.url` each one boots to.
 
@@ -8,6 +8,7 @@ launcher name/icon colour, and the `server.url` each one boots to.
 |---|---|---|---|
 | `cashier` | `com.clickgroup.pos` | `/dashboard` (→ `/pos/<slug>/login` once paired) | ClickGroup Cashier |
 | `driver` | `com.clickgroup.pos.driver` | `/dashboard/driver` | ClickGroup Driver |
+| `delivery` | `com.clickgroup.pos.delivery` | `/restaurant-login` (→ `/pos/<slug>/login?next=/dashboard/delivery-orders` once paired) | ClickGroup Delivery |
 | `seller` | `com.clickgroup.pos.seller` | `/seller-login` | ClickGroup Seller |
 | `cfd` | `com.clickgroup.pos.cfd` | `/cfd` (→ `/cfd/<slug>` once paired) | ClickGroup CFD |
 
@@ -15,14 +16,25 @@ launcher name/icon colour, and the `server.url` each one boots to.
   (overrides the generated `src/main/assets/capacitor.config.json`).
 - `cashier` keeps the no-suffix id so existing installs/Firebase config are
   untouched. Its first-run "remember the restaurant slug" redirect logic in
-  `MainActivity.java` is **cashier-only** (gated on `getPackageName()`).
+  `MainActivity.java` is shared with `delivery` (gated on `getPackageName()`);
+  `driver` / `seller` / `cfd` never touch the slug binding.
+- `delivery` reuses that same slug-binding flow: first launch opens
+  `/restaurant-login` (email/password), every later launch jumps straight to the
+  staff PIN screen with `?next=/dashboard/delivery-orders` appended, so the app
+  always lands on the delivery-orders screen after the PIN. `/pos/<slug>/login`
+  and `/restaurant-login` honour that `next` param for any internal `/dashboard`
+  path. Owner PIN and any staff PIN with the `delivery` permission both pass the
+  delivery-orders page guard. To re-pair, tap "Change restaurant account" on the
+  PIN screen (clears the saved slug, back to `/restaurant-login`).
 - `cfd` first run: `src/app/cfd/page.tsx` signs in with the restaurant
   email/password once, stores the menu slug in `localStorage['cfd_slug']`, then
   every later launch jumps straight to `/cfd/<slug>`. Open `/cfd?switch=1` to
   re-pair.
-- `seller` / `cfd` don't use push notifications; their `google-services.json`
-  client entries are structural stubs (build would fail without them). Register
-  real Firebase Android apps for those package names only if push is ever added.
+- `seller` / `cfd` / `delivery` have structural-stub `google-services.json`
+  client entries (build fails without them). `seller` / `cfd` don't use push.
+  `delivery` **would** benefit from new-order push — register a real Firebase
+  Android app for `com.clickgroup.pos.delivery` and drop its `google-services.json`
+  block in to enable it; until then push silently no-ops on that flavor.
 - **CFD keep-awake:** the CFD screens keep the display on via the Wake Lock API
   (`src/hooks/useWakeLock.ts`), toggled by "Keep screen awake" on the `/cfd/<slug>`
   setup screen and persisted to `localStorage['cfd_keep_awake']` (default on).
@@ -38,7 +50,7 @@ debug key so it still assembles — that output is **not** publishable.
 
 > **Back up `android/clickgroup-release.keystore` and `android/keystore.properties`**
 > (password manager / secure storage). Losing them means no in-place updates for
-> any of the four apps — users would have to uninstall and reinstall.
+> any of the five apps — users would have to uninstall and reinstall.
 
 Regenerate the keystore (only if starting over):
 
@@ -52,13 +64,13 @@ keytool -genkeypair -v -keystore android/clickgroup-release.keystore \
 ```bash
 npx cap sync android          # only when web assets / plugins changed
 cd android
-./gradlew assembleCashierRelease assembleDriverRelease \
-          assembleSellerRelease  assembleCfdRelease
+./gradlew assembleCashierRelease  assembleDriverRelease assembleDeliveryRelease \
+          assembleSellerRelease   assembleCfdRelease
 # add assemble<Flavor>Debug for debug-signed builds
 ```
 
 Outputs: `android/app/build/outputs/apk/<flavor>/<release|debug>/app-<flavor>-<type>.apk`
-A copy of all eight, renamed, plus `SHA256SUMS.txt`, is written to `android/dist/`.
+A copy of all ten, renamed, plus `SHA256SUMS.txt`, is written to `android/dist/`.
 
 ## Deploy note
 

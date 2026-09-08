@@ -16,6 +16,16 @@ export default function RestaurantLoginPage() {
   const [loading,  setLoading]  = useState(false)
   const [error,    setError]    = useState<string | null>(null)
 
+  // Carried through to the PIN screen (?next=/dashboard/…). The Delivery APK
+  // boots here with ?next=/dashboard/delivery-orders on first launch; only
+  // internal /dashboard paths are honoured.
+  const [nextDest] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null
+    const n = new URLSearchParams(window.location.search).get('next')
+    return n && /^\/dashboard(\/|$)/.test(n) ? n : null
+  })
+  const pinQuery = () => (nextDest ? `?next=${encodeURIComponent(nextDest)}` : '')
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!email.trim() || !password.trim()) return
@@ -32,7 +42,7 @@ export default function RestaurantLoginPage() {
       const data = await res.json()
 
       if (data.requirePin) {
-        router.push(`/pos/${data.restaurant?.menu_slug}/login`)
+        router.push(`/pos/${data.restaurant?.menu_slug}/login${pinQuery()}`)
         return
       }
 
@@ -45,7 +55,7 @@ export default function RestaurantLoginPage() {
       const posKeys = ['pos_staff_id', 'pos_staff_name', 'pos_staff_role', 'pos_staff_color', 'pos_role_permissions', 'pos_role_name', 'owner_session']
       posKeys.forEach(k => localStorage.removeItem(k))
       sessionStorage.removeItem('pos_session_active')
-      router.push(`/pos/${restaurant.menu_slug}/login`)
+      router.push(`/pos/${restaurant.menu_slug}/login${pinQuery()}`)
     } else {
       const body = await res.json().catch(() => ({ error: t.rl_failed }))
       setError(body.error ?? t.rl_failed)

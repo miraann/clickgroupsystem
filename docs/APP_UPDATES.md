@@ -9,7 +9,7 @@ This flow only updates the **native shell**:
 | Build | What an update ships | Mechanism |
 |---|---|---|
 | Windows `.exe` (`electron-app/`) | `main.js` / `preload.js` — printing, tray, cache tuning | [`electron-updater`](https://www.electron.build/auto-update) reads `latest.yml` from GitHub Releases |
-| Android `.apk` × 4 flavors (`android/`) | `MainActivity.java`, plugins, `AndroidManifest.xml`, native config | `UpdaterPlugin` reads `android-latest.json` from GitHub Releases, downloads the APK, launches the OS installer |
+| Android `.apk` × 5 flavors (`android/`) | `MainActivity.java`, plugins, `AndroidManifest.xml`, native config | `UpdaterPlugin` reads `android-latest.json` from GitHub Releases, downloads the APK, launches the OS installer |
 
 The user triggers it from **Settings → Advanced → "App version & updates"**
 (`src/app/(restaurant)/dashboard/settings/advanced/page.tsx`, backed by
@@ -58,13 +58,13 @@ mv "ClickGroup POS Setup 1.2.0.exe.blockmap" "ClickGroup-POS-Setup-1.2.0.exe.blo
 cd ../..
 ```
 
-### Build the 4 APKs
+### Build the 5 APKs
 
 ```bash
 npx cap sync android
 cd android
-./gradlew assembleCashierRelease assembleDriverRelease \
-          assembleSellerRelease  assembleCfdRelease
+./gradlew assembleCashierRelease  assembleDriverRelease assembleDeliveryRelease \
+          assembleSellerRelease   assembleCfdRelease
 # → android/app/build/outputs/apk/<flavor>/release/app-<flavor>-release.apk
 ```
 
@@ -81,6 +81,7 @@ gh release create v1.2 \
   "electron-app/dist/ClickGroup-POS-Setup-1.2.0.exe.blockmap" \
   "android/app/build/outputs/apk/cashier/release/app-cashier-release.apk" \
   "android/app/build/outputs/apk/driver/release/app-driver-release.apk" \
+  "android/app/build/outputs/apk/delivery/release/app-delivery-release.apk" \
   "android/app/build/outputs/apk/seller/release/app-seller-release.apk" \
   "android/app/build/outputs/apk/cfd/release/app-cfd-release.apk" \
   "android-latest.json" \
@@ -109,10 +110,11 @@ pointing at the previous stable one.
 ```json
 {
   "flavors": {
-    "com.clickgroup.pos":        { "versionCode": 3, "versionName": "1.2",        "url": "https://github.com/miraann/clickgroupsystem/releases/download/v1.2/app-cashier-release.apk", "notes": "…" },
-    "com.clickgroup.pos.driver": { "versionCode": 3, "versionName": "1.2-driver", "url": "https://github.com/miraann/clickgroupsystem/releases/download/v1.2/app-driver-release.apk", "notes": "…" },
-    "com.clickgroup.pos.seller": { "versionCode": 3, "versionName": "1.2-seller", "url": "https://github.com/miraann/clickgroupsystem/releases/download/v1.2/app-seller-release.apk", "notes": "…" },
-    "com.clickgroup.pos.cfd":    { "versionCode": 3, "versionName": "1.2-cfd",    "url": "https://github.com/miraann/clickgroupsystem/releases/download/v1.2/app-cfd-release.apk", "notes": "…" }
+    "com.clickgroup.pos":          { "versionCode": 3, "versionName": "1.2",          "url": "https://github.com/miraann/clickgroupsystem/releases/download/v1.2/app-cashier-release.apk",  "notes": "…" },
+    "com.clickgroup.pos.driver":   { "versionCode": 3, "versionName": "1.2-driver",   "url": "https://github.com/miraann/clickgroupsystem/releases/download/v1.2/app-driver-release.apk",   "notes": "…" },
+    "com.clickgroup.pos.delivery": { "versionCode": 3, "versionName": "1.2-delivery", "url": "https://github.com/miraann/clickgroupsystem/releases/download/v1.2/app-delivery-release.apk", "notes": "…" },
+    "com.clickgroup.pos.seller":   { "versionCode": 3, "versionName": "1.2-seller",   "url": "https://github.com/miraann/clickgroupsystem/releases/download/v1.2/app-seller-release.apk",   "notes": "…" },
+    "com.clickgroup.pos.cfd":      { "versionCode": 3, "versionName": "1.2-cfd",      "url": "https://github.com/miraann/clickgroupsystem/releases/download/v1.2/app-cfd-release.apk",      "notes": "…" }
   }
 }
 ```

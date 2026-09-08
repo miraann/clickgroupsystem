@@ -3,6 +3,7 @@ package com.clickgroup.pos;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.content.SharedPreferences;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -16,12 +17,17 @@ public class MainActivity extends BridgeActivity {
     private static final String APP_BASE  = "https://clickgroupsystem.vercel.app";
     private static final String PREFS     = "clickgroup_login";
     private static final String KEY_SLUG  = "restaurant_slug";
-    // Only the cashier flavor keeps the com.clickgroup.pos applicationId (no
-    // suffix). driver / seller / cfd each carry their own boot URL in their
-    // flavor capacitor.config.json and must NOT be redirected to the POS PIN
-    // screen, so the slug-binding logic below is cashier-only.
-    private static final String CASHIER_PACKAGE = "com.clickgroup.pos";
-    private static final String CFD_PACKAGE     = "com.clickgroup.pos.cfd";
+    // The cashier flavor keeps the com.clickgroup.pos applicationId (no suffix);
+    // delivery is com.clickgroup.pos.delivery. Both bind the restaurant slug to
+    // the device and boot straight to the staff PIN screen on later launches
+    // (delivery appends ?next=/dashboard/delivery-orders). driver / seller / cfd
+    // each carry their own boot URL in their flavor capacitor.config.json and
+    // must NOT be redirected to the PIN screen.
+    private static final String CASHIER_PACKAGE  = "com.clickgroup.pos";
+    private static final String DELIVERY_PACKAGE = "com.clickgroup.pos.delivery";
+    private static final String CFD_PACKAGE      = "com.clickgroup.pos.cfd";
+    // Where the delivery flavor sends the user after a successful PIN.
+    private static final String DELIVERY_NEXT    = "/dashboard/delivery-orders";
     // Web sets this in localStorage from the CFD "Keep screen awake" toggle.
     private static final String KEY_KEEP_AWAKE  = "cfd_keep_awake";
 
@@ -30,6 +36,10 @@ public class MainActivity extends BridgeActivity {
 
     private boolean isCashierFlavor() {
         return CASHIER_PACKAGE.equals(getPackageName());
+    }
+
+    private boolean isDeliveryFlavor() {
+        return DELIVERY_PACKAGE.equals(getPackageName());
     }
 
     private boolean isCfdFlavor() {
@@ -53,7 +63,7 @@ public class MainActivity extends BridgeActivity {
             return;
         }
 
-        if (!isCashierFlavor()) {
+        if (!isCashierFlavor() && !isDeliveryFlavor()) {
             // driver / seller: just load the flavor's configured URL.
             return;
         }
@@ -66,7 +76,12 @@ public class MainActivity extends BridgeActivity {
         // and is only cleared on uninstall or "Change restaurant account".
         String savedSlug = prefs.getString(KEY_SLUG, null);
         if (savedSlug != null && !savedSlug.isEmpty()) {
-            final String target = APP_BASE + "/pos/" + savedSlug + "/login";
+            String url = APP_BASE + "/pos/" + savedSlug + "/login";
+            if (isDeliveryFlavor()) {
+                // Land on the delivery-orders screen once the PIN is accepted.
+                url += "?next=" + Uri.encode(DELIVERY_NEXT);
+            }
+            final String target = url;
             WebView wv = bridge.getWebView();
             wv.post(() -> wv.loadUrl(target));
         }
