@@ -286,14 +286,10 @@ function MergeTablesModal({ sourceTable, allTables, onClose, onMerged }: {
   const handleMerge = async (target: Table) => {
     if (!sourceTable.orderId || !target.orderId) return
     setMerging(target.id)
-    // Move all non-void items to target order
+    // Move all non-void items to target order. trg_recalc_order_total refreshes
+    // both orders' totals from this write — no manual recount needed.
     await supabase.from('order_items').update({ order_id: target.orderId })
       .eq('order_id', sourceTable.orderId).neq('status', 'void')
-    // Recalculate target total
-    const { data: items } = await supabase.from('order_items')
-      .select('item_price, qty').eq('order_id', target.orderId).neq('status', 'void')
-    const newTotal = (items ?? []).reduce((s: number, i: { item_price: number; qty: number }) => s + i.item_price * i.qty, 0)
-    await supabase.from('orders').update({ total: newTotal }).eq('id', target.orderId)
     // Cancel source order
     await supabase.from('orders').update({ status: 'cancelled' }).eq('id', sourceTable.orderId)
     setMerging(null)

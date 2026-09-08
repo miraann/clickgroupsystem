@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { assignOrderNumber } from '@/lib/orderNumber'
+import { sendToKitchenAtomic, type SendResult } from '@/lib/orderSend'
 import { printKitchenTicket } from '@/lib/printKitchenTicket'
 import { enqueuePrint } from '@/lib/printQueue'
 import { logAudit } from '@/lib/logAudit'
@@ -286,7 +287,58 @@ export function useOrderState(table: string, guestCount: number) {
       return
     }
 
-    // ── Online: send to Supabase ──────────────────────────────
+    const mergeInto = (prev: DbOrderItem[], newItems: DbOrderItem[]) => {
+      const merged = [...prev]
+      newItems.forEach(ni => {
+        const ex = merged.find(m => m.item_name === ni.item_name && m.item_price === ni.item_price && m.status === 'sent' && !ni.note && !m.note)
+        ex ? (ex.qty += ni.qty) : merged.push(ni)
+      })
+      return merged
+    }
+    const printTicket = (ordNum: string | null) => {
+      const ticketItems = baseRows.map(r => ({ name: r.item_name, qty: r.qty, note: r.note }))
+      enqueuePrint({
+        kind:   'kitchen',
+        title:  `Kitchen ticket · Table ${table}`,
+        detail: ticketItems.map(i => `${i.qty}× ${i.name}`).join(', '),
+        run:    () => printKitchenTicket({ restaurantId, tableNum: table, orderNum: ordNum, items: ticketItems }),
+      })
+    }
+
+    // ── Online: one atomic RPC (find/create order + number + items, under a
+    //    per-table lock). Falls back to the legacy 4-step path pre-migration. ──
+    let atomic: SendResult | null = null
+    try {
+      atomic = await sendToKitchenAtomic(supabase, {
+        restaurantId,
+        tableNumber: parseInt(table),
+        guests:      guestCount,
+        items: baseRows.map(r => ({
+          menu_item_id: r.menu_item_id, item_name: r.item_name, item_price: r.item_price,
+          qty: r.qty, note: r.note, station_id: r.station_id,
+        })),
+      })
+    } catch (e) {
+      setSendError(e instanceof Error ? e.message : 'Failed to send')
+      setSending(false); return
+    }
+
+    if (atomic) {
+      setOrderId(atomic.order_id)
+      if (atomic.order_num) setOrderNum(atomic.order_num)
+      setDbItems(prev => mergeInto(prev, atomic!.items as DbOrderItem[]))
+      setDraft(new Map())
+      setActiveTab('ordered')
+      logAudit(restaurantId, 'send_to_kitchen', {
+        table, order_id: atomic.order_id, item_count: baseRows.length,
+        items: baseRows.map(r => `${r.qty}× ${r.item_name}`).join(', '),
+      })
+      printTicket(atomic.order_num)
+      setSending(false)
+      return
+    }
+
+    // ── Fallback: legacy multi-step path (pre-migration only) ──────────────
     const oid = await createOrderIfNeeded()
     if (!oid) { setSending(false); return }
 
@@ -298,14 +350,7 @@ export function useOrderState(table: string, guestCount: number) {
       setSendError(error.message)
     } else if (inserted) {
       const newItems = inserted as DbOrderItem[]
-      setDbItems(prev => {
-        const merged = [...prev]
-        newItems.forEach(ni => {
-          const ex = merged.find(m => m.item_name === ni.item_name && m.item_price === ni.item_price && m.status === 'sent' && !ni.note && !m.note)
-          ex ? (ex.qty += ni.qty) : merged.push(ni)
-        })
-        return merged
-      })
+      setDbItems(prev => mergeInto(prev, newItems))
       const allItems = [...dbItems, ...newItems]
       const total = allItems.reduce((s, i) => s + i.item_price * i.qty, 0)
       await supabase.from('orders').update({ total, updated_at: new Date().toISOString() }).eq('id', oid)
@@ -319,13 +364,7 @@ export function useOrderState(table: string, guestCount: number) {
           item_count: rows.length,
           items:      rows.map(r => `${r.qty}× ${r.item_name}`).join(', '),
         })
-        const ticketItems = rows.map(r => ({ name: r.item_name, qty: r.qty, note: r.note }))
-        enqueuePrint({
-          kind:   'kitchen',
-          title:  `Kitchen ticket · Table ${table}`,
-          detail: ticketItems.map(i => `${i.qty}× ${i.name}`).join(', '),
-          run:    () => printKitchenTicket({ restaurantId, tableNum: table, orderNum, items: ticketItems }),
-        })
+        printTicket(orderNum)
       }
     }
     setSending(false)
@@ -392,7 +431,38 @@ export function useOrderState(table: string, guestCount: number) {
       return true
     }
 
-    // ── Online: send to Supabase ──────────────────────────────
+    // ── Online: atomic RPC first, legacy fallback pre-migration ───────────
+    let atomic: SendResult | null = null
+    try {
+      atomic = await sendToKitchenAtomic(supabase, {
+        restaurantId,
+        tableNumber: parseInt(table),
+        guests:      guestCount,
+        items: [{
+          menu_item_id: baseRow.menu_item_id, item_name: baseRow.item_name,
+          item_price: baseRow.item_price, qty: baseRow.qty,
+          note: baseRow.note, station_id: baseRow.station_id,
+        }],
+      })
+    } catch (e) {
+      setSendError(e instanceof Error ? e.message : 'Failed to send')
+      setSending(false); return false
+    }
+
+    if (atomic) {
+      setOrderId(atomic.order_id)
+      if (atomic.order_num) setOrderNum(atomic.order_num)
+      setDbItems(prev => [...prev, ...(atomic!.items as DbOrderItem[])])
+      setDraft(prev => { const m = new Map(prev); m.delete(menuItem.id); return m })
+      setActiveTab('ordered')
+      logAudit(restaurantId, 'send_to_kitchen', {
+        table, order_id: atomic.order_id, item_name: menuItem.name, qty: entry.qty,
+      })
+      setSending(false)
+      return true
+    }
+
+    // ── Fallback: legacy multi-step path (pre-migration only) ─────────────
     const oid = await createOrderIfNeeded()
     if (!oid) { setSending(false); return false }
 

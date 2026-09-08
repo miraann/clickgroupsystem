@@ -12,6 +12,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import { assignOrderNumber } from '@/lib/orderNumber'
+import { sendToKitchenAtomic, type SendResult } from '@/lib/orderSend'
 import { sendPush } from '@/lib/push'
 import { logAudit } from '@/lib/logAudit'
 import { useRestaurantMenu } from '@/hooks/useRestaurantMenu'
@@ -437,85 +438,92 @@ export default function GuestPage() {
     setPlacing(true)
     setPlaceError(null)
 
-    // Find or create active order for this table
-    const { data: existing } = await supabase
-      .from('orders')
-      .select('id')
-      .eq('restaurant_id', restaurant.id)
-      .eq('table_number', table.seq)
-      .eq('status', 'active')
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-
-    let orderId = existing?.id
-    if (!orderId) {
-      const { data: newOrder, error: createErr } = await supabase
-        .from('orders')
-        .insert({
-          restaurant_id: restaurant.id,
-          table_number:  table.seq,
-          status:        'active',
-          source:        'guest',
-          total:         0,
-        })
-        .select('id')
-        .single()
-      if (createErr || !newOrder) {
-        setPlaceError(t.gm_err_create)
-        setPlacing(false)
-        return
-      }
-      orderId = newOrder.id
-      // Assign order number immediately so KDS monitor can display it
-      await assignOrderNumber(supabase, restaurant.id, orderId)
-    }
-
-    // Insert items with status 'pending' (awaiting staff approval)
-    const rows = cartItems.map(({ item, entry }) => {
+    // Item payload — shared by the atomic RPC and the legacy fallback.
+    const itemInputs = cartItems.map(({ item, entry }) => {
       const modNames  = entry.selectedOptions.map(o => o.option_name)
       const noteTxts  = entry.noteIds.map(id => kitchenNotes.find(n => n.id === id)?.text).filter(Boolean) as string[]
       if (entry.customNote.trim()) noteTxts.push(entry.customNote.trim())
       const modPrice  = entry.selectedOptions.reduce((s, o) => s + o.price, 0)
       const allParts  = [...modNames, ...noteTxts]
       return {
-        order_id:     orderId,
         menu_item_id: item.id,
         item_name:    item.name,
         item_price:   item.price + modPrice,
         qty:          entry.qty,
-        status:       'pending',
         note:         allParts.length > 0 ? allParts.join(' · ') : null,
         station_id:   item.category_id ? (catStationMap.get(item.category_id) ?? null) : null,
       }
     })
 
-    const { data: insertedItems, error: insertErr } = await supabase
-      .from('order_items').insert(rows).select('id, item_name, qty, status')
-    if (insertErr) {
-      setPlaceError(insertErr.message)
+    // ── Preferred: one atomic RPC. Guest items land as 'pending' for staff
+    //    approval; the per-table lock stops a guest and a waiter double-opening
+    //    the same table, and orders.total stays correct via the DB trigger. ──
+    let orderId: string | undefined
+    let insertedItems: { id: string; item_name: string; qty: number; status: string }[] | null = null
+
+    let atomic: SendResult | null = null
+    try {
+      atomic = await sendToKitchenAtomic(supabase, {
+        restaurantId: restaurant.id,
+        tableNumber:  table.seq,
+        guests:       0,
+        items:        itemInputs,
+        source:       'guest',
+        itemStatus:   'pending',
+      })
+    } catch (e) {
+      setPlaceError(e instanceof Error ? e.message : t.gm_err_create)
       setPlacing(false)
       return
     }
+
+    if (atomic) {
+      orderId = atomic.order_id
+      insertedItems = atomic.items.map(i => ({ id: i.id, item_name: i.item_name, qty: i.qty, status: i.status }))
+    } else {
+      // ── Fallback: legacy multi-step path (pre-migration only) ──────────────
+      const { data: existing } = await supabase
+        .from('orders').select('id')
+        .eq('restaurant_id', restaurant.id).eq('table_number', table.seq).eq('status', 'active')
+        .order('created_at', { ascending: false }).limit(1).maybeSingle()
+
+      let oid = existing?.id as string | undefined
+      if (!oid) {
+        const { data: newOrder, error: createErr } = await supabase
+          .from('orders')
+          .insert({ restaurant_id: restaurant.id, table_number: table.seq, status: 'active', source: 'guest', total: 0 })
+          .select('id').single()
+        if (createErr || !newOrder) { setPlaceError(t.gm_err_create); setPlacing(false); return }
+        oid = newOrder.id as string
+        await assignOrderNumber(supabase, restaurant.id, oid)
+      }
+      orderId = oid
+
+      const rows = itemInputs.map(i => ({ ...i, order_id: oid, status: 'pending' }))
+      const { data: ins, error: insertErr } = await supabase
+        .from('order_items').insert(rows).select('id, item_name, qty, status')
+      if (insertErr) { setPlaceError(insertErr.message); setPlacing(false); return }
+      insertedItems = (ins ?? []) as { id: string; item_name: string; qty: number; status: string }[]
+
+      // Recompute the WHOLE order total (items the waiter already rung in + these),
+      // not just the guest's addition.
+      const { data: allItems } = await supabase
+        .from('order_items').select('item_price, qty').eq('order_id', oid).neq('status', 'void')
+      const total = (allItems ?? []).reduce((s, r) => s + r.item_price * r.qty, 0)
+      await supabase.from('orders').update({ total, updated_at: new Date().toISOString() }).eq('id', oid)
+    }
+
+    if (!orderId) { setPlaceError(t.gm_err_create); setPlacing(false); return }
+
     sendPush(restaurant.id, 'guest')
     logAudit(restaurant.id, 'guest_order',
       {
         table:       table.table_number || String(table.seq),
         table_name:  table.name || null,
-        items_count: rows.length,
-        items:       rows.slice(0, 3).map(r => `${r.qty}× ${r.item_name}`).join(', '),
+        items_count: itemInputs.length,
+        items:       itemInputs.slice(0, 3).map(r => `${r.qty}× ${r.item_name}`).join(', '),
       },
       orderId, { staffName: 'Guest', staffRole: 'guest' })
-
-    // Update order total
-    const addedTotal = cartItems.reduce((s, { item, entry }) => {
-      const modPrice = entry.selectedOptions.reduce((m, o) => m + o.price, 0)
-      return s + (item.price + modPrice) * entry.qty
-    }, 0)
-    await supabase
-      .from('orders')
-      .update({ total: addedTotal, updated_at: new Date().toISOString() })
-      .eq('id', orderId)
 
     // Set realtime tracking
     setCurrentOrderId(orderId)

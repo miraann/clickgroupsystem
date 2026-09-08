@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { assignOrderNumber } from '@/lib/orderNumber'
+import { sendToKitchenAtomic } from '@/lib/orderSend'
 
 export interface QueuedItem {
   menu_item_id: string
@@ -65,6 +66,21 @@ export async function syncAllQueued(
 
   for (const bundle of queue) {
     try {
+      // Preferred: one atomic RPC — find/create order + number + items under a
+      // per-table lock, so a replay can't double-open a table another device
+      // opened while we were offline.
+      const atomic = await sendToKitchenAtomic(supabase, {
+        restaurantId: bundle.restaurant_id,
+        tableNumber:  bundle.table_number,
+        guests:       bundle.guests,
+        items: bundle.items.map(i => ({
+          menu_item_id: i.menu_item_id, item_name: i.item_name, item_price: i.item_price,
+          qty: i.qty, note: i.note, station_id: i.station_id,
+        })),
+      })
+      if (atomic) { dequeueOrder(bundle.local_id); synced++; continue }
+
+      // ── Fallback: legacy replay (pre-migration only) ──────────────────────
       // Find or create an active order for this table
       const { data: existing } = await supabase
         .from('orders')
