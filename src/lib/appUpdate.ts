@@ -49,7 +49,7 @@ const ANDROID_MANIFEST_URL = '/api/app-update/android'
  * (keep in sync with android/app/build.gradle + android-latest.json — see
  * docs/APP_UPDATES.md).
  */
-export const APK_RELEASE_TAG = 'v1.2'
+export const APK_RELEASE_TAG = 'v1.3'
 const APK_BASE = `https://github.com/miraann/clickgroupsystem/releases/download/${APK_RELEASE_TAG}`
 
 /**
