@@ -1185,8 +1185,8 @@ export default function DeliveryOrderPage() {
                         transform: isActive ? 'scale(1.12)' : 'scale(1)',
                       }}>
                       {cat.icon
-                        ? <span className="flex items-center justify-center leading-none sm:text-[6rem]"
-                            style={{ fontSize: '3.9rem', lineHeight: 1, transform: 'translate(0.05em, -0.08em)' }}>{cat.icon}</span>
+                        ? <span className="flex items-center justify-center w-full h-full leading-none sm:text-[6rem]"
+                            style={{ fontSize: '3.9rem', lineHeight: 1 }}>{cat.icon}</span>
                         : <span className="text-white text-6xl sm:text-7xl font-bold leading-none">{cat.name.charAt(0).toUpperCase()}</span>}
                     </div>
                     <span className="relative z-[1] text-xs font-semibold w-12 sm:w-16 text-center leading-tight line-clamp-1"
