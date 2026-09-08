@@ -45,13 +45,64 @@ export interface UpdateEvent {
 const ANDROID_MANIFEST_URL = '/api/app-update/android'
 
 /**
+ * GitHub release tag the direct APK links point at. Bump this on every release
+ * (keep in sync with android/app/build.gradle + android-latest.json — see
+ * docs/APP_UPDATES.md).
+ */
+export const APK_RELEASE_TAG = 'v1.2'
+const APK_BASE = `https://github.com/miraann/clickgroupsystem/releases/download/${APK_RELEASE_TAG}`
+
+/** One entry per Android flavor for the Settings → Apps download page. */
+export interface AndroidApp {
+  id:      'cashier' | 'driver' | 'delivery' | 'seller' | 'cfd'
+  /** applicationId — also the key in android-latest.json's `flavors` map */
+  pkg:     string
+  /** release asset filename */
+  asset:   string
+  /** direct download URL (built from APK_RELEASE_TAG) */
+  url:     string
+  /** /public path to the launcher icon */
+  icon:    string
+  nameKey: 'apk_app_cashier' | 'apk_app_driver' | 'apk_app_delivery' | 'apk_app_seller' | 'apk_app_cfd'
+  descKey?: 'apk_desc_cashier' | 'apk_desc_driver' | 'apk_desc_delivery' | 'apk_desc_cfd'
+}
+
+export const ANDROID_APPS: AndroidApp[] = (
+  [
+    { id: 'cashier',  pkg: 'com.clickgroup.pos',          asset: 'ClickGroup-Cashier-release.apk',  icon: '/app-icons/cashier.png',  nameKey: 'apk_app_cashier',  descKey: 'apk_desc_cashier'  },
+    { id: 'driver',   pkg: 'com.clickgroup.pos.driver',   asset: 'ClickGroup-Driver-release.apk',   icon: '/app-icons/driver.png',   nameKey: 'apk_app_driver',   descKey: 'apk_desc_driver'   },
+    { id: 'delivery', pkg: 'com.clickgroup.pos.delivery', asset: 'ClickGroup-Delivery-release.apk', icon: '/app-icons/delivery.png', nameKey: 'apk_app_delivery', descKey: 'apk_desc_delivery' },
+    { id: 'seller',   pkg: 'com.clickgroup.pos.seller',   asset: 'ClickGroup-Seller-release.apk',   icon: '/app-icons/seller.png',   nameKey: 'apk_app_seller'   },
+    { id: 'cfd',      pkg: 'com.clickgroup.pos.cfd',      asset: 'ClickGroup-CFD-release.apk',      icon: '/app-icons/cfd.png',      nameKey: 'apk_app_cfd',      descKey: 'apk_desc_cfd'      },
+  ] as const
+).map(a => ({ ...a, url: `${APK_BASE}/${a.asset}` }))
+
+/**
  * Direct link to the current cashier APK on GitHub Releases — the no-frills
  * fallback when the in-app updater can't run (e.g. an APK built before the
- * native Updater plugin). Bump the tag when cutting a release; see
- * docs/APP_UPDATES.md.
+ * native Updater plugin). See docs/APP_UPDATES.md.
  */
-export const CASHIER_APK_URL =
-  'https://github.com/miraann/clickgroupsystem/releases/download/v1.2/ClickGroup-Cashier-release.apk'
+export const CASHIER_APK_URL = `${APK_BASE}/ClickGroup-Cashier-release.apk`
+
+/** Shape of the proxied android-latest.json (`GET /api/app-update/android`). */
+export interface AndroidManifest {
+  flavors?: Record<string, { versionCode?: number; versionName?: string; url?: string; notes?: string }>
+}
+
+/**
+ * Fetch the published android-latest.json through the same-origin proxy so the
+ * download page can show each app's current version / release notes. Best-effort
+ * — callers render fine without it.
+ */
+export async function fetchAndroidManifest(): Promise<AndroidManifest | null> {
+  try {
+    const res = await fetch(ANDROID_MANIFEST_URL, { cache: 'no-store', signal: AbortSignal.timeout(10_000) })
+    if (!res.ok) return null
+    return (await res.json()) as AndroidManifest
+  } catch {
+    return null
+  }
+}
 
 // ── Timeout guard ───────────────────────────────────────────────
 // A missing/old native plugin can leave a bridge call pending forever, and a

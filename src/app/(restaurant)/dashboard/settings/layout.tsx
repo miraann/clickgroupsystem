@@ -8,6 +8,7 @@ import {
   Receipt, BarChart3, Database, Users, UserCircle,
   CreditCard, ArrowLeft, ChevronRight, Home, Palette,
   DollarSign, Star, Ban, ActivitySquare, Package, MessageCircle, RefreshCw,
+  Smartphone,
 } from 'lucide-react'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import type { TranslationKey } from '@/lib/i18n/translations'
@@ -80,6 +81,7 @@ const NAV_GROUPS: NavGroup[] = [
       { labelKey: 'si_advanced',  href: '/dashboard/settings/advanced',  icon: Settings2,      ownerOnly: true },
       { labelKey: 'si_database',  href: '/dashboard/settings/database',  icon: Database,       ownerOnly: true },
       { labelKey: 'si_audit_log', href: '/dashboard/settings/audit-log', icon: ActivitySquare, permKey: 'settings.audit_log' },
+      { labelKey: 'si_apps',      href: '/dashboard/settings/apps',      icon: Smartphone,     ownerOnly: true },
     ],
   },
   {

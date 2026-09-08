@@ -227,4 +227,25 @@ export const SettingsIcons: Record<string, ReactNode> = {
       <circle cx="37" cy="50" r="3" fill="#c4b5fd"/>
     </svg>
   ),
+  android: (
+    <svg viewBox="0 0 64 64" width="100%" height="100%">
+      {/* head/body */}
+      <path d="M16 30 a16 16 0 0 1 32 0 Z" fill="#3ddc84"/>
+      <rect x="16" y="30" width="32" height="18" rx="4" fill="#3ddc84"/>
+      {/* legs */}
+      <rect x="23" y="46" width="6" height="12" rx="3" fill="#3ddc84"/>
+      <rect x="35" y="46" width="6" height="12" rx="3" fill="#3ddc84"/>
+      {/* arms */}
+      <rect x="8"  y="31" width="6" height="16" rx="3" fill="#3ddc84"/>
+      <rect x="50" y="31" width="6" height="16" rx="3" fill="#3ddc84"/>
+      {/* antennae */}
+      <path d="M22 16 L18 10" stroke="#3ddc84" strokeWidth="2.5" strokeLinecap="round"/>
+      <path d="M42 16 L46 10" stroke="#3ddc84" strokeWidth="2.5" strokeLinecap="round"/>
+      {/* eyes */}
+      <circle cx="26" cy="24" r="2.4" fill="#0b1220"/>
+      <circle cx="38" cy="24" r="2.4" fill="#0b1220"/>
+      {/* download arrow */}
+      <path d="M32 33 V42 M27 38 L32 43 L37 38" stroke="#0b1220" strokeWidth="2.6" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  ),
 }

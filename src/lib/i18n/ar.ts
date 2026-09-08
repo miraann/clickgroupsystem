@@ -844,6 +844,7 @@ const ar: Record<keyof typeof en, string> = {
 
   // ── Appearance page ───────────────────────────────
   si_appearance:        'المظهر',
+  si_apps:              'التطبيقات',
   app_title:            'المظهر',
   app_subtitle:         'الألوان ونمط الخلفية وشكل الطاولات',
   app_primary_color:    'اللون الأساسي',
@@ -1302,6 +1303,23 @@ const ar: Record<keyof typeof en, string> = {
   upd_perm_note:          'اسمح بـ «تثبيت التطبيقات غير المعروفة» لتطبيق ClickGroup في الشاشة التي فُتحت للتو، ثم اضغط «تنزيل وتثبيت» مرة أخرى.',
   upd_manual_note:        'هذا التطبيق أقدم من أن يُحدِّث نفسه — «تنزيل وتثبيت» يفتح الإصدار الجديد في المتصفح؛ ثم افتح ملف APK الذي تم تنزيله لإكمال التثبيت.',
   upd_download_apk:       'تنزيل أحدث ملف APK',
+
+  // ── Android apps download page (settings/apps) ───────────────
+  apk_title:              'تطبيقات أندرويد',
+  apk_subtitle:           'نزّل تطبيقات ClickGroup وثبّتها على أجهزة أندرويد.',
+  apk_install_note:       'اضغط تنزيل، ثم افتح ملف APK. إذا طلب أندرويد ذلك، اسمح بـ «تثبيت التطبيقات غير المعروفة».',
+  apk_download:           'تنزيل APK',
+  apk_version:            'الإصدار {v}',
+  apk_latest_release:     'أحدث إصدار',
+  apk_app_cashier:        'ClickGroup كاشير',
+  apk_app_driver:         'ClickGroup سائق',
+  apk_app_delivery:       'ClickGroup توصيل',
+  apk_app_seller:         'ClickGroup أدمن',
+  apk_app_cfd:            'ClickGroup شاشة العميل',
+  apk_desc_cashier:       'نقطة البيع الرئيسية — الطاولات والطلبات والدفع',
+  apk_desc_driver:        'لسائقي التوصيل — الطلبات والمسارات المسندة',
+  apk_desc_delivery:      'مكتب التوصيل — شاشة طلبات التوصيل الواردة',
+  apk_desc_cfd:           'شاشة تواجه العميل — عرض الطلب والإجمالي',
 
   // ── Database page ─────────────────────────────────────────────
   db_title:                 'قاعدة البيانات',

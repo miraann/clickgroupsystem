@@ -103,6 +103,8 @@ const SECTIONS: Section[] = [
         subtitles: { en: 'Backups & sync',      ku: 'پاشەکەوت و هاودەنگی',  ar: 'النسخ الاحتياطي' } },
       { id: 'audit_log', labelKey: 'si_audit_log', icon: 'audit', href: '/dashboard/settings/audit-log', span: 2, permKey: 'settings.audit_log',
         subtitles: { en: 'Staff activity trail', ku: 'چاودێری چالاکی ستاف',  ar: 'سجل نشاط الموظفين' } },
+      { id: 'apps', labelKey: 'si_apps', icon: 'android', href: '/dashboard/settings/apps', span: 2, ownerOnly: true,
+        subtitles: { en: 'Download Android apps', ku: 'داگرتنی ئەپەکانی ئەندرۆید', ar: 'تنزيل تطبيقات أندرويد' } },
     ],
   },
   {

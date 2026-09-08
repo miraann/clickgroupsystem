@@ -47,6 +47,7 @@ const en = {
   si_whatsapp:          'WhatsApp',
   si_roles:             'Role Permissions',
   si_appearance:        'Appearance',
+  si_apps:              'Apps',
 
   // ── Common UI ─────────────────────────────────────────────────
   save:               'Save Settings',
@@ -929,6 +930,23 @@ const en = {
   upd_perm_note:          'Allow “Install unknown apps” for ClickGroup in the system screen that just opened, then tap Download & install again.',
   upd_manual_note:        'This app is too old to update itself — “Download & install” opens the new version in your browser; open the downloaded APK file to finish.',
   upd_download_apk:       'Download latest APK',
+
+  // ── Android apps download page (settings/apps) ───────────────
+  apk_title:              'Android Apps',
+  apk_subtitle:           'Download and install the ClickGroup apps on Android devices.',
+  apk_install_note:       'Tap Download, then open the APK file. If Android asks, allow “Install unknown apps”.',
+  apk_download:           'Download APK',
+  apk_version:            'Version {v}',
+  apk_latest_release:     'Latest release',
+  apk_app_cashier:        'ClickGroup Cashier',
+  apk_app_driver:         'ClickGroup Driver',
+  apk_app_delivery:       'ClickGroup Delivery',
+  apk_app_seller:         'ClickGroup Seller',
+  apk_app_cfd:            'ClickGroup CFD',
+  apk_desc_cashier:       'Main POS terminal — tables, orders, payments',
+  apk_desc_driver:        'For delivery drivers — assigned orders and routes',
+  apk_desc_delivery:      'Delivery desk — incoming delivery-orders screen',
+  apk_desc_cfd:           'Customer-facing display — order and total screen',
 
   // ── Database page ─────────────────────────────────────────────
   db_title:                 'Database',
