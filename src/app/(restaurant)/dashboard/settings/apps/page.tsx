@@ -80,9 +80,7 @@ export default function AppsPage() {
 
               <a
                 href={app.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                download
+                download={app.asset}
                 className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 text-sm font-medium hover:bg-emerald-500/25 transition-all shrink-0"
               >
                 <Download className="w-4 h-4" />

@@ -88,12 +88,15 @@ const nextConfig: NextConfig = {
         ],
       },
       {
-        // Self-hosted APKs (public/apps). Stable filenames whose bytes change
-        // per release, so revalidate rather than cache long; hint the installer
-        // with the right MIME type and force a download in the browser.
+        // Self-hosted APKs (public/apps). A short max-age lets the CDN serve one
+        // consistent cached object for the whole (possibly resumed / ranged)
+        // download — `max-age=0, must-revalidate` re-hits origin mid-download and
+        // can stitch inconsistent bytes into a right-sized but corrupt file that
+        // then fails to parse on-device. Vercel purges static assets on every
+        // deploy, so a 10-min window can't serve a stale APK after a release.
         source: '/apps/:file*.apk',
         headers: [
-          { key: 'Cache-Control', value: 'public, max-age=0, must-revalidate' },
+          { key: 'Cache-Control', value: 'public, max-age=600' },
           { key: 'Content-Type', value: 'application/vnd.android.package-archive' },
           { key: 'Content-Disposition', value: 'attachment' },
         ],
