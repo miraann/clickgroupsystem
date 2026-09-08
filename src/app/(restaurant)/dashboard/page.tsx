@@ -647,12 +647,19 @@ const TableCard = memo(function TableCard({ table, onSelect, onLongPress, format
   // DESIGN: VIBRANT — solid vivid color fill
   // ════════════════════════════════════════════════════════════════
   if (design === 'vibrant') {
+    // Free rect/square card: number floats top-corner, status + seats centered vertically.
+    const freeVibrant = !isRound && !isOccupied
     return (
       <motion.button
         {...motionBase}
         whileTap={{ scale: 0.92 }}
         style={{ width: cardW, height: cardH, borderRadius: shapeRadius, background: VIBRANT_BG[table.status], boxShadow: '0 6px 24px rgba(0,0,0,0.35)' }}
-        className={cn('relative p-3 text-left shrink-0 touch-manipulation flex flex-col overflow-hidden', isRound && 'items-center justify-center text-center', isBillReq && 'animate-pulse')}
+        className={cn(
+          'relative p-3 text-left shrink-0 touch-manipulation flex flex-col overflow-hidden',
+          isRound && 'items-center justify-center text-center',
+          freeVibrant && 'justify-center',
+          isBillReq && 'animate-pulse',
+        )}
       >
         <div className="absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-black/20 pointer-events-none rounded-2xl" />
         {isBillReq && <div className="absolute inset-0 rounded-2xl bg-white/10 animate-ping pointer-events-none" />}
@@ -661,34 +668,42 @@ const TableCard = memo(function TableCard({ table, onSelect, onLongPress, format
             <BellRing className="w-2.5 h-2.5 text-violet-600" />
           </div>
         )}
-        {/* Label + dot */}
-        <div className={cn('relative flex items-center gap-1.5 mb-auto', isRound ? 'justify-center' : 'w-full justify-between')}>
+        {/* Label + dot — floats in the top corner on free cards so the info block can truly center */}
+        <div className={cn(
+          'flex items-center gap-1.5',
+          freeVibrant
+            ? 'absolute inset-x-3 top-3 z-[1] justify-between'
+            : cn('relative mb-auto', isRound ? 'justify-center' : 'w-full justify-between'),
+        )}>
           <span className="text-sm font-black text-white drop-shadow-sm">{table.label}</span>
           <motion.div animate={{ scale: [1,1.5,1], opacity:[1,.5,1] }} transition={{ repeat: Infinity, duration: isBillReq ? 0.8 : 2.2 }}
             className="w-2 h-2 rounded-full bg-white/70 shrink-0" />
         </div>
-        {/* Status */}
-        <p className="relative text-[11px] font-bold uppercase tracking-wide text-white/90 leading-none mb-1.5">
-          {STATUS_LABELS[table.status]}
-        </p>
-        {/* Occupied info */}
-        {isOccupied && (
-          <div className="relative space-y-1">
-            <div className="flex items-center gap-1">
-              <Clock className="w-3 h-3 text-white/80" />
-              <span className="text-xs text-white/90 font-semibold tabular-nums"><TableTimer openedAt={table.openedAt!} /></span>
+        {/* Info — bottom-aligned when occupied, vertically centered when free */}
+        <div className="relative">
+          {/* Status */}
+          <p className="text-[11px] font-bold uppercase tracking-wide text-white/90 leading-none mb-1.5">
+            {STATUS_LABELS[table.status]}
+          </p>
+          {/* Occupied info */}
+          {isOccupied && (
+            <div className="space-y-1">
+              <div className="flex items-center gap-1">
+                <Clock className="w-3 h-3 text-white/80" />
+                <span className="text-xs text-white/90 font-semibold tabular-nums"><TableTimer openedAt={table.openedAt!} /></span>
+              </div>
+              {table.orderTotal != null && (
+                <p className="text-base font-black text-white tabular-nums leading-none">{formatPrice(table.orderTotal)}</p>
+              )}
             </div>
-            {table.orderTotal != null && (
-              <p className="text-base font-black text-white tabular-nums leading-none">{formatPrice(table.orderTotal)}</p>
-            )}
-          </div>
-        )}
-        {table.status === 'available' && (
-          <div className="relative flex items-center gap-1">
-            <Users className="w-3 h-3 text-white/75" />
-            <span className="text-xs text-white/90 font-semibold">{table.capacity}</span>
-          </div>
-        )}
+          )}
+          {table.status === 'available' && (
+            <div className="flex items-center gap-1">
+              <Users className="w-3 h-3 text-white/75" />
+              <span className="text-xs text-white/90 font-semibold">{table.capacity}</span>
+            </div>
+          )}
+        </div>
       </motion.button>
     )
   }
