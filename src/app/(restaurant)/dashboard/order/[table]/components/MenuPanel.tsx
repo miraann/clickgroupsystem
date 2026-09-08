@@ -43,7 +43,7 @@ export function MenuPanel({
         <div className="flex-1 overflow-y-auto p-4">
           <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
             {Array.from({ length: 9 }).map((_, i) => (
-              <div key={i} className="rounded-2xl skeleton-shimmer" style={{ aspectRatio: '4/3' }} />
+              <div key={i} className="rounded-2xl skeleton-shimmer" style={{ aspectRatio: '1 / 1.35' }} />
             ))}
           </div>
         </div>
@@ -103,13 +103,13 @@ export function MenuPanel({
                       : 'border-white/8 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.05] hover:shadow-lg hover:shadow-black/30'
                   )}
                 >
-                  {/* Image — 16:9 */}
-                  <div className="relative w-full aspect-video overflow-hidden bg-white/[0.04]">
+                  {/* Image — square, full picture (transparent PNGs sit inside, not cropped) */}
+                  <div className="relative w-full aspect-square overflow-hidden bg-[radial-gradient(circle_at_50%_38%,rgba(255,255,255,0.08),transparent_70%)]">
                     {item.image_url ? (
                       <img src={item.image_url} alt={item.name} loading="lazy" decoding="async"
-                        className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                        className="absolute inset-0 w-full h-full object-contain p-2 transition-transform duration-300 group-hover:scale-105" />
                     ) : (
-                      <div className="absolute inset-0 bg-gradient-to-br from-white/6 via-white/3 to-transparent flex items-center justify-center">
+                      <div className="absolute inset-0 flex items-center justify-center">
                         <span className="text-4xl opacity-15 select-none">🍽</span>
                       </div>
                     )}
