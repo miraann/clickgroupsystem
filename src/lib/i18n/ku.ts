@@ -240,7 +240,7 @@ const ku: Record<keyof typeof en, string> = {
   // ── Device page ───────────────────────────────────
   dev_title:            'ئامێر',
   dev_subtitle:         'بەڕێوەبردنی ئیستگەکانی KDS و چاپەرەکان',
-  dev_kds:              'ئیستگەکانی KDS',
+  dev_kds:              'شاشەکانی ناو چێشتخانە',
   dev_printers:         'چاپەرەکان',
   dev_add_station:      'ئیستگە زیاد بکە',
   dev_add_printer:      'چاپەر زیاد بکە',
