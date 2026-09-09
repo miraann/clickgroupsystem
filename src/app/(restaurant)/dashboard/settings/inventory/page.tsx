@@ -423,21 +423,15 @@ export default function InventoryPage() {
               <div>
                 <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.42, ease: 'circOut' }}
-                  className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-emerald-500/15 flex items-center justify-center">
-                      <Archive className="w-5 h-5 text-emerald-400" />
-                    </div>
-                    <div>
-                      <h2 className="text-base font-semibold text-white">{t.inv_items_title}</h2>
-                      <p className="text-xs text-white/40">{t.inv_items_subtitle}</p>
-                    </div>
-                    <span className="px-2 py-0.5 rounded-full bg-white/8 text-xs text-white/50">{items.length}</span>
+                  className="flex items-center gap-3 mb-4">
+                  <div className="w-9 h-9 rounded-xl bg-emerald-500/15 flex items-center justify-center">
+                    <Archive className="w-5 h-5 text-emerald-400" />
                   </div>
-                  <button onClick={openItemAdd}
-                    className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-medium rounded-xl active:scale-95 transition-all">
-                    <Plus className="w-4 h-4" /> {t.inv_add_item}
-                  </button>
+                  <div>
+                    <h2 className="text-base font-semibold text-white">{t.inv_items_title}</h2>
+                    <p className="text-xs text-white/40">{t.inv_items_subtitle}</p>
+                  </div>
+                  <span className="px-2 py-0.5 rounded-full bg-white/8 text-xs text-white/50">{items.length}</span>
                 </motion.div>
 
                 {items.length > 0 && (
@@ -449,65 +443,68 @@ export default function InventoryPage() {
                   </motion.div>
                 )}
 
-                <AnimatePresence mode="wait">
-                  {filteredItems.length === 0 ? (
-                    <motion.div key="empty" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                      transition={{ duration: 0.3, ease: 'circOut' }}
-                      className="text-center py-20 text-white/25">
-                      <Archive className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                      <p className="text-sm font-medium">{items.length === 0 ? t.inv_no_items_yet : t.inv_no_results}</p>
-                      <p className="text-xs mt-1">{t.inv_no_items_desc}</p>
-                    </motion.div>
-                  ) : (
-                    <motion.div key="list" variants={CONTAINER} initial="hidden" animate="show" className="space-y-2">
-                      {filteredItems.map(it => {
-                        const cat  = categories.find(c => c.id === it.category_id)
-                        const unit = units.find(u => u.id === it.unit_id)
-                        return (
-                          <motion.div variants={ITEM} key={it.id}
-                            className={cn('flex items-center gap-4 p-4 rounded-2xl border transition-all',
-                              it.active ? 'bg-white/5 border-white/10' : 'bg-white/2 border-white/5 opacity-50')}>
-                            <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/20 flex items-center justify-center shrink-0">
-                              <Package className="w-4 h-4 text-emerald-400" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <p className="text-sm font-semibold text-white truncate">{it.name}</p>
-                                {it.sku && <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/8 text-white/35 font-mono">{it.sku}</span>}
-                                <StockBadge current={it.current_stock} min={it.min_stock} labels={{ outOfStock: t.inv_out_of_stock, lowStock: t.inv_low_stock, inStock: t.inv_in_stock }} />
-                              </div>
-                              <div className="flex items-center gap-3 mt-1 flex-wrap">
-                                <span className="text-xs text-white/40">
-                                  <span className="font-semibold text-white/70">{it.current_stock}</span>
-                                  {unit ? ` ${unit.abbreviation}` : ''} {t.inv_in_stock_suffix}
-                                </span>
-                                <span className="text-xs text-white/25">{t.inv_min_prefix} {it.min_stock}{unit ? ` ${unit.abbreviation}` : ''}</span>
-                                {cat && (
-                                  <span className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-medium"
-                                    style={{ backgroundColor: cat.color + '22', color: cat.color }}>
-                                    <Tag className="w-2.5 h-2.5" />{cat.name}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                            <button onClick={() => toggleItem(it)} className="active:scale-95 shrink-0">
-                              {it.active ? <ToggleRight className="w-6 h-6 text-emerald-400" /> : <ToggleLeft className="w-6 h-6 text-white/25" />}
+                <motion.div variants={CONTAINER} initial="hidden" animate="show" className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                  <button onClick={openItemAdd}
+                    className="min-h-[170px] rounded-2xl border-2 border-dashed border-white/15 hover:border-emerald-500/40 hover:bg-emerald-500/[0.04] flex flex-col items-center justify-center gap-2 text-white/40 hover:text-emerald-400 transition-all active:scale-95">
+                    <span className="w-11 h-11 rounded-full bg-white/5 flex items-center justify-center"><Plus className="w-4 h-4" /></span>
+                    <span className="text-[11px] font-semibold">{t.inv_add_item}</span>
+                  </button>
+                  {filteredItems.map(it => {
+                    const cat   = categories.find(c => c.id === it.category_id)
+                    const unit  = units.find(u => u.id === it.unit_id)
+                    const armed = itemDelId === it.id
+                    return (
+                      <motion.div variants={ITEM} key={it.id}
+                        className={cn('flex flex-col items-center rounded-2xl border px-3 py-3 text-center transition-all',
+                          it.active ? 'bg-white/5 border-white/10 hover:border-white/20' : 'bg-white/2 border-white/5 opacity-55')}>
+                        <div className="w-11 h-11 rounded-xl bg-emerald-500/15 border border-emerald-500/20 flex items-center justify-center shrink-0">
+                          <Package className="w-5 h-5 text-emerald-400" />
+                        </div>
+                        <p className="mt-1.5 w-full text-sm font-bold text-white line-clamp-1">{it.name}</p>
+                        {it.sku && <span className="text-[9px] px-1.5 py-0.5 rounded bg-white/8 text-white/35 font-mono line-clamp-1 max-w-full">{it.sku}</span>}
+                        <div className="mt-1"><StockBadge current={it.current_stock} min={it.min_stock} labels={{ outOfStock: t.inv_out_of_stock, lowStock: t.inv_low_stock, inStock: t.inv_in_stock }} /></div>
+                        <p className="mt-1 text-[11px] text-white/40 tabular-nums">
+                          <span className="font-semibold text-white/70">{it.current_stock}</span>{unit ? ` ${unit.abbreviation}` : ''}
+                          <span className="text-white/25"> · {t.inv_min_prefix} {it.min_stock}</span>
+                        </p>
+                        {cat && (
+                          <span className="mt-0.5 text-[10px] px-1.5 py-0.5 rounded-full font-medium" style={{ backgroundColor: cat.color + '22', color: cat.color }}>{cat.name}</span>
+                        )}
+
+                        <span className="my-2 h-px w-full bg-white/8" />
+
+                        <div className="flex items-start justify-center gap-2">
+                          <div className="flex flex-col items-center gap-1">
+                            <button onClick={() => deleteItem(it.id)}
+                              className={cn('w-8 h-8 rounded-lg flex items-center justify-center transition-all active:scale-95',
+                                armed ? 'bg-rose-500/90 text-white' : 'bg-rose-500/15 text-rose-400 hover:bg-rose-500/25')}>
+                              <Trash2 className="w-3.5 h-3.5" />
                             </button>
+                            <span className={cn('text-[9px] font-medium', armed ? 'text-rose-400' : 'text-white/40')}>{armed ? t.inv_confirm_q : t.delete}</span>
+                          </div>
+                          <div className="flex flex-col items-center gap-1">
+                            <button onClick={() => toggleItem(it)}
+                              className={cn('w-8 h-8 rounded-lg flex items-center justify-center transition-all active:scale-95',
+                                it.active ? 'bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25' : 'bg-white/5 text-white/30 hover:bg-white/10')}>
+                              {it.active ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
+                            </button>
+                            <span className="text-[9px] font-medium text-white/40">{t.active}</span>
+                          </div>
+                          <div className="flex flex-col items-center gap-1">
                             <button onClick={() => openItemEdit(it)}
-                              className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/40 hover:text-white transition-all active:scale-95 shrink-0">
+                              className="w-8 h-8 rounded-lg bg-sky-500/15 text-sky-400 hover:bg-sky-500/25 flex items-center justify-center transition-all active:scale-95">
                               <Pencil className="w-3.5 h-3.5" />
                             </button>
-                            <button onClick={() => deleteItem(it.id)}
-                              className={cn('h-8 rounded-lg flex items-center justify-center transition-all active:scale-95 text-xs font-medium shrink-0',
-                                itemDelId === it.id ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30 px-2' : 'w-8 bg-white/5 hover:bg-rose-500/10 text-white/40 hover:text-rose-400')}>
-                              {itemDelId === it.id ? t.inv_confirm_q : <Trash2 className="w-3.5 h-3.5" />}
-                            </button>
-                          </motion.div>
-                        )
-                      })}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                            <span className="text-[9px] font-medium text-white/40">{t.edit}</span>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )
+                  })}
+                </motion.div>
+                {filteredItems.length === 0 && (
+                  <p className="text-center py-10 text-white/25 text-sm">{items.length === 0 ? t.inv_no_items_yet : t.inv_no_results}</p>
+                )}
               </div>
             )}
 
@@ -516,62 +513,61 @@ export default function InventoryPage() {
               <div>
                 <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.42, ease: 'circOut' }}
-                  className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-purple-500/15 flex items-center justify-center">
-                      <Tag className="w-5 h-5 text-purple-400" />
-                    </div>
-                    <div>
-                      <h2 className="text-base font-semibold text-white">{t.inv_categories_title}</h2>
-                      <p className="text-xs text-white/40">{t.inv_categories_subtitle}</p>
-                    </div>
-                    <span className="px-2 py-0.5 rounded-full bg-white/8 text-xs text-white/50">{categories.length}</span>
+                  className="flex items-center gap-3 mb-6">
+                  <div className="w-9 h-9 rounded-xl bg-purple-500/15 flex items-center justify-center">
+                    <Tag className="w-5 h-5 text-purple-400" />
                   </div>
-                  <button onClick={openCatAdd}
-                    className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-medium rounded-xl active:scale-95 transition-all">
-                    <Plus className="w-4 h-4" /> {t.inv_add_category}
-                  </button>
+                  <div>
+                    <h2 className="text-base font-semibold text-white">{t.inv_categories_title}</h2>
+                    <p className="text-xs text-white/40">{t.inv_categories_subtitle}</p>
+                  </div>
+                  <span className="px-2 py-0.5 rounded-full bg-white/8 text-xs text-white/50">{categories.length}</span>
                 </motion.div>
 
-                <AnimatePresence mode="wait">
-                  {categories.length === 0 ? (
-                    <motion.div key="empty" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                      transition={{ duration: 0.3, ease: 'circOut' }}
-                      className="text-center py-20 text-white/25">
-                      <Tag className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                      <p className="text-sm font-medium">{t.inv_no_categories}</p>
-                      <p className="text-xs mt-1">{t.inv_no_categories_desc}</p>
-                    </motion.div>
-                  ) : (
-                    <motion.div key="list" variants={CONTAINER} initial="hidden" animate="show" className="space-y-2">
-                      {categories.map(c => (
-                        <motion.div variants={ITEM} key={c.id}
-                          className="flex items-center gap-4 p-4 rounded-2xl bg-white/5 border border-white/10">
-                          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                            style={{ backgroundColor: c.color + '22', border: `1.5px solid ${c.color}55` }}>
-                            <Tag className="w-4 h-4" style={{ color: c.color }} />
+                <motion.div variants={CONTAINER} initial="hidden" animate="show" className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5">
+                  <button onClick={openCatAdd}
+                    className="min-h-[150px] rounded-xl border-2 border-dashed border-white/15 hover:border-emerald-500/40 hover:bg-emerald-500/[0.04] flex flex-col items-center justify-center gap-2 text-white/40 hover:text-emerald-400 transition-all active:scale-95">
+                    <span className="w-9 h-9 rounded-full bg-white/5 flex items-center justify-center"><Plus className="w-4 h-4" /></span>
+                    <span className="text-[11px] font-semibold">{t.inv_add_category}</span>
+                  </button>
+                  {categories.map(c => {
+                    const armed = catDelId === c.id
+                    return (
+                      <motion.div variants={ITEM} key={c.id}
+                        className="flex flex-col items-center rounded-xl bg-white/5 border border-white/10 hover:border-white/20 px-2.5 py-2.5 text-center transition-colors">
+                        <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
+                          style={{ backgroundColor: c.color + '22', border: `1.5px solid ${c.color}55` }}>
+                          <Tag className="w-5 h-5" style={{ color: c.color }} />
+                        </div>
+                        <p className="mt-1.5 w-full text-sm font-bold text-white line-clamp-1">{c.name}</p>
+                        <p className="text-[10px] text-white/35">{items.filter(i => i.category_id === c.id).length} {t.inv_items_count_suffix}</p>
+
+                        <span className="my-2 h-px w-full bg-white/8" />
+
+                        <div className="flex items-start justify-center gap-2">
+                          <div className="flex flex-col items-center gap-1">
+                            <button onClick={() => deleteCat(c.id)}
+                              className={cn('w-8 h-8 rounded-lg flex items-center justify-center transition-all active:scale-95',
+                                armed ? 'bg-rose-500/90 text-white' : 'bg-rose-500/15 text-rose-400 hover:bg-rose-500/25')}>
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                            <span className={cn('text-[9px] font-medium', armed ? 'text-rose-400' : 'text-white/40')}>{armed ? t.inv_confirm_q : t.delete}</span>
                           </div>
-                          <div className="flex-1">
-                            <p className="text-sm font-semibold text-white">{c.name}</p>
-                            <p className="text-xs text-white/35 mt-0.5">
-                              {items.filter(i => i.category_id === c.id).length} {t.inv_items_count_suffix}
-                            </p>
+                          <div className="flex flex-col items-center gap-1">
+                            <button onClick={() => openCatEdit(c)}
+                              className="w-8 h-8 rounded-lg bg-sky-500/15 text-sky-400 hover:bg-sky-500/25 flex items-center justify-center transition-all active:scale-95">
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            <span className="text-[9px] font-medium text-white/40">{t.edit}</span>
                           </div>
-                          <div className="w-4 h-4 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
-                          <button onClick={() => openCatEdit(c)}
-                            className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/40 hover:text-white transition-all active:scale-95 shrink-0">
-                            <Pencil className="w-3.5 h-3.5" />
-                          </button>
-                          <button onClick={() => deleteCat(c.id)}
-                            className={cn('h-8 rounded-lg flex items-center justify-center transition-all active:scale-95 text-xs font-medium shrink-0',
-                              catDelId === c.id ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30 px-2' : 'w-8 bg-white/5 hover:bg-rose-500/10 text-white/40 hover:text-rose-400')}>
-                            {catDelId === c.id ? t.inv_confirm_q : <Trash2 className="w-3.5 h-3.5" />}
-                          </button>
-                        </motion.div>
-                      ))}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                        </div>
+                      </motion.div>
+                    )
+                  })}
+                </motion.div>
+                {categories.length === 0 && (
+                  <p className="text-center py-10 text-white/25 text-sm">{t.inv_no_categories}</p>
+                )}
               </div>
             )}
 
@@ -580,69 +576,67 @@ export default function InventoryPage() {
               <div>
                 <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.42, ease: 'circOut' }}
-                  className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-blue-500/15 flex items-center justify-center">
-                      <Ruler className="w-5 h-5 text-blue-400" />
-                    </div>
-                    <div>
-                      <h2 className="text-base font-semibold text-white">{t.inv_units_title}</h2>
-                      <p className="text-xs text-white/40">{t.inv_units_subtitle}</p>
-                    </div>
-                    <span className="px-2 py-0.5 rounded-full bg-white/8 text-xs text-white/50">{units.length}</span>
+                  className="flex items-center gap-3 mb-6">
+                  <div className="w-9 h-9 rounded-xl bg-blue-500/15 flex items-center justify-center">
+                    <Ruler className="w-5 h-5 text-blue-400" />
                   </div>
-                  <div className="flex gap-2">
-                    {units.length === 0 && (
-                      <button onClick={seedUnits}
-                        className="flex items-center gap-2 px-4 py-2 bg-white/8 hover:bg-white/12 text-white/70 text-sm font-medium rounded-xl active:scale-95 transition-all">
-                        {t.inv_import_defaults}
-                      </button>
-                    )}
-                    <button onClick={openUnitAdd}
-                      className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-medium rounded-xl active:scale-95 transition-all">
-                      <Plus className="w-4 h-4" /> {t.inv_add_unit}
+                  <div>
+                    <h2 className="text-base font-semibold text-white">{t.inv_units_title}</h2>
+                    <p className="text-xs text-white/40">{t.inv_units_subtitle}</p>
+                  </div>
+                  <span className="px-2 py-0.5 rounded-full bg-white/8 text-xs text-white/50">{units.length}</span>
+                  {units.length === 0 && (
+                    <button onClick={seedUnits}
+                      className="ms-auto flex items-center gap-2 px-4 py-2 bg-white/8 hover:bg-white/12 text-white/70 text-sm font-medium rounded-xl active:scale-95 transition-all">
+                      {t.inv_import_defaults}
                     </button>
-                  </div>
+                  )}
                 </motion.div>
 
-                <AnimatePresence mode="wait">
-                  {units.length === 0 ? (
-                    <motion.div key="empty" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                      transition={{ duration: 0.3, ease: 'circOut' }}
-                      className="text-center py-20 text-white/25">
-                      <Ruler className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                      <p className="text-sm font-medium">{t.inv_no_units}</p>
-                      <p className="text-xs mt-1">{t.inv_no_units_desc}</p>
-                    </motion.div>
-                  ) : (
-                    <motion.div key="list" variants={CONTAINER} initial="hidden" animate="show"
-                      className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                      {units.map(u => (
-                        <motion.div variants={ITEM} key={u.id}
-                          className="flex items-center gap-3 p-4 rounded-2xl bg-white/5 border border-white/10">
-                          <div className="w-10 h-10 rounded-xl bg-blue-500/15 border border-blue-500/20 flex items-center justify-center shrink-0">
-                            <span className="text-xs font-black text-blue-400">{u.abbreviation}</span>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-white truncate">{u.name}</p>
-                            <p className="text-xs text-white/35">{u.abbreviation}</p>
-                          </div>
-                          <div className="flex gap-1 shrink-0">
-                            <button onClick={() => openUnitEdit(u)}
-                              className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/40 hover:text-white transition-all active:scale-95">
-                              <Pencil className="w-3 h-3" />
-                            </button>
+                <motion.div variants={CONTAINER} initial="hidden" animate="show"
+                  className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5">
+                  <button onClick={openUnitAdd}
+                    className="min-h-[130px] rounded-xl border-2 border-dashed border-white/15 hover:border-emerald-500/40 hover:bg-emerald-500/[0.04] flex flex-col items-center justify-center gap-2 text-white/40 hover:text-emerald-400 transition-all active:scale-95">
+                    <span className="w-9 h-9 rounded-full bg-white/5 flex items-center justify-center"><Plus className="w-4 h-4" /></span>
+                    <span className="text-[11px] font-semibold">{t.inv_add_unit}</span>
+                  </button>
+                  {units.map(u => {
+                    const armed = unitDelId === u.id
+                    return (
+                      <motion.div variants={ITEM} key={u.id}
+                        className="flex flex-col items-center rounded-xl bg-white/5 border border-white/10 hover:border-white/20 px-2.5 py-2.5 text-center transition-colors">
+                        <div className="w-11 h-11 rounded-xl bg-blue-500/15 border border-blue-500/20 flex items-center justify-center shrink-0">
+                          <span className="text-xs font-black text-blue-400">{u.abbreviation}</span>
+                        </div>
+                        <p className="mt-1.5 w-full text-sm font-bold text-white line-clamp-1">{u.name}</p>
+                        <p className="text-[10px] text-white/35">{u.abbreviation}</p>
+
+                        <span className="my-2 h-px w-full bg-white/8" />
+
+                        <div className="flex items-start justify-center gap-2">
+                          <div className="flex flex-col items-center gap-1">
                             <button onClick={() => deleteUnit(u.id)}
-                              className={cn('h-7 rounded-lg flex items-center justify-center transition-all active:scale-95 text-[10px] font-medium',
-                                unitDelId === u.id ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30 px-1.5' : 'w-7 bg-white/5 hover:bg-rose-500/10 text-white/40 hover:text-rose-400')}>
-                              {unitDelId === u.id ? t.inv_del_q : <Trash2 className="w-3 h-3" />}
+                              className={cn('w-8 h-8 rounded-lg flex items-center justify-center transition-all active:scale-95',
+                                armed ? 'bg-rose-500/90 text-white' : 'bg-rose-500/15 text-rose-400 hover:bg-rose-500/25')}>
+                              <Trash2 className="w-3.5 h-3.5" />
                             </button>
+                            <span className={cn('text-[9px] font-medium', armed ? 'text-rose-400' : 'text-white/40')}>{armed ? t.inv_del_q : t.delete}</span>
                           </div>
-                        </motion.div>
-                      ))}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                          <div className="flex flex-col items-center gap-1">
+                            <button onClick={() => openUnitEdit(u)}
+                              className="w-8 h-8 rounded-lg bg-sky-500/15 text-sky-400 hover:bg-sky-500/25 flex items-center justify-center transition-all active:scale-95">
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            <span className="text-[9px] font-medium text-white/40">{t.edit}</span>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )
+                  })}
+                </motion.div>
+                {units.length === 0 && (
+                  <p className="text-center py-10 text-white/25 text-sm">{t.inv_no_units}</p>
+                )}
               </div>
             )}
 
