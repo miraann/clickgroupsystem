@@ -145,67 +145,76 @@ export default function ModifierPage() {
   )
 
   return (
-    <motion.div key="menu-modifier-page" variants={PAGE} initial="hidden" animate="show" exit="exit" className="max-w-3xl mx-auto">
+    <motion.div key="menu-modifier-page" variants={PAGE} initial="hidden" animate="show" exit="exit" className="max-w-5xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-amber-500/15 flex items-center justify-center">
-            <Sliders className="w-5 h-5 text-amber-400" />
-          </div>
-          <div>
-            <h1 className="text-lg font-semibold text-white">{t.mod_title}</h1>
-            <p className="text-xs text-white/40">{t.mod_subtitle}</p>
-          </div>
-          <span className="px-2 py-0.5 rounded-full bg-white/8 text-xs text-white/50">{mods.length}</span>
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-9 h-9 rounded-xl bg-amber-500/15 flex items-center justify-center">
+          <Sliders className="w-5 h-5 text-amber-400" />
         </div>
-        <button
-          onClick={openAdd}
-          className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-xl active:scale-95 transition-all"
-        >
-          <Plus className="w-4 h-4" /> {t.mod_add}
-        </button>
+        <div>
+          <h1 className="text-lg font-semibold text-white">{t.mod_title}</h1>
+          <p className="text-xs text-white/40">{t.mod_subtitle}</p>
+        </div>
+        <span className="px-2 py-0.5 rounded-full bg-white/8 text-xs text-white/50">{mods.length}</span>
       </div>
 
-      <motion.div variants={LIST} initial="hidden" animate="visible" className="space-y-3">
-        {mods.map(m => (
-          <motion.div key={m.id} variants={ITEM_VAR} className="p-4 bg-white/5 border border-white/10 rounded-2xl">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="flex-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <p className="text-sm font-semibold text-white">{m.name}</p>
-                  <span className={cn('text-[10px] px-1.5 py-0.5 rounded-md font-medium', m.required ? 'bg-rose-500/15 text-rose-400' : 'bg-white/8 text-white/40')}>
-                    {m.required ? t.mod_required : t.mod_multi}
+      <motion.div variants={LIST} initial="hidden" animate="visible" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {/* Add-new card */}
+        <button onClick={openAdd}
+          className="min-h-[150px] rounded-2xl border-2 border-dashed border-white/15 hover:border-amber-500/40 hover:bg-amber-500/[0.04] flex flex-col items-center justify-center gap-2 text-white/40 hover:text-amber-400 transition-all active:scale-95">
+          <span className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center">
+            <Plus className="w-4 h-4" />
+          </span>
+          <span className="text-[11px] font-semibold">{t.mod_add}</span>
+        </button>
+        {mods.map(m => {
+          const armed = deleteId === m.id
+          return (
+            <motion.div key={m.id} variants={ITEM_VAR} className="flex flex-col rounded-2xl border bg-white/5 border-white/10 p-3 hover:border-white/20 transition-colors">
+              <div className="flex items-center gap-2 flex-wrap">
+                <p className="text-sm font-bold text-white">{m.name}</p>
+                <span className={cn('text-[10px] px-1.5 py-0.5 rounded-md font-medium', m.required ? 'bg-rose-500/15 text-rose-400' : 'bg-white/8 text-white/40')}>
+                  {m.required ? t.mod_required : t.mod_multi}
+                </span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-white/8 text-white/40">
+                  Pick {m.min_select}–{m.max_select}
+                </span>
+              </div>
+
+              <div className="mt-2.5 flex flex-1 flex-wrap gap-1.5 content-start">
+                {m.modifier_options.map(o => (
+                  <span key={o.id} className="px-2 py-1 rounded-lg bg-white/5 border border-white/8 text-[11px] text-white/60">
+                    {o.name}{o.price > 0 && <span className="text-amber-400 ms-1">+{formatPrice(Number(o.price))}</span>}
                   </span>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-white/8 text-white/40">
-                    Pick {m.min_select}–{m.max_select}
+                ))}
+                {m.modifier_options.length === 0 && <span className="text-xs text-white/25">{t.mod_no_data}</span>}
+              </div>
+
+              <span className="my-2.5 h-px w-full bg-white/8" />
+
+              <div className="flex items-start justify-center gap-2">
+                <div className="flex flex-col items-center gap-1">
+                  <button onClick={() => handleDelete(m.id)}
+                    className={cn('w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95',
+                      armed ? 'bg-rose-500/90 text-white' : 'bg-rose-500/15 text-rose-400 hover:bg-rose-500/25')}>
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                  <span className={cn('text-[9px] font-medium', armed ? 'text-rose-400' : 'text-white/40')}>
+                    {armed ? t.confirm_delete : t.delete}
                   </span>
                 </div>
+                <div className="flex flex-col items-center gap-1">
+                  <button onClick={() => openEdit(m)}
+                    className="w-9 h-9 rounded-xl bg-sky-500/15 text-sky-400 hover:bg-sky-500/25 flex items-center justify-center transition-all active:scale-95">
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                  <span className="text-[9px] font-medium text-white/40">{t.edit}</span>
+                </div>
               </div>
-              <button
-                onClick={() => openEdit(m)}
-                className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/40 hover:text-white transition-all active:scale-95"
-              >
-                <Pencil className="w-3.5 h-3.5" />
-              </button>
-              <button
-                onClick={() => handleDelete(m.id)}
-                className={cn('h-8 rounded-lg flex items-center justify-center transition-all active:scale-95 text-xs font-medium',
-                  deleteId === m.id ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30 px-2' : 'w-8 bg-white/5 hover:bg-rose-500/10 text-white/40 hover:text-rose-400')}
-              >
-                {deleteId === m.id ? t.delete : <Trash2 className="w-3.5 h-3.5" />}
-              </button>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {m.modifier_options.map(o => (
-                <span key={o.id} className="px-2.5 py-1 rounded-lg bg-white/5 border border-white/8 text-xs text-white/60">
-                  {o.name}{o.price > 0 && <span className="text-amber-400 ml-1">+{formatPrice(Number(o.price))}</span>}
-                </span>
-              ))}
-              {m.modifier_options.length === 0 && <span className="text-xs text-white/25">{t.mod_no_data}</span>}
-            </div>
-          </motion.div>
-        ))}
-        {mods.length === 0 && <div className="text-center py-16 text-white/25 text-sm">{t.mod_no_data}</div>}
+            </motion.div>
+          )
+        })}
+        {mods.length === 0 && <div className="col-span-full text-center py-12 text-white/25 text-sm">{t.mod_no_data}</div>}
       </motion.div>
 
       {/* Modal */}
