@@ -1384,6 +1384,7 @@ const en = {
   item_photo_label:    'Item Photo',
   item_photo_change:   'Change',
   item_photo_tap:      'Tap to upload photo',
+  item_photo_ratio:    'Displayed at a 3:2 ratio',
   item_desc_ph:        'Optional description',
   item_avail_inhouse:  'Available (in-house)',
   item_avail_delivery: 'Available on Delivery Menu',

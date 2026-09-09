@@ -1399,6 +1399,7 @@ const ku: Record<keyof typeof en, string> = {
   item_photo_label:    'وێنەی کاڵا',
   item_photo_change:   'گۆڕین',
   item_photo_tap:      'کرتە بکە بۆ بارکردنی وێنە',
+  item_photo_ratio:    'بە ڕێژەی ٣:٢ پیشان دەدرێت',
   item_desc_ph:        'باسکردنی ئارەزووی',
   item_avail_inhouse:  'بەردەستە (ناو چێشتخانە)',
   item_avail_delivery: 'بەردەستە لە مێنیوی گەیاندن',

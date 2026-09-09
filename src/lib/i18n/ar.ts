@@ -1399,6 +1399,7 @@ const ar: Record<keyof typeof en, string> = {
   item_photo_label:    'صورة الصنف',
   item_photo_change:   'تغيير',
   item_photo_tap:      'اضغط لرفع صورة',
+  item_photo_ratio:    'يُعرض بنسبة ٣:٢',
   item_desc_ph:        'وصف اختياري',
   item_avail_inhouse:  'متاح (في المطعم)',
   item_avail_delivery: 'متاح في قائمة التوصيل',

@@ -453,7 +453,7 @@ export default function ItemPage() {
                 <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.item_photo_label}</label>
                 <div className="relative">
                   {form.image_url ? (
-                    <div className="relative rounded-xl overflow-hidden border border-white/10 w-32 h-40 mx-auto">
+                    <div className="relative rounded-xl overflow-hidden border border-white/10 w-48 h-32 mx-auto">
                       <img src={form.image_url} alt="" className="w-full h-full object-cover" />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
                       <button
@@ -467,7 +467,7 @@ export default function ItemPage() {
                       </label>
                     </div>
                   ) : (
-                    <label className="flex flex-col items-center justify-center h-20 rounded-xl bg-white/3 border border-dashed border-white/15 hover:bg-white/5 hover:border-amber-500/30 cursor-pointer transition-all group">
+                    <label className="flex flex-col items-center justify-center w-48 h-32 mx-auto rounded-xl bg-white/3 border border-dashed border-white/15 hover:bg-white/5 hover:border-amber-500/30 cursor-pointer transition-all group">
                       <ImageIcon className="w-5 h-5 text-white/20 mb-1 group-hover:text-amber-400/40 transition-colors" />
                       <span className="text-xs text-white/30 group-hover:text-white/50 transition-colors">{t.item_photo_tap}</span>
                       <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
@@ -479,6 +479,7 @@ export default function ItemPage() {
                     </div>
                   )}
                 </div>
+                <p className="mt-1.5 text-xs text-white/30 text-center">{t.item_photo_ratio}</p>
                 {uploadError && (
                   <p className="mt-1.5 text-xs text-rose-400 font-mono break-all">{t.item_upload_fail}: {uploadError}</p>
                 )}
