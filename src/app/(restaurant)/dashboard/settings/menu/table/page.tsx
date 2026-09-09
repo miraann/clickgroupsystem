@@ -189,24 +189,32 @@ export default function TablePage() {
 
                   <span className="my-2 h-px w-full bg-white/8" />
 
-                  <div className="flex items-center justify-center gap-1.5">
-                    <button onClick={() => openEdit(tbl)} title={t.edit}
-                      className="w-8 h-8 rounded-lg bg-sky-500/15 text-sky-400 hover:bg-sky-500/25 flex items-center justify-center transition-all active:scale-95">
-                      <Pencil className="w-3.5 h-3.5" />
-                    </button>
-                    <button onClick={() => setQrTable(tbl)} title={t.tbl_qr}
-                      className="w-8 h-8 rounded-lg bg-amber-500/15 text-amber-400 hover:bg-amber-500/25 flex items-center justify-center transition-all active:scale-95">
-                      <QrCode className="w-3.5 h-3.5" />
-                    </button>
-                    <button onClick={() => handleDelete(tbl.id)} title={t.delete}
-                      className={cn('w-8 h-8 rounded-lg flex items-center justify-center transition-all active:scale-95',
-                        deleteId === tbl.id ? 'bg-rose-500/90 text-white' : 'bg-rose-500/15 text-rose-400 hover:bg-rose-500/25')}>
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                  <div className="flex items-start justify-center gap-2">
+                    <div className="flex flex-col items-center gap-1">
+                      <button onClick={() => openEdit(tbl)}
+                        className="w-8 h-8 rounded-lg bg-sky-500/15 text-sky-400 hover:bg-sky-500/25 flex items-center justify-center transition-all active:scale-95">
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <span className="text-[9px] font-medium text-white/40">{t.edit}</span>
+                    </div>
+                    <div className="flex flex-col items-center gap-1">
+                      <button onClick={() => setQrTable(tbl)}
+                        className="w-8 h-8 rounded-lg bg-amber-500/15 text-amber-400 hover:bg-amber-500/25 flex items-center justify-center transition-all active:scale-95">
+                        <QrCode className="w-3.5 h-3.5" />
+                      </button>
+                      <span className="text-[9px] font-medium text-white/40">{t.tbl_qr}</span>
+                    </div>
+                    <div className="flex flex-col items-center gap-1">
+                      <button onClick={() => handleDelete(tbl.id)}
+                        className={cn('w-8 h-8 rounded-lg flex items-center justify-center transition-all active:scale-95',
+                          deleteId === tbl.id ? 'bg-rose-500/90 text-white' : 'bg-rose-500/15 text-rose-400 hover:bg-rose-500/25')}>
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                      <span className={cn('text-[9px] font-medium', deleteId === tbl.id ? 'text-rose-400' : 'text-white/40')}>
+                        {deleteId === tbl.id ? t.confirm_delete : t.delete}
+                      </span>
+                    </div>
                   </div>
-                  {deleteId === tbl.id && (
-                    <span className="mt-1 text-[10px] font-semibold text-rose-400">{t.confirm_delete}</span>
-                  )}
                 </motion.div>
               ))}
             </div>
