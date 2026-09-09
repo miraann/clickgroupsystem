@@ -156,67 +156,49 @@ export default function TablePage() {
               <span className="text-xs font-semibold text-white/50 uppercase tracking-wider">{group.name}</span>
               <span className="text-xs text-white/30">({group.tables.length})</span>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2.5">
               {group.tables.map(tbl => (
                 <motion.div
                   key={tbl.id}
-                  initial={{ opacity: 0, y: 28 }}
+                  initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.45, ease: 'circOut', delay: 0.1 + cardIds.indexOf(tbl.id) * 0.07 }}
-                  className="flex h-full flex-col rounded-2xl border bg-white/5 border-white/10 overflow-hidden hover:border-white/20 transition-colors"
+                  transition={{ duration: 0.4, ease: 'circOut', delay: 0.08 + cardIds.indexOf(tbl.id) * 0.05 }}
+                  className="flex flex-col items-center rounded-xl border bg-white/5 border-white/10 px-2.5 py-2.5 text-center hover:border-white/20 transition-colors"
                 >
-                  {/* Shape preview */}
-                  <div className="p-2.5 pb-0">
-                    <div className="w-full aspect-[3/2] rounded-xl border border-white/10 flex items-center justify-center"
-                      style={{ background: `${group.color}1f` }}>
-                      <span className="text-4xl leading-none select-none">{SHAPE_ICONS[tbl.shape]}</span>
-                    </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-base leading-none">{SHAPE_ICONS[tbl.shape]}</span>
+                    <span className="text-base font-bold text-white tabular-nums">{tbl.table_number}</span>
+                    {tbl.name && <span className="text-[11px] text-white/40 line-clamp-1">{tbl.name}</span>}
                   </div>
+                  <p className="mt-0.5 inline-flex items-center gap-1 text-[11px] font-medium tabular-nums" style={{ color: group.color }}>
+                    <Users className="w-3 h-3" /> {tbl.capacity}
+                    <span className="font-normal text-white/30">· {tbl.shape}</span>
+                  </p>
+                  <span className="mt-0.5 inline-flex items-center gap-1 text-[10px] text-white/40">
+                    <span className="w-1 h-1 rounded-full" style={{ backgroundColor: group.color }} />
+                    {group.name}
+                  </span>
 
-                  {/* Body */}
-                  <div className="flex flex-1 flex-col items-center px-3 pt-2.5 pb-3 text-center">
-                    <p className="w-full text-sm font-bold text-white line-clamp-1">
-                      {tbl.table_number}{tbl.name ? ` · ${tbl.name}` : ''}
-                    </p>
-                    <p className="mt-1 inline-flex items-center gap-1.5 text-[13px] font-semibold tabular-nums" style={{ color: group.color }}>
-                      <Users className="w-3.5 h-3.5" /> {tbl.capacity}
-                      <span className="font-normal text-white/30">· {tbl.shape}</span>
-                    </p>
-                    <span className="mt-1 inline-flex items-center gap-1 text-[11px] text-white/45">
-                      <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: group.color }} />
-                      {group.name}
-                    </span>
+                  <span className="my-2 h-px w-full bg-white/8" />
 
-                    <span className="my-2.5 h-px w-full bg-white/8" />
-
-                    {/* Actions */}
-                    <div className="flex items-start justify-center gap-2">
-                      <div className="flex flex-col items-center gap-1">
-                        <button onClick={() => handleDelete(tbl.id)}
-                          className={cn('w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95',
-                            deleteId === tbl.id ? 'bg-rose-500/90 text-white' : 'bg-rose-500/15 text-rose-400 hover:bg-rose-500/25')}>
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                        <span className={cn('text-[9px] font-medium', deleteId === tbl.id ? 'text-rose-400' : 'text-white/40')}>
-                          {deleteId === tbl.id ? t.confirm_delete : t.delete}
-                        </span>
-                      </div>
-                      <div className="flex flex-col items-center gap-1">
-                        <button onClick={() => setQrTable(tbl)}
-                          className="w-9 h-9 rounded-xl bg-amber-500/15 text-amber-400 hover:bg-amber-500/25 flex items-center justify-center transition-all active:scale-95">
-                          <QrCode className="w-4 h-4" />
-                        </button>
-                        <span className="text-[9px] font-medium text-white/40">{t.tbl_qr}</span>
-                      </div>
-                      <div className="flex flex-col items-center gap-1">
-                        <button onClick={() => openEdit(tbl)}
-                          className="w-9 h-9 rounded-xl bg-sky-500/15 text-sky-400 hover:bg-sky-500/25 flex items-center justify-center transition-all active:scale-95">
-                          <Pencil className="w-4 h-4" />
-                        </button>
-                        <span className="text-[9px] font-medium text-white/40">{t.edit}</span>
-                      </div>
-                    </div>
+                  <div className="flex items-center justify-center gap-1.5">
+                    <button onClick={() => openEdit(tbl)} title={t.edit}
+                      className="w-8 h-8 rounded-lg bg-sky-500/15 text-sky-400 hover:bg-sky-500/25 flex items-center justify-center transition-all active:scale-95">
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                    <button onClick={() => setQrTable(tbl)} title={t.tbl_qr}
+                      className="w-8 h-8 rounded-lg bg-amber-500/15 text-amber-400 hover:bg-amber-500/25 flex items-center justify-center transition-all active:scale-95">
+                      <QrCode className="w-3.5 h-3.5" />
+                    </button>
+                    <button onClick={() => handleDelete(tbl.id)} title={t.delete}
+                      className={cn('w-8 h-8 rounded-lg flex items-center justify-center transition-all active:scale-95',
+                        deleteId === tbl.id ? 'bg-rose-500/90 text-white' : 'bg-rose-500/15 text-rose-400 hover:bg-rose-500/25')}>
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                   </div>
+                  {deleteId === tbl.id && (
+                    <span className="mt-1 text-[10px] font-semibold text-rose-400">{t.confirm_delete}</span>
+                  )}
                 </motion.div>
               ))}
             </div>
