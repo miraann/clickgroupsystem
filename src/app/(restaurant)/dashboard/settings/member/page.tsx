@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   Star, Plus, Pencil, Trash2, AlertCircle,
-  Search, ToggleLeft, ToggleRight, Phone, Mail,
+  Search, ToggleLeft, ToggleRight,
   ChevronUp, ChevronDown,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -116,21 +116,16 @@ export default function MemberPage() {
         initial={{ opacity: 0, y: 18 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.05, duration: 0.42, ease: 'circOut' }}
-        className="flex items-center justify-between mb-5"
+        className="flex items-center gap-3 mb-5"
       >
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-amber-500/15 flex items-center justify-center">
-            <Star className="w-5 h-5 text-amber-400" />
-          </div>
-          <div>
-            <h1 className="text-lg font-semibold text-white">{t.mem_title}</h1>
-            <p className="text-xs text-white/40">{t.mem_subtitle}</p>
-          </div>
-          <span className="px-2 py-0.5 rounded-full bg-white/8 text-xs text-white/50">{members.length}</span>
+        <div className="w-9 h-9 rounded-xl bg-amber-500/15 flex items-center justify-center">
+          <Star className="w-5 h-5 text-amber-400" />
         </div>
-        <button onClick={() => { setEditMember(null); setShowModal(true) }} className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-xl active:scale-95 transition-all">
-          <Plus className="w-4 h-4" /> {t.mem_add}
-        </button>
+        <div>
+          <h1 className="text-lg font-semibold text-white">{t.mem_title}</h1>
+          <p className="text-xs text-white/40">{t.mem_subtitle}</p>
+        </div>
+        <span className="px-2 py-0.5 rounded-full bg-white/8 text-xs text-white/50">{members.length}</span>
       </motion.div>
 
       {/* Stats row */}
@@ -199,80 +194,81 @@ export default function MemberPage() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.18 }}
           >
-            <AnimatePresence mode="wait">
-              {filtered.length === 0 ? (
-                <motion.div
-                  key="empty"
-                  initial={{ opacity: 0, y: 18 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ delay: 0.1, duration: 0.42, ease: 'circOut' }}
-                  className="text-center py-16 text-white/25 text-sm"
-                >
-                  {t.mem_no_data}
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="list"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.18 }}
-                  className="rounded-2xl border border-white/8 overflow-hidden"
-                >
-                  <div className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-px bg-white/5 px-4 py-2.5 text-[11px] font-semibold text-white/30 uppercase tracking-wider">
-                    <button onClick={() => toggleSort('name')} className="flex items-center gap-1 text-left hover:text-white/60 transition-colors">
-                      {t.mem_name} <SortIcon col="name" />
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-[11px] text-white/30">Sort:</span>
+              <button onClick={() => toggleSort('name')}
+                className={cn('flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors',
+                  sortBy === 'name' ? 'bg-amber-500/15 text-amber-400' : 'bg-white/5 text-white/40 hover:text-white/70')}>
+                {t.mem_name} <SortIcon col="name" />
+              </button>
+              <button onClick={() => toggleSort('points')}
+                className={cn('flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors',
+                  sortBy === 'points' ? 'bg-amber-500/15 text-amber-400' : 'bg-white/5 text-white/40 hover:text-white/70')}>
+                {t.mem_points} <SortIcon col="points" />
+              </button>
+            </div>
+
+            <motion.div variants={CONTAINER} initial="hidden" animate="show" className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+              {/* Add-new card */}
+              <button onClick={() => { setEditMember(null); setShowModal(true) }}
+                className="min-h-[180px] rounded-2xl border-2 border-dashed border-white/15 hover:border-amber-500/40 hover:bg-amber-500/[0.04] flex flex-col items-center justify-center gap-2 text-white/40 hover:text-amber-400 transition-all active:scale-95">
+                <span className="w-11 h-11 rounded-full bg-white/5 flex items-center justify-center"><Plus className="w-4 h-4" /></span>
+                <span className="text-[11px] font-semibold">{t.mem_add}</span>
+              </button>
+              {filtered.map(m => {
+                const armed = deleteId === m.id
+                return (
+                  <motion.div key={m.id} variants={ITEM} className={cn('flex flex-col items-center rounded-2xl border bg-white/5 px-3 py-3 text-center transition-colors',
+                    m.status === 'active' ? 'border-white/10 hover:border-white/20' : 'border-white/5 opacity-55')}>
+                    <div className={cn('w-11 h-11 rounded-xl flex items-center justify-center text-base font-bold shrink-0', TIER_COLORS[m.tier] ?? TIER_COLORS.Standard)}>
+                      {m.name.charAt(0).toUpperCase()}
+                    </div>
+                    <p className="mt-1.5 w-full text-sm font-bold text-white line-clamp-1">{m.name}</p>
+                    {(m.phone || m.email) && (
+                      <p className="text-[10px] text-white/35 line-clamp-1 w-full">{m.phone || m.email}</p>
+                    )}
+                    <span className={cn('mt-1 px-2 py-0.5 rounded-full text-[10px] font-semibold', TIER_COLORS[m.tier] ?? TIER_COLORS.Standard)}>{m.tier}</span>
+                    <button onClick={() => setPointsMember(m)}
+                      className="mt-1 flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-xs font-bold transition-all active:scale-95">
+                      <Star className="w-3 h-3" />{m.points.toLocaleString()}
                     </button>
-                    <span className="text-center">{t.mem_tier}</span>
-                    <button onClick={() => toggleSort('points')} className="flex items-center gap-1 justify-end hover:text-white/60 transition-colors">
-                      {t.mem_points} <SortIcon col="points" />
-                    </button>
-                    <span className="text-center">Status</span>
-                    <span></span>
-                    <span></span>
-                  </div>
 
-                  <motion.div variants={CONTAINER} initial="hidden" animate="show" className="divide-y divide-white/5">
-                    {filtered.map(m => (
-                      <motion.div key={m.id} variants={ITEM} className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-px items-center px-4 py-3 bg-white/[0.02] hover:bg-white/5 transition-colors">
+                    <span className="my-2 h-px w-full bg-white/8" />
 
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold text-white truncate">{m.name}</p>
-                          <div className="flex items-center gap-3 mt-0.5">
-                            {m.phone && <span className="flex items-center gap-1 text-[11px] text-white/35"><Phone className="w-2.5 h-2.5" />{m.phone}</span>}
-                            {m.email && <span className="flex items-center gap-1 text-[11px] text-white/35"><Mail className="w-2.5 h-2.5" />{m.email}</span>}
-                          </div>
-                        </div>
-
-                        <span className={cn('px-2 py-0.5 rounded-full text-[11px] font-semibold mx-4', TIER_COLORS[m.tier] ?? TIER_COLORS.Standard)}>
-                          {m.tier}
+                    <div className="flex items-start justify-center gap-2">
+                      <div className="flex flex-col items-center gap-1">
+                        <button onClick={() => handleDelete(m.id)}
+                          className={cn('w-8 h-8 rounded-lg flex items-center justify-center transition-all active:scale-95',
+                            armed ? 'bg-rose-500/90 text-white' : 'bg-rose-500/15 text-rose-400 hover:bg-rose-500/25')}>
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                        <span className={cn('text-[9px] font-medium', armed ? 'text-rose-400' : 'text-white/40')}>
+                          {armed ? t.confirm_delete : t.delete}
                         </span>
-
-                        <button onClick={() => setPointsMember(m)}
-                          className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-sm font-bold transition-all active:scale-95 mx-2">
-                          <Star className="w-3 h-3" />{m.points.toLocaleString()}
+                      </div>
+                      <div className="flex flex-col items-center gap-1">
+                        <button onClick={() => toggleStatus(m)}
+                          className={cn('w-8 h-8 rounded-lg flex items-center justify-center transition-all active:scale-95',
+                            m.status === 'active' ? 'bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25' : 'bg-white/5 text-white/30 hover:bg-white/10')}>
+                          {m.status === 'active' ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
                         </button>
-
-                        <button onClick={() => toggleStatus(m)} className={cn('mx-2 transition-all active:scale-95', m.status === 'active' ? 'text-emerald-400' : 'text-white/25')}>
-                          {m.status === 'active' ? <ToggleRight className="w-6 h-6" /> : <ToggleLeft className="w-6 h-6" />}
-                        </button>
-
-                        <button onClick={() => { setEditMember(m); setShowModal(true) }} className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/40 hover:text-white transition-all active:scale-95">
+                        <span className="text-[9px] font-medium text-white/40">{t.active}</span>
+                      </div>
+                      <div className="flex flex-col items-center gap-1">
+                        <button onClick={() => { setEditMember(m); setShowModal(true) }}
+                          className="w-8 h-8 rounded-lg bg-sky-500/15 text-sky-400 hover:bg-sky-500/25 flex items-center justify-center transition-all active:scale-95">
                           <Pencil className="w-3.5 h-3.5" />
                         </button>
-
-                        <button onClick={() => handleDelete(m.id)}
-                          className={cn('h-8 rounded-lg flex items-center justify-center transition-all active:scale-95 text-xs font-medium',
-                            deleteId === m.id ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30 px-2' : 'w-8 bg-white/5 hover:bg-rose-500/10 text-white/40 hover:text-rose-400')}>
-                          {deleteId === m.id ? 'Confirm?' : <Trash2 className="w-3.5 h-3.5" />}
-                        </button>
-                      </motion.div>
-                    ))}
+                        <span className="text-[9px] font-medium text-white/40">{t.edit}</span>
+                      </div>
+                    </div>
                   </motion.div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                )
+              })}
+            </motion.div>
+            {filtered.length === 0 && (
+              <div className="col-span-full text-center py-12 text-white/25 text-sm">{t.mem_no_data}</div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
