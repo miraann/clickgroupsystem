@@ -801,10 +801,6 @@ export default function UsersPage() {
               >
                 <Download className="w-4 h-4" /> {t.usr_install_app}
               </button>
-              <button onClick={openAdd}
-                className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-xl active:scale-95 transition-all shadow-lg shadow-amber-500/20">
-                <Plus className="w-4 h-4" />{t.usr_add}
-              </button>
             </div>
           </div>
 
@@ -829,46 +825,73 @@ export default function UsersPage() {
               </motion.div>
             ) : (
             <motion.div key="content-users" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }}>
-            <AnimatedList className="space-y-2">
+            <AnimatedList className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+              {/* Add-new card */}
+              <button onClick={openAdd}
+                className="min-h-[190px] rounded-2xl border-2 border-dashed border-white/15 hover:border-amber-500/40 hover:bg-amber-500/[0.04] flex flex-col items-center justify-center gap-2 text-white/40 hover:text-amber-400 transition-all active:scale-95">
+                <span className="w-11 h-11 rounded-full bg-white/5 flex items-center justify-center"><Plus className="w-4 h-4" /></span>
+                <span className="text-[11px] font-semibold">{t.usr_add}</span>
+              </button>
               {filtered.map(u => {
                 const customRole = (() => { const cr = roleStaff.find(s => s.id === u.id); return cr?.role_id ? roles.find(r => r.id === cr.role_id) : null })()
+                const armed = deleteConfirm === u.id
                 return (
                   <AnimatedItem key={u.id}>
-                  <div className={cn('flex items-center gap-3 p-4 bg-white/5 border rounded-2xl transition-all hover:border-white/15', u.status === 'active' ? 'border-white/10' : 'border-white/5 opacity-60')}>
+                  <div className={cn('flex h-full flex-col items-center rounded-2xl border bg-white/5 px-3 py-3 text-center transition-all',
+                    u.status === 'active' ? 'border-white/10 hover:border-white/20' : 'border-white/5 opacity-55')}>
                     <div className="relative shrink-0">
-                      <div className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold text-white border bg-amber-500/15 border-amber-500/25">
+                      <div className="w-11 h-11 rounded-xl flex items-center justify-center text-sm font-bold text-white border bg-amber-500/15 border-amber-500/25">
                         {u.name.split(' ').map(n => n[0]).join('')}
                       </div>
                       <div className={cn('absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[#022658]', u.status === 'active' ? 'bg-emerald-400' : 'bg-white/20')} />
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-semibold text-white truncate">{u.name}</p>
-                        {customRole
-                          ? <span className="text-[10px] px-1.5 py-0.5 rounded-md font-medium border border-amber-500/30 bg-amber-500/10 text-amber-400">{customRole.name}</span>
-                          : <span className="text-[10px] px-1.5 py-0.5 rounded-md font-medium border border-white/10 bg-white/5 text-white/50">No role</span>}
+                    <p className="mt-1.5 w-full text-sm font-bold text-white line-clamp-1">{u.name}</p>
+                    {customRole
+                      ? <span className="mt-0.5 text-[10px] px-1.5 py-0.5 rounded-md font-medium border border-amber-500/30 bg-amber-500/10 text-amber-400">{customRole.name}</span>
+                      : <span className="mt-0.5 text-[10px] px-1.5 py-0.5 rounded-md font-medium border border-white/10 bg-white/5 text-white/50">No role</span>}
+                    {u.email && <p className="mt-0.5 text-[10px] text-white/45 line-clamp-1 w-full">{u.email}</p>}
+                    {showPins && <span className="mt-1 text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/8 text-white/70">PIN: {u.pin}</span>}
+
+                    <span className="my-2 h-px w-full bg-white/8" />
+
+                    <div className="flex items-start justify-center gap-1">
+                      <div className="flex flex-col items-center gap-0.5">
+                        <button onClick={() => del(u.id)} title={t.delete}
+                          className={cn('w-8 h-8 rounded-lg flex items-center justify-center transition-all active:scale-95',
+                            armed ? 'bg-rose-500/90 text-white' : 'bg-rose-500/15 text-rose-400 hover:bg-rose-500/25')}>
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                        <span className={cn('text-[8px] font-medium', armed ? 'text-rose-400' : 'text-white/40')}>{armed ? t.confirm_delete : t.delete}</span>
                       </div>
-                      <div className="flex items-center gap-3 mt-0.5">
-                        {u.email && <span className="text-xs text-white/55 truncate">{u.email}</span>}
-                        {showPins && <span className="text-xs font-mono px-1.5 py-0.5 rounded bg-white/8 text-white/70">PIN: {u.pin}</span>}
+                      <div className="flex flex-col items-center gap-0.5">
+                        <button onClick={() => openPermissions(u)} title="Permissions"
+                          className="w-8 h-8 rounded-lg bg-violet-500/15 text-violet-400 hover:bg-violet-500/25 flex items-center justify-center transition-all active:scale-95"><Shield className="w-3.5 h-3.5" /></button>
+                        <span className="text-[8px] font-medium text-white/40">Perms</span>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <button onClick={() => openPermissions(u)} className="w-8 h-8 rounded-lg bg-white/5 hover:bg-violet-500/15 flex items-center justify-center text-white/30 hover:text-violet-400 transition-all active:scale-95"><Shield className="w-3.5 h-3.5" /></button>
-                      <button onClick={() => openResetPin(u)} className="w-8 h-8 rounded-lg bg-white/5 hover:bg-amber-500/15 flex items-center justify-center text-white/30 hover:text-amber-400 transition-all active:scale-95"><Key className="w-3.5 h-3.5" /></button>
-                      <button onClick={() => toggleStatus(u)} className="active:scale-95">
-                        {u.status === 'active' ? <ToggleRight className="w-6 h-6 text-amber-400" /> : <ToggleLeft className="w-6 h-6 text-white/25" />}
-                      </button>
-                      <button onClick={() => openEdit(u)} className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/30 hover:text-white transition-all active:scale-95"><Pencil className="w-3.5 h-3.5" /></button>
-                      <button onClick={() => del(u.id)} className={cn('h-8 rounded-lg flex items-center justify-center transition-all active:scale-95 text-xs font-medium', deleteConfirm === u.id ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30 px-2' : 'w-8 bg-white/5 hover:bg-rose-500/10 text-white/30 hover:text-rose-400')}>
-                        {deleteConfirm === u.id ? 'Confirm?' : <Trash2 className="w-3.5 h-3.5" />}
-                      </button>
+                      <div className="flex flex-col items-center gap-0.5">
+                        <button onClick={() => openResetPin(u)} title="Reset PIN"
+                          className="w-8 h-8 rounded-lg bg-amber-500/15 text-amber-400 hover:bg-amber-500/25 flex items-center justify-center transition-all active:scale-95"><Key className="w-3.5 h-3.5" /></button>
+                        <span className="text-[8px] font-medium text-white/40">PIN</span>
+                      </div>
+                      <div className="flex flex-col items-center gap-0.5">
+                        <button onClick={() => toggleStatus(u)}
+                          className={cn('w-8 h-8 rounded-lg flex items-center justify-center transition-all active:scale-95',
+                            u.status === 'active' ? 'bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25' : 'bg-white/5 text-white/30 hover:bg-white/10')}>
+                          {u.status === 'active' ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
+                        </button>
+                        <span className="text-[8px] font-medium text-white/40">{t.active}</span>
+                      </div>
+                      <div className="flex flex-col items-center gap-0.5">
+                        <button onClick={() => openEdit(u)} title={t.edit}
+                          className="w-8 h-8 rounded-lg bg-sky-500/15 text-sky-400 hover:bg-sky-500/25 flex items-center justify-center transition-all active:scale-95"><Pencil className="w-3.5 h-3.5" /></button>
+                        <span className="text-[8px] font-medium text-white/40">{t.edit}</span>
+                      </div>
                     </div>
                   </div>
                   </AnimatedItem>
                 )
               })}
-              {filtered.length === 0 && <div className="text-center py-16 text-white/25 text-sm">{t.usr_no_data}</div>}
+              {filtered.length === 0 && <div className="col-span-full text-center py-12 text-white/25 text-sm">{t.usr_no_data}</div>}
             </AnimatedList>
             </motion.div>
             )}
