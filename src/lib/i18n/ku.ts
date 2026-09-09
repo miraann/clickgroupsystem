@@ -567,6 +567,9 @@ const ku: Record<keyof typeof en, string> = {
   tbl_round:            'خڕ',
   tbl_rect:             'لوڵكە',
   tbl_download_qr:      'QR داگرتن',
+  tbl_print:           'چاپکردنی QR',
+  tbl_print_ok:        'نێردرا بۆ پرینتەری وەسڵ',
+  tbl_print_failed:    'چاپکردن سەرکەوتوو نەبوو',
 
   // ── Menu: Payment Method ──────────────────────────
   pm_title:             'شێوازی پارەدان',

@@ -567,6 +567,9 @@ const ar: Record<keyof typeof en, string> = {
   tbl_round:            'دائري',
   tbl_rect:             'مستطيل',
   tbl_download_qr:      'تنزيل QR',
+  tbl_print:           'طباعة QR',
+  tbl_print_ok:        'أُرسلت إلى طابعة الإيصال',
+  tbl_print_failed:    'فشلت الطباعة',
 
   // ── Menu: Payment Method ──────────────────────────
   pm_title:             'طرق الدفع',

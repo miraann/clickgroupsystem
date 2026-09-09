@@ -1071,6 +1071,9 @@ const en = {
   tbl_round:            'Round',
   tbl_rect:             'Rectangle',
   tbl_download_qr:      'Download QR',
+  tbl_print:           'Print QR',
+  tbl_print_ok:        'Sent to the receipt printer',
+  tbl_print_failed:    'Print failed',
 
   // ── Menu: Payment Method ──────────────────────────────────────
   pm_title:             'Payment Methods',

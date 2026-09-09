@@ -2,8 +2,9 @@
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
-import { Plus, Pencil, Trash2, LayoutGrid, X, Users, Loader2, AlertCircle, QrCode, Download, Copy, Check } from 'lucide-react'
+import { Plus, Pencil, Trash2, LayoutGrid, X, Users, Loader2, AlertCircle, QrCode, Download, Copy, Check, Printer } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { printTableQr } from '@/lib/printTableQr'
 import { logAudit } from '@/lib/logAudit'
 import { useTableGroups } from '@/hooks/useTableGroups'
 import { useTables, type CachedTable } from '@/hooks/useTables'
@@ -43,6 +44,8 @@ export default function TablePage() {
   const [deleteId, setDeleteId]         = useState<string | null>(null)
   const [qrTable, setQrTable]           = useState<Table | null>(null)
   const [copied, setCopied]             = useState(false)
+  const [qrPrinting, setQrPrinting]     = useState(false)
+  const [qrPrintMsg, setQrPrintMsg]     = useState<string | null>(null)
 
   // ── Open add/edit ──────────────────────────────────────────
   const openAdd = () => {
@@ -307,6 +310,20 @@ export default function TablePage() {
           setCopied(true); setTimeout(() => setCopied(false), 2000)
         }
 
+        const handlePrint = async () => {
+          if (!restaurantId) return
+          setQrPrinting(true); setQrPrintMsg(null)
+          try {
+            await printTableQr(restaurantId, qrTable!.table_number, guestUrl)
+            setQrPrintMsg('ok')
+            setTimeout(() => setQrPrintMsg(m => m === 'ok' ? null : m), 2500)
+          } catch (e) {
+            setQrPrintMsg(e instanceof Error ? e.message : t.tbl_print_failed)
+          } finally {
+            setQrPrinting(false)
+          }
+        }
+
         const handleDownload = async () => {
           const img = new Image()
           img.crossOrigin = 'anonymous'
@@ -358,7 +375,7 @@ export default function TablePage() {
                   <QrCode className="w-4 h-4 text-amber-400" />
                   <span className="text-sm font-semibold text-white">{t.tbl_qr}</span>
                 </div>
-                <button onClick={() => setQrTable(null)} className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-all active:scale-95">
+                <button onClick={() => { setQrTable(null); setQrPrintMsg(null) }} className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-all active:scale-95">
                   <X className="w-4 h-4" />
                 </button>
               </div>
@@ -393,6 +410,21 @@ export default function TablePage() {
                     Preview
                   </a>
                 </div>
+
+                <button onClick={handlePrint} disabled={qrPrinting}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white/8 hover:bg-white/12 border border-white/10 text-white/70 text-sm font-medium transition-all active:scale-95 disabled:opacity-50">
+                  {qrPrinting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
+                  {t.tbl_print}
+                </button>
+                {qrPrintMsg === 'ok' ? (
+                  <p className="text-xs text-emerald-400 flex items-center gap-1.5">
+                    <Check className="w-3.5 h-3.5" /> {t.tbl_print_ok}
+                  </p>
+                ) : qrPrintMsg ? (
+                  <p className="text-xs text-rose-400 flex items-start gap-1.5">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" /> {qrPrintMsg}
+                  </p>
+                ) : null}
               </div>
             </div>
           </div>
