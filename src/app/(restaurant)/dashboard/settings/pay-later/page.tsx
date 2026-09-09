@@ -1,9 +1,9 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import {
-  CreditCard, Plus, Search,
+  Plus, Search,
   AlertCircle, ChevronDown,
-  User, Phone, Hash, Eye,
+  User, Eye,
   DollarSign, TrendingUp, Users,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -172,118 +172,64 @@ export default function PayLaterPage() {
                 </select>
                 <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/30 pointer-events-none" />
               </div>
-              <button
-                onClick={() => setShowAdd(true)}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold active:scale-95 transition-all shadow-lg shadow-amber-500/25 shrink-0"
-              >
-                <Plus className="w-4 h-4" />{t.pl_title}
-              </button>
             </motion.div>
 
             {/* ── List ── */}
-            <AnimatePresence mode="wait">
-              {visible.length === 0 ? (
-                <motion.div
-                  key="empty"
-                  initial={{ opacity: 0, y: 18 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ delay: 0.28, duration: 0.42, ease: 'circOut' }}
-                  className="rounded-2xl border border-white/8 flex flex-col items-center justify-center py-16 gap-3"
-                >
-                  <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
-                    <CreditCard className="w-6 h-6 text-white/20" />
-                  </div>
-                  <p className="text-white/30 text-sm">{t.pl_no_data}</p>
-                  <button onClick={() => setShowAdd(true)} className="text-xs text-amber-400 hover:text-amber-300 transition-colors">
-                    + Add first record
-                  </button>
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="list"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.18 }}
-                >
-                  <div className="rounded-2xl border border-white/8">
-                    <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-3 px-5 py-3 bg-white/3 border-b border-white/8 text-xs font-semibold text-white/30 uppercase tracking-wider rounded-t-2xl">
-                      <span>{t.pl_customer}</span>
-                      <span className="w-36 text-right">{t.pl_amount}</span>
-                      <span className="w-28">{t.pl_due}</span>
-                      <span className="w-24">Status</span>
-                      <span className="w-16" />
-                    </div>
-                    <motion.div variants={CONTAINER} initial="hidden" animate="show" className="divide-y divide-white/5">
-                      {visible.map(rec => {
-                        const balance    = rec.original_amount - rec.paid_amount
-                        const cfg        = STATUS_CFG[rec.status] ?? STATUS_CFG.pending
-                        const StatusIcon = cfg.icon
-                        const overdue    = isOverdue(rec)
-                        return (
-                          <motion.div key={rec.id} variants={ITEM} className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-3 px-5 py-3.5 items-center hover:bg-white/3 transition-colors group">
-                            <div className="flex items-center gap-3 min-w-0">
-                              <div className="w-9 h-9 rounded-xl bg-amber-500/15 border border-amber-500/25 flex items-center justify-center shrink-0">
-                                <User className="w-4 h-4 text-amber-400" />
-                              </div>
-                              <div className="min-w-0">
-                                <div className="flex items-center gap-2">
-                                  <p className="text-sm font-semibold text-white truncate">{rec.customer_name}</p>
-                                  {overdue && <span className="text-[9px] font-bold text-rose-400 bg-rose-500/15 border border-rose-500/25 px-1.5 py-0.5 rounded-md shrink-0">OVERDUE</span>}
-                                </div>
-                                <div className="flex items-center gap-2 mt-0.5">
-                                  {rec.customer_phone && <span className="text-[10px] text-white/30 flex items-center gap-0.5"><Phone className="w-2.5 h-2.5" />{rec.customer_phone}</span>}
-                                  {rec.order_ref && <span className="text-[10px] text-white/30 flex items-center gap-0.5"><Hash className="w-2.5 h-2.5" />{rec.order_ref}</span>}
-                                  {rec.table_num && <span className="text-[10px] text-white/30">Table {rec.table_num}</span>}
-                                </div>
-                              </div>
-                            </div>
+            <div>
+              <motion.div variants={CONTAINER} initial="hidden" animate="show" className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                {/* Add-new card */}
+                <button onClick={() => setShowAdd(true)}
+                  className="min-h-[170px] rounded-2xl border-2 border-dashed border-white/15 hover:border-amber-500/40 hover:bg-amber-500/[0.04] flex flex-col items-center justify-center gap-2 text-white/40 hover:text-amber-400 transition-all active:scale-95">
+                  <span className="w-11 h-11 rounded-full bg-white/5 flex items-center justify-center"><Plus className="w-4 h-4" /></span>
+                  <span className="text-[11px] font-semibold">{t.pl_title}</span>
+                </button>
+                {visible.map(rec => {
+                  const balance    = rec.original_amount - rec.paid_amount
+                  const cfg        = STATUS_CFG[rec.status] ?? STATUS_CFG.pending
+                  const StatusIcon = cfg.icon
+                  const overdue    = isOverdue(rec)
+                  return (
+                    <motion.div key={rec.id} variants={ITEM}
+                      className={cn('flex flex-col items-center rounded-2xl border bg-white/5 px-3 py-3 text-center transition-colors',
+                        overdue ? 'border-rose-500/25' : 'border-white/10 hover:border-white/20')}>
+                      <div className="w-11 h-11 rounded-xl bg-amber-500/15 border border-amber-500/25 flex items-center justify-center shrink-0">
+                        <User className="w-5 h-5 text-amber-400" />
+                      </div>
+                      <div className="mt-1.5 flex items-center gap-1.5 max-w-full">
+                        <p className="text-sm font-bold text-white line-clamp-1">{rec.customer_name}</p>
+                        {overdue && <span className="text-[8px] font-bold text-rose-400 bg-rose-500/15 border border-rose-500/25 px-1 py-0.5 rounded shrink-0">OVERDUE</span>}
+                      </div>
+                      {(rec.customer_phone || rec.order_ref) && (
+                        <p className="text-[10px] text-white/30 line-clamp-1 w-full">{rec.customer_phone || rec.order_ref}</p>
+                      )}
+                      <p className={cn('mt-1 text-sm font-extrabold tabular-nums', rec.status === 'paid' ? 'text-emerald-400' : 'text-white')}>
+                        {formatPrice(rec.status === 'paid' ? rec.original_amount : balance)}
+                      </p>
+                      <div className="mt-1 flex items-center justify-center gap-1.5">
+                        <span className={cn('inline-flex items-center gap-1 px-1.5 py-0.5 rounded-lg border text-[9px] font-bold', cfg.color)}>
+                          <StatusIcon className="w-2.5 h-2.5" />{cfg.label}
+                        </span>
+                        {rec.due_date && <span className={cn('text-[9px]', overdue ? 'text-rose-400' : 'text-white/30')}>{fmtDate(rec.due_date)}</span>}
+                      </div>
 
-                            <div className="w-36 text-right">
-                              <p className={cn('text-sm font-bold tabular-nums', rec.status === 'paid' ? 'text-emerald-400' : 'text-white')}>
-                                {formatPrice(rec.status === 'paid' ? rec.original_amount : balance)}
-                              </p>
-                              {rec.status === 'partial' && (
-                                <p className="text-[10px] text-white/30 tabular-nums">of {formatPrice(rec.original_amount)}</p>
-                              )}
-                            </div>
+                      <span className="my-2 h-px w-full bg-white/8" />
 
-                            <div className="w-28">
-                              <p className="text-xs text-white/60">{fmtDate(rec.created_at)}</p>
-                              {rec.due_date && (
-                                <p className={cn('text-[10px]', overdue ? 'text-rose-400' : 'text-white/30')}>
-                                  Due {fmtDate(rec.due_date)}
-                                </p>
-                              )}
-                            </div>
-
-                            <div className="w-24">
-                              <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-lg border text-[10px] font-bold', cfg.color)}>
-                                <StatusIcon className="w-2.5 h-2.5" />{cfg.label}
-                              </span>
-                            </div>
-
-                            <div className="w-16 flex items-center gap-1">
-                              <button
-                                onClick={() => setViewRec(rec)}
-                                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-amber-500/15 border border-white/8 hover:border-amber-500/30 text-white/40 hover:text-amber-400 text-xs font-medium transition-all active:scale-95"
-                              >
-                                <Eye className="w-3.5 h-3.5" />
-                                <span className="hidden sm:inline">View</span>
-                              </button>
-                            </div>
-                          </motion.div>
-                        )
-                      })}
+                      <button onClick={() => setViewRec(rec)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-500/15 text-sky-400 hover:bg-sky-500/25 text-xs font-semibold transition-all active:scale-95">
+                        <Eye className="w-3.5 h-3.5" /> View
+                      </button>
                     </motion.div>
-                  </div>
-                  <p className="text-xs text-white/25 text-right mt-2">
-                    {visible.length} record{visible.length !== 1 ? 's' : ''} · {formatPrice(visible.reduce((s, r) => s + (r.original_amount - r.paid_amount), 0))} outstanding
-                  </p>
-                </motion.div>
+                  )
+                })}
+              </motion.div>
+              {visible.length === 0 ? (
+                <p className="text-center py-8 text-white/25 text-sm">{t.pl_no_data}</p>
+              ) : (
+                <p className="text-xs text-white/25 text-right mt-3">
+                  {visible.length} record{visible.length !== 1 ? 's' : ''} · {formatPrice(visible.reduce((s, r) => s + (r.original_amount - r.paid_amount), 0))} outstanding
+                </p>
               )}
-            </AnimatePresence>
+            </div>
 
           </motion.div>
         )}
