@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   DollarSign, Plus, Search, X,
-  TrendingUp, TrendingDown, LayoutGrid, Receipt,
+  TrendingUp, TrendingDown, LayoutGrid,
   Trash2, Eye, ChevronDown, Calendar,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -249,22 +249,14 @@ export default function ExpensePage() {
               initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.42, ease: 'circOut' as const, delay: 0.21 }}>
               <div className="space-y-3">
-                <div className="flex gap-3 items-center">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/30" />
-                    <input
-                      value={search}
-                      onChange={e => setSearch(e.target.value)}
-                      placeholder={`${t.search}…`}
-                      className="w-full pl-9 pr-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500/40 transition-colors"
-                    />
-                  </div>
-                  <button
-                    onClick={() => setShowAdd(true)}
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold active:scale-95 transition-all shadow-lg shadow-amber-500/25 shrink-0"
-                  >
-                    <Plus className="w-4 h-4" />{t.exp_add}
-                  </button>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/30" />
+                  <input
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    placeholder={`${t.search}…`}
+                    className="w-full pl-9 pr-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500/40 transition-colors"
+                  />
                 </div>
 
                 <div className="flex flex-wrap gap-3 items-center">
@@ -331,92 +323,66 @@ export default function ExpensePage() {
             </motion.div>
 
             {/* Expense list */}
-            <AnimatePresence mode="wait">
-              {visible.length === 0 ? (
-                <motion.div key="empty"
-                  initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                  transition={{ duration: 0.42, ease: 'circOut' as const, delay: 0.28 }}
-                  className="rounded-2xl border border-white/8">
-                  <div className="flex flex-col items-center justify-center py-16 gap-3">
-                    <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
-                      <Receipt className="w-6 h-6 text-white/20" />
-                    </div>
-                    <p className="text-white/30 text-sm">{t.exp_no_data}</p>
-                    <button onClick={() => setShowAdd(true)} className="text-xs text-amber-400 hover:text-amber-300 transition-colors">
-                      + Add your first expense
-                    </button>
-                  </div>
-                </motion.div>
-              ) : (
-                <motion.div key="list"
-                  initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                  transition={{ duration: 0.42, ease: 'circOut' as const, delay: 0.28 }}>
-                  <div className="rounded-2xl border border-white/8">
-                    <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 px-5 py-3 bg-white/3 border-b border-white/8 text-xs font-semibold text-white/30 uppercase tracking-wider rounded-t-2xl">
-                      <span>{t.exp_title}</span>
-                      <span className="text-right w-28">{t.exp_amount}</span>
-                      <span className="w-32">{t.exp_date}</span>
-                      <span className="w-24">Status</span>
-                      <span className="w-8" />
-                    </div>
-                    <motion.div variants={CONTAINER} initial="hidden" animate="show" className="divide-y divide-white/5">
-                      {visible.map(exp => {
-                        const cat        = getCat(exp.category_id)
-                        const CatIcon    = cat ? (CAT_ICONS[cat.icon] ?? LayoutGrid) : LayoutGrid
-                        const status     = STATUS_CFG[exp.status ?? 'paid'] ?? STATUS_CFG.paid
-                        const StatusIcon = status.icon
-                        return (
-                          <motion.div variants={ITEM} key={exp.id}
-                            className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 px-5 py-3.5 items-center hover:bg-white/3 transition-colors group">
-                            <div className="flex items-center gap-3 min-w-0">
-                              <div
-                                className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-                                style={{ backgroundColor: cat ? `${cat.color}20` : '#ffffff10', border: `1px solid ${cat?.color ?? '#ffffff'}30` }}
-                              >
-                                <CatIcon className="w-4 h-4" style={{ color: cat?.color ?? '#ffffff50' }} />
-                              </div>
-                              <div className="min-w-0">
-                                <p className="text-sm font-semibold text-white truncate">{exp.title}</p>
-                                <p className="text-xs text-white/35">{cat?.name ?? 'Uncategorized'}</p>
-                              </div>
-                            </div>
-                            <span className="text-sm font-bold text-white tabular-nums w-28 text-right">{formatPrice(exp.amount ?? 0)}</span>
-                            <div className="w-32">
-                              <p className="text-xs text-white/60">{fmtDay(exp.created_at)}</p>
-                              <p className="text-[10px] text-white/30">{new Date(exp.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}</p>
-                            </div>
-                            <div className="w-24">
-                              <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-lg border text-[10px] font-bold', status.color)}>
-                                <StatusIcon className="w-2.5 h-2.5" />
-                                {status.label}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <button
-                                onClick={() => setViewExpense(exp)}
-                                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-amber-500/15 border border-white/8 hover:border-amber-500/30 text-white/40 hover:text-amber-400 text-xs font-medium transition-all active:scale-95"
-                              >
-                                <Eye className="w-3.5 h-3.5" />
-                                <span className="hidden sm:inline">View</span>
-                              </button>
-                              <button
-                                onClick={() => handleDelete(exp.id)}
-                                className="flex items-center justify-center w-7 h-7 rounded-lg bg-white/5 hover:bg-rose-500/15 border border-white/8 hover:border-rose-500/30 text-white/30 hover:text-rose-400 transition-all active:scale-95"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </motion.div>
-                        )
-                      })}
+            <div>
+              <motion.div variants={CONTAINER} initial="hidden" animate="show" className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                {/* Add-new card */}
+                <button onClick={() => setShowAdd(true)}
+                  className="min-h-[170px] rounded-2xl border-2 border-dashed border-white/15 hover:border-amber-500/40 hover:bg-amber-500/[0.04] flex flex-col items-center justify-center gap-2 text-white/40 hover:text-amber-400 transition-all active:scale-95">
+                  <span className="w-11 h-11 rounded-full bg-white/5 flex items-center justify-center"><Plus className="w-4 h-4" /></span>
+                  <span className="text-[11px] font-semibold">{t.exp_add}</span>
+                </button>
+                {visible.map(exp => {
+                  const cat        = getCat(exp.category_id)
+                  const CatIcon    = cat ? (CAT_ICONS[cat.icon] ?? LayoutGrid) : LayoutGrid
+                  const status     = STATUS_CFG[exp.status ?? 'paid'] ?? STATUS_CFG.paid
+                  const StatusIcon = status.icon
+                  return (
+                    <motion.div variants={ITEM} key={exp.id}
+                      className="flex flex-col items-center rounded-2xl border bg-white/5 border-white/10 hover:border-white/20 px-3 py-3 text-center transition-colors">
+                      <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
+                        style={{ backgroundColor: cat ? `${cat.color}20` : '#ffffff10', border: `1px solid ${cat?.color ?? '#ffffff'}30` }}>
+                        <CatIcon className="w-5 h-5" style={{ color: cat?.color ?? '#ffffff50' }} />
+                      </div>
+                      <p className="mt-1.5 w-full text-sm font-bold text-white line-clamp-1">{exp.title}</p>
+                      <p className="text-[10px] text-white/35 line-clamp-1 w-full">{cat?.name ?? 'Uncategorized'}</p>
+                      <p className="mt-1 text-sm font-extrabold text-white tabular-nums">{formatPrice(exp.amount ?? 0)}</p>
+                      <div className="mt-1 flex items-center justify-center gap-1.5">
+                        <span className={cn('inline-flex items-center gap-1 px-1.5 py-0.5 rounded-lg border text-[9px] font-bold', status.color)}>
+                          <StatusIcon className="w-2.5 h-2.5" />{status.label}
+                        </span>
+                        <span className="text-[9px] text-white/30">{fmtDay(exp.created_at)}</span>
+                      </div>
+
+                      <span className="my-2 h-px w-full bg-white/8" />
+
+                      <div className="flex items-start justify-center gap-2">
+                        <div className="flex flex-col items-center gap-1">
+                          <button onClick={() => handleDelete(exp.id)}
+                            className="w-8 h-8 rounded-lg bg-rose-500/15 text-rose-400 hover:bg-rose-500/25 flex items-center justify-center transition-all active:scale-95">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                          <span className="text-[9px] font-medium text-white/40">{t.delete}</span>
+                        </div>
+                        <div className="flex flex-col items-center gap-1">
+                          <button onClick={() => setViewExpense(exp)}
+                            className="w-8 h-8 rounded-lg bg-sky-500/15 text-sky-400 hover:bg-sky-500/25 flex items-center justify-center transition-all active:scale-95">
+                            <Eye className="w-3.5 h-3.5" />
+                          </button>
+                          <span className="text-[9px] font-medium text-white/40">View</span>
+                        </div>
+                      </div>
                     </motion.div>
-                  </div>
-                  <p className="text-xs text-white/25 text-right mt-2">
-                    {visible.length} expense{visible.length !== 1 ? 's' : ''} · {formatPrice(visible.reduce((s, e) => s + (e.amount ?? 0), 0))} total
-                  </p>
-                </motion.div>
+                  )
+                })}
+              </motion.div>
+              {visible.length === 0 ? (
+                <p className="text-center py-8 text-white/25 text-sm">{t.exp_no_data}</p>
+              ) : (
+                <p className="text-xs text-white/25 text-right mt-3">
+                  {visible.length} expense{visible.length !== 1 ? 's' : ''} · {formatPrice(visible.reduce((s, e) => s + (e.amount ?? 0), 0))} total
+                </p>
               )}
-            </AnimatePresence>
+            </div>
 
           </motion.div>
         )}
