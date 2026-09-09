@@ -111,56 +111,79 @@ export default function SurchargePage() {
   )
 
   return (
-    <motion.div key="menu-surcharge-page" variants={PAGE} initial="hidden" animate="show" exit="exit" className="max-w-3xl mx-auto">
+    <motion.div key="menu-surcharge-page" variants={PAGE} initial="hidden" animate="show" exit="exit" className="max-w-5xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-rose-500/15 flex items-center justify-center">
-            <span className="text-rose-400 font-bold text-base">%+</span>
-          </div>
-          <div>
-            <h1 className="text-lg font-semibold text-white">{t.sur_title}</h1>
-            <p className="text-xs text-white/40">{t.sur_subtitle}</p>
-          </div>
-          <span className="px-2 py-0.5 rounded-full bg-white/8 text-xs text-white/50">{surcharges.length}</span>
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-9 h-9 rounded-xl bg-rose-500/15 flex items-center justify-center">
+          <span className="text-rose-400 font-bold text-base">%+</span>
         </div>
-        <button onClick={openAdd} className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-xl active:scale-95 transition-all">
-          <Plus className="w-4 h-4" /> {t.sur_add}
-        </button>
+        <div>
+          <h1 className="text-lg font-semibold text-white">{t.sur_title}</h1>
+          <p className="text-xs text-white/40">{t.sur_subtitle}</p>
+        </div>
+        <span className="px-2 py-0.5 rounded-full bg-white/8 text-xs text-white/50">{surcharges.length}</span>
       </div>
 
-      <motion.div variants={LIST} initial="hidden" animate="visible" className="space-y-2">
-        {surcharges.map(s => (
-          <motion.div key={s.id} variants={ITEM_VAR} className={cn('flex items-center gap-3 p-4 bg-white/5 border rounded-2xl transition-all', s.active ? 'border-white/10' : 'border-white/5 opacity-60')}>
-            <div className="w-10 h-10 rounded-xl bg-rose-500/15 border border-rose-500/20 flex items-center justify-center shrink-0">
-              <span className="text-xs font-bold text-rose-400">
-                {s.type === 'percentage' ? `${s.value}%` : `${currency.symbol}${Number(s.value).toFixed(currency.decimal_places)}`}
-              </span>
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <p className="text-sm font-medium text-white">{s.name}</p>
-                <span className={cn('text-[10px] px-1.5 py-0.5 rounded-md font-medium shrink-0', APPLIED_COLORS[s.applied_to] ?? 'bg-white/10 text-white/50')}>
-                  {s.applied_to}
+      <motion.div variants={LIST} initial="hidden" animate="visible" className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5">
+        {/* Add-new card */}
+        <button onClick={openAdd}
+          className="min-h-[160px] rounded-xl border-2 border-dashed border-white/15 hover:border-amber-500/40 hover:bg-amber-500/[0.04] flex flex-col items-center justify-center gap-2 text-white/40 hover:text-amber-400 transition-all active:scale-95">
+          <span className="w-9 h-9 rounded-full bg-white/5 flex items-center justify-center">
+            <Plus className="w-4 h-4" />
+          </span>
+          <span className="text-[11px] font-semibold">{t.sur_add}</span>
+        </button>
+        {surcharges.map(s => {
+          const armed = deleteId === s.id
+          return (
+            <motion.div key={s.id} variants={ITEM_VAR} className={cn('flex flex-col items-center rounded-xl border bg-white/5 px-2.5 py-2.5 text-center transition-colors',
+              s.active ? 'border-white/10 hover:border-white/20' : 'border-white/5 opacity-55')}>
+              <div className="w-11 h-11 rounded-xl bg-rose-500/15 border border-rose-500/20 flex items-center justify-center shrink-0">
+                <span className="text-[11px] font-bold text-rose-400 tabular-nums">
+                  {s.type === 'percentage' ? `${s.value}%` : `${currency.symbol}${Number(s.value).toFixed(currency.decimal_places)}`}
                 </span>
               </div>
-              <p className="text-xs text-white/40 mt-0.5">
+              <p className="mt-1.5 w-full text-sm font-bold text-white line-clamp-1">{s.name}</p>
+              <span className={cn('mt-0.5 text-[10px] px-1.5 py-0.5 rounded-md font-medium', APPLIED_COLORS[s.applied_to] ?? 'bg-white/10 text-white/50')}>
+                {s.applied_to}
+              </span>
+              <p className="mt-0.5 text-[10px] text-white/35 line-clamp-1 w-full">
                 {s.type === 'percentage' ? `${s.value}% surcharge` : `${currency.symbol}${Number(s.value).toFixed(currency.decimal_places)} flat fee`}
               </p>
-            </div>
-            <button onClick={() => toggleActive(s)} className="active:scale-95 shrink-0">
-              {s.active ? <ToggleRight className="w-6 h-6 text-amber-400" /> : <ToggleLeft className="w-6 h-6 text-white/25" />}
-            </button>
-            <button onClick={() => openEdit(s)} className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/40 hover:text-white transition-all active:scale-95 shrink-0">
-              <Pencil className="w-3.5 h-3.5" />
-            </button>
-            <button onClick={() => handleDelete(s.id)} className={cn('h-8 rounded-lg flex items-center justify-center transition-all active:scale-95 text-xs font-medium shrink-0',
-              deleteId === s.id ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30 px-2' : 'w-8 bg-white/5 hover:bg-rose-500/10 text-white/40 hover:text-rose-400')}>
-              {deleteId === s.id ? t.delete : <Trash2 className="w-3.5 h-3.5" />}
-            </button>
-          </motion.div>
-        ))}
-        {surcharges.length === 0 && <div className="text-center py-16 text-white/25 text-sm">{t.sur_no_data}</div>}
+
+              <span className="my-2 h-px w-full bg-white/8" />
+
+              <div className="flex items-start justify-center gap-2">
+                <div className="flex flex-col items-center gap-1">
+                  <button onClick={() => handleDelete(s.id)}
+                    className={cn('w-8 h-8 rounded-lg flex items-center justify-center transition-all active:scale-95',
+                      armed ? 'bg-rose-500/90 text-white' : 'bg-rose-500/15 text-rose-400 hover:bg-rose-500/25')}>
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                  <span className={cn('text-[9px] font-medium', armed ? 'text-rose-400' : 'text-white/40')}>
+                    {armed ? t.confirm_delete : t.delete}
+                  </span>
+                </div>
+                <div className="flex flex-col items-center gap-1">
+                  <button onClick={() => toggleActive(s)}
+                    className={cn('w-8 h-8 rounded-lg flex items-center justify-center transition-all active:scale-95',
+                      s.active ? 'bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25' : 'bg-white/5 text-white/30 hover:bg-white/10')}>
+                    {s.active ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
+                  </button>
+                  <span className="text-[9px] font-medium text-white/40">{t.disc_active}</span>
+                </div>
+                <div className="flex flex-col items-center gap-1">
+                  <button onClick={() => openEdit(s)}
+                    className="w-8 h-8 rounded-lg bg-sky-500/15 text-sky-400 hover:bg-sky-500/25 flex items-center justify-center transition-all active:scale-95">
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                  <span className="text-[9px] font-medium text-white/40">{t.edit}</span>
+                </div>
+              </div>
+            </motion.div>
+          )
+        })}
+        {surcharges.length === 0 && <div className="col-span-full text-center py-12 text-white/25 text-sm">{t.sur_no_data}</div>}
       </motion.div>
 
       {/* Modal */}
