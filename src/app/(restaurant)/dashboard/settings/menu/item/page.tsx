@@ -467,13 +467,13 @@ export default function ItemPage() {
                 </div>
                 <div>
                   <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.item_price} ({cur})</label>
-                  <input type="number" min="0" step="0.5" value={form.price} onChange={e => setForm(f => ({ ...f, price: parseFloat(e.target.value) || 0 }))}
-                    className="no-spinner w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500/50 transition-colors" />
+                  <input type="number" min="0" step="0.5" value={form.price || ''} placeholder="0" onChange={e => setForm(f => ({ ...f, price: parseFloat(e.target.value) || 0 }))}
+                    className="no-spinner w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500/50 transition-colors" />
                 </div>
                 <div>
                   <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.item_cost} ({cur})</label>
-                  <input type="number" min="0" step="0.5" value={form.cost} onChange={e => setForm(f => ({ ...f, cost: parseFloat(e.target.value) || 0 }))}
-                    className="no-spinner w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500/50 transition-colors" />
+                  <input type="number" min="0" step="0.5" value={form.cost || ''} placeholder="0" onChange={e => setForm(f => ({ ...f, cost: parseFloat(e.target.value) || 0 }))}
+                    className="no-spinner w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500/50 transition-colors" />
                 </div>
                 <div>
                   <label className="block text-xs text-white/50 mb-1.5 font-medium leading-tight">{t.item_delivery_price} ({cur})</label>
