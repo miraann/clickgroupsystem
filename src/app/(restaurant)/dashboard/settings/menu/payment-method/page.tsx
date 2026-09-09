@@ -277,66 +277,75 @@ export default function PaymentMethodPage() {
       {/* ── Currency tab ── */}
       {tab === 'currency' && (
         <div>
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-amber-500/15 flex items-center justify-center">
-                <Coins className="w-5 h-5 text-amber-400" />
-              </div>
-              <div>
-                <h1 className="text-lg font-semibold text-white">{t.cur_title}</h1>
-                <p className="text-xs text-white/40">{t.cur_subtitle}</p>
-              </div>
-              <span className="px-2 py-0.5 rounded-full bg-white/8 text-xs text-white/50">{currencies.length}</span>
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-9 h-9 rounded-xl bg-amber-500/15 flex items-center justify-center">
+              <Coins className="w-5 h-5 text-amber-400" />
             </div>
-            <button onClick={openAddCur}
-              className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-xl active:scale-95 transition-all">
-              <Plus className="w-4 h-4" /> {t.cur_add}
-            </button>
+            <div>
+              <h1 className="text-lg font-semibold text-white">{t.cur_title}</h1>
+              <p className="text-xs text-white/40">{t.cur_subtitle}</p>
+            </div>
+            <span className="px-2 py-0.5 rounded-full bg-white/8 text-xs text-white/50">{currencies.length}</span>
           </div>
 
-          <motion.div variants={LIST} initial="hidden" animate="visible" className="space-y-2">
-            {currencies.map(c => (
-              <motion.div key={c.id} variants={ITEM_VAR} className="flex items-center gap-3 p-4 bg-white/5 border border-white/10 rounded-2xl">
-                {/* Symbol badge */}
-                <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">
-                  <span className="text-base font-extrabold text-amber-400">{c.symbol}</span>
-                </div>
-
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium text-white">{c.name}</p>
-                    {c.is_default && (
-                      <span className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-400">
-                        <Star className="w-2.5 h-2.5" />{t.cur_default_badge}
-                      </span>
-                    )}
+          <motion.div variants={LIST} initial="hidden" animate="visible" className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5">
+            {/* Add-new card */}
+            <button onClick={openAddCur}
+              className="min-h-[160px] rounded-xl border-2 border-dashed border-white/15 hover:border-amber-500/40 hover:bg-amber-500/[0.04] flex flex-col items-center justify-center gap-2 text-white/40 hover:text-amber-400 transition-all active:scale-95">
+              <span className="w-9 h-9 rounded-full bg-white/5 flex items-center justify-center"><Plus className="w-4 h-4" /></span>
+              <span className="text-[11px] font-semibold">{t.cur_add}</span>
+            </button>
+            {currencies.map(c => {
+              const armed = deleteCurId === c.id
+              return (
+                <motion.div key={c.id} variants={ITEM_VAR} className="flex flex-col items-center rounded-xl border bg-white/5 border-white/10 hover:border-white/20 px-2.5 py-2.5 text-center transition-colors">
+                  <div className="w-11 h-11 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">
+                    <span className="text-sm font-extrabold text-amber-400">{c.symbol}</span>
                   </div>
-                  <p className="text-xs text-white/35 mt-0.5">
+                  <p className="mt-1.5 w-full text-sm font-bold text-white line-clamp-1">{c.name}</p>
+                  {c.is_default && (
+                    <span className="mt-0.5 inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-400">
+                      <Star className="w-2.5 h-2.5" />{t.cur_default_badge}
+                    </span>
+                  )}
+                  <p className="mt-0.5 text-[10px] text-white/35 line-clamp-1 w-full">
                     {c.decimal_places} {t.cur_decimal_places} · {c.symbol}{(1234).toFixed(c.decimal_places)}
                   </p>
-                </div>
 
-                {!c.is_default && (
-                  <button onClick={() => setDefaultCurrency(c)}
-                    className="text-xs text-white/30 hover:text-amber-400 px-2 py-1 rounded-lg hover:bg-amber-500/10 transition-all active:scale-95 shrink-0">
-                    {t.cur_set_default}
-                  </button>
-                )}
-                <button onClick={() => openEditCur(c)}
-                  className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/40 hover:text-white transition-all active:scale-95 shrink-0">
-                  <Pencil className="w-3.5 h-3.5" />
-                </button>
-                <button onClick={() => deleteCurrency(c.id)}
-                  className={cn('h-8 rounded-lg flex items-center justify-center transition-all active:scale-95 text-xs font-medium shrink-0',
-                    deleteCurId === c.id
-                      ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30 px-2'
-                      : 'w-8 bg-white/5 hover:bg-rose-500/10 text-white/40 hover:text-rose-400')}>
-                  {deleteCurId === c.id ? 'Confirm?' : <Trash2 className="w-3.5 h-3.5" />}
-                </button>
-              </motion.div>
-            ))}
+                  <span className="my-2 h-px w-full bg-white/8" />
+
+                  <div className="flex items-start justify-center gap-2">
+                    <div className="flex flex-col items-center gap-1">
+                      <button onClick={() => deleteCurrency(c.id)}
+                        className={cn('w-8 h-8 rounded-lg flex items-center justify-center transition-all active:scale-95',
+                          armed ? 'bg-rose-500/90 text-white' : 'bg-rose-500/15 text-rose-400 hover:bg-rose-500/25')}>
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                      <span className={cn('text-[9px] font-medium', armed ? 'text-rose-400' : 'text-white/40')}>
+                        {armed ? t.confirm_delete : t.delete}
+                      </span>
+                    </div>
+                    <div className="flex flex-col items-center gap-1">
+                      <button onClick={() => !c.is_default && setDefaultCurrency(c)} disabled={c.is_default}
+                        className={cn('w-8 h-8 rounded-lg flex items-center justify-center transition-all active:scale-95',
+                          c.is_default ? 'bg-amber-500/20 text-amber-400' : 'bg-white/5 text-white/30 hover:bg-amber-500/15 hover:text-amber-400')}>
+                        <Star className="w-3.5 h-3.5" fill={c.is_default ? 'currentColor' : 'none'} />
+                      </button>
+                      <span className="text-[9px] font-medium text-white/40">{t.set_as_default}</span>
+                    </div>
+                    <div className="flex flex-col items-center gap-1">
+                      <button onClick={() => openEditCur(c)}
+                        className="w-8 h-8 rounded-lg bg-sky-500/15 text-sky-400 hover:bg-sky-500/25 flex items-center justify-center transition-all active:scale-95">
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <span className="text-[9px] font-medium text-white/40">{t.edit}</span>
+                    </div>
+                  </div>
+                </motion.div>
+              )
+            })}
             {currencies.length === 0 && (
-              <div className="text-center py-16 text-white/25 text-sm">No currencies yet. Add one above.</div>
+              <div className="col-span-full text-center py-12 text-white/25 text-sm">No currencies yet.</div>
             )}
           </motion.div>
         </div>
@@ -345,63 +354,74 @@ export default function PaymentMethodPage() {
       {/* ── Payment Methods tab ── */}
       {tab === 'payment' && (
         <div>
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-indigo-500/15 flex items-center justify-center">
-                <CreditCard className="w-5 h-5 text-indigo-400" />
-              </div>
-              <div>
-                <h1 className="text-lg font-semibold text-white">{t.pm_title}</h1>
-                <p className="text-xs text-white/40">{t.pm_subtitle}</p>
-              </div>
-              <span className="px-2 py-0.5 rounded-full bg-white/8 text-xs text-white/50">{methods.length}</span>
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-9 h-9 rounded-xl bg-indigo-500/15 flex items-center justify-center">
+              <CreditCard className="w-5 h-5 text-indigo-400" />
             </div>
-            <button onClick={openAddPay}
-              className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-xl active:scale-95 transition-all">
-              <Plus className="w-4 h-4" /> {t.pm_add}
-            </button>
+            <div>
+              <h1 className="text-lg font-semibold text-white">{t.pm_title}</h1>
+              <p className="text-xs text-white/40">{t.pm_subtitle}</p>
+            </div>
+            <span className="px-2 py-0.5 rounded-full bg-white/8 text-xs text-white/50">{methods.length}</span>
           </div>
 
-          <motion.div variants={LIST} initial="hidden" animate="visible" className="space-y-2">
-            {methods.map(m => (
-              <motion.div key={m.id} variants={ITEM_VAR} className={cn('flex items-center gap-3 p-4 bg-white/5 border rounded-2xl transition-all', m.active ? 'border-white/10' : 'border-white/5 opacity-60')}>
-                <div className="w-10 h-10 rounded-xl bg-white/8 border border-white/10 flex items-center justify-center text-xl shrink-0">
-                  {getEmoji(m.icon_type)}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium text-white">{m.name}</p>
-                    {m.is_default && (
-                      <span className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-400">
-                        <Star className="w-2.5 h-2.5" />{t.cur_default_badge}
-                      </span>
-                    )}
+          <motion.div variants={LIST} initial="hidden" animate="visible" className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5">
+            {/* Add-new card */}
+            <button onClick={openAddPay}
+              className="min-h-[160px] rounded-xl border-2 border-dashed border-white/15 hover:border-amber-500/40 hover:bg-amber-500/[0.04] flex flex-col items-center justify-center gap-2 text-white/40 hover:text-amber-400 transition-all active:scale-95">
+              <span className="w-9 h-9 rounded-full bg-white/5 flex items-center justify-center"><Plus className="w-4 h-4" /></span>
+              <span className="text-[11px] font-semibold">{t.pm_add}</span>
+            </button>
+            {methods.map(m => {
+              const armed = deletePayId === m.id
+              return (
+                <motion.div key={m.id} variants={ITEM_VAR} className={cn('flex flex-col items-center rounded-xl border bg-white/5 px-2.5 py-2.5 text-center transition-colors',
+                  m.active ? 'border-white/10 hover:border-white/20' : 'border-white/5 opacity-55')}>
+                  <div className="relative w-11 h-11 rounded-xl bg-white/8 border border-white/10 flex items-center justify-center text-xl shrink-0">
+                    {getEmoji(m.icon_type)}
+                    <button onClick={() => !m.is_default && setDefaultPay(m)} disabled={m.is_default}
+                      title={t.set_as_default}
+                      className={cn('absolute -top-1.5 -end-1.5 w-5 h-5 rounded-full flex items-center justify-center transition-all active:scale-95',
+                        m.is_default ? 'bg-amber-500 text-white' : 'bg-white/10 text-white/40 hover:bg-amber-500/70 hover:text-white')}>
+                      <Star className="w-2.5 h-2.5" fill={m.is_default ? 'currentColor' : 'none'} />
+                    </button>
                   </div>
-                  <p className="text-xs text-white/35 capitalize mt-0.5">{m.icon_type}</p>
-                </div>
-                {!m.is_default && (
-                  <button onClick={() => setDefaultPay(m)}
-                    className="text-xs text-white/30 hover:text-amber-400 px-2 py-1 rounded-lg hover:bg-amber-500/10 transition-all active:scale-95 shrink-0">
-                    {t.pm_set_default}
-                  </button>
-                )}
-                <button onClick={() => toggleActive(m)} className="active:scale-95 shrink-0">
-                  {m.active ? <ToggleRight className="w-6 h-6 text-amber-400" /> : <ToggleLeft className="w-6 h-6 text-white/25" />}
-                </button>
-                <button onClick={() => openEditPay(m)}
-                  className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/40 hover:text-white transition-all active:scale-95 shrink-0">
-                  <Pencil className="w-3.5 h-3.5" />
-                </button>
-                <button onClick={() => deletePay(m.id)}
-                  className={cn('h-8 rounded-lg flex items-center justify-center transition-all active:scale-95 text-xs font-medium shrink-0',
-                    deletePayId === m.id
-                      ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30 px-2'
-                      : 'w-8 bg-white/5 hover:bg-rose-500/10 text-white/40 hover:text-rose-400')}>
-                  {deletePayId === m.id ? 'Confirm?' : <Trash2 className="w-3.5 h-3.5" />}
-                </button>
-              </motion.div>
-            ))}
-            {methods.length === 0 && <div className="text-center py-16 text-white/25 text-sm">{t.pm_no_data}</div>}
+                  <p className="mt-1.5 w-full text-sm font-bold text-white line-clamp-1">{m.name}</p>
+                  <p className="text-[10px] text-white/35 capitalize line-clamp-1 w-full">{m.icon_type}</p>
+
+                  <span className="my-2 h-px w-full bg-white/8" />
+
+                  <div className="flex items-start justify-center gap-2">
+                    <div className="flex flex-col items-center gap-1">
+                      <button onClick={() => deletePay(m.id)}
+                        className={cn('w-8 h-8 rounded-lg flex items-center justify-center transition-all active:scale-95',
+                          armed ? 'bg-rose-500/90 text-white' : 'bg-rose-500/15 text-rose-400 hover:bg-rose-500/25')}>
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                      <span className={cn('text-[9px] font-medium', armed ? 'text-rose-400' : 'text-white/40')}>
+                        {armed ? t.confirm_delete : t.delete}
+                      </span>
+                    </div>
+                    <div className="flex flex-col items-center gap-1">
+                      <button onClick={() => toggleActive(m)}
+                        className={cn('w-8 h-8 rounded-lg flex items-center justify-center transition-all active:scale-95',
+                          m.active ? 'bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25' : 'bg-white/5 text-white/30 hover:bg-white/10')}>
+                        {m.active ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
+                      </button>
+                      <span className="text-[9px] font-medium text-white/40">{t.active}</span>
+                    </div>
+                    <div className="flex flex-col items-center gap-1">
+                      <button onClick={() => openEditPay(m)}
+                        className="w-8 h-8 rounded-lg bg-sky-500/15 text-sky-400 hover:bg-sky-500/25 flex items-center justify-center transition-all active:scale-95">
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <span className="text-[9px] font-medium text-white/40">{t.edit}</span>
+                    </div>
+                  </div>
+                </motion.div>
+              )
+            })}
+            {methods.length === 0 && <div className="col-span-full text-center py-12 text-white/25 text-sm">{t.pm_no_data}</div>}
           </motion.div>
         </div>
       )}
