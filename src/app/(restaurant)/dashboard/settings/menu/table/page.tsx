@@ -165,19 +165,19 @@ export default function TablePage() {
                   transition={{ duration: 0.4, ease: 'circOut', delay: 0.08 + cardIds.indexOf(tbl.id) * 0.05 }}
                   className="flex flex-col items-center rounded-xl border bg-white/5 border-white/10 px-2.5 py-2.5 text-center hover:border-white/20 transition-colors"
                 >
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={cn('inline-block shrink-0 border-2', tbl.shape === 'Round' ? 'rounded-full' : 'rounded-lg')}
-                      style={{
-                        width:  tbl.shape === 'Rectangle' ? 46 : 30,
-                        height: 30,
-                        background: `${group.color}59`,
-                        borderColor: group.color,
-                      }}
-                    />
-                    <span className="text-lg font-bold text-white tabular-nums">{tbl.table_number}</span>
-                    {tbl.name && <span className="text-[11px] text-white/40 line-clamp-1">{tbl.name}</span>}
+                  <div
+                    className={cn('flex items-center justify-center border-2 font-bold text-white tabular-nums',
+                      tbl.shape === 'Round' ? 'rounded-full text-lg' : 'rounded-xl text-xl')}
+                    style={{
+                      width:  tbl.shape === 'Rectangle' ? 108 : 68,
+                      height: 68,
+                      background: `${group.color}40`,
+                      borderColor: group.color,
+                    }}
+                  >
+                    {tbl.table_number}
                   </div>
+                  {tbl.name && <span className="mt-1 text-[11px] text-white/40 line-clamp-1">{tbl.name}</span>}
                   <p className="mt-0.5 inline-flex items-center gap-1 text-[11px] font-medium tabular-nums" style={{ color: group.color }}>
                     <Users className="w-3 h-3" /> {tbl.capacity}
                     <span className="font-normal text-white/30">· {tbl.shape}</span>
