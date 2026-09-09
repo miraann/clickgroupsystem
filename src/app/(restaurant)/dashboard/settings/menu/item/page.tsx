@@ -351,8 +351,15 @@ export default function ItemPage() {
         <span className="px-2 py-0.5 rounded-full bg-white/8 text-xs text-white/50">{items.length}</span>
       </div>
 
-      {/* Category filter — tap a chip to filter, tap it again to clear */}
+      {/* Category filter */}
       <div className="flex gap-2 overflow-x-auto pb-3 mb-4" style={{ scrollbarWidth: 'none' }}>
+        <button
+          onClick={() => setFilterCatId('all')}
+          className={cn('px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all active:scale-95 shrink-0',
+            filterCatId === 'all' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-white/5 text-white/40 hover:bg-white/8 hover:text-white/70')}
+        >
+          {t.all} ({items.length})
+        </button>
         {categories.map(c => (
           <button key={c.id} onClick={() => setFilterCatId(filterCatId === c.id ? 'all' : c.id)}
             className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all active:scale-95 shrink-0 border',
