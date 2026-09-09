@@ -321,7 +321,7 @@ export default function TablePage() {
           if (!restaurantId) return
           setQrPrinting(true); setQrPrintMsg(null)
           try {
-            await printTableQr(restaurantId, qrTable!.table_number, guestUrl)
+            await printTableQr(restaurantId, qrTable!.table_number, guestUrl, qrTable!.name)
             setQrPrintMsg('ok')
             setTimeout(() => setQrPrintMsg(m => m === 'ok' ? null : m), 2500)
           } catch (e) {
@@ -395,7 +395,7 @@ export default function TablePage() {
                 </div>
                 <div className="text-center">
                   <p className="text-base font-bold text-white">{label}</p>
-                  <p className="text-xs text-white/35 mt-0.5">Scan to view digital menu</p>
+                  <p className="text-xs text-white/35 mt-0.5">Scan to view the menu &amp; order</p>
                 </div>
 
                 {/* URL */}

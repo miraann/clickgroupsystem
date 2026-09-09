@@ -69,9 +69,11 @@ export async function POST(req: NextRequest) {
     const body = await req.json() as {
       restaurantId: string
       tableNumber:  string
+      tableName?:   string | null
       url:          string
     }
     const { restaurantId, tableNumber, url } = body
+    const tableName = (body.tableName ?? '').trim()
     if (!restaurantId || !url) {
       return NextResponse.json({ ok: false, error: 'Missing restaurantId or url' }, { status: 400 })
     }
@@ -101,7 +103,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: 'Could not render the QR code' }, { status: 500 })
     }
 
-    const bytes = concat(
+    const parts: Uint8Array[] = [
       escpos.init(),
       escpos.alignCenter(),
       escpos.boldOn(), escpos.doubleHeight(),
@@ -112,11 +114,16 @@ export async function POST(req: NextRequest) {
       cmd(0x0a),
       escpos.boldOn(), escpos.doubleSize(),
       enc((tableNumber ? `TABLE ${tableNumber}` : 'MENU') + '\n'),
-      escpos.normalSize(), escpos.boldOff(),
-      enc('Scan to view digital menu\n'),
+      escpos.normalSize(),
+    ]
+    if (tableName) parts.push(escpos.doubleHeight(), enc(tableName + '\n'), escpos.normalSize())
+    parts.push(
+      escpos.boldOff(),
+      enc('Scan the QR to view the menu & order\n'),
       escpos.feed(4),
       escpos.cut(),
     )
+    const bytes = concat(...parts)
 
     return NextResponse.json({
       ok:             true,
