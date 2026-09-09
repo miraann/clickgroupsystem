@@ -498,7 +498,7 @@ export default function ItemPage() {
               <div>
                 <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.item_description}</label>
                 <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={2} placeholder={t.item_desc_ph}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500/50 transition-colors resize-none" />
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500/50 transition-colors resize-y min-h-[2.5rem]" />
               </div>
 
               {/* Availability toggles */}
