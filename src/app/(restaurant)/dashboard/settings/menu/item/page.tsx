@@ -101,7 +101,9 @@ export default function ItemPage() {
   // ── Open add/edit ──────────────────────────────────────────
   const openAdd = () => {
     setEditId(null)
-    setForm({ ...EMPTY_FORM, category_id: categories[0]?.id ?? '' })
+    // Pre-select the category the list is currently filtered to, else the first one
+    const presetCat = filterCatId !== 'all' ? filterCatId : (categories[0]?.id ?? '')
+    setForm({ ...EMPTY_FORM, category_id: presetCat })
     setSelectedModIds([])
     setIngredients([])
     setAddIngId('')
