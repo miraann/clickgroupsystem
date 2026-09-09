@@ -122,16 +122,10 @@ export default function ReservationPage() {
           <h1 className="text-xl font-bold text-white">{t.rsv_title}</h1>
           <p className="text-xs text-white/35 mt-0.5">{t.rsv_subtitle}</p>
         </div>
-        <div className="flex items-center gap-2">
-          <button onClick={() => restaurantId && load(restaurantId)}
-            className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-all active:scale-95">
-            <RefreshCw className={cn('w-4 h-4', loading && 'animate-spin')} />
-          </button>
-          <button onClick={() => { setEditRsv(null); setShowModal(true) }}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500/20 border border-amber-500/30 text-amber-400 text-sm font-semibold hover:bg-amber-500/30 transition-all active:scale-95">
-            <Plus className="w-4 h-4" />{t.rsv_add}
-          </button>
-        </div>
+        <button onClick={() => restaurantId && load(restaurantId)}
+          className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-all active:scale-95">
+          <RefreshCw className={cn('w-4 h-4', loading && 'animate-spin')} />
+        </button>
       </motion.div>
 
       {/* Date picker + search + status filter */}
