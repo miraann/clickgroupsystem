@@ -90,59 +90,53 @@ function SortableCard({
       ref={setNodeRef}
       style={style}
       className={cn(
-        'flex h-full flex-col rounded-2xl border bg-white/5 border-white/10 overflow-hidden transition-colors',
+        'relative flex flex-col items-center rounded-xl border bg-white/5 border-white/10 px-2.5 py-2.5 text-center transition-colors',
         c.active ? 'hover:border-white/20' : 'opacity-55',
       )}
     >
-      {/* Icon */}
-      <div className="p-2.5 pb-0">
-        <div className="relative w-full aspect-[3/2] rounded-xl overflow-hidden border border-white/10 flex items-center justify-center text-4xl"
-          style={{ background: c.color }}>
-          {c.icon || <span className="text-2xl opacity-60 text-white">{c.name.charAt(0).toUpperCase()}</span>}
-          <button
-            {...attributes}
-            {...listeners}
-            className="absolute top-1.5 right-1.5 w-6 h-6 rounded-lg bg-black/45 backdrop-blur-sm flex items-center justify-center text-white/70 hover:text-white cursor-grab active:cursor-grabbing touch-none transition-colors"
-          >
-            <GripVertical className="w-3.5 h-3.5" />
-          </button>
-        </div>
+      <button
+        {...attributes}
+        {...listeners}
+        className="absolute top-1.5 end-1.5 w-6 h-6 rounded-lg flex items-center justify-center text-white/25 hover:text-white/60 cursor-grab active:cursor-grabbing touch-none transition-colors"
+      >
+        <GripVertical className="w-3.5 h-3.5" />
+      </button>
+
+      <div className="w-11 h-11 rounded-xl border border-white/10 flex items-center justify-center text-xl shrink-0"
+        style={{ background: c.color }}>
+        {c.icon || <span className="text-sm font-bold text-white/80">{c.name.charAt(0).toUpperCase()}</span>}
       </div>
+      <p className="mt-1.5 w-full text-sm font-bold text-white line-clamp-1">{c.name}</p>
+      <p className="text-[10px] text-white/35">Sort #{c.sort_order}</p>
 
-      {/* Body */}
-      <div className="flex flex-1 flex-col items-center px-3 pt-2.5 pb-3 text-center">
-        <p className="w-full text-sm font-bold text-white line-clamp-1">{c.name}</p>
-        <p className="mt-0.5 text-[11px] text-white/35">Sort #{c.sort_order}</p>
+      <span className="my-2 h-px w-full bg-white/8" />
 
-        <span className="my-2.5 h-px w-full bg-white/8" />
-
-        {/* Actions */}
-        <div className="flex items-start justify-center gap-2">
-          <div className="flex flex-col items-center gap-1">
-            <button onClick={() => onDelete(c.id)}
-              className={cn('w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95',
-                armed ? 'bg-rose-500/90 text-white' : 'bg-rose-500/15 text-rose-400 hover:bg-rose-500/25')}>
-              <Trash2 className="w-4 h-4" />
-            </button>
-            <span className={cn('text-[9px] font-medium', armed ? 'text-rose-400' : 'text-white/40')}>
-              {armed ? t.confirm_delete : t.delete}
-            </span>
-          </div>
-          <div className="flex flex-col items-center gap-1">
-            <button onClick={() => onToggle(c)}
-              className={cn('w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95',
-                c.active ? 'bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25' : 'bg-white/5 text-white/30 hover:bg-white/10')}>
-              {c.active ? <ToggleRight className="w-5 h-5" /> : <ToggleLeft className="w-5 h-5" />}
-            </button>
-            <span className="text-[9px] font-medium text-white/40">{t.dev_active}</span>
-          </div>
-          <div className="flex flex-col items-center gap-1">
-            <button onClick={() => onEdit(c)}
-              className="w-9 h-9 rounded-xl bg-sky-500/15 text-sky-400 hover:bg-sky-500/25 flex items-center justify-center transition-all active:scale-95">
-              <Pencil className="w-4 h-4" />
-            </button>
-            <span className="text-[9px] font-medium text-white/40">{t.edit}</span>
-          </div>
+      {/* Actions */}
+      <div className="flex items-start justify-center gap-2">
+        <div className="flex flex-col items-center gap-1">
+          <button onClick={() => onDelete(c.id)}
+            className={cn('w-8 h-8 rounded-lg flex items-center justify-center transition-all active:scale-95',
+              armed ? 'bg-rose-500/90 text-white' : 'bg-rose-500/15 text-rose-400 hover:bg-rose-500/25')}>
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+          <span className={cn('text-[9px] font-medium', armed ? 'text-rose-400' : 'text-white/40')}>
+            {armed ? t.confirm_delete : t.delete}
+          </span>
+        </div>
+        <div className="flex flex-col items-center gap-1">
+          <button onClick={() => onToggle(c)}
+            className={cn('w-8 h-8 rounded-lg flex items-center justify-center transition-all active:scale-95',
+              c.active ? 'bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25' : 'bg-white/5 text-white/30 hover:bg-white/10')}>
+            {c.active ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
+          </button>
+          <span className="text-[9px] font-medium text-white/40">{t.dev_active}</span>
+        </div>
+        <div className="flex flex-col items-center gap-1">
+          <button onClick={() => onEdit(c)}
+            className="w-8 h-8 rounded-lg bg-sky-500/15 text-sky-400 hover:bg-sky-500/25 flex items-center justify-center transition-all active:scale-95">
+            <Pencil className="w-3.5 h-3.5" />
+          </button>
+          <span className="text-[9px] font-medium text-white/40">{t.edit}</span>
         </div>
       </div>
     </div>
@@ -280,14 +274,14 @@ export default function CategoryPage() {
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={categories.map(c => c.id)} strategy={rectSortingStrategy}>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2.5">
             {/* Add-new card */}
             <button onClick={openAdd}
-              className="min-h-[200px] rounded-2xl border-2 border-dashed border-white/15 hover:border-amber-500/40 hover:bg-amber-500/[0.04] flex flex-col items-center justify-center gap-3 text-white/40 hover:text-amber-400 transition-all active:scale-95">
-              <span className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center">
-                <Plus className="w-5 h-5" />
+              className="min-h-[132px] rounded-xl border-2 border-dashed border-white/15 hover:border-amber-500/40 hover:bg-amber-500/[0.04] flex flex-col items-center justify-center gap-2 text-white/40 hover:text-amber-400 transition-all active:scale-95">
+              <span className="w-9 h-9 rounded-full bg-white/5 flex items-center justify-center">
+                <Plus className="w-4 h-4" />
               </span>
-              <span className="text-xs font-semibold">{t.cat_add}</span>
+              <span className="text-[11px] font-semibold">{t.cat_add}</span>
             </button>
             {categories.map((c, i) => (
               <motion.div
