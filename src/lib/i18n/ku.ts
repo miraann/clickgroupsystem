@@ -243,7 +243,7 @@ const ku: Record<keyof typeof en, string> = {
   dev_kds_subtitle:     'بەڕێوەبردنی شاشەکانی ناو چێشتخانە',
   dev_kds:              'شاشەکانی ناو چێشتخانە',
   dev_printers:         'چاپەرەکان',
-  dev_add_station:      'ئیستگە زیاد بکە',
+  dev_add_station:      'شاشە زیاد بکە',
   dev_add_printer:      'چاپەر زیاد بکە',
   dev_station_name:     'ناوی ئیستگە',
   dev_printer_name:     'ناوی چاپەر',
