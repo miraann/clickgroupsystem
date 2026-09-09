@@ -105,9 +105,9 @@ function SortableEventCard({
         ev.active ? 'hover:border-white/20' : 'opacity-55',
       )}
     >
-      {/* Image (16:9) */}
+      {/* Image (9:16 story) */}
       <div className="p-2.5 pb-0">
-        <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-white/8 border border-white/10">
+        <div className="relative w-full aspect-[9/16] rounded-xl overflow-hidden bg-white/8 border border-white/10">
           {ev.image_url
             ? <img src={ev.image_url} alt="" className="w-full h-full object-cover" />
             : <div className="w-full h-full flex items-center justify-center"><CalendarDays className="w-6 h-6 text-white/20" /></div>}
@@ -350,14 +350,14 @@ export default function EventOfferPage() {
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={events.map(e => e.id)} strategy={rectSortingStrategy}>
-          <motion.div variants={LIST} initial="hidden" animate="visible" className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+          <motion.div variants={LIST} initial="hidden" animate="visible" className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
             {/* Add-new card */}
             <button onClick={openAdd}
-              className="min-h-[200px] rounded-2xl border-2 border-dashed border-white/15 hover:border-amber-500/40 hover:bg-amber-500/[0.04] flex flex-col items-center justify-center gap-3 text-white/40 hover:text-amber-400 transition-all active:scale-95">
-              <span className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center">
-                <Plus className="w-5 h-5" />
+              className="min-h-[220px] rounded-2xl border-2 border-dashed border-white/15 hover:border-amber-500/40 hover:bg-amber-500/[0.04] flex flex-col items-center justify-center gap-3 text-white/40 hover:text-amber-400 transition-all active:scale-95">
+              <span className="w-11 h-11 rounded-full bg-white/5 flex items-center justify-center">
+                <Plus className="w-4 h-4" />
               </span>
-              <span className="text-xs font-semibold">{t.evt_add}</span>
+              <span className="text-[11px] font-semibold">{t.evt_add}</span>
             </button>
             {events.map(ev => (
               <motion.div key={ev.id} variants={ITEM_VAR}>
@@ -426,7 +426,7 @@ export default function EventOfferPage() {
                 <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.evt_image}</label>
                 <div className="relative">
                   {form.image_url ? (
-                    <div className="relative rounded-xl overflow-hidden border border-white/10 w-full aspect-video">
+                    <div className="relative rounded-xl overflow-hidden border border-white/10 w-40 aspect-[9/16] mx-auto">
                       <img src={form.image_url} alt="" className="w-full h-full object-cover" />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
                       <button
@@ -441,9 +441,9 @@ export default function EventOfferPage() {
                       </label>
                     </div>
                   ) : (
-                    <label className="flex flex-col items-center justify-center w-full aspect-video rounded-xl bg-white/3 border border-dashed border-white/15 hover:bg-white/5 hover:border-amber-500/30 cursor-pointer transition-all group">
+                    <label className="flex flex-col items-center justify-center w-40 aspect-[9/16] mx-auto rounded-xl bg-white/3 border border-dashed border-white/15 hover:bg-white/5 hover:border-amber-500/30 cursor-pointer transition-all group">
                       <ImageIcon className="w-6 h-6 text-white/20 mb-1.5 group-hover:text-amber-400/40 transition-colors" />
-                      <span className="text-xs text-white/30 group-hover:text-white/50 transition-colors">Tap to upload image (16:9)</span>
+                      <span className="text-xs text-white/30 group-hover:text-white/50 transition-colors text-center px-3">Tap to upload image (9:16)</span>
                       <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
                     </label>
                   )}
