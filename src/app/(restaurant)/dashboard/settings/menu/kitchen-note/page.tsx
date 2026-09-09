@@ -85,7 +85,7 @@ export default function KitchenNotePage() {
   )
 
   return (
-    <motion.div key="menu-kitchen-note-page" variants={PAGE} initial="hidden" animate="show" exit="exit" className="max-w-2xl mx-auto">
+    <motion.div key="menu-kitchen-note-page" variants={PAGE} initial="hidden" animate="show" exit="exit" className="max-w-5xl mx-auto">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <div className="w-9 h-9 rounded-xl bg-amber-500/15 flex items-center justify-center">
@@ -117,28 +117,44 @@ export default function KitchenNotePage() {
         </button>
       </div>
 
-      <motion.div variants={LIST} initial="hidden" animate="visible" className="space-y-2">
-        {notes.map(n => (
-          <motion.div
-            key={n.id}
-            variants={ITEM_VAR}
-            className={cn('flex items-center gap-3 px-4 py-3 bg-white/5 border rounded-2xl transition-all',
-              n.active ? 'border-white/10' : 'border-white/5 opacity-50')}
-          >
-            <p className={cn('flex-1 text-sm', n.active ? 'text-white' : 'text-white/40')}>{n.text}</p>
-            <button onClick={() => toggle(n)} className="active:scale-95 shrink-0">
-              {n.active ? <ToggleRight className="w-6 h-6 text-amber-400" /> : <ToggleLeft className="w-6 h-6 text-white/25" />}
-            </button>
-            <button
-              onClick={() => handleDelete(n.id)}
-              className={cn('h-8 rounded-lg flex items-center justify-center transition-all active:scale-95 text-xs font-medium shrink-0',
-                deleteId === n.id ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30 px-2' : 'w-8 bg-white/5 hover:bg-rose-500/10 text-white/40 hover:text-rose-400')}
+      <motion.div variants={LIST} initial="hidden" animate="visible" className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5">
+        {notes.map(n => {
+          const armed = deleteId === n.id
+          return (
+            <motion.div
+              key={n.id}
+              variants={ITEM_VAR}
+              className={cn('flex flex-col items-center rounded-xl border bg-white/5 px-2.5 py-3 text-center transition-colors',
+                n.active ? 'border-white/10 hover:border-white/20' : 'border-white/5 opacity-55')}
             >
-              {deleteId === n.id ? t.delete : <Trash2 className="w-3.5 h-3.5" />}
-            </button>
-          </motion.div>
-        ))}
-        {notes.length === 0 && <div className="text-center py-12 text-white/25 text-sm">{t.kn_no_data}</div>}
+              <p className={cn('flex-1 flex items-center w-full justify-center text-sm font-semibold line-clamp-3', n.active ? 'text-white' : 'text-white/40')}>{n.text}</p>
+
+              <span className="my-2 h-px w-full bg-white/8" />
+
+              <div className="flex items-start justify-center gap-2">
+                <div className="flex flex-col items-center gap-1">
+                  <button onClick={() => handleDelete(n.id)}
+                    className={cn('w-8 h-8 rounded-lg flex items-center justify-center transition-all active:scale-95',
+                      armed ? 'bg-rose-500/90 text-white' : 'bg-rose-500/15 text-rose-400 hover:bg-rose-500/25')}>
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                  <span className={cn('text-[9px] font-medium', armed ? 'text-rose-400' : 'text-white/40')}>
+                    {armed ? t.confirm_delete : t.delete}
+                  </span>
+                </div>
+                <div className="flex flex-col items-center gap-1">
+                  <button onClick={() => toggle(n)}
+                    className={cn('w-8 h-8 rounded-lg flex items-center justify-center transition-all active:scale-95',
+                      n.active ? 'bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25' : 'bg-white/5 text-white/30 hover:bg-white/10')}>
+                    {n.active ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
+                  </button>
+                  <span className="text-[9px] font-medium text-white/40">{t.active}</span>
+                </div>
+              </div>
+            </motion.div>
+          )
+        })}
+        {notes.length === 0 && <div className="col-span-full text-center py-12 text-white/25 text-sm">{t.kn_no_data}</div>}
       </motion.div>
     </motion.div>
   )
