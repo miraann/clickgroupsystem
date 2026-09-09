@@ -203,6 +203,12 @@ export default function ReservationPage() {
         </motion.div>
       ) : (
         <motion.div key="list" variants={CONTAINER} initial="hidden" animate="show" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {/* Add-new card */}
+          <motion.button variants={ITEM} onClick={() => { setEditRsv(null); setShowModal(true) }}
+            className="min-h-[150px] rounded-2xl border-2 border-dashed border-white/15 hover:border-amber-500/40 hover:bg-amber-500/[0.04] flex flex-col items-center justify-center gap-2 text-white/40 hover:text-amber-400 transition-all active:scale-95">
+            <span className="w-11 h-11 rounded-full bg-white/5 flex items-center justify-center"><Plus className="w-4 h-4" /></span>
+            <span className="text-xs font-semibold">{t.rsv_add}</span>
+          </motion.button>
           {filtered.map(r => {
             const sc = STATUS_CONFIG[r.status]
             const StatusIcon = sc.icon
