@@ -336,20 +336,15 @@ export default function ItemPage() {
   return (
     <motion.div key="menu-item-page" variants={PAGE} initial="hidden" animate="show" exit="exit" className="max-w-5xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between mb-5">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-amber-500/15 flex items-center justify-center">
-            <UtensilsCrossed className="w-5 h-5 text-amber-400" />
-          </div>
-          <div>
-            <h1 className="text-lg font-semibold text-white">{t.item_title}</h1>
-            <p className="text-xs text-white/40">{t.item_subtitle}</p>
-          </div>
-          <span className="px-2 py-0.5 rounded-full bg-white/8 text-xs text-white/50">{items.length}</span>
+      <div className="flex items-center gap-3 mb-5">
+        <div className="w-9 h-9 rounded-xl bg-amber-500/15 flex items-center justify-center">
+          <UtensilsCrossed className="w-5 h-5 text-amber-400" />
         </div>
-        <button onClick={openAdd} className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-xl active:scale-95 touch-manipulation transition-all">
-          <Plus className="w-4 h-4" /> {t.item_add}
-        </button>
+        <div>
+          <h1 className="text-lg font-semibold text-white">{t.item_title}</h1>
+          <p className="text-xs text-white/40">{t.item_subtitle}</p>
+        </div>
+        <span className="px-2 py-0.5 rounded-full bg-white/8 text-xs text-white/50">{items.length}</span>
       </div>
 
       {/* Category filter */}
