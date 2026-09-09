@@ -46,7 +46,7 @@ import {
   useSensor, useSensors, DragEndEvent,
 } from '@dnd-kit/core'
 import {
-  SortableContext, verticalListSortingStrategy,
+  SortableContext, rectSortingStrategy,
   useSortable, arrayMove,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -77,7 +77,7 @@ const ITEM_VAR: Variants = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.45, ease: 'circOut' as const } },
 }
 
-function SortableEventRow({
+function SortableEventCard({
   ev, deleteId, onEdit, onDelete, onToggle,
 }: {
   ev: EventOffer
@@ -86,67 +86,78 @@ function SortableEventRow({
   onDelete: (id: string) => void
   onToggle: (ev: EventOffer) => void
 }) {
+  const { t } = useLanguage()
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: ev.id })
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : 1,
+    opacity: isDragging ? 0.4 : 1,
     zIndex: isDragging ? 50 : undefined,
   }
+  const armed = deleteId === ev.id
 
   return (
     <div
       ref={setNodeRef}
       style={style}
       className={cn(
-        'flex items-center gap-3 p-4 bg-white/5 border rounded-2xl hover:border-white/15 transition-all',
-        ev.active ? 'border-white/10' : 'border-white/5 opacity-60'
+        'flex h-full flex-col rounded-2xl border bg-white/5 border-white/10 overflow-hidden transition-colors',
+        ev.active ? 'hover:border-white/20' : 'opacity-55',
       )}
     >
-      <button
-        {...attributes}
-        {...listeners}
-        className="text-white/20 hover:text-white/50 cursor-grab active:cursor-grabbing touch-none transition-colors shrink-0"
-      >
-        <GripVertical className="w-4 h-4" />
-      </button>
-
-      <div className="w-14 h-14 rounded-xl bg-white/8 border border-white/10 flex items-center justify-center shrink-0 overflow-hidden">
-        {ev.image_url
-          ? <img src={ev.image_url} alt="" className="w-full h-full object-cover" />
-          : <CalendarDays className="w-6 h-6 text-white/20" />}
+      {/* Image */}
+      <div className="p-2.5 pb-0">
+        <div className="relative w-full aspect-[3/2] rounded-xl overflow-hidden bg-white/8 border border-white/10">
+          {ev.image_url
+            ? <img src={ev.image_url} alt="" className="w-full h-full object-cover" />
+            : <div className="w-full h-full flex items-center justify-center"><CalendarDays className="w-6 h-6 text-white/20" /></div>}
+          <button
+            {...attributes}
+            {...listeners}
+            className="absolute top-1.5 right-1.5 w-6 h-6 rounded-lg bg-black/45 backdrop-blur-sm flex items-center justify-center text-white/60 hover:text-white cursor-grab active:cursor-grabbing touch-none transition-colors"
+          >
+            <GripVertical className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </div>
 
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-white truncate">{ev.title}</p>
-        {ev.date_label && <p className="text-xs text-amber-400/70 mt-0.5 truncate">{ev.date_label}</p>}
-        {ev.description && <p className="text-xs text-white/35 truncate mt-0.5">{ev.description}</p>}
+      {/* Body */}
+      <div className="flex flex-1 flex-col items-center px-3 pt-2.5 pb-3 text-center">
+        <p className="w-full text-sm font-bold text-white line-clamp-1">{ev.title}</p>
+        {ev.date_label && <p className="mt-0.5 text-[11px] font-medium text-amber-400/80 line-clamp-1">{ev.date_label}</p>}
+        {ev.description && <p className="mt-0.5 text-[11px] text-white/35 line-clamp-1 w-full">{ev.description}</p>}
+
+        <span className="my-2.5 h-px w-full bg-white/8" />
+
+        {/* Actions */}
+        <div className="flex items-start justify-center gap-2">
+          <div className="flex flex-col items-center gap-1">
+            <button onClick={() => onDelete(ev.id)}
+              className={cn('w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95',
+                armed ? 'bg-rose-500/90 text-white' : 'bg-rose-500/15 text-rose-400 hover:bg-rose-500/25')}>
+              <Trash2 className="w-4 h-4" />
+            </button>
+            <span className={cn('text-[9px] font-medium', armed ? 'text-rose-400' : 'text-white/40')}>
+              {armed ? t.confirm_delete : t.delete}
+            </span>
+          </div>
+          <div className="flex flex-col items-center gap-1">
+            <button onClick={() => onToggle(ev)}
+              className={cn('w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95',
+                ev.active ? 'bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25' : 'bg-white/5 text-white/30 hover:bg-white/10')}>
+              {ev.active ? <ToggleRight className="w-5 h-5" /> : <ToggleLeft className="w-5 h-5" />}
+            </button>
+            <span className="text-[9px] font-medium text-white/40">{t.evt_active}</span>
+          </div>
+          <div className="flex flex-col items-center gap-1">
+            <button onClick={() => onEdit(ev)}
+              className="w-9 h-9 rounded-xl bg-sky-500/15 text-sky-400 hover:bg-sky-500/25 flex items-center justify-center transition-all active:scale-95">
+              <Pencil className="w-4 h-4" />
+            </button>
+            <span className="text-[9px] font-medium text-white/40">{t.edit}</span>
+          </div>
+        </div>
       </div>
-
-      <button onClick={() => onToggle(ev)} className="active:scale-95 shrink-0 transition-all">
-        {ev.active
-          ? <ToggleRight className="w-6 h-6 text-amber-400" />
-          : <ToggleLeft className="w-6 h-6 text-white/25" />}
-      </button>
-
-      <button
-        onClick={() => onEdit(ev)}
-        className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/40 hover:text-white transition-all active:scale-95 shrink-0"
-      >
-        <Pencil className="w-3.5 h-3.5" />
-      </button>
-
-      <button
-        onClick={() => onDelete(ev.id)}
-        className={cn(
-          'h-8 rounded-lg flex items-center justify-center transition-all active:scale-95 shrink-0 text-xs font-medium',
-          deleteId === ev.id
-            ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30 px-2'
-            : 'w-8 bg-white/5 hover:bg-rose-500/10 text-white/40 hover:text-rose-400'
-        )}
-      >
-        {deleteId === ev.id ? 'Confirm?' : <Trash2 className="w-3.5 h-3.5" />}
-      </button>
     </div>
   )
 }
@@ -324,33 +335,33 @@ export default function EventOfferPage() {
   )
 
   return (
-    <motion.div key="menu-event-offer-page" variants={PAGE} initial="hidden" animate="show" exit="exit" className="max-w-2xl mx-auto">
+    <motion.div key="menu-event-offer-page" variants={PAGE} initial="hidden" animate="show" exit="exit" className="max-w-5xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-amber-500/15 flex items-center justify-center">
-            <CalendarDays className="w-5 h-5 text-amber-400" />
-          </div>
-          <div>
-            <h1 className="text-lg font-semibold text-white">{t.evt_title}</h1>
-            <p className="text-xs text-white/40">{t.evt_subtitle}</p>
-          </div>
-          <span className="px-2 py-0.5 rounded-full bg-white/8 text-xs text-white/50">{events.length}</span>
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-9 h-9 rounded-xl bg-amber-500/15 flex items-center justify-center">
+          <CalendarDays className="w-5 h-5 text-amber-400" />
         </div>
-        <button
-          onClick={openAdd}
-          className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-xl active:scale-95 touch-manipulation transition-all"
-        >
-          <Plus className="w-4 h-4" /> {t.evt_add}
-        </button>
+        <div>
+          <h1 className="text-lg font-semibold text-white">{t.evt_title}</h1>
+          <p className="text-xs text-white/40">{t.evt_subtitle}</p>
+        </div>
+        <span className="px-2 py-0.5 rounded-full bg-white/8 text-xs text-white/50">{events.length}</span>
       </div>
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <SortableContext items={events.map(e => e.id)} strategy={verticalListSortingStrategy}>
-          <motion.div variants={LIST} initial="hidden" animate="visible" className="space-y-2">
+        <SortableContext items={events.map(e => e.id)} strategy={rectSortingStrategy}>
+          <motion.div variants={LIST} initial="hidden" animate="visible" className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            {/* Add-new card */}
+            <button onClick={openAdd}
+              className="min-h-[200px] rounded-2xl border-2 border-dashed border-white/15 hover:border-amber-500/40 hover:bg-amber-500/[0.04] flex flex-col items-center justify-center gap-3 text-white/40 hover:text-amber-400 transition-all active:scale-95">
+              <span className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center">
+                <Plus className="w-5 h-5" />
+              </span>
+              <span className="text-xs font-semibold">{t.evt_add}</span>
+            </button>
             {events.map(ev => (
               <motion.div key={ev.id} variants={ITEM_VAR}>
-                <SortableEventRow
+                <SortableEventCard
                   ev={ev}
                   deleteId={deleteId}
                   onEdit={openEdit}
@@ -359,14 +370,13 @@ export default function EventOfferPage() {
                 />
               </motion.div>
             ))}
-            {events.length === 0 && (
-              <div className="text-center py-16 text-white/25 text-sm">
-                {t.evt_no_data}
-              </div>
-            )}
           </motion.div>
         </SortableContext>
       </DndContext>
+
+      {events.length === 0 && (
+        <div className="text-center py-12 text-white/25 text-sm">{t.evt_no_data}</div>
+      )}
 
       {/* Modal */}
       {modal && (
