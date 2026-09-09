@@ -16,9 +16,9 @@ import {
 } from '@dnd-kit/core'
 import {
   arrayMove,
+  rectSortingStrategy,
   SortableContext,
   useSortable,
-  verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { motion, type Variants } from 'framer-motion'
@@ -334,7 +334,7 @@ export default function ItemPage() {
   )
 
   return (
-    <motion.div key="menu-item-page" variants={PAGE} initial="hidden" animate="show" exit="exit" className="max-w-3xl mx-auto">
+    <motion.div key="menu-item-page" variants={PAGE} initial="hidden" animate="show" exit="exit" className="max-w-5xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-3">
@@ -374,11 +374,12 @@ export default function ItemPage() {
       </div>
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <SortableContext items={filtered.map(i => i.id)} strategy={verticalListSortingStrategy}>
-          <motion.div key={filterCatId} variants={LIST} initial="hidden" animate="visible" className="space-y-2">
+        <SortableContext items={filtered.map(i => i.id)} strategy={rectSortingStrategy}>
+          <motion.div key={filterCatId} variants={LIST} initial="hidden" animate="visible"
+            className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {filtered.map(item => (
               <motion.div key={item.id} variants={ITEM_VAR}>
-                <SortableItemRow
+                <SortableItemCard
                   item={item}
                   cat={catById(item.category_id)}
                   modCount={(itemModMap.get(item.id) ?? []).length}
@@ -390,14 +391,21 @@ export default function ItemPage() {
                 />
               </motion.div>
             ))}
-            {filtered.length === 0 && (
-              <div className="text-center py-16 text-white/25 text-sm">
-                {t.item_no_data}
-              </div>
-            )}
+            {/* Add-new card */}
+            <button onClick={openAdd}
+              className="min-h-[220px] rounded-2xl border-2 border-dashed border-white/15 hover:border-amber-500/40 hover:bg-amber-500/[0.04] flex flex-col items-center justify-center gap-3 text-white/40 hover:text-amber-400 transition-all active:scale-95">
+              <span className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center">
+                <Plus className="w-5 h-5" />
+              </span>
+              <span className="text-xs font-semibold">{t.item_add}</span>
+            </button>
           </motion.div>
         </SortableContext>
       </DndContext>
+
+      {filtered.length === 0 && (
+        <div className="text-center py-16 text-white/25 text-sm">{t.item_no_data}</div>
+      )}
 
       {/* Modal */}
       {modal && (
@@ -630,8 +638,8 @@ export default function ItemPage() {
   )
 }
 
-// ── Sortable item row ──────────────────────────────────────────
-function SortableItemRow({
+// ── Sortable item card ────────────────────────────────────────
+function SortableItemCard({
   item, cat, modCount, deleteId, formatPrice, onToggle, onEdit, onDelete,
 }: {
   item: Item
@@ -654,60 +662,87 @@ function SortableItemRow({
     zIndex: isDragging ? 50 : undefined,
   }
 
+  const price  = Number(item.price)
+  const cost   = Number(item.cost)
+  const margin = price > 0 && cost > 0 ? Math.round(((price - cost) / price) * 100) : null
+  const accent = cat?.color ?? '#f59e0b'
+  const armed  = deleteId === item.id
+
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className="flex items-center gap-3 p-4 bg-white/5 border border-white/10 rounded-2xl hover:border-white/15 transition-colors"
+      className={cn(
+        'flex h-full flex-col rounded-2xl border bg-white/5 border-white/10 overflow-hidden transition-colors',
+        item.available ? 'hover:border-white/20' : 'opacity-55',
+      )}
     >
-      {/* Drag handle */}
-      <button
-        {...attributes}
-        {...listeners}
-        className="shrink-0 text-white/20 hover:text-white/50 cursor-grab active:cursor-grabbing transition-colors touch-none"
-      >
-        <GripVertical className="w-4 h-4" />
-      </button>
-
-      {/* Thumbnail */}
-      <div className="w-10 h-10 rounded-xl bg-white/8 border border-white/10 flex items-center justify-center text-lg shrink-0 overflow-hidden">
-        {item.image_url
-          ? <img src={item.image_url} alt="" className="w-full h-full object-cover" />
-          : <span>🍽</span>}
-      </div>
-
-      {/* Info */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <p className="text-sm font-medium text-white truncate">{item.name}</p>
-          {cat && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded-md font-medium shrink-0" style={{ backgroundColor: cat.color + '25', color: cat.color }}>
-              {cat.name}
-            </span>
-          )}
+      {/* Image (3:2) */}
+      <div className="p-2.5 pb-0">
+        <div className="relative w-full aspect-[3/2] rounded-xl overflow-hidden bg-white/8 border border-white/10">
+          {item.image_url
+            ? <img src={item.image_url} alt="" className="w-full h-full object-cover" />
+            : <div className="w-full h-full flex items-center justify-center text-3xl opacity-20 select-none">🍽</div>}
           {modCount > 0 && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-violet-500/15 text-violet-400 shrink-0 flex items-center gap-0.5">
-              <Sliders className="w-2.5 h-2.5" />{modCount} mod{modCount > 1 ? 's' : ''}
+            <span className="absolute top-1.5 left-1.5 flex items-center gap-0.5 h-5 px-1.5 rounded-full bg-violet-500/90 text-white text-[10px] font-bold">
+              <Sliders className="w-2.5 h-2.5" />{modCount}
             </span>
           )}
+          <button
+            {...attributes}
+            {...listeners}
+            className="absolute top-1.5 right-1.5 w-6 h-6 rounded-lg bg-black/45 backdrop-blur-sm flex items-center justify-center text-white/60 hover:text-white cursor-grab active:cursor-grabbing touch-none transition-colors"
+          >
+            <GripVertical className="w-3.5 h-3.5" />
+          </button>
         </div>
-        {item.description && <p className="text-xs text-white/35 truncate mt-0.5">{item.description}</p>}
       </div>
 
-      <div className="text-sm font-bold text-white shrink-0">{formatPrice(Number(item.price))}</div>
+      {/* Body */}
+      <div className="flex flex-1 flex-col items-center px-3 pt-2.5 pb-3 text-center">
+        <p className="w-full text-sm font-bold text-white line-clamp-1">{item.name}</p>
+        <p className="mt-1 text-base font-extrabold tabular-nums" style={{ color: accent }}>
+          {formatPrice(price)}
+        </p>
+        {cat && (
+          <span className="mt-1 inline-flex items-center gap-1 text-[11px] text-white/45">
+            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: cat.color }} />
+            {cat.name}
+          </span>
+        )}
 
-      <button onClick={() => onToggle(item)} className={cn('shrink-0 transition-all active:scale-95', item.available ? 'text-emerald-400' : 'text-white/25')}>
-        {item.available ? <ToggleRight className="w-6 h-6" /> : <ToggleLeft className="w-6 h-6" />}
-      </button>
+        <span className="my-2.5 h-px w-full bg-white/8" />
 
-      <button onClick={() => onEdit(item)} className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/40 hover:text-white transition-all active:scale-95 shrink-0">
-        <Pencil className="w-3.5 h-3.5" />
-      </button>
+        {/* Actions */}
+        <div className="flex items-center justify-center gap-2">
+          <button onClick={() => onDelete(item.id)}
+            className={cn('w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95',
+              armed ? 'bg-rose-500/90 text-white' : 'bg-rose-500/15 text-rose-400 hover:bg-rose-500/25')}>
+            <Trash2 className="w-4 h-4" />
+          </button>
+          <button onClick={() => onToggle(item)}
+            className={cn('w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95',
+              item.available ? 'bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25' : 'bg-white/5 text-white/30 hover:bg-white/10')}>
+            {item.available ? <ToggleRight className="w-5 h-5" /> : <ToggleLeft className="w-5 h-5" />}
+          </button>
+          <button onClick={() => onEdit(item)}
+            className="w-9 h-9 rounded-xl bg-sky-500/15 text-sky-400 hover:bg-sky-500/25 flex items-center justify-center transition-all active:scale-95">
+            <Pencil className="w-4 h-4" />
+          </button>
+        </div>
+        {armed && <p className="mt-1.5 text-[10px] font-semibold text-rose-400">{t.confirm_delete}</p>}
 
-      <button onClick={() => onDelete(item.id)} className={cn('h-8 rounded-lg flex items-center justify-center transition-all active:scale-95 shrink-0 text-xs font-medium',
-        deleteId === item.id ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30 px-2' : 'w-8 bg-white/5 hover:bg-rose-500/10 text-white/40 hover:text-rose-400')}>
-        {deleteId === item.id ? t.confirm_delete : <Trash2 className="w-3.5 h-3.5" />}
-      </button>
+        {/* Cost / margin */}
+        {cost > 0 && (
+          <>
+            <span className="my-2.5 h-px w-full bg-white/8" />
+            <p className="text-[11px] tabular-nums text-emerald-400/80">
+              {t.item_cost}: {formatPrice(cost)}
+              {margin !== null && <span className="text-white/35"> · {t.item_margin} {margin}%</span>}
+            </p>
+          </>
+        )}
+      </div>
     </div>
   )
 }
