@@ -121,27 +121,60 @@ export default function ItemPage() {
     setModal(true)
   }
 
+  // Shrink an uploaded photo before it ever hits storage. A menu image renders
+  // at most ~512 CSS px (a menu card), so 800px on the long edge stays crisp on
+  // retina. Re-encode to WebP and step the quality — then, if still heavy, the
+  // dimension — down until the file fits a tight byte budget: a multi-MB phone
+  // photo lands around 40–90 KB with no visible loss at display size. An image
+  // that's already smaller than anything we'd produce is passed through as-is.
   const compressImage = (file: File): Promise<File> =>
-    new Promise((resolve, reject) => {
-      const MAX_PX = 800
-      const QUALITY = 0.82
+    new Promise((resolve) => {
+      const TARGET_BYTES = 90 * 1024
+      const SIZE_LADDER  = [800, 640, 512]
+      const MIN_QUALITY  = 0.55
+
       const img = new Image()
       const blobUrl = URL.createObjectURL(file)
-      img.onload = () => {
+
+      img.onload = async () => {
         URL.revokeObjectURL(blobUrl)
-        let { width, height } = img
-        if (width > MAX_PX || height > MAX_PX) {
-          if (width >= height) { height = Math.round(height * MAX_PX / width); width = MAX_PX }
-          else                 { width = Math.round(width * MAX_PX / height);  height = MAX_PX }
+        try {
+          const canWebp = document.createElement('canvas')
+            .toDataURL('image/webp').startsWith('data:image/webp')
+          const mime = canWebp ? 'image/webp' : 'image/jpeg'
+          const ext  = canWebp ? '.webp' : '.jpg'
+
+          const renderAt = (maxPx: number): HTMLCanvasElement => {
+            let { width, height } = img
+            if (width > maxPx || height > maxPx) {
+              if (width >= height) { height = Math.round(height * maxPx / width); width = maxPx }
+              else                 { width = Math.round(width * maxPx / height);  height = maxPx }
+            }
+            const c = document.createElement('canvas')
+            c.width = width; c.height = height
+            c.getContext('2d')!.drawImage(img, 0, 0, width, height)
+            return c
+          }
+          const encode = (c: HTMLCanvasElement, q: number): Promise<Blob | null> =>
+            new Promise(res => c.toBlob(res, mime, q))
+
+          let best: Blob | null = null
+          for (const maxPx of SIZE_LADDER) {
+            const canvas = renderAt(maxPx)
+            for (let q = 0.8; q >= MIN_QUALITY - 1e-9; q -= 0.1) {
+              const blob = await encode(canvas, q)
+              if (!blob) continue
+              best = blob
+              if (blob.size <= TARGET_BYTES) break
+            }
+            if (best && best.size <= TARGET_BYTES) break
+          }
+
+          if (!best || best.size >= file.size) { resolve(file); return }
+          resolve(new File([best], file.name.replace(/\.[^.]+$/, ext), { type: mime }))
+        } catch {
+          resolve(file)
         }
-        const canvas = document.createElement('canvas')
-        canvas.width = width; canvas.height = height
-        canvas.getContext('2d')!.drawImage(img, 0, 0, width, height)
-        const mime = canvas.toDataURL('image/webp').startsWith('data:image/webp') ? 'image/webp' : 'image/jpeg'
-        canvas.toBlob(blob => {
-          if (!blob) { reject(new Error('Compression failed')); return }
-          resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.webp'), { type: mime }))
-        }, mime, QUALITY)
       }
       img.onerror = () => { URL.revokeObjectURL(blobUrl); resolve(file) }
       img.src = blobUrl
@@ -158,7 +191,8 @@ export default function ItemPage() {
     setForm(f => ({ ...f, image_url: localUrl }))
     setUploading(true); setUploadError(null)
 
-    const path = `${restaurantId}/${Date.now()}.webp`
+    const ext = file.type === 'image/webp' ? 'webp' : file.type === 'image/png' ? 'png' : 'jpg'
+    const path = `${restaurantId}/${Date.now()}.${ext}`
     const { data, error } = await supabase.storage.from('menu-images').upload(path, file, { upsert: true, contentType: file.type })
     if (!error && data) {
       const { data: { publicUrl } } = supabase.storage.from('menu-images').getPublicUrl(data.path)
