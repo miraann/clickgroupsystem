@@ -58,7 +58,11 @@ async function fetchRestaurantMenu(restaurantId: string): Promise<RestaurantMenu
   const supabase = createClient()
 
   const [restaurant, categories, offers, items, notes, template] = await Promise.all([
-    supabase.from('restaurants').select('id, name, logo_url, settings').eq('id', restaurantId).maybeSingle(),
+    // `restaurant_public` (not the base `restaurants` table): the tenant-RLS
+    // migration 20260829_02 closed anon SELECT on `restaurants`. The view
+    // exposes name/logo + an allow-listed slice of `settings` to anon — see
+    // supabase/migrations/20260909_02_public_menu_read.sql.
+    supabase.from('restaurant_public').select('id, name, logo_url, settings').eq('id', restaurantId).maybeSingle(),
     supabase.from('menu_categories').select('id, name, color, icon, sort_order').eq('restaurant_id', restaurantId).eq('active', true).order('sort_order'),
     supabase.from('events_offers').select('id, title, description, date_label, image_url').eq('restaurant_id', restaurantId).eq('active', true).order('sort_order'),
     supabase.from('menu_items').select('id, name, description, price, image_url, category_id, available_delivery, available_guest').eq('restaurant_id', restaurantId).eq('available', true).order('sort_order'),
