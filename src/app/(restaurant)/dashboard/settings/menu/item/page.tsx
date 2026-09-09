@@ -409,43 +409,6 @@ export default function ItemPage() {
             </div>
 
             <div className="space-y-4">
-              {/* Name */}
-              <div>
-                <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.item_name} *</label>
-                <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder={t.item_name}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500/50 transition-colors" />
-              </div>
-
-              {/* Category + Price + Cost */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.item_category}</label>
-                  <select value={form.category_id} onChange={e => setForm(f => ({ ...f, category_id: e.target.value }))}
-                    className="w-full bg-[#0d1220] border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500/50 transition-colors">
-                    <option value="">{t.item_no_category}</option>
-                    {categories.map(c => <option key={c.id} value={c.id} className="bg-[#0d1220]">{c.name}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.item_price} ({cur})</label>
-                  <input type="number" min="0" step="0.5" value={form.price} onChange={e => setForm(f => ({ ...f, price: parseFloat(e.target.value) || 0 }))}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500/50 transition-colors" />
-                </div>
-                <div>
-                  <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.item_cost} ({cur})</label>
-                  <input type="number" min="0" step="0.5" value={form.cost} onChange={e => setForm(f => ({ ...f, cost: parseFloat(e.target.value) || 0 }))}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500/50 transition-colors" />
-                </div>
-                {form.price > 0 && form.cost > 0 && (
-                  <div className="flex flex-col justify-end pb-2.5">
-                    <p className="text-xs text-white/40">{t.item_margin}</p>
-                    <p className={form.price > form.cost ? 'text-sm font-semibold text-emerald-400' : 'text-sm font-semibold text-rose-400'}>
-                      {Math.round(((form.price - form.cost) / form.price) * 100)}%
-                    </p>
-                  </div>
-                )}
-              </div>
-
               {/* Image Upload */}
               <div>
                 <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.item_photo_label}</label>
@@ -480,6 +443,43 @@ export default function ItemPage() {
                 <p className="mt-1.5 text-xs text-white/30 text-center">{t.item_photo_ratio}</p>
                 {uploadError && (
                   <p className="mt-1.5 text-xs text-rose-400 font-mono break-all">{t.item_upload_fail}: {uploadError}</p>
+                )}
+              </div>
+
+              {/* Name */}
+              <div>
+                <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.item_name} *</label>
+                <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder={t.item_name}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500/50 transition-colors" />
+              </div>
+
+              {/* Category + Price + Cost */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.item_category}</label>
+                  <select value={form.category_id} onChange={e => setForm(f => ({ ...f, category_id: e.target.value }))}
+                    className="w-full bg-[#0d1220] border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500/50 transition-colors">
+                    <option value="">{t.item_no_category}</option>
+                    {categories.map(c => <option key={c.id} value={c.id} className="bg-[#0d1220]">{c.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.item_price} ({cur})</label>
+                  <input type="number" min="0" step="0.5" value={form.price} onChange={e => setForm(f => ({ ...f, price: parseFloat(e.target.value) || 0 }))}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500/50 transition-colors" />
+                </div>
+                <div>
+                  <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.item_cost} ({cur})</label>
+                  <input type="number" min="0" step="0.5" value={form.cost} onChange={e => setForm(f => ({ ...f, cost: parseFloat(e.target.value) || 0 }))}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500/50 transition-colors" />
+                </div>
+                {form.price > 0 && form.cost > 0 && (
+                  <div className="flex flex-col justify-end pb-2.5">
+                    <p className="text-xs text-white/40">{t.item_margin}</p>
+                    <p className={form.price > form.cost ? 'text-sm font-semibold text-emerald-400' : 'text-sm font-semibold text-rose-400'}>
+                      {Math.round(((form.price - form.cost) / form.price) * 100)}%
+                    </p>
+                  </div>
                 )}
               </div>
 
