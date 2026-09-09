@@ -1307,6 +1307,8 @@ const en = {
   item_add:             'Add Item',
   item_name:            'Item Name',
   item_price:           'Price',
+  item_delivery_price:  'Delivery Price',
+  item_delivery_price_hint: 'Leave empty to match the dine-in price',
   item_category:        'Category',
   item_description:     'Description',
   item_image:           'Image',

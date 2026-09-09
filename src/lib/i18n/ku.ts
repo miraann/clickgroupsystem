@@ -803,6 +803,8 @@ const ku: Record<keyof typeof en, string> = {
   item_add:             'کاڵا زیاد بکە',
   item_name:            'ناوی کاڵا',
   item_price:           'نرخ',
+  item_delivery_price:  'نرخی لە مێنیوی گەیاندن',
+  item_delivery_price_hint: 'بەتاڵی بهێڵەوە بۆ هەمان نرخی ناوخۆ',
   item_category:        'پۆل',
   item_description:     'باسکردن',
   item_image:           'وێنە',

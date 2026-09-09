@@ -27,7 +27,10 @@ const DeliveryCheckout = dynamic(
 interface Restaurant { id: string; name: string; logo_url: string | null; settings: Record<string, string> }
 interface Category   { id: string; name: string; color: string; icon: string | null; sort_order: number }
 interface EventOffer { id: string; title: string; description: string | null; date_label: string | null; image_url: string | null }
-interface MenuItem   { id: string; name: string; description: string | null; price: number; image_url: string | null; category_id: string | null }
+interface MenuItem   { id: string; name: string; description: string | null; price: number; delivery_price: number | null; image_url: string | null; category_id: string | null }
+
+// The delivery menu shows `delivery_price` when the item has one, else `price`.
+const deliveryPrice = (m: { price: number; delivery_price: number | null }) => m.delivery_price ?? m.price
 interface KitchenNote { id: string; text: string }
 interface GuestSelectedOption { modifier_id: string; modifier_name: string; option_id: string; option_name: string; price: number }
 interface CartEntry  { qty: number; selectedOptions: GuestSelectedOption[]; noteIds: string[]; customNote: string }
@@ -782,7 +785,7 @@ export default function DeliveryOrderPage() {
       const item = menuItems.find(m => m.id === id)
       if (item) {
         const modPrice = entry.selectedOptions.reduce((s, o) => s + o.price, 0)
-        total += (item.price + modPrice) * entry.qty
+        total += (deliveryPrice(item) + modPrice) * entry.qty
       }
     })
     return total
@@ -934,7 +937,7 @@ export default function DeliveryOrderPage() {
         order_id:     newOrder.id,
         menu_item_id: item.id,
         item_name:    item.name,
-        item_price:   item.price + modPrice,
+        item_price:   deliveryPrice(item) + modPrice,
         qty:          entry.qty,
         status:       'pending',
         note:         noteParts.length > 0 ? noteParts.join(', ') : null,
@@ -1317,7 +1320,7 @@ export default function DeliveryOrderPage() {
                           <p className="text-xs line-clamp-1" style={{ color: tpl.isDark ? 'rgba(255,255,255,0.4)' : '#9ca3af' }}>{item.description}</p>
                         )}
                         <div className="flex items-center justify-between mt-0.5 mb-1">
-                          {showPrices && <p className={`text-sm font-extrabold ${tpl.priceColor}`}>{formatPrice(item.price)}</p>}
+                          {showPrices && <p className={`text-sm font-extrabold ${tpl.priceColor}`}>{formatPrice(deliveryPrice(item))}</p>}
                           {qty === 0 ? (
                             <button onClick={() => addOne(item.id)}
                               className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold active:scale-95 ${tpl.addBtnBg} ${tpl.addBtnText}`}>
@@ -1348,7 +1351,7 @@ export default function DeliveryOrderPage() {
                         {showDescs && item.description && (
                           <p className="text-xs mt-0.5 line-clamp-1" style={{ color: tpl.isDark ? 'rgba(255,255,255,0.35)' : '#9ca3af' }}>{item.description}</p>
                         )}
-                        {showPrices && <p className={`text-xs font-bold mt-1 ${tpl.priceColor}`}>{formatPrice(item.price)}</p>}
+                        {showPrices && <p className={`text-xs font-bold mt-1 ${tpl.priceColor}`}>{formatPrice(deliveryPrice(item))}</p>}
                       </div>
                       {qty === 0 ? (
                         <button onClick={() => addOne(item.id)}
@@ -1391,7 +1394,7 @@ export default function DeliveryOrderPage() {
                         {showDescs && item.description && (
                           <p className="text-[10px] line-clamp-2 leading-snug" style={{ color: tpl.isDark ? 'rgba(255,255,255,0.35)' : '#9ca3af' }}>{item.description}</p>
                         )}
-                        {showPrices && <p className={`text-xs font-extrabold mt-auto ${tpl.priceColor}`}>{formatPrice(item.price)}</p>}
+                        {showPrices && <p className={`text-xs font-extrabold mt-auto ${tpl.priceColor}`}>{formatPrice(deliveryPrice(item))}</p>}
                       </div>
                       <div className="px-2 pb-2">
                         {qty === 0 ? (
@@ -1521,7 +1524,7 @@ export default function DeliveryOrderPage() {
             <div className="flex-1 overflow-y-auto px-5 py-3 space-y-3">
               {cartItems.map(({ item, entry }) => {
                 const modPrice = entry.selectedOptions.reduce((s, o) => s + o.price, 0)
-                const lineTotal = (item.price + modPrice) * entry.qty
+                const lineTotal = (deliveryPrice(item) + modPrice) * entry.qty
                 const allNotes = [
                   ...entry.selectedOptions.map(o => o.option_name),
                   ...entry.noteIds.map(nid => kitchenNotes.find(k => k.id === nid)?.text ?? '').filter(Boolean),
@@ -1800,7 +1803,8 @@ function DeliveryItemModal({ item, initial, kitchenNotes, supabase, formatPrice,
     })
 
   const modPrice = local.selectedOptions.reduce((s, o) => s + o.price, 0)
-  const lineTotal = (item.price + modPrice) * local.qty
+  const basePrice = deliveryPrice(item)
+  const lineTotal = (basePrice + modPrice) * local.qty
   const isEditing = initial.qty > 0
 
   return (
@@ -1819,14 +1823,14 @@ function DeliveryItemModal({ item, initial, kitchenNotes, supabase, formatPrice,
             </button>
             <div className="absolute bottom-3 left-4 right-14">
               <p className="text-base font-extrabold text-white leading-tight">{item.name}</p>
-              <p className="text-sm font-bold text-amber-400 mt-0.5">{formatPrice(item.price + modPrice)}</p>
+              <p className="text-sm font-bold text-amber-400 mt-0.5">{formatPrice(basePrice + modPrice)}</p>
             </div>
           </div>
         ) : (
           <div className="shrink-0 flex items-center justify-between px-4 py-4 border-b border-gray-100">
             <div>
               <p className="text-base font-extrabold text-gray-900">{item.name}</p>
-              <p className="text-sm font-bold text-amber-500 mt-0.5">{formatPrice(item.price + modPrice)}</p>
+              <p className="text-sm font-bold text-amber-500 mt-0.5">{formatPrice(basePrice + modPrice)}</p>
             </div>
             <button onClick={onClose} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 active:scale-95">
               <X className="w-4 h-4" />

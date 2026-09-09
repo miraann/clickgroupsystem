@@ -32,6 +32,7 @@ export interface MenuItem {
   name: string
   description: string | null
   price: number
+  delivery_price: number | null
   image_url: string | null
   category_id: string | null
   available_delivery: boolean
@@ -65,7 +66,7 @@ async function fetchRestaurantMenu(restaurantId: string): Promise<RestaurantMenu
     supabase.from('restaurant_public').select('id, name, logo_url, settings').eq('id', restaurantId).maybeSingle(),
     supabase.from('menu_categories').select('id, name, color, icon, sort_order').eq('restaurant_id', restaurantId).eq('active', true).order('sort_order'),
     supabase.from('events_offers').select('id, title, description, date_label, image_url').eq('restaurant_id', restaurantId).eq('active', true).order('sort_order'),
-    supabase.from('menu_items').select('id, name, description, price, image_url, category_id, available_delivery, available_guest').eq('restaurant_id', restaurantId).eq('available', true).order('sort_order'),
+    supabase.from('menu_items').select('id, name, description, price, delivery_price, image_url, category_id, available_delivery, available_guest').eq('restaurant_id', restaurantId).eq('available', true).order('sort_order'),
     supabase.from('kitchen_notes').select('id, text').eq('restaurant_id', restaurantId).eq('active', true).order('sort_order'),
     supabase.from('menu_template_settings').select('*').eq('restaurant_id', restaurantId).maybeSingle(),
   ])

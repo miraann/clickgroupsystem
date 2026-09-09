@@ -35,6 +35,7 @@ interface Item {
   description: string
   price: number
   cost: number
+  delivery_price: number | null
   image_url: string | null
   available: boolean
   available_delivery: boolean
@@ -43,7 +44,7 @@ interface Item {
   sort_order: number
 }
 
-const EMPTY_FORM = { name: '', category_id: '', price: 0, cost: 0, description: '', image_url: '', available: true, available_delivery: true, available_guest: true, has_modifiers: false }
+const EMPTY_FORM = { name: '', category_id: '', price: 0, cost: 0, delivery_price: null as number | null, description: '', image_url: '', available: true, available_delivery: true, available_guest: true, has_modifiers: false }
 
 const PAGE: Variants = {
   hidden: { opacity: 0, y: 20 },
@@ -113,7 +114,7 @@ export default function ItemPage() {
 
   const openEdit = async (item: Item) => {
     setEditId(item.id)
-    setForm({ name: item.name, category_id: item.category_id ?? '', price: item.price, cost: item.cost ?? 0, description: item.description ?? '', image_url: item.image_url ?? '', available: item.available, available_delivery: item.available_delivery ?? true, available_guest: item.available_guest ?? true, has_modifiers: item.has_modifiers })
+    setForm({ name: item.name, category_id: item.category_id ?? '', price: item.price, cost: item.cost ?? 0, delivery_price: item.delivery_price ?? null, description: item.description ?? '', image_url: item.image_url ?? '', available: item.available, available_delivery: item.available_delivery ?? true, available_guest: item.available_guest ?? true, has_modifiers: item.has_modifiers })
     setSelectedModIds(itemModMap.get(item.id) ?? [])
     setAddIngId('')
     setSaveError(null)
@@ -226,6 +227,7 @@ export default function ItemPage() {
       category_id:        form.category_id || null,
       price:              form.price,
       cost:               form.cost,
+      delivery_price:     (form.delivery_price != null && form.delivery_price > 0) ? form.delivery_price : null,
       description:        form.description,
       image_url:          (form.image_url && !form.image_url.startsWith('blob:')) ? form.image_url : null,
       available:          form.available,
@@ -483,6 +485,17 @@ export default function ItemPage() {
                 )}
               </div>
 
+              {/* Delivery-menu price (optional override) */}
+              <div>
+                <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.item_delivery_price} ({cur})</label>
+                <input type="number" min="0" step="0.5"
+                  value={form.delivery_price ?? ''}
+                  onChange={e => setForm(f => ({ ...f, delivery_price: e.target.value === '' ? null : (parseFloat(e.target.value) || 0) }))}
+                  placeholder={String(form.price || 0)}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500/50 transition-colors" />
+                <p className="mt-1.5 text-xs text-white/30">{t.item_delivery_price_hint}</p>
+              </div>
+
               {/* Description */}
               <div>
                 <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.item_description}</label>
@@ -732,14 +745,21 @@ function SortableItemCard({
           </div>
         </div>
 
-        {/* Cost / margin */}
-        {cost > 0 && (
+        {/* Cost / margin / delivery price */}
+        {(cost > 0 || item.delivery_price != null) && (
           <>
             <span className="my-2.5 h-px w-full bg-white/8" />
-            <p className="text-[11px] tabular-nums text-emerald-400/80">
-              {t.item_cost}: {formatPrice(cost)}
-              {margin !== null && <span className="text-white/35"> · {t.item_margin} {margin}%</span>}
-            </p>
+            <div className="space-y-0.5 text-[11px] tabular-nums">
+              {cost > 0 && (
+                <p className="text-emerald-400/80">
+                  {t.item_cost}: {formatPrice(cost)}
+                  {margin !== null && <span className="text-white/35"> · {t.item_margin} {margin}%</span>}
+                </p>
+              )}
+              {item.delivery_price != null && (
+                <p className="text-sky-400/80">{t.item_delivery_price}: {formatPrice(Number(item.delivery_price))}</p>
+              )}
+            </div>
           </>
         )}
       </div>

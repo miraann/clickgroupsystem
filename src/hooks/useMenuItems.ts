@@ -8,6 +8,7 @@ export interface CachedMenuItem {
   description:   string
   price:         number
   cost:          number
+  delivery_price: number | null
   image_url:     string | null
   available:     boolean
   has_modifiers: boolean
