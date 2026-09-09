@@ -482,19 +482,17 @@ export default function ItemPage() {
                     onChange={e => setForm(f => ({ ...f, delivery_price: e.target.value === '' ? null : (parseFloat(e.target.value) || 0) }))}
                     placeholder={String(form.price || 0)}
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500/50 transition-colors" />
+                  <p className="mt-1.5 text-xs text-white/30 leading-tight">{t.item_delivery_price_hint}</p>
                 </div>
               </div>
-              <div className="-mt-2 flex items-start justify-between gap-3">
-                <p className="text-xs text-white/30">{t.item_delivery_price_hint}</p>
-                {form.price > 0 && form.cost > 0 && (
-                  <p className="shrink-0 text-xs text-white/40 text-end">
-                    {t.item_margin}{' '}
-                    <span className={form.price > form.cost ? 'font-semibold text-emerald-400' : 'font-semibold text-rose-400'}>
-                      {Math.round(((form.price - form.cost) / form.price) * 100)}%
-                    </span>
-                  </p>
-                )}
-              </div>
+              {form.price > 0 && form.cost > 0 && (
+                <p className="-mt-2 text-xs text-white/40 text-end">
+                  {t.item_margin}{' '}
+                  <span className={form.price > form.cost ? 'font-semibold text-emerald-400' : 'font-semibold text-rose-400'}>
+                    {Math.round(((form.price - form.cost) / form.price) * 100)}%
+                  </span>
+                </p>
+              )}
 
               {/* Description */}
               <div>

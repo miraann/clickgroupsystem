@@ -804,7 +804,7 @@ const ar: Record<keyof typeof en, string> = {
   item_name:            'اسم العنصر',
   item_price:           'السعر',
   item_delivery_price:  'سعر التوصيل',
-  item_delivery_price_hint: 'اتركه فارغًا لمطابقة سعر الصالة',
+  item_delivery_price_hint: 'إذا كان فارغًا، تعرض قائمة التوصيل سعر الصالة',
   item_category:        'الفئة',
   item_description:     'الوصف',
   item_image:           'الصورة',
