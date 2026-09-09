@@ -202,79 +202,67 @@ export default function ReservationPage() {
           </button>
         </motion.div>
       ) : (
-        <motion.div key="list" variants={CONTAINER} initial="hidden" animate="show" className="space-y-2">
+        <motion.div key="list" variants={CONTAINER} initial="hidden" animate="show" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {filtered.map(r => {
             const sc = STATUS_CONFIG[r.status]
             const StatusIcon = sc.icon
             const table = tables.find(t => t.id === r.table_id)
             return (
-              <motion.div variants={ITEM} key={r.id} className="rounded-2xl bg-white/3 border border-white/8 hover:border-white/12 transition-all">
-                <div className="flex items-center gap-4 p-4">
+              <motion.div variants={ITEM} key={r.id} className="flex flex-col rounded-2xl bg-white/3 border border-white/8 hover:border-white/12 transition-all p-4">
 
-                  <div className="w-16 shrink-0 text-center">
-                    <p className="text-base font-bold text-amber-400 tabular-nums">{r.time}</p>
-                    <p className="text-[10px] text-white/30 mt-0.5">{fmtDate(r.date).split(',')[0]}</p>
+                <div className="flex items-start gap-3">
+                  <div className="shrink-0 text-center">
+                    <p className="text-base font-bold text-amber-400 tabular-nums leading-none">{r.time}</p>
+                    <p className="text-[10px] text-white/30 mt-1">{fmtDate(r.date).split(',')[0]}</p>
                   </div>
-
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-sm font-bold text-white truncate">{r.guest_name}</p>
-                      <span className={cn('flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-lg border', sc.bg, sc.border, sc.color)}>
-                        <StatusIcon className="w-3 h-3" />{sc.label}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3 mt-1 flex-wrap">
-                      <span className="flex items-center gap-1 text-xs text-white/40">
-                        <Users className="w-3 h-3" />{r.party_size} guests
-                      </span>
-                      {table && (
-                        <span className="flex items-center gap-1 text-xs text-white/40">
-                          <CalendarDays className="w-3 h-3" />Table {table.table_number}
-                        </span>
-                      )}
-                      {r.guest_phone && (
-                        <span className="flex items-center gap-1 text-xs text-white/40">
-                          <Phone className="w-3 h-3" />{r.guest_phone}
-                        </span>
-                      )}
-                      {r.guest_email && (
-                        <span className="flex items-center gap-1 text-xs text-white/40">
-                          <Mail className="w-3 h-3" />{r.guest_email}
-                        </span>
-                      )}
-                    </div>
-                    {r.note && (
-                      <p className="text-xs text-white/30 italic mt-1 flex items-center gap-1">
-                        <StickyNote className="w-3 h-3 shrink-0" />{r.note}
-                      </p>
-                    )}
+                    <p className="text-sm font-bold text-white truncate">{r.guest_name}</p>
+                    <span className={cn('mt-1 inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-lg border', sc.bg, sc.border, sc.color)}>
+                      <StatusIcon className="w-3 h-3" />{sc.label}
+                    </span>
                   </div>
+                </div>
 
-                  <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
-                    {r.status === 'pending' && (
-                      <button onClick={() => updateStatus(r.id, 'confirmed')} disabled={statusLoading === r.id}
-                        className="px-3 py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 text-xs font-semibold hover:bg-emerald-500/25 transition-all active:scale-95">
-                        {statusLoading === r.id ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Confirm'}
-                      </button>
-                    )}
-                    {r.status === 'confirmed' && (
-                      <button onClick={() => updateStatus(r.id, 'seated')} disabled={statusLoading === r.id}
-                        className="px-3 py-1.5 rounded-lg bg-blue-500/15 border border-blue-500/25 text-blue-400 text-xs font-semibold hover:bg-blue-500/25 transition-all active:scale-95">
-                        {statusLoading === r.id ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Seat'}
-                      </button>
-                    )}
-                    {(r.status === 'pending' || r.status === 'confirmed') && (
-                      <button onClick={() => updateStatus(r.id, 'no_show')} disabled={statusLoading === r.id}
-                        className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/40 text-xs font-semibold hover:bg-white/10 transition-all active:scale-95">
-                        No Show
-                      </button>
-                    )}
+                <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
+                  <span className="flex items-center gap-1 text-xs text-white/40"><Users className="w-3 h-3" />{r.party_size} guests</span>
+                  {table && <span className="flex items-center gap-1 text-xs text-white/40"><CalendarDays className="w-3 h-3" />Table {table.table_number}</span>}
+                  {r.guest_phone && <span className="flex items-center gap-1 text-xs text-white/40 truncate max-w-full"><Phone className="w-3 h-3 shrink-0" />{r.guest_phone}</span>}
+                  {r.guest_email && <span className="flex items-center gap-1 text-xs text-white/40 truncate max-w-full"><Mail className="w-3 h-3 shrink-0" />{r.guest_email}</span>}
+                </div>
+                {r.note && (
+                  <p className="text-xs text-white/30 italic mt-1.5 flex items-start gap-1">
+                    <StickyNote className="w-3 h-3 shrink-0 mt-0.5" />{r.note}
+                  </p>
+                )}
+
+                <span className="my-2.5 h-px w-full bg-white/8" />
+
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {r.status === 'pending' && (
+                    <button onClick={() => updateStatus(r.id, 'confirmed')} disabled={statusLoading === r.id}
+                      className="px-3 py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 text-xs font-semibold hover:bg-emerald-500/25 transition-all active:scale-95">
+                      {statusLoading === r.id ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Confirm'}
+                    </button>
+                  )}
+                  {r.status === 'confirmed' && (
+                    <button onClick={() => updateStatus(r.id, 'seated')} disabled={statusLoading === r.id}
+                      className="px-3 py-1.5 rounded-lg bg-blue-500/15 border border-blue-500/25 text-blue-400 text-xs font-semibold hover:bg-blue-500/25 transition-all active:scale-95">
+                      {statusLoading === r.id ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Seat'}
+                    </button>
+                  )}
+                  {(r.status === 'pending' || r.status === 'confirmed') && (
+                    <button onClick={() => updateStatus(r.id, 'no_show')} disabled={statusLoading === r.id}
+                      className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/40 text-xs font-semibold hover:bg-white/10 transition-all active:scale-95">
+                      No Show
+                    </button>
+                  )}
+                  <div className="ms-auto flex items-center gap-1.5">
                     <button onClick={() => { setEditRsv(r); setShowModal(true) }}
-                      className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-all active:scale-95">
+                      className="w-8 h-8 rounded-lg bg-sky-500/15 flex items-center justify-center text-sky-400 hover:bg-sky-500/25 transition-all active:scale-95">
                       <Pencil className="w-3.5 h-3.5" />
                     </button>
                     <button onClick={() => setDeleteId(r.id)}
-                      className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-rose-400/50 hover:text-rose-400 hover:bg-rose-500/10 transition-all active:scale-95">
+                      className="w-8 h-8 rounded-lg bg-rose-500/15 flex items-center justify-center text-rose-400 hover:bg-rose-500/25 transition-all active:scale-95">
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
