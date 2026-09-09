@@ -103,11 +103,11 @@ export function MenuPanel({
                       : 'border-white/8 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.05] hover:shadow-lg hover:shadow-black/30'
                   )}
                 >
-                  {/* Image — square, full picture (transparent PNGs sit inside, not cropped) */}
-                  <div className="relative w-full aspect-square overflow-hidden bg-[radial-gradient(circle_at_50%_38%,rgba(255,255,255,0.08),transparent_70%)]">
+                  {/* Image — fixed 3:2 crop, matches the guest / delivery menus and the editor preview */}
+                  <div className="relative w-full aspect-[3/2] overflow-hidden bg-[radial-gradient(circle_at_50%_38%,rgba(255,255,255,0.08),transparent_70%)]">
                     {item.image_url ? (
                       <img src={item.image_url} alt={item.name} loading="lazy" decoding="async"
-                        className="absolute inset-0 w-full h-full object-contain p-2 transition-transform duration-300 group-hover:scale-105" />
+                        className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
                     ) : (
                       <div className="absolute inset-0 flex items-center justify-center">
                         <span className="text-4xl opacity-15 select-none">🍽</span>

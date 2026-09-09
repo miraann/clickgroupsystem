@@ -1306,9 +1306,9 @@ export default function DeliveryOrderPage() {
                     <div key={item.id}
                       className={`flex gap-3 rounded-2xl border shadow-sm overflow-hidden ${tpl.itemCardBg} ${tpl.itemCardBorder}`}
                       style={{ boxShadow: qty > 0 ? `0 0 0 2px ${primaryColor}` : undefined }}>
-                      <div className="w-24 self-stretch min-h-24 shrink-0 bg-gray-100 overflow-hidden relative">
+                      <div className="w-24 aspect-[3/2] self-center shrink-0 bg-gray-100 overflow-hidden relative">
                         {item.image_url
-                          ? <NextImage src={item.image_url} alt={item.name} fill className="object-contain" />
+                          ? <NextImage src={item.image_url} alt={item.name} fill className="object-cover" />
                           : <div className="w-full h-full flex items-center justify-center"><UtensilsCrossed className="w-5 h-5 text-gray-200" /></div>}
                       </div>
                       <div className="flex flex-col justify-center flex-1 py-3 pe-3 gap-1.5">
@@ -1375,7 +1375,7 @@ export default function DeliveryOrderPage() {
                     <div key={item.id}
                       className={`rounded-2xl border shadow-sm overflow-hidden flex flex-col ${tpl.itemCardBg} ${tpl.itemCardBorder}`}
                       style={{ boxShadow: qty > 0 ? `0 0 0 2px ${primaryColor}` : undefined }}>
-                      <div className="relative w-full aspect-square bg-gray-50">
+                      <div className="relative w-full aspect-[3/2] bg-gray-50">
                         {item.image_url
                           ? <NextImage src={item.image_url} alt={item.name} fill className="object-cover" />
                           : <div className="absolute inset-0 flex items-center justify-center"><UtensilsCrossed className="w-5 h-5 text-gray-200" /></div>}
@@ -1811,7 +1811,7 @@ function DeliveryItemModal({ item, initial, kitchenNotes, supabase, formatPrice,
         onClick={e => e.stopPropagation()}
       >
         {item.image_url ? (
-          <div className="shrink-0 relative h-40 overflow-hidden">
+          <div className="shrink-0 relative w-full aspect-[3/2] overflow-hidden">
             <NextImage src={item.image_url} alt={item.name} fill className="object-cover" />
             <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
             <button onClick={onClose} className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center text-white active:scale-95">

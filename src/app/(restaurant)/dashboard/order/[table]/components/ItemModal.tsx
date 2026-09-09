@@ -77,7 +77,7 @@ export function ItemModal({ item, entry, kitchenNotes, supabase, formatPrice, se
       <div className="w-full max-w-md bg-[#0d1220]/98 backdrop-blur-2xl border border-white/15 rounded-3xl shadow-2xl max-h-[88vh] flex flex-col overflow-hidden">
 
         {item.image_url ? (
-          <div className="shrink-0 relative h-44 overflow-hidden">
+          <div className="shrink-0 relative w-full aspect-[3/2] overflow-hidden">
             <img src={item.image_url} alt={item.name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
             <div className="absolute inset-0 bg-gradient-to-t from-[#0d1220]/90 via-[#0d1220]/30 to-transparent" />
             <button onClick={onClose} className="absolute top-3 right-3 w-8 h-8 rounded-xl bg-black/40 backdrop-blur-sm border border-white/10 flex items-center justify-center text-white/70 hover:text-white transition-all active:scale-95">
