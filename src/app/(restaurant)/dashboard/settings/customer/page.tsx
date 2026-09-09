@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   UserCircle, Plus, Pencil, Trash2, AlertCircle,
-  Search, ToggleLeft, ToggleRight, Phone, Mail, Ban,
+  Search, ToggleLeft, ToggleRight, Ban,
   ChevronUp, ChevronDown,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -124,21 +124,16 @@ export default function CustomerPage() {
         initial={{ opacity: 0, y: 18 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.05, duration: 0.42, ease: 'circOut' }}
-        className="flex items-center justify-between mb-5"
+        className="flex items-center gap-3 mb-5"
       >
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-violet-500/15 flex items-center justify-center">
-            <UserCircle className="w-5 h-5 text-violet-400" />
-          </div>
-          <div>
-            <h1 className="text-lg font-semibold text-white">{t.cust_title}</h1>
-            <p className="text-xs text-white/40">{t.cust_subtitle}</p>
-          </div>
-          <span className="px-2 py-0.5 rounded-full bg-white/8 text-xs text-white/50">{customers.length}</span>
+        <div className="w-9 h-9 rounded-xl bg-violet-500/15 flex items-center justify-center">
+          <UserCircle className="w-5 h-5 text-violet-400" />
         </div>
-        <button onClick={() => { setEditCustomer(null); setShowModal(true) }} className="flex items-center gap-2 px-4 py-2 bg-violet-500 hover:bg-violet-600 text-white text-sm font-medium rounded-xl active:scale-95 transition-all">
-          <Plus className="w-4 h-4" /> {t.cust_add}
-        </button>
+        <div>
+          <h1 className="text-lg font-semibold text-white">{t.cust_title}</h1>
+          <p className="text-xs text-white/40">{t.cust_subtitle}</p>
+        </div>
+        <span className="px-2 py-0.5 rounded-full bg-white/8 text-xs text-white/50">{customers.length}</span>
       </motion.div>
 
       {/* Stats */}
@@ -217,91 +212,95 @@ export default function CustomerPage() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.18 }}
           >
-            <AnimatePresence mode="wait">
-              {filtered.length === 0 ? (
-                <motion.div
-                  key="empty"
-                  initial={{ opacity: 0, y: 18 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ delay: 0.1, duration: 0.42, ease: 'circOut' }}
-                  className="text-center py-16 text-white/25 text-sm"
-                >
-                  {t.cust_no_data}
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="list"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.18 }}
-                  className="rounded-2xl border border-white/8 overflow-hidden"
-                >
-                  <div className="grid grid-cols-[1fr_auto_auto_auto_auto_auto_auto] gap-px bg-white/5 px-4 py-2.5 text-[11px] font-semibold text-white/30 uppercase tracking-wider">
-                    <button onClick={() => toggleSort('name')} className="flex items-center gap-1 hover:text-white/60 transition-colors text-left">
-                      {t.cust_name} <SortIcon col="name" />
-                    </button>
-                    <span className="text-center px-3">{t.cust_note}</span>
-                    <button onClick={() => toggleSort('visit_count')} className="flex items-center gap-1 justify-end hover:text-white/60 transition-colors px-3">
-                      {t.cust_total_orders} <SortIcon col="visit_count" />
-                    </button>
-                    <span className="text-center px-2">Block</span>
-                    <span className="text-center px-2">Status</span>
-                    <span></span>
-                    <span></span>
-                  </div>
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-[11px] text-white/30">Sort:</span>
+              <button onClick={() => toggleSort('name')}
+                className={cn('flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors',
+                  sortBy === 'name' ? 'bg-violet-500/15 text-violet-400' : 'bg-white/5 text-white/40 hover:text-white/70')}>
+                {t.cust_name} <SortIcon col="name" />
+              </button>
+              <button onClick={() => toggleSort('visit_count')}
+                className={cn('flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors',
+                  sortBy === 'visit_count' ? 'bg-violet-500/15 text-violet-400' : 'bg-white/5 text-white/40 hover:text-white/70')}>
+                {t.cust_total_orders} <SortIcon col="visit_count" />
+              </button>
+            </div>
 
-                  <motion.div variants={CONTAINER} initial="hidden" animate="show" className="divide-y divide-white/5">
-                    {filtered.map(c => (
-                      <motion.div key={c.id} variants={ITEM} className={cn('grid grid-cols-[1fr_auto_auto_auto_auto_auto_auto] gap-px items-center px-4 py-3 hover:bg-white/5 transition-colors', c.blacklisted ? 'bg-rose-500/5' : 'bg-white/[0.02]')}>
+            <motion.div variants={CONTAINER} initial="hidden" animate="show" className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+              {/* Add-new card */}
+              <button onClick={() => { setEditCustomer(null); setShowModal(true) }}
+                className="min-h-[180px] rounded-2xl border-2 border-dashed border-white/15 hover:border-violet-500/40 hover:bg-violet-500/[0.04] flex flex-col items-center justify-center gap-2 text-white/40 hover:text-violet-400 transition-all active:scale-95">
+                <span className="w-11 h-11 rounded-full bg-white/5 flex items-center justify-center"><Plus className="w-4 h-4" /></span>
+                <span className="text-[11px] font-semibold">{t.cust_add}</span>
+              </button>
+              {filtered.map(c => {
+                const armed = deleteId === c.id
+                return (
+                  <motion.div key={c.id} variants={ITEM} className={cn('flex flex-col items-center rounded-2xl border px-3 py-3 text-center transition-colors',
+                    c.blacklisted ? 'bg-rose-500/5 border-rose-500/20'
+                      : c.status === 'active' ? 'bg-white/5 border-white/10 hover:border-white/20'
+                      : 'bg-white/5 border-white/5 opacity-55')}>
+                    <div className="w-11 h-11 rounded-xl bg-violet-500/15 text-violet-300 flex items-center justify-center text-base font-bold shrink-0">
+                      {c.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="mt-1.5 flex items-center gap-1.5 max-w-full">
+                      <p className="text-sm font-bold text-white line-clamp-1">{c.name}</p>
+                      {c.blacklisted && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-rose-500/20 text-rose-400 font-semibold shrink-0">Blocked</span>}
+                    </div>
+                    {(c.phone || c.email) && <p className="text-[10px] text-white/35 line-clamp-1 w-full">{c.phone || c.email}</p>}
+                    {(c.tags ?? []).length > 0 && (
+                      <div className="mt-1 flex flex-wrap justify-center gap-1">
+                        {(c.tags ?? []).map(tag => (
+                          <span key={tag} className="text-[9px] px-1.5 py-0.5 rounded-full bg-violet-500/15 text-violet-400 font-medium">{tag}</span>
+                        ))}
+                      </div>
+                    )}
+                    <p className="mt-1 text-[11px] text-white/40"><span className="font-bold text-white/70">{c.visit_count}</span> visits</p>
 
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <p className="text-sm font-semibold text-white truncate">{c.name}</p>
-                            {c.blacklisted && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-rose-500/20 text-rose-400 font-semibold shrink-0">Blocked</span>}
-                          </div>
-                          <div className="flex items-center gap-3 mt-0.5">
-                            {c.phone && <span className="flex items-center gap-1 text-[11px] text-white/35"><Phone className="w-2.5 h-2.5" />{c.phone}</span>}
-                            {c.email && <span className="flex items-center gap-1 text-[11px] text-white/35"><Mail className="w-2.5 h-2.5" />{c.email}</span>}
-                          </div>
-                        </div>
+                    <span className="my-2 h-px w-full bg-white/8" />
 
-                        <div className="flex gap-1 flex-wrap mx-3 max-w-[140px]">
-                          {(c.tags ?? []).map(tag => (
-                            <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded-full bg-violet-500/15 text-violet-400 font-medium">{tag}</span>
-                          ))}
-                        </div>
-
-                        <div className="text-center mx-3">
-                          <p className="text-sm font-bold text-white">{c.visit_count}</p>
-                          <p className="text-[10px] text-white/30">visits</p>
-                        </div>
-
-                        <button onClick={() => toggleBlacklist(c)} title={c.blacklisted ? 'Remove from blacklist' : 'Add to blacklist'}
-                          className={cn('w-8 h-8 rounded-lg flex items-center justify-center transition-all active:scale-95 mx-1', c.blacklisted ? 'bg-rose-500/20 text-rose-400' : 'bg-white/5 hover:bg-rose-500/10 text-white/30 hover:text-rose-400')}>
+                    <div className="flex items-start justify-center gap-1.5">
+                      <div className="flex flex-col items-center gap-1">
+                        <button onClick={() => handleDelete(c.id)}
+                          className={cn('w-8 h-8 rounded-lg flex items-center justify-center transition-all active:scale-95',
+                            armed ? 'bg-rose-500/90 text-white' : 'bg-rose-500/15 text-rose-400 hover:bg-rose-500/25')}>
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                        <span className={cn('text-[9px] font-medium', armed ? 'text-rose-400' : 'text-white/40')}>
+                          {armed ? t.confirm_delete : t.delete}
+                        </span>
+                      </div>
+                      <div className="flex flex-col items-center gap-1">
+                        <button onClick={() => toggleBlacklist(c)}
+                          className={cn('w-8 h-8 rounded-lg flex items-center justify-center transition-all active:scale-95',
+                            c.blacklisted ? 'bg-rose-500/25 text-rose-400' : 'bg-white/5 text-white/30 hover:bg-rose-500/15 hover:text-rose-400')}>
                           <Ban className="w-3.5 h-3.5" />
                         </button>
-
-                        <button onClick={() => toggleStatus(c)} className={cn('mx-1 transition-all active:scale-95', c.status === 'active' ? 'text-emerald-400' : 'text-white/25')}>
-                          {c.status === 'active' ? <ToggleRight className="w-6 h-6" /> : <ToggleLeft className="w-6 h-6" />}
+                        <span className="text-[9px] font-medium text-white/40">Block</span>
+                      </div>
+                      <div className="flex flex-col items-center gap-1">
+                        <button onClick={() => toggleStatus(c)}
+                          className={cn('w-8 h-8 rounded-lg flex items-center justify-center transition-all active:scale-95',
+                            c.status === 'active' ? 'bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25' : 'bg-white/5 text-white/30 hover:bg-white/10')}>
+                          {c.status === 'active' ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
                         </button>
-
-                        <button onClick={() => { setEditCustomer(c); setShowModal(true) }} className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/40 hover:text-white transition-all active:scale-95">
+                        <span className="text-[9px] font-medium text-white/40">{t.active}</span>
+                      </div>
+                      <div className="flex flex-col items-center gap-1">
+                        <button onClick={() => { setEditCustomer(c); setShowModal(true) }}
+                          className="w-8 h-8 rounded-lg bg-sky-500/15 text-sky-400 hover:bg-sky-500/25 flex items-center justify-center transition-all active:scale-95">
                           <Pencil className="w-3.5 h-3.5" />
                         </button>
-
-                        <button onClick={() => handleDelete(c.id)}
-                          className={cn('h-8 rounded-lg flex items-center justify-center transition-all active:scale-95 text-xs font-medium',
-                            deleteId === c.id ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30 px-2' : 'w-8 bg-white/5 hover:bg-rose-500/10 text-white/40 hover:text-rose-400')}>
-                          {deleteId === c.id ? 'Confirm?' : <Trash2 className="w-3.5 h-3.5" />}
-                        </button>
-                      </motion.div>
-                    ))}
+                        <span className="text-[9px] font-medium text-white/40">{t.edit}</span>
+                      </div>
+                    </div>
                   </motion.div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                )
+              })}
+            </motion.div>
+            {filtered.length === 0 && (
+              <div className="col-span-full text-center py-12 text-white/25 text-sm">{t.cust_no_data}</div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
