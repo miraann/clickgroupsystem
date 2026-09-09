@@ -95,6 +95,17 @@ input[type="time"]::-webkit-calendar-picker-indicator {
   filter: invert(1) opacity(0.3);
 }
 
+/* Opt-in: hide the native number-input up/down spinners */
+.no-spinner::-webkit-outer-spin-button,
+.no-spinner::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.no-spinner {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
 /* ── Neon border spinning light sweep ────────────────────────── */
 @keyframes neon-border-spin {
   from { transform: translate(-50%, -50%) rotate(0deg); }
