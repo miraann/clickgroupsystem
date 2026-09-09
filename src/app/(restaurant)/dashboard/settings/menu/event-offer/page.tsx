@@ -398,29 +398,6 @@ export default function EventOfferPage() {
 
             <div className="space-y-4">
 
-              {/* Title */}
-              <div>
-                <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.evt_name} *</label>
-                <input
-                  value={form.title}
-                  onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-                  placeholder="e.g. Happy Hour, Live Music Night"
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500/50 transition-colors"
-                />
-              </div>
-
-              {/* Date label */}
-              <div>
-                <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.evt_start} / {t.evt_end}</label>
-                <input
-                  value={form.date_label}
-                  onChange={e => setForm(f => ({ ...f, date_label: e.target.value }))}
-                  placeholder="e.g. Every Friday  ·  Dec 25, 2025  ·  Weekends"
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500/50 transition-colors"
-                />
-                <p className="mt-1 text-[11px] text-white/25">Flexible text — write any date or schedule description.</p>
-              </div>
-
               {/* Image Upload */}
               <div>
                 <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.evt_image}</label>
@@ -443,7 +420,7 @@ export default function EventOfferPage() {
                   ) : (
                     <label className="flex flex-col items-center justify-center w-40 aspect-[9/16] mx-auto rounded-xl bg-white/3 border border-dashed border-white/15 hover:bg-white/5 hover:border-amber-500/30 cursor-pointer transition-all group">
                       <ImageIcon className="w-6 h-6 text-white/20 mb-1.5 group-hover:text-amber-400/40 transition-colors" />
-                      <span className="text-xs text-white/30 group-hover:text-white/50 transition-colors text-center px-3">Tap to upload image (9:16)</span>
+                      <span className="text-xs text-white/30 group-hover:text-white/50 transition-colors text-center px-3">Tap to upload image</span>
                       <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
                     </label>
                   )}
@@ -453,9 +430,33 @@ export default function EventOfferPage() {
                     </div>
                   )}
                 </div>
+                <p className="mt-1.5 text-xs text-white/30 text-center">Displayed at a 9:16 (story) ratio</p>
                 {uploadError && (
                   <p className="mt-1.5 text-xs text-rose-400 font-mono break-all">Upload failed: {uploadError}</p>
                 )}
+              </div>
+
+              {/* Title */}
+              <div>
+                <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.evt_name} *</label>
+                <input
+                  value={form.title}
+                  onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+                  placeholder="e.g. Happy Hour, Live Music Night"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500/50 transition-colors"
+                />
+              </div>
+
+              {/* Date label */}
+              <div>
+                <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.evt_start} / {t.evt_end}</label>
+                <input
+                  value={form.date_label}
+                  onChange={e => setForm(f => ({ ...f, date_label: e.target.value }))}
+                  placeholder="e.g. Every Friday  ·  Dec 25, 2025  ·  Weekends"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500/50 transition-colors"
+                />
+                <p className="mt-1 text-[11px] text-white/25">Flexible text — write any date or schedule description.</p>
               </div>
 
               {/* Description */}
