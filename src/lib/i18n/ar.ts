@@ -240,6 +240,7 @@ const ar: Record<keyof typeof en, string> = {
   // ── Device page ───────────────────────────────────
   dev_title:            'الجهاز',
   dev_subtitle:         'إدارة محطات KDS والطابعات',
+  dev_kds_subtitle:     'إدارة شاشات المطبخ',
   dev_kds:              'محطات KDS',
   dev_printers:         'الطابعات',
   dev_add_station:      'إضافة محطة',

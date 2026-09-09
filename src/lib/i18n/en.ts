@@ -435,6 +435,7 @@ const en = {
   // ── Device page ───────────────────────────────────────────────
   dev_title:            'Device',
   dev_subtitle:         'Manage KDS stations and receipt printers',
+  dev_kds_subtitle:     'Manage your kitchen display screens',
   dev_kds:              'KDS Stations',
   dev_printers:         'Printers',
   dev_add_station:      'Add Station',

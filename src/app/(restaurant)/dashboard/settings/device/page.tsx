@@ -1041,7 +1041,7 @@ export default function DevicePage() {
             </div>
             <div>
               <h1 className="text-lg font-semibold text-white">{t.dev_kds}</h1>
-              <p className="text-xs text-white/40">{t.dev_subtitle}</p>
+              <p className="text-xs text-white/40">{t.dev_kds_subtitle}</p>
             </div>
             <span className="px-2 py-0.5 rounded-full bg-white/8 text-xs text-white/50">{stations.length}</span>
           </div>
