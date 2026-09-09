@@ -132,27 +132,19 @@ export default function TablePage() {
   return (
     <motion.div key="menu-table-page" variants={PAGE} initial="hidden" animate="show" exit="exit">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-amber-500/15 flex items-center justify-center">
-            <LayoutGrid className="w-5 h-5 text-amber-400" />
-          </div>
-          <div>
-            <h1 className="text-lg font-semibold text-white">{t.tbl_title}</h1>
-            <p className="text-xs text-white/40">{t.tbl_subtitle}</p>
-          </div>
-          <span className="ml-1 px-2 py-0.5 rounded-full bg-white/8 text-xs text-white/50 font-medium">{tables.length}</span>
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-9 h-9 rounded-xl bg-amber-500/15 flex items-center justify-center">
+          <LayoutGrid className="w-5 h-5 text-amber-400" />
         </div>
-        <button
-          onClick={openAdd}
-          className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-xl active:scale-95 touch-manipulation transition-all"
-        >
-          <Plus className="w-4 h-4" /> {t.tbl_add}
-        </button>
+        <div>
+          <h1 className="text-lg font-semibold text-white">{t.tbl_title}</h1>
+          <p className="text-xs text-white/40">{t.tbl_subtitle}</p>
+        </div>
+        <span className="ml-1 px-2 py-0.5 rounded-full bg-white/8 text-xs text-white/50 font-medium">{tables.length}</span>
       </div>
 
       <div className="space-y-6">
-        {grouped.map(group => (
+        {grouped.map((group, gi) => (
           <div key={group.id}>
             <div className="flex items-center gap-2 mb-3">
               <div className="w-2 h-2 rounded-full" style={{ backgroundColor: group.color }} />
@@ -160,6 +152,15 @@ export default function TablePage() {
               <span className="text-xs text-white/30">({group.tables.length})</span>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2.5">
+              {gi === 0 && (
+                <button onClick={openAdd}
+                  className="min-h-[150px] rounded-xl border-2 border-dashed border-white/15 hover:border-amber-500/40 hover:bg-amber-500/[0.04] flex flex-col items-center justify-center gap-2 text-white/40 hover:text-amber-400 transition-all active:scale-95">
+                  <span className="w-9 h-9 rounded-full bg-white/5 flex items-center justify-center">
+                    <Plus className="w-4 h-4" />
+                  </span>
+                  <span className="text-[11px] font-semibold">{t.tbl_add}</span>
+                </button>
+              )}
               {group.tables.map(tbl => (
                 <motion.div
                   key={tbl.id}
@@ -224,7 +225,13 @@ export default function TablePage() {
           </div>
         ))}
         {tables.length === 0 && (
-          <div className="text-center py-16 text-white/25 text-sm">{t.tbl_no_data}</div>
+          <div className="flex flex-col items-center gap-4 py-10">
+            <p className="text-white/25 text-sm">{t.tbl_no_data}</p>
+            <button onClick={openAdd}
+              className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-xl active:scale-95 transition-all">
+              <Plus className="w-4 h-4" /> {t.tbl_add}
+            </button>
+          </div>
         )}
       </div>
 
