@@ -166,7 +166,15 @@ export default function TablePage() {
                   className="flex flex-col items-center rounded-xl border bg-white/5 border-white/10 px-2.5 py-2.5 text-center hover:border-white/20 transition-colors"
                 >
                   <div className="flex items-center gap-1.5">
-                    <span className="text-base leading-none">{SHAPE_ICONS[tbl.shape]}</span>
+                    <span
+                      className={cn('inline-block shrink-0 border', tbl.shape === 'Round' ? 'rounded-full' : 'rounded-[5px]')}
+                      style={{
+                        width:  tbl.shape === 'Rectangle' ? 26 : 16,
+                        height: 16,
+                        background: `${group.color}59`,
+                        borderColor: group.color,
+                      }}
+                    />
                     <span className="text-base font-bold text-white tabular-nums">{tbl.table_number}</span>
                     {tbl.name && <span className="text-[11px] text-white/40 line-clamp-1">{tbl.name}</span>}
                   </div>
