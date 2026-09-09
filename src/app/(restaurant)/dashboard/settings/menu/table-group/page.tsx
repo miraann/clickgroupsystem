@@ -111,59 +111,62 @@ export default function TableGroupPage() {
   return (
     <motion.div key="menu-table-group-page" variants={PAGE} initial="hidden" animate="show" exit="exit">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-amber-500/15 flex items-center justify-center">
-            <Layers className="w-5 h-5 text-amber-400" />
-          </div>
-          <div>
-            <h1 className="text-lg font-semibold text-white">{t.tg_title}</h1>
-            <p className="text-xs text-white/40">{t.tg_subtitle}</p>
-          </div>
-          <span className="ml-1 px-2 py-0.5 rounded-full bg-white/8 text-xs text-white/50 font-medium">{groups.length}</span>
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-9 h-9 rounded-xl bg-amber-500/15 flex items-center justify-center">
+          <Layers className="w-5 h-5 text-amber-400" />
         </div>
-        <button
-          onClick={openAdd}
-          className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-xl active:scale-95 touch-manipulation transition-all"
-        >
-          <Plus className="w-4 h-4" /> {t.tg_add}
-        </button>
+        <div>
+          <h1 className="text-lg font-semibold text-white">{t.tg_title}</h1>
+          <p className="text-xs text-white/40">{t.tg_subtitle}</p>
+        </div>
+        <span className="ml-1 px-2 py-0.5 rounded-full bg-white/8 text-xs text-white/50 font-medium">{groups.length}</span>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 3xl:grid-cols-5 gap-3">
-        {groups.map(g => (
-          <div key={g.id} className="flex items-center gap-4 p-4 bg-white/5 border border-white/10 backdrop-blur-xl rounded-2xl min-w-0">
-            <div
-              className="w-10 h-10 rounded-xl shrink-0 flex items-center justify-center"
-              style={{ backgroundColor: g.color + '22', border: `1.5px solid ${g.color}44` }}
-            >
-              <Layers className="w-5 h-5" style={{ color: g.color }} />
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2.5">
+        {/* Add-new card */}
+        <button onClick={openAdd}
+          className="min-h-[132px] rounded-xl border-2 border-dashed border-white/15 hover:border-amber-500/40 hover:bg-amber-500/[0.04] flex flex-col items-center justify-center gap-2 text-white/40 hover:text-amber-400 transition-all active:scale-95">
+          <span className="w-9 h-9 rounded-full bg-white/5 flex items-center justify-center">
+            <Plus className="w-4 h-4" />
+          </span>
+          <span className="text-[11px] font-semibold">{t.tg_add}</span>
+        </button>
+        {groups.map(g => {
+          const armed = deleteId === g.id
+          return (
+            <div key={g.id} className="flex flex-col items-center rounded-xl border bg-white/5 border-white/10 px-2.5 py-2.5 text-center hover:border-white/20 transition-colors">
+              <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
+                style={{ backgroundColor: g.color + '22', border: `1.5px solid ${g.color}55` }}>
+                <Layers className="w-5 h-5" style={{ color: g.color }} />
+              </div>
+              <p className="mt-1.5 w-full text-sm font-bold text-white line-clamp-1">{g.name}</p>
+
+              <span className="my-2 h-px w-full bg-white/8" />
+
+              <div className="flex items-start justify-center gap-2">
+                <div className="flex flex-col items-center gap-1">
+                  <button onClick={() => handleDelete(g.id)}
+                    className={cn('w-8 h-8 rounded-lg flex items-center justify-center transition-all active:scale-95',
+                      armed ? 'bg-rose-500/90 text-white' : 'bg-rose-500/15 text-rose-400 hover:bg-rose-500/25')}>
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                  <span className={cn('text-[9px] font-medium', armed ? 'text-rose-400' : 'text-white/40')}>
+                    {armed ? t.confirm_delete : t.delete}
+                  </span>
+                </div>
+                <div className="flex flex-col items-center gap-1">
+                  <button onClick={() => openEdit(g)}
+                    className="w-8 h-8 rounded-lg bg-sky-500/15 text-sky-400 hover:bg-sky-500/25 flex items-center justify-center transition-all active:scale-95">
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                  <span className="text-[9px] font-medium text-white/40">{t.edit}</span>
+                </div>
+              </div>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-white truncate">{g.name}</p>
-            </div>
-            <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: g.color }} />
-            <button
-              onClick={() => openEdit(g)}
-              className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/40 hover:text-white transition-all active:scale-95"
-            >
-              <Pencil className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => handleDelete(g.id)}
-              className={cn(
-                'h-8 rounded-lg flex items-center justify-center transition-all active:scale-95 text-xs font-medium',
-                deleteId === g.id
-                  ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30 px-2'
-                  : 'w-8 bg-white/5 hover:bg-rose-500/10 text-white/40 hover:text-rose-400'
-              )}
-            >
-              {deleteId === g.id ? 'Confirm?' : <Trash2 className="w-3.5 h-3.5" />}
-            </button>
-          </div>
-        ))}
+          )
+        })}
         {groups.length === 0 && (
-          <div className="col-span-full text-center py-16 text-white/25 text-sm">{t.tg_no_data}</div>
+          <div className="col-span-full text-center py-12 text-white/25 text-sm">{t.tg_no_data}</div>
         )}
       </div>
 
