@@ -931,8 +931,8 @@ export default function UsersPage() {
                     const staffCount = roleStaff.filter(s => s.role_id === role.id).length
                     return (
                       <div key={role.id} onClick={() => selectRole(role)}
-                        className={cn('flex items-center gap-2 px-3 py-2.5 rounded-xl cursor-pointer transition-all group',
-                          selectedRoleId === role.id ? 'bg-amber-500/15 border border-amber-500/25 text-white' : 'text-white/80 hover:text-white hover:bg-white/5')}>
+                        className={cn('flex items-center gap-2 px-3 py-2.5 rounded-xl cursor-pointer border transition-all group',
+                          selectedRoleId === role.id ? 'bg-amber-500/15 border-amber-500/25 text-white' : 'border-white/8 bg-white/[0.03] text-white/80 hover:text-white hover:border-white/15 hover:bg-white/5')}>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium truncate">{role.name}</p>
                           {staffCount > 0 && <p className="text-[10px] text-white/50">{staffCount} staff</p>}
@@ -966,8 +966,9 @@ export default function UsersPage() {
               </div>
             ) : (
               <button onClick={() => setAddingRole(true)}
-                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl text-sm font-semibold text-amber-400 border border-amber-500/20 bg-amber-500/5 hover:bg-amber-500/10 transition-all active:scale-[0.98]">
-                <Plus className="w-4 h-4" /> New Role
+                className="w-full flex flex-col items-center justify-center gap-1.5 py-4 rounded-2xl border-2 border-dashed border-white/15 text-white/40 hover:text-amber-400 hover:border-amber-500/40 hover:bg-amber-500/[0.04] transition-all active:scale-[0.98]">
+                <span className="w-9 h-9 rounded-full bg-white/5 flex items-center justify-center"><Plus className="w-4 h-4" /></span>
+                <span className="text-[11px] font-semibold">New Role</span>
               </button>
             )}
           </div>
