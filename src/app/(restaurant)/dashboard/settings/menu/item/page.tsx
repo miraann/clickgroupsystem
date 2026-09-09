@@ -377,6 +377,14 @@ export default function ItemPage() {
         <SortableContext items={filtered.map(i => i.id)} strategy={rectSortingStrategy}>
           <motion.div key={filterCatId} variants={LIST} initial="hidden" animate="visible"
             className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            {/* Add-new card */}
+            <button onClick={openAdd}
+              className="min-h-[220px] rounded-2xl border-2 border-dashed border-white/15 hover:border-amber-500/40 hover:bg-amber-500/[0.04] flex flex-col items-center justify-center gap-3 text-white/40 hover:text-amber-400 transition-all active:scale-95">
+              <span className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center">
+                <Plus className="w-5 h-5" />
+              </span>
+              <span className="text-xs font-semibold">{t.item_add}</span>
+            </button>
             {filtered.map(item => (
               <motion.div key={item.id} variants={ITEM_VAR}>
                 <SortableItemCard
@@ -391,14 +399,6 @@ export default function ItemPage() {
                 />
               </motion.div>
             ))}
-            {/* Add-new card */}
-            <button onClick={openAdd}
-              className="min-h-[220px] rounded-2xl border-2 border-dashed border-white/15 hover:border-amber-500/40 hover:bg-amber-500/[0.04] flex flex-col items-center justify-center gap-3 text-white/40 hover:text-amber-400 transition-all active:scale-95">
-              <span className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center">
-                <Plus className="w-5 h-5" />
-              </span>
-              <span className="text-xs font-semibold">{t.item_add}</span>
-            </button>
           </motion.div>
         </SortableContext>
       </DndContext>
@@ -714,23 +714,33 @@ function SortableItemCard({
         <span className="my-2.5 h-px w-full bg-white/8" />
 
         {/* Actions */}
-        <div className="flex items-center justify-center gap-2">
-          <button onClick={() => onDelete(item.id)}
-            className={cn('w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95',
-              armed ? 'bg-rose-500/90 text-white' : 'bg-rose-500/15 text-rose-400 hover:bg-rose-500/25')}>
-            <Trash2 className="w-4 h-4" />
-          </button>
-          <button onClick={() => onToggle(item)}
-            className={cn('w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95',
-              item.available ? 'bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25' : 'bg-white/5 text-white/30 hover:bg-white/10')}>
-            {item.available ? <ToggleRight className="w-5 h-5" /> : <ToggleLeft className="w-5 h-5" />}
-          </button>
-          <button onClick={() => onEdit(item)}
-            className="w-9 h-9 rounded-xl bg-sky-500/15 text-sky-400 hover:bg-sky-500/25 flex items-center justify-center transition-all active:scale-95">
-            <Pencil className="w-4 h-4" />
-          </button>
+        <div className="flex items-start justify-center gap-2">
+          <div className="flex flex-col items-center gap-1">
+            <button onClick={() => onDelete(item.id)}
+              className={cn('w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95',
+                armed ? 'bg-rose-500/90 text-white' : 'bg-rose-500/15 text-rose-400 hover:bg-rose-500/25')}>
+              <Trash2 className="w-4 h-4" />
+            </button>
+            <span className={cn('text-[9px] font-medium', armed ? 'text-rose-400' : 'text-white/40')}>
+              {armed ? t.confirm_delete : t.delete}
+            </span>
+          </div>
+          <div className="flex flex-col items-center gap-1">
+            <button onClick={() => onToggle(item)}
+              className={cn('w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95',
+                item.available ? 'bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25' : 'bg-white/5 text-white/30 hover:bg-white/10')}>
+              {item.available ? <ToggleRight className="w-5 h-5" /> : <ToggleLeft className="w-5 h-5" />}
+            </button>
+            <span className="text-[9px] font-medium text-white/40">{t.item_available}</span>
+          </div>
+          <div className="flex flex-col items-center gap-1">
+            <button onClick={() => onEdit(item)}
+              className="w-9 h-9 rounded-xl bg-sky-500/15 text-sky-400 hover:bg-sky-500/25 flex items-center justify-center transition-all active:scale-95">
+              <Pencil className="w-4 h-4" />
+            </button>
+            <span className="text-[9px] font-medium text-white/40">{t.edit}</span>
+          </div>
         </div>
-        {armed && <p className="mt-1.5 text-[10px] font-semibold text-rose-400">{t.confirm_delete}</p>}
 
         {/* Cost / margin */}
         {cost > 0 && (
