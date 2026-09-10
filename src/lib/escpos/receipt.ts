@@ -79,16 +79,17 @@ export function buildReceiptBytes(d: ReceiptPayload): Uint8Array {
 
   const parts: Uint8Array[] = [
     escpos.init(),
-    escpos.doubleStrike(true), // darken normal-weight text — thin single-pass print is hard to read
+    escpos.doubleStrike(true), // darken print — thin single-pass text is hard to read
+    escpos.boldOn(),           // emphasise the whole receipt; never turned back off
 
     // ── Logo bitmap (centered) ────────────────────────────
     ...(d.logoBitmap ? [escpos.alignCenter(), d.logoBitmap] : []),
 
     // ── Restaurant name + contact (centered) ──────────────
     escpos.alignCenter(),
-    escpos.boldOn(), escpos.doubleSize(),
+    escpos.doubleSize(),
     enc(tx(d.restaurantName).toUpperCase() + '\n'),
-    escpos.normalSize(), escpos.boldOff(),
+    escpos.normalSize(),
     ...(d.phone   ? [enc(tx(d.phone)   + '\n')] : []),
     ...(d.address ? [enc(tx(d.address) + '\n')] : []),
 
@@ -108,18 +109,14 @@ export function buildReceiptBytes(d: ReceiptPayload): Uint8Array {
     // ── Payment method (centered) ─────────────────────────
     escpos.alignCenter(),
     enc(L.paymentMethod + '\n'),
-    escpos.boldOn(),
     enc(payMethod + '\n'),
-    escpos.boldOff(),
     escpos.alignLeft(),
     div(),
 
     // ── Items header ──────────────────────────────────────
-    escpos.boldOn(),
     isKu
       ? threeColBytes(L.price, L.qty, L.item, W)
       : threeColBytes(L.item,  L.qty, L.price, W),
-    escpos.boldOff(),
     div(),
 
     // ── Items ─────────────────────────────────────────────
@@ -134,26 +131,22 @@ export function buildReceiptBytes(d: ReceiptPayload): Uint8Array {
     row(L.subtotal, fmt(d.subtotal)),
     ...(d.discount  > 0 ? [row(L.discount,  `-${fmt(d.discount)}`)]  : []),
     ...(d.surcharge > 0 ? [row(L.surcharge, `+${fmt(d.surcharge)}`)] : []),
-    escpos.boldOn(),
     row(L.total, fmt(d.total)),
-    escpos.boldOff(),
 
     // ── Total Amount box ──────────────────────────────────
     div('='),
     escpos.alignCenter(),
     enc(L.totalAmount + '\n'),
-    escpos.boldOn(), escpos.doubleHeight(),
+    escpos.doubleHeight(),
     enc(fmt(d.total) + '\n'),
-    escpos.normalSize(), escpos.boldOff(),
+    escpos.normalSize(),
   ]
 
   // ── Payment mode: PAID stamp ──────────────────────────
   if (d.mode === 'payment') {
     parts.push(
       enc('\n'),
-      escpos.boldOn(),
       enc(L.paid + '\n'),
-      escpos.boldOff(),
       enc(`${d.dateStr}  ${d.timeStr}\n`),
     )
   }
@@ -170,9 +163,7 @@ export function buildReceiptBytes(d: ReceiptPayload): Uint8Array {
     const line = '_'.repeat(W)
     parts.push(
       escpos.alignCenter(),
-      escpos.boldOn(),
       enc(L.yourFeedback + '\n'),
-      escpos.boldOff(),
       escpos.alignLeft(),
       div(),
       enc(L.nameLine + '\n'),
@@ -199,9 +190,7 @@ export function buildReceiptBytes(d: ReceiptPayload): Uint8Array {
   // ── Footer ────────────────────────────────────────────
   parts.push(
     escpos.alignCenter(),
-    escpos.boldOn(),
     enc('\n' + (tx(d.thankYouMsg) || (isKu ? d.thankYouMsg : 'Thank you for your visit!')) + '\n'),
-    escpos.boldOff(),
     enc(d.poweredBy
       ? `Powered by ClickGroup - ${tx(d.poweredBy)}\n`
       : 'Powered by ClickGroup\n'),

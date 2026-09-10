@@ -23,8 +23,7 @@ export const escpos = {
 
 export function cols(paperWidth: number): number {
   if (paperWidth <= 58) return 32
-  if (paperWidth <= 80) return 42
-  return 48
+  return 48 // 80mm Font A = 576 dots / 12 = 48 chars — fills the roll edge to edge
 }
 
 // Left-right two-column row — returns encoded Uint8Array
