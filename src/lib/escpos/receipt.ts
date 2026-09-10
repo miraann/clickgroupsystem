@@ -188,15 +188,19 @@ export function buildReceiptBytes(d: ReceiptPayload): Uint8Array {
   }
 
   // ── Footer ────────────────────────────────────────────
-  parts.push(
-    escpos.alignCenter(),
-    enc('\n' + (tx(d.thankYouMsg) || (isKu ? d.thankYouMsg : 'Thank you for your visit!')) + '\n'),
-    enc(d.poweredBy
-      ? `Powered by ClickGroup - ${tx(d.poweredBy)}\n`
-      : 'Powered by ClickGroup\n'),
-    escpos.feed(4),
-    escpos.cut(),
-  )
+  // Live payment receipts skip the thank-you / "Powered by" lines — they end
+  // on the PAID stamp. Only reprints keep the branded footer.
+  if (d.mode !== 'payment') {
+    parts.push(
+      escpos.alignCenter(),
+      enc('\n' + (tx(d.thankYouMsg) || (isKu ? d.thankYouMsg : 'Thank you for your visit!')) + '\n'),
+      enc(d.poweredBy
+        ? `Powered by ClickGroup - ${tx(d.poweredBy)}\n`
+        : 'Powered by ClickGroup\n'),
+    )
+  }
+
+  parts.push(escpos.feed(4), escpos.cut())
 
   return concat(...parts)
 }
