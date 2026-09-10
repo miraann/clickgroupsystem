@@ -407,21 +407,37 @@ if (\$ok) { Write-Output "OK" } else { Write-Error "WritePrinter returned false"
 }
 
 // ── TCP print ─────────────────────────────────────────────────────────────────
-function printBytes(base64Bytes, ip, port) {
+// Cheap thermal printers' embedded network stacks often briefly refuse a new
+// connection right after a previous one closed (e.g. a network scan probing
+// the same port moments earlier) — a couple of short retries clears up most
+// of these transient "Connection timed out" failures without the user having
+// to click Test again themselves.
+function printBytesOnce(base64Bytes, ip, port) {
   return new Promise((resolve, reject) => {
     const bytes = Buffer.from(base64Bytes, 'base64')
     const sock  = new net.Socket()
 
-    sock.setTimeout(8000)
+    sock.setTimeout(5000)
     sock.connect(port, ip, () => {
       sock.write(bytes, () => {
         sock.end()
         resolve({ ok: true })
       })
     })
-    sock.on('error',   (e) => reject(new Error(`TCP error: ${e.message}`)))
+    sock.on('error',   (e) => { sock.destroy(); reject(new Error(`TCP error: ${e.message}`)) })
     sock.on('timeout', ()  => { sock.destroy(); reject(new Error('Connection timed out')) })
   })
+}
+
+async function printBytes(base64Bytes, ip, port, attempts = 3) {
+  for (let i = 1; i <= attempts; i++) {
+    try {
+      return await printBytesOnce(base64Bytes, ip, port)
+    } catch (e) {
+      if (i === attempts) throw e
+      await new Promise(r => setTimeout(r, 600))
+    }
+  }
 }
 
 // ── Single instance ──────────────────────────────────────────────────────────
