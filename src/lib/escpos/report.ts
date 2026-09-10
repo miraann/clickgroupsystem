@@ -49,6 +49,7 @@ export function buildDailySalesReportBytes(d: DailySalesReportPayload): Uint8Arr
 
   const parts: Uint8Array[] = [
     escpos.init(),
+    escpos.doubleStrike(true), // darken normal-weight text — thin single-pass print is hard to read
     escpos.alignCenter(), escpos.boldOn(), escpos.doubleHeight(),
     enc((tx(d.restaurantName) || 'Restaurant') + '\n'),
     escpos.normalSize(),

@@ -148,9 +148,10 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const [{ data: rs }, { data: rest }] = await Promise.all([
+    const [{ data: rs }, { data: rest }, { data: currency }] = await Promise.all([
       supabase.from('receipt_settings').select('*').eq('restaurant_id', restaurantId).maybeSingle(),
       supabase.from('restaurants').select('name').eq('id', restaurantId).maybeSingle(),
+      supabase.from('currencies').select('symbol').eq('restaurant_id', restaurantId).eq('is_default', true).maybeSingle(),
     ])
 
     const rsAny = rs as Record<string, unknown> | null
@@ -169,7 +170,10 @@ export async function POST(req: NextRequest) {
       address:        (rsAny?.address        as string | null) ?? null,
       phone:          (rsAny?.phone          as string | null) ?? null,
       thankYouMsg:    (rsAny?.thank_you_msg  as string)       ?? 'Thank you for your visit!',
-      currencySymbol: (rsAny?.currency_symbol as string)      ?? '',
+      // Same source of truth as the rest of the app (useDefaultCurrency) — not
+      // the separate receipt_settings.currency_symbol text field, which drifts
+      // out of sync whenever the restaurant's default currency changes.
+      currencySymbol: (currency?.symbol as string | undefined) || (rsAny?.currency_symbol as string) || '',
       poweredBy:      (rsAny?.phone          as string | null) ?? null,
       // Thermal receipts are English-only for now — most printers have no Arabic
       // font ROM, so Kurdish glyphs print as replacement garbage. The `language`

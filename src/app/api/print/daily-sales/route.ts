@@ -44,9 +44,10 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const [{ data: rs }, { data: rest }] = await Promise.all([
+    const [{ data: rs }, { data: rest }, { data: currency }] = await Promise.all([
       supabase.from('receipt_settings').select('shop_name, currency_symbol').eq('restaurant_id', restaurantId).maybeSingle(),
       supabase.from('restaurants').select('name').eq('id', restaurantId).maybeSingle(),
+      supabase.from('currencies').select('symbol').eq('restaurant_id', restaurantId).eq('is_default', true).maybeSingle(),
     ])
 
     const p = printer as { name: string; connection_type: string; ip_address?: string; port?: number; bt_address?: string; paper_width?: number }
@@ -55,7 +56,10 @@ export async function POST(req: NextRequest) {
     const payload: DailySalesReportPayload = {
       ...body,
       restaurantName: (rs?.shop_name as string) || (rest as { name?: string } | null)?.name || 'Restaurant',
-      currencySymbol: (rs?.currency_symbol as string) ?? '',
+      // Same source of truth as the rest of the app (useDefaultCurrency) — not
+      // the separate receipt_settings.currency_symbol text field, which drifts
+      // out of sync whenever the restaurant's default currency changes.
+      currencySymbol: (currency?.symbol as string | undefined) || (rs?.currency_symbol as string) || '',
       paperWidth,
     }
 

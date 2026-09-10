@@ -28,6 +28,7 @@ export function buildKitchenBytes(d: KitchenPayload): Uint8Array {
 
   const parts: Uint8Array[] = [
     escpos.init(),
+    escpos.doubleStrike(true), // darken normal-weight text — thin single-pass print is hard to read
 
     // ── Header ───────────────────────────────────────────────
     escpos.alignCenter(),
