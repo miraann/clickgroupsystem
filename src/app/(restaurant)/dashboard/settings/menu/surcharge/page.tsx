@@ -153,7 +153,7 @@ export default function SurchargePage() {
 
               <span className="my-2 h-px w-full bg-white/8" />
 
-              <div className="flex items-start justify-center gap-2">
+              <div className="flex items-start justify-center gap-2 card-actions">
                 <div className="flex flex-col items-center gap-1">
                   <button onClick={() => handleDelete(s.id)}
                     className={cn('w-8 h-8 rounded-lg flex items-center justify-center transition-all active:scale-95',

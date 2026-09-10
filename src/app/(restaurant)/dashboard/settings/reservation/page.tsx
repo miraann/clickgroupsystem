@@ -237,7 +237,7 @@ export default function ReservationPage() {
 
                 <span className="my-2.5 h-px w-full bg-white/8" />
 
-                <div className="flex flex-wrap items-center gap-1.5">
+                <div className="flex flex-wrap items-center gap-1.5 card-actions">
                   {r.status === 'pending' && (
                     <button onClick={() => updateStatus(r.id, 'confirmed')} disabled={statusLoading === r.id}
                       className="px-3 py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 text-xs font-semibold hover:bg-emerald-500/25 transition-all active:scale-95">

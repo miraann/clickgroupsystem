@@ -314,7 +314,7 @@ export default function PaymentMethodPage() {
 
                   <span className="my-2 h-px w-full bg-white/8" />
 
-                  <div className="flex items-start justify-center gap-2">
+                  <div className="flex items-start justify-center gap-2 card-actions">
                     <div className="flex flex-col items-center gap-1">
                       <button onClick={() => deleteCurrency(c.id)}
                         className={cn('w-8 h-8 rounded-lg flex items-center justify-center transition-all active:scale-95',
@@ -391,7 +391,7 @@ export default function PaymentMethodPage() {
 
                   <span className="my-2 h-px w-full bg-white/8" />
 
-                  <div className="flex items-start justify-center gap-2">
+                  <div className="flex items-start justify-center gap-2 card-actions">
                     <div className="flex flex-col items-center gap-1">
                       <button onClick={() => deletePay(m.id)}
                         className={cn('w-8 h-8 rounded-lg flex items-center justify-center transition-all active:scale-95',

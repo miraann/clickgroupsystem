@@ -106,6 +106,46 @@ input[type="time"]::-webkit-calendar-picker-indicator {
   appearance: textfield;
 }
 
+/* ── Touch-friendly action buttons on settings list cards ──────
+   Marker class `.card-actions` sits on the action-button row of every
+   settings list card. Enlarge the square icon buttons to a ~44px finger
+   target (leaving px-based text pills like "Confirm" untouched), scale
+   the icons up, and give the little labels a readable size. Declared
+   after @import "tailwindcss" so it wins over the w-8 / w-9 utilities. */
+.card-actions {
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  row-gap: 0.5rem;
+}
+.card-actions button[class~="w-8"],
+.card-actions button[class~="w-9"] {
+  width: 2.75rem;
+  height: 2.75rem;
+  min-width: 2.75rem;
+  border-radius: 0.9rem;
+}
+.card-actions button[class~="w-8"] svg,
+.card-actions button[class~="w-9"] svg {
+  width: 1.2rem;
+  height: 1.2rem;
+}
+.card-actions span {
+  font-size: 0.6875rem; /* 11px labels */
+  line-height: 1.1;
+}
+@media (min-width: 640px) {
+  .card-actions button[class~="w-8"],
+  .card-actions button[class~="w-9"] {
+    width: 3rem;
+    height: 3rem;
+  }
+  .card-actions button[class~="w-8"] svg,
+  .card-actions button[class~="w-9"] svg {
+    width: 1.35rem;
+    height: 1.35rem;
+  }
+}
+
 /* ── Neon border spinning light sweep ────────────────────────── */
 @keyframes neon-border-spin {
   from { transform: translate(-50%, -50%) rotate(0deg); }

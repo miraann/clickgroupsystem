@@ -722,7 +722,7 @@ function SortableItemCard({
         <span className="my-2.5 h-px w-full bg-white/8" />
 
         {/* Actions */}
-        <div className="flex items-start justify-center gap-2">
+        <div className="flex items-start justify-center gap-2 card-actions">
           <div className="flex flex-col items-center gap-1">
             <button onClick={() => onDelete(item.id)}
               className={cn('w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95',

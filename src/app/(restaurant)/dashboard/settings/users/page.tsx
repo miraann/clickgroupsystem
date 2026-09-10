@@ -854,7 +854,7 @@ export default function UsersPage() {
 
                     <span className="my-2 h-px w-full bg-white/8" />
 
-                    <div className="flex items-start justify-center gap-1">
+                    <div className="flex items-start justify-center gap-1 card-actions">
                       <div className="flex flex-col items-center gap-0.5">
                         <button onClick={() => del(u.id)} title={t.delete}
                           className={cn('w-8 h-8 rounded-lg flex items-center justify-center transition-all active:scale-95',

@@ -355,7 +355,7 @@ export default function ExpensePage() {
 
                       <span className="my-2 h-px w-full bg-white/8" />
 
-                      <div className="flex items-start justify-center gap-2">
+                      <div className="flex items-start justify-center gap-2 card-actions">
                         <div className="flex flex-col items-center gap-1">
                           <button onClick={() => handleDelete(exp.id)}
                             className="w-8 h-8 rounded-lg bg-rose-500/15 text-rose-400 hover:bg-rose-500/25 flex items-center justify-center transition-all active:scale-95">
