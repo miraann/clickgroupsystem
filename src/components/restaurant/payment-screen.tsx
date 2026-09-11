@@ -680,7 +680,7 @@ export default function PaymentScreen({ orderId, restaurantId, orderNum: orderNu
           )}
 
           {/* Amount display */}
-          <div className="flex-1 flex items-center justify-between px-4 md:px-6 py-3 md:py-4">
+          <div className="shrink-0 flex items-center justify-between px-4 md:px-6 py-3 md:py-4 border-b border-white/8">
             <div>
               {entered ? (
                 <p className="text-3xl font-bold text-white tabular-nums">{cur}{entered}</p>
@@ -743,22 +743,22 @@ export default function PaymentScreen({ orderId, restaurantId, orderNum: orderNu
               </button>
             </div>
           ) : (
-            <div className="shrink-0 flex gap-px h-20 bg-white/5">
+            <div className="shrink-0 flex gap-px h-28 bg-white/5">
               {p('dashboard.receipt') && (
                 <button
                   onClick={() => { setInvoiceMode('receipt'); setShowInvoice(true) }}
-                  className="flex-1 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 text-sm font-semibold flex items-center justify-center gap-1.5 transition-all active:scale-95 touch-manipulation"
+                  className="flex-1 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 text-base font-bold flex items-center justify-center gap-2 transition-all active:scale-95 touch-manipulation"
                 >
-                  <Printer className="w-4 h-4" />{t.pay_receipt}
+                  <Printer className="w-5 h-5" />{t.pay_receipt}
                 </button>
               )}
               {p('payment_screen.wa') && (
                 <button
                   onClick={handleWaButton}
-                  className="flex-1 bg-green-600/20 hover:bg-green-600/35 text-green-400 text-sm font-semibold flex items-center justify-center gap-1.5 transition-all active:scale-95 touch-manipulation"
+                  className="flex-1 bg-green-600/20 hover:bg-green-600/35 text-green-400 text-base font-bold flex items-center justify-center gap-2 transition-all active:scale-95 touch-manipulation"
                   title={t.pay_wa_send_invoice}
                 >
-                  <MessageCircle className="w-4 h-4" />WA
+                  <MessageCircle className="w-5 h-5" />WA
                 </button>
               )}
               {p('dashboard.pay') && (
@@ -766,7 +766,7 @@ export default function PaymentScreen({ orderId, restaurantId, orderNum: orderNu
                   onClick={() => !paying && !paid && !(entered !== '' && enteredNum < finalTotal) && setShowConfirm(true)}
                   disabled={paying || paid || (entered !== '' && enteredNum < finalTotal)}
                   className={cn(
-                    'flex-[2] flex flex-col items-center justify-center gap-2 text-lg font-bold transition-all active:scale-95 touch-manipulation',
+                    'flex-[2] flex flex-col items-center justify-center gap-2 text-2xl font-extrabold transition-all active:scale-95 touch-manipulation',
                     paid
                       ? 'bg-emerald-500 text-white'
                       : paying
@@ -777,9 +777,9 @@ export default function PaymentScreen({ orderId, restaurantId, orderNum: orderNu
                   )}
                 >
                   {paid
-                    ? <><Check className="w-6 h-6" />{t.pay_paid_excl}</>
+                    ? <><Check className="w-8 h-8" />{t.pay_paid_excl}</>
                     : paying
-                      ? <><Loader2 className="w-6 h-6 animate-spin" />{t.pay_processing}</>
+                      ? <><Loader2 className="w-8 h-8 animate-spin" />{t.pay_processing}</>
                       : t.pay_pay}
                 </button>
               )}
