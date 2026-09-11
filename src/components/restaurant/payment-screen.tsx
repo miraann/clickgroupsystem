@@ -365,9 +365,9 @@ export default function PaymentScreen({ orderId, restaurantId, orderNum: orderNu
       <div className="shrink-0 flex items-center border-b border-white/8 bg-[#080b14]">
         <button
           onClick={onClose}
-          className="w-12 md:w-14 h-11 md:h-12 flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/5 transition-all active:scale-95 touch-manipulation border-r border-white/8 shrink-0"
+          className="w-14 md:w-16 h-14 md:h-16 flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/5 transition-all active:scale-95 touch-manipulation border-r border-white/8 shrink-0"
         >
-          <ArrowLeft className="w-5 h-5" />
+          <ArrowLeft className="w-6 h-6" />
         </button>
         <div className="flex flex-1 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
           {ACTION_TABS.filter(tab =>
@@ -382,7 +382,7 @@ export default function PaymentScreen({ orderId, restaurantId, orderNum: orderNu
               key={tab.id}
               onClick={() => setActiveTab(activeTab === tab.id ? null : tab.id)}
               className={cn(
-                'shrink-0 flex-1 min-w-[72px] h-11 text-xs md:text-sm font-semibold border-r border-white/8 transition-all active:scale-95 touch-manipulation',
+                'shrink-0 flex-1 min-w-[72px] h-14 md:h-16 text-sm md:text-base font-bold border-r border-white/8 transition-all active:scale-95 touch-manipulation',
                 activeTab === tab.id ? tab.active : tab.inactive
               )}
             >
