@@ -2,7 +2,7 @@
 // for rendering whole lines of text to an image (see kurdishRender.ts) on
 // printers whose font ROM can't render a given script.
 import { GlobalFonts } from '@napi-rs/canvas'
-import { join } from 'path'
+import { KURDISH_FONT_B64 } from './fonts/embedded'
 
 // ESC/POS GS v 0 raster bitmap command wrapper.
 export function gsv0(pixels: Uint8Array, widthPx: number, heightPx: number): Uint8Array {
@@ -66,21 +66,27 @@ export function printableWidthPx(paperWidthMm: number): number {
 // Kurdish (Sorani) uses the Arabic script plus a handful of extra letters
 // (ڕ ڵ ۆ ێ ھ چ گ پ ژ) that most thermal printers' Arabic codepage doesn't
 // include, and most have no Arabic font ROM at all — so text bytes print as
-// replacement garbage. Noto Naskh Arabic covers the full Kurdish letter set
-// (and Latin/digits for dates, prices, invoice numbers, …), so lines that need
-// it are rendered to a bitmap server-side (via @napi-rs/canvas, which bundles
-// its own text-shaping engine and doesn't depend on the OS/container having
-// fontconfig or Arabic fonts installed — unlike SVG-via-librsvg, whose
-// embedded-font support varies by platform and isn't guaranteed on every
-// serverless runtime) and printed as an image instead — that works on any
-// ESC/POS printer regardless of firmware font support.
+// replacement garbage. This font (also used for Kurdish elsewhere in the app's
+// UI, kept consistent here) covers the full Kurdish letter set and Latin/
+// digits for dates, prices, invoice numbers, …, so lines that need it are
+// rendered to a bitmap server-side via @napi-rs/canvas and printed as an
+// image instead — that works on any ESC/POS printer regardless of firmware
+// font support.
+//
+// Registered from an embedded base64 buffer (fonts/embedded.ts), NOT read
+// from disk at runtime via a __dirname-relative path: Next's bundler
+// (Turbopack) compiles __dirname to a literal "/ROOT/..." placeholder path
+// that isn't guaranteed to resolve on every deployment target, which made
+// font registration fail silently in production (text came out blank —
+// lines/rules still drew fine since those don't touch the font).
 export const KU_FONT_FAMILY = 'KuReceipt'
 
+// Single weight only — no separate bold face is bundled, so bold text (the
+// whole receipt prints bold) is faked with a stroke+fill outline instead of
+// a font-weight switch. See KU_FAUX_BOLD_RATIO in kurdishRender.ts.
 let fontsRegistered = false
 export function ensureKurdishFontsRegistered(): void {
   if (fontsRegistered) return
-  const fontsDir = join(__dirname, 'fonts')
-  GlobalFonts.registerFromPath(join(fontsDir, 'NotoNaskhArabic-Regular.ttf'), KU_FONT_FAMILY)
-  GlobalFonts.registerFromPath(join(fontsDir, 'NotoNaskhArabic-Bold.ttf'),    KU_FONT_FAMILY)
+  GlobalFonts.register(Buffer.from(KURDISH_FONT_B64, 'base64'), KU_FONT_FAMILY)
   fontsRegistered = true
 }

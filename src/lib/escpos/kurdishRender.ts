@@ -29,7 +29,11 @@ type TextOp = { kind: 'text'; x: number; y: number; text: string; align: 'left' 
 type LineOp = { kind: 'line'; x1: number; y1: number; x2: number; y2: number; width: number }
 type DrawOp = TextOp | LineOp
 
-const font = (px: number) => `700 ${px}px "${KU_FONT_FAMILY}"`
+const font = (px: number) => `${px}px "${KU_FONT_FAMILY}"`
+
+// The bundled font has only one weight — bold is faked with a stroke+fill
+// outline (proportional to font size) instead of a font-weight switch.
+const FAUX_BOLD_RATIO = 0.045
 
 // Arabic-script ranges (covers Kurdish's extra Sorani letters too). A line
 // with no strong-RTL characters (a phone number, an invoice code, a plain
@@ -128,6 +132,7 @@ export async function renderKurdishBlock(lines: KuLine[], widthPx: number): Prom
   ctx.fillRect(0, 0, widthPx, heightPx)
   ctx.fillStyle = '#000'
   ctx.strokeStyle = '#000'
+  ctx.lineJoin = 'round'
 
   for (const op of ops) {
     if (op.kind === 'text') {
@@ -137,6 +142,8 @@ export async function renderKurdishBlock(lines: KuLine[], widthPx: number): Prom
       // invoice code) must stay 'ltr' or its space-separated tokens get
       // reordered — see the note on hasRtl() above.
       ctx.direction = hasRtl(op.text) ? 'rtl' : 'ltr'
+      ctx.lineWidth = op.fontPx * FAUX_BOLD_RATIO
+      ctx.strokeText(op.text, op.x, op.y)
       ctx.fillText(op.text, op.x, op.y)
     } else {
       ctx.lineWidth = op.width
