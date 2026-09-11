@@ -931,6 +931,7 @@ const ku: Record<keyof typeof en, string> = {
 
   // ── Order Screen ─────────────────────────────────────────────
   ord_failed_open:      'کرانەوەی فەرمان شکست هێنا',
+  ord_paid_elsewhere:   'ئەم مێزە لە ئامێرێکی تر پارەدانی بۆکراوە',
   ord_dine_in:          'خواردن لە ناو',
   ord_takeout:          'بردن',
   ord_guests:           'میوان',

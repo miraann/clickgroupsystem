@@ -80,8 +80,31 @@ function OrderPage() {
   const [mounted, setMounted] = useState(false)
   useEffect(() => { const t = requestAnimationFrame(() => setMounted(true)); return () => cancelAnimationFrame(t) }, [])
 
+  // Another device paid/closed/voided this order while this screen was still
+  // open on it (e.g. one device on the order/food screen, another on Pay for
+  // the same table). Ignore it on the device that's *itself* mid-payment —
+  // its own PaymentScreen.onPaid already handles that navigation — this is
+  // only for a plain ordering screen getting pulled out from under it.
+  const kickedOut = order.orderClosedElsewhere && !showPayment
+  useEffect(() => {
+    if (!kickedOut) return
+    const rid = order.restaurantId
+    if (rid) swrMutate(DASH_KEY(rid))
+    const t = setTimeout(() => router.replace('/dashboard'), 1200)
+    return () => clearTimeout(t)
+  }, [kickedOut]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // First-ever load with nothing in any cache yet — brief full-screen hold.
   if (order.loading && order.menuLoading) return null
+
+  if (kickedOut) return (
+    <div className="flex items-center justify-center h-screen p-6" style={{ background: 'var(--app-bg, #022658)' }}>
+      <div className="max-w-sm w-full p-5 rounded-2xl bg-amber-500/10 border border-amber-500/25 flex flex-col items-center gap-3 text-center">
+        <AlertCircle className="w-8 h-8 text-amber-400" />
+        <p className="text-sm text-amber-400 font-semibold">{tr.ord_paid_elsewhere}</p>
+      </div>
+    </div>
+  )
 
   if (order.initError) return (
     <div className="flex items-center justify-center h-screen p-6" style={{ background: 'var(--app-bg, #022658)' }}>

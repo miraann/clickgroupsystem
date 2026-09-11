@@ -175,6 +175,7 @@ const en = {
 
   // ── Order Screen ──────────────────────────────────────────────
   ord_failed_open:      'Failed to open order',
+  ord_paid_elsewhere:   'This table was just paid on another device',
   ord_dine_in:          'Dine In',
   ord_takeout:          'Takeout',
   ord_guests:           'guests',

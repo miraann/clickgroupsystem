@@ -56,6 +56,10 @@ export function useOrderState(table: string, guestCount: number) {
   const [editingId, setEditingId]           = useState<string | null>(null)
   const [actionItem, setActionItem]         = useState<DbOrderItem | null>(null)
   const [showPayment, setShowPayment]       = useState(false)
+  // Flips true when this order's status leaves 'active' from a write this tab
+  // didn't make — i.e. another device (or this same table's payment screen on
+  // another device) paid/closed/voided it while this screen was still open.
+  const [orderClosedElsewhere, setOrderClosedElsewhere] = useState(false)
 
   // ── Offline queue state ──────────────────────────────────────
   const [isOnline,    setIsOnline]    = useState(true)
@@ -151,7 +155,8 @@ export function useOrderState(table: string, guestCount: number) {
   useEffect(() => { initRef.current = init }, [init])
   useEffect(() => { init() }, [init])
 
-  // ── Realtime: KDS status updates ─────────────────────────────
+  // ── Realtime: KDS status updates + the order itself being closed out
+  // from under this screen (paid/voided/closed on another device) ───
   useEffect(() => {
     if (!orderId) return
     const channel = supabase
@@ -163,6 +168,12 @@ export function useOrderState(table: string, guestCount: number) {
           setDbItems(prev => prev.map(i =>
             i.id === updated.id ? { ...i, status: updated.status as DbOrderItem['status'] } : i
           ))
+        })
+      .on('postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${orderId}` },
+        (payload) => {
+          const updated = payload.new as { status: string }
+          if (updated.status !== 'active') setOrderClosedElsewhere(true)
         })
       .subscribe()
     return () => { supabase.removeChannel(channel) }
@@ -544,6 +555,7 @@ export function useOrderState(table: string, guestCount: number) {
     editingId, setEditingId,
     actionItem, setActionItem,
     showPayment, setShowPayment,
+    orderClosedElsewhere,
     // offline
     isOnline, queueCount, syncing, syncQueuedOrders,
     // derived

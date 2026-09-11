@@ -13,7 +13,10 @@
 --  /dashboard              → orders (all), order_items (all)
 --  /dashboard/pending-orders → order_items (INSERT, UPDATE)
 --  /dashboard/kds          → order_items (all), orders (all)
---  /dashboard/order/[table]→ order_items (UPDATE, filtered by order_id)
+--  /dashboard/order/[table]→ order_items (UPDATE, filtered by order_id),
+--                             orders (UPDATE, filtered by id) — detects the
+--                             order being paid/closed/voided from another
+--                             device and kicks this screen back to /dashboard
 --  /guest/[tableId]        → order_items (UPDATE + INSERT, filtered by order_id)
 --  /guest/[tableId]        → menu_items (*, filtered by restaurant_id) via useRestaurantMenu
 --  /order/[slug]           → menu_items (*, filtered by restaurant_id) via useRestaurantMenu

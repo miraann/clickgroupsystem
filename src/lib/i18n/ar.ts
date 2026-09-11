@@ -931,6 +931,7 @@ const ar: Record<keyof typeof en, string> = {
 
   // ── Order Screen ─────────────────────────────────────────────
   ord_failed_open:      'فشل فتح الطلب',
+  ord_paid_elsewhere:   'تم دفع هذه الطاولة للتو من جهاز آخر',
   ord_dine_in:          'تناول في المكان',
   ord_takeout:          'طلب خارجي',
   ord_guests:           'ضيوف',
