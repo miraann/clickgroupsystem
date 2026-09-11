@@ -365,31 +365,10 @@ export default function PaymentScreen({ orderId, restaurantId, orderNum: orderNu
       <div className="shrink-0 flex items-center border-b border-white/8 bg-[#080b14]">
         <button
           onClick={onClose}
-          className="w-14 md:w-16 h-14 md:h-16 flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/5 transition-all active:scale-95 touch-manipulation border-r border-white/8 shrink-0"
+          className="w-14 md:w-16 h-14 md:h-16 flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/5 transition-all active:scale-95 touch-manipulation"
         >
           <ArrowLeft className="w-6 h-6" />
         </button>
-        <div className="flex flex-1 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
-          {ACTION_TABS.filter(tab =>
-            tab.id === 'surcharge' ? p('dashboard.surcharge') :
-            tab.id === 'gratuity'  ? p('dashboard.gratuity')  :
-            tab.id === 'discount'  ? p('dashboard.discount')  :
-            tab.id === 'note'      ? p('dashboard.note')      :
-            tab.id === 'split'     ? p('dashboard.split_bill'):
-            tab.id === 'paylater'  ? p('dashboard.pay_later') : true
-          ).map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(activeTab === tab.id ? null : tab.id)}
-              className={cn(
-                'shrink-0 flex-1 min-w-[72px] h-14 md:h-16 text-sm md:text-base font-bold border-r border-white/8 transition-all active:scale-95 touch-manipulation',
-                activeTab === tab.id ? tab.active : tab.inactive
-              )}
-            >
-              {t[tab.labelKey]}
-            </button>
-          ))}
-        </div>
       </div>
 
       {/* ── Body ── */}
@@ -818,6 +797,31 @@ export default function PaymentScreen({ orderId, restaurantId, orderNum: orderNu
               )}
             </div>
           )}
+
+          {/* Action tabs — surcharge/discount/note/split/pay-later */}
+          <div className="flex-1 flex flex-col justify-end overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+            <div className="flex">
+              {ACTION_TABS.filter(tab =>
+                tab.id === 'surcharge' ? p('dashboard.surcharge') :
+                tab.id === 'gratuity'  ? p('dashboard.gratuity')  :
+                tab.id === 'discount'  ? p('dashboard.discount')  :
+                tab.id === 'note'      ? p('dashboard.note')      :
+                tab.id === 'split'     ? p('dashboard.split_bill'):
+                tab.id === 'paylater'  ? p('dashboard.pay_later') : true
+              ).map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(activeTab === tab.id ? null : tab.id)}
+                  className={cn(
+                    'shrink-0 flex-1 min-w-[72px] h-14 md:h-16 text-sm md:text-base font-bold border-t border-r border-white/8 transition-all active:scale-95 touch-manipulation',
+                    activeTab === tab.id ? tab.active : tab.inactive
+                  )}
+                >
+                  {t[tab.labelKey]}
+                </button>
+              ))}
+            </div>
+          </div>
 
         </div>
       </div>
