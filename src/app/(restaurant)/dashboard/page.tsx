@@ -1505,6 +1505,8 @@ export default function TablesPage() {
         })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' },
         () => refresh())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tables' },
+        () => refresh())
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'waiter_calls' },
         (payload) => {
           const row = payload.new as WaiterCall & { restaurant_id?: string }

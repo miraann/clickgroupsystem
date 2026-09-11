@@ -10,7 +10,11 @@
 -- ─────────────────────────────────────────────────────────────────────────────
 -- Pages that use postgres_changes and what they listen to:
 --
---  /dashboard              → orders (all), order_items (all)
+--  /dashboard              → orders (all), order_items (all), tables (all) —
+--                             the tables listener is what keeps a table's
+--                             dirty/available/reserved status in sync live
+--                             across every open dashboard, not just the one
+--                             that made the change
 --  /dashboard/pending-orders → order_items (INSERT, UPDATE)
 --  /dashboard/kds          → order_items (all), orders (all)
 --  /dashboard/order/[table]→ order_items (UPDATE, filtered by order_id),
