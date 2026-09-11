@@ -694,7 +694,7 @@ export default function PaymentScreen({ orderId, restaurantId, orderNum: orderNu
 
           {/* Receipt | Pay  —OR—  Confirm Pay Later */}
           {activeTab === 'paylater' ? (
-            <div className="shrink-0 flex gap-px h-20 bg-white/5">
+            <div className="flex-[3] flex gap-px bg-white/5">
               <button
                 onClick={() => setActiveTab(null)}
                 className="flex-1 bg-transparent hover:bg-white/5 active:bg-white/10 text-white/40 hover:text-white/60 text-xs font-medium transition-all touch-manipulation flex items-center justify-center"
@@ -722,7 +722,7 @@ export default function PaymentScreen({ orderId, restaurantId, orderNum: orderNu
               </button>
             </div>
           ) : (
-            <div className="shrink-0 flex gap-px h-28 bg-white/5">
+            <div className="flex-[3] flex gap-px bg-white/5">
               {p('dashboard.receipt') && (
                 <button
                   onClick={() => { setInvoiceMode('receipt'); setShowInvoice(true) }}
@@ -767,14 +767,14 @@ export default function PaymentScreen({ orderId, restaurantId, orderNum: orderNu
 
           {/* Action buttons row */}
           {(p('dashboard.drawer') || p('dashboard.member') || p('dashboard.customer')) && (
-            <div className="shrink-0 flex gap-px bg-white/5 border-t border-white/8">
+            <div className="flex-[2] flex gap-px bg-white/5 border-t border-white/8">
               {p('dashboard.drawer') && (
-                <button className="flex-1 h-12 bg-rose-600 hover:bg-rose-500 text-white text-sm font-medium flex items-center justify-center gap-2 transition-all active:scale-95 touch-manipulation">
+                <button className="flex-1 bg-rose-600 hover:bg-rose-500 text-white text-sm font-medium flex items-center justify-center gap-2 transition-all active:scale-95 touch-manipulation">
                   {t.pay_drawer}
                 </button>
               )}
               {p('dashboard.member') && (
-                <button onClick={() => setShowMemberPicker(true)} className="flex-1 h-12 bg-amber-600 hover:bg-amber-500 text-white text-sm font-medium flex items-center justify-center gap-2 transition-all active:scale-95 touch-manipulation px-2 overflow-hidden">
+                <button onClick={() => setShowMemberPicker(true)} className="flex-1 bg-amber-600 hover:bg-amber-500 text-white text-sm font-medium flex items-center justify-center gap-2 transition-all active:scale-95 touch-manipulation px-2 overflow-hidden">
                   <Star className="w-4 h-4 shrink-0" />
                   <span className="truncate">{selectedMember ? selectedMember.name : t.pay_member}</span>
                   {selectedMember && (
@@ -785,7 +785,7 @@ export default function PaymentScreen({ orderId, restaurantId, orderNum: orderNu
                 </button>
               )}
               {p('dashboard.customer') && (
-                <button onClick={() => setShowCustomerPicker(true)} className="flex-1 h-12 bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium flex items-center justify-center gap-2 transition-all active:scale-95 touch-manipulation px-2 overflow-hidden">
+                <button onClick={() => setShowCustomerPicker(true)} className="flex-1 bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium flex items-center justify-center gap-2 transition-all active:scale-95 touch-manipulation px-2 overflow-hidden">
                   <Users className="w-4 h-4 shrink-0" />
                   <span className="truncate">{selectedCustomer ? selectedCustomer.name : t.pay_customer}</span>
                   {selectedCustomer && (
@@ -799,7 +799,7 @@ export default function PaymentScreen({ orderId, restaurantId, orderNum: orderNu
           )}
 
           {/* Action tabs — surcharge/discount/note/split/pay-later */}
-          <div className="shrink-0 flex overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+          <div className="flex-[2] flex overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
             {ACTION_TABS.filter(tab =>
               tab.id === 'surcharge' ? p('dashboard.surcharge') :
               tab.id === 'gratuity'  ? p('dashboard.gratuity')  :
@@ -812,7 +812,7 @@ export default function PaymentScreen({ orderId, restaurantId, orderNum: orderNu
                 key={tab.id}
                 onClick={() => setActiveTab(activeTab === tab.id ? null : tab.id)}
                 className={cn(
-                  'shrink-0 flex-1 min-w-[72px] h-14 md:h-16 text-sm md:text-base font-bold border-t border-r border-white/8 transition-all active:scale-95 touch-manipulation',
+                  'shrink-0 flex-1 min-w-[72px] text-sm md:text-base font-bold border-t border-r border-white/8 transition-all active:scale-95 touch-manipulation',
                   activeTab === tab.id ? tab.active : tab.inactive
                 )}
               >
