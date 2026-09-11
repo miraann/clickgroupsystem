@@ -1,8 +1,7 @@
 // Shared ESC/POS raster-bitmap primitives — used for the logo/QR bitmaps and
 // for rendering whole lines of text to an image (see kurdishRender.ts) on
 // printers whose font ROM can't render a given script.
-import sharp from 'sharp'
-import { readFileSync } from 'fs'
+import { GlobalFonts } from '@napi-rs/canvas'
 import { join } from 'path'
 
 // ESC/POS GS v 0 raster bitmap command wrapper.
@@ -20,13 +19,30 @@ export function gsv0(pixels: Uint8Array, widthPx: number, heightPx: number): Uin
 }
 
 // Packs a 1-byte-per-pixel greyscale buffer into 1-bit-per-pixel MSB-first
-// rows, as GS v 0 expects.
+// rows, as GS v 0 expects. Used for the logo bitmap (sharp raw greyscale output).
 export function packMonochrome(data: Buffer | Uint8Array, widthPx: number, heightPx: number, threshold = 128): Uint8Array {
   const bytesPerRow = Math.ceil(widthPx / 8)
   const packed = new Uint8Array(bytesPerRow * heightPx)
   for (let y = 0; y < heightPx; y++) {
     for (let x = 0; x < widthPx; x++) {
       if (data[y * widthPx + x] < threshold) {
+        packed[y * bytesPerRow + Math.floor(x / 8)] |= 0x80 >> (x % 8)
+      }
+    }
+  }
+  return packed
+}
+
+// Same, but for a 4-byte-per-pixel RGBA buffer (canvas getImageData output) —
+// used for the Kurdish text bitmap. Text is drawn pure black on white, so the
+// red channel alone is a valid greyscale proxy.
+export function packMonochromeRgba(data: Uint8ClampedArray | Uint8Array, widthPx: number, heightPx: number, threshold = 128): Uint8Array {
+  const bytesPerRow = Math.ceil(widthPx / 8)
+  const packed = new Uint8Array(bytesPerRow * heightPx)
+  for (let y = 0; y < heightPx; y++) {
+    for (let x = 0; x < widthPx; x++) {
+      const i = (y * widthPx + x) * 4
+      if (data[i] < threshold) {
         packed[y * bytesPerRow + Math.floor(x / 8)] |= 0x80 >> (x % 8)
       }
     }
@@ -52,38 +68,19 @@ export function printableWidthPx(paperWidthMm: number): number {
 // include, and most have no Arabic font ROM at all — so text bytes print as
 // replacement garbage. Noto Naskh Arabic covers the full Kurdish letter set
 // (and Latin/digits for dates, prices, invoice numbers, …), so lines that need
-// it are rendered to a bitmap server-side and printed as an image instead —
-// that works on any ESC/POS printer regardless of firmware font support.
-const FONTS_DIR = join(__dirname, 'fonts')
-let regularFontB64: string | null = null
-let boldFontB64:    string | null = null
+// it are rendered to a bitmap server-side (via @napi-rs/canvas, which bundles
+// its own text-shaping engine and doesn't depend on the OS/container having
+// fontconfig or Arabic fonts installed — unlike SVG-via-librsvg, whose
+// embedded-font support varies by platform and isn't guaranteed on every
+// serverless runtime) and printed as an image instead — that works on any
+// ESC/POS printer regardless of firmware font support.
+export const KU_FONT_FAMILY = 'KuReceipt'
 
-function loadFontBase64(weight: 'regular' | 'bold'): string {
-  if (weight === 'bold') {
-    if (!boldFontB64) boldFontB64 = readFileSync(join(FONTS_DIR, 'NotoNaskhArabic-Bold.ttf')).toString('base64')
-    return boldFontB64
-  }
-  if (!regularFontB64) regularFontB64 = readFileSync(join(FONTS_DIR, 'NotoNaskhArabic-Regular.ttf')).toString('base64')
-  return regularFontB64
-}
-
-// Two @font-face rules (400 + 700) embedded as data URIs, keyed to fontFamily.
-export function kurdishFontFaceCss(fontFamily: string): string {
-  return `
-    @font-face { font-family: '${fontFamily}'; font-weight: 400; src: url(data:font/truetype;base64,${loadFontBase64('regular')}) format('truetype'); }
-    @font-face { font-family: '${fontFamily}'; font-weight: 700; src: url(data:font/truetype;base64,${loadFontBase64('bold')}) format('truetype'); }
-  `
-}
-
-// Rasterizes an SVG string (rendered at exactly widthPx × heightPx) to a
-// packed 1-bit GS v 0 bitmap.
-export async function renderSvgToBitmap(svg: string, widthPx: number, heightPx: number): Promise<Uint8Array> {
-  const { data } = await sharp(Buffer.from(svg))
-    .resize(widthPx, heightPx, { fit: 'fill' })
-    .greyscale()
-    .threshold(128)
-    .raw()
-    .toBuffer({ resolveWithObject: true })
-  const packed = packMonochrome(data, widthPx, heightPx)
-  return gsv0(packed, widthPx, heightPx)
+let fontsRegistered = false
+export function ensureKurdishFontsRegistered(): void {
+  if (fontsRegistered) return
+  const fontsDir = join(__dirname, 'fonts')
+  GlobalFonts.registerFromPath(join(fontsDir, 'NotoNaskhArabic-Regular.ttf'), KU_FONT_FAMILY)
+  GlobalFonts.registerFromPath(join(fontsDir, 'NotoNaskhArabic-Bold.ttf'),    KU_FONT_FAMILY)
+  fontsRegistered = true
 }

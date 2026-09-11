@@ -16,6 +16,11 @@ const nextConfig: NextConfig = {
   env: {
     NEXT_PUBLIC_APP_VERSION: APP_VERSION,
   },
+  // @napi-rs/canvas ships a native .node addon (used to raster Kurdish
+  // receipt text — see src/lib/escpos/kurdishRender.ts) that neither
+  // Turbopack nor webpack can bundle; this tells Next to require() it
+  // directly from node_modules at runtime instead of trying to bundle it.
+  serverExternalPackages: ['@napi-rs/canvas'],
   // Disable Turbopack for dev — avoids the Windows Rust resolver
   // "Next.js package not found" HMR bug in Next.js 15-16 on Windows.
   // Re-enable once the upstream Turbopack path-resolution bug is patched.
