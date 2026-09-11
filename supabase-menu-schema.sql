@@ -250,6 +250,7 @@ alter table public.receipt_settings disable row level security;
 create table if not exists public.invoices (
   id uuid default gen_random_uuid() primary key,
   restaurant_id uuid references public.restaurants(id) on delete cascade not null,
+  order_id uuid references public.orders(id) on delete set null,
   invoice_num text not null,
   order_num text,
   table_num text,
@@ -266,6 +267,7 @@ create table if not exists public.invoices (
 );
 create index if not exists idx_invoices_restaurant on public.invoices(restaurant_id);
 create index if not exists idx_invoices_created_at on public.invoices(created_at);
+create index if not exists idx_invoices_order_id on public.invoices(order_id);
 alter table public.invoices disable row level security;
 -- ============================================================
 -- Currencies

@@ -156,7 +156,14 @@ export async function POST(req: NextRequest) {
     const invoiceNum = `${invPrefix}${invNum}`
 
     // ── 3. Mark the order paid — the one write that must succeed ──────────────
-    const { error: orderErr } = await supabase
+    // Guarded on status = 'active' so this UPDATE only ever flips the row once:
+    // if two devices confirm payment on the same order at the same moment, only
+    // one of these atomic UPDATEs actually matches a row (Postgres serialises
+    // them on the row lock). The loser gets 0 rows back below and must NOT run
+    // the invoice insert / inventory deduction / invoice-number bump again —
+    // that used to double revenue in reports, print two receipts, and deduct
+    // inventory twice for one sale.
+    const { data: updatedOrder, error: orderErr } = await supabase
       .from('orders')
       .update({
         status:         'paid',
@@ -168,8 +175,51 @@ export async function POST(req: NextRequest) {
         updated_at:     now,
       })
       .eq('id', body.orderId)
+      .eq('status', 'active')
+      .select('id')
 
     if (orderErr) return serverError(orderErr)
+
+    if (!updatedOrder || updatedOrder.length === 0) {
+      // Lost the race — another request already paid this order. Wait for its
+      // invoice row to show up (it's inserted right after its own order update
+      // commits, so this is normally instant) and hand back the same receipt
+      // instead of creating a duplicate.
+      let existingInvoice: Record<string, unknown> | null = null
+      for (let attempt = 0; attempt < 10 && !existingInvoice; attempt++) {
+        if (attempt > 0) await new Promise(r => setTimeout(r, 300))
+        const { data } = await supabase
+          .from('invoices')
+          .select('invoice_num, order_num, total, amount_paid, change_amount, payment_method, cashier')
+          .eq('restaurant_id', body.restaurantId)
+          .eq('order_id', body.orderId)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+        existingInvoice = data
+      }
+
+      if (!existingInvoice) {
+        return NextResponse.json(
+          { ok: false, error: 'This order was just paid on another device. Refresh to see the receipt.' },
+          { status: 409 },
+        )
+      }
+
+      return NextResponse.json({
+        ok:                true,
+        finalTotal:        existingInvoice.total,
+        subtotal,
+        discountAmount,
+        surchargeAmount,
+        invoiceNum:        existingInvoice.invoice_num,
+        orderNum:          existingInvoice.order_num,
+        amountPaid:        existingInvoice.amount_paid,
+        changeAmount:      existingInvoice.change_amount,
+        paymentMethodName: existingInvoice.payment_method,
+        cashier:           existingInvoice.cashier,
+      })
+    }
 
     // ── 4. Side effects — best-effort, fired together ────────────────────────
     // Inventory deduction still runs *after* the order is 'paid' (its RPC may
@@ -183,6 +233,7 @@ export async function POST(req: NextRequest) {
 
     const invoicePayload = {
       restaurant_id:  body.restaurantId,
+      order_id:       body.orderId,
       invoice_num:    invoiceNum,
       order_num:      orderNum,
       table_num:      body.tableNum,
@@ -244,6 +295,7 @@ export async function POST(req: NextRequest) {
       // Retry without optional customer fields in case the column doesn't exist yet
       const { error: invErr2 } = await supabase.from('invoices').insert({
         restaurant_id:  body.restaurantId,
+        order_id:       body.orderId,
         invoice_num:    invoiceNum,
         order_num:      orderNum,
         table_num:      body.tableNum,
