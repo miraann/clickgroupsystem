@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { buildReceiptBytes, ReceiptPayload } from '@/lib/escpos'
 import { pickPrinter } from '@/lib/printerPurpose'
+import { gsv0, packMonochrome } from '@/lib/escpos/raster'
 import sharp from 'sharp'
 import QRCode from 'qrcode'
 import { requireRestaurantId } from '@/lib/supabase/api-guard'
@@ -18,20 +19,6 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
   { auth: { persistSession: false } }
 )
-
-// ESC/POS GS v 0 raster bitmap
-function gsv0(pixels: Uint8Array, widthPx: number, heightPx: number): Uint8Array {
-  const bytesPerRow = Math.ceil(widthPx / 8)
-  const header = new Uint8Array([
-    0x1d, 0x76, 0x30, 0x00,
-    bytesPerRow & 0xff, (bytesPerRow >> 8) & 0xff,
-    heightPx   & 0xff, (heightPx   >> 8) & 0xff,
-  ])
-  const out = new Uint8Array(header.length + pixels.length)
-  out.set(header, 0)
-  out.set(pixels, header.length)
-  return out
-}
 
 async function makeLogoBitmap(logoUrl: string, paperWidthMm: number): Promise<Uint8Array | null> {
   try {
@@ -50,16 +37,7 @@ async function makeLogoBitmap(logoUrl: string, paperWidthMm: number): Promise<Ui
       .raw()
       .toBuffer({ resolveWithObject: true })
     const W = info.width, H = info.height
-    const bytesPerRow = Math.ceil(W / 8)
-    const packed = new Uint8Array(bytesPerRow * H)
-    for (let y = 0; y < H; y++) {
-      for (let x = 0; x < W; x++) {
-        if (data[y * W + x] < 128) {
-          packed[y * bytesPerRow + Math.floor(x / 8)] |= 0x80 >> (x % 8)
-        }
-      }
-    }
-    return gsv0(packed, W, H)
+    return gsv0(packMonochrome(data, W, H), W, H)
   } catch {
     return null
   }
@@ -175,10 +153,9 @@ export async function POST(req: NextRequest) {
       // out of sync whenever the restaurant's default currency changes.
       currencySymbol: (currency?.symbol as string | undefined) || (rsAny?.currency_symbol as string) || '',
       poweredBy:      (rsAny?.phone          as string | null) ?? null,
-      // Thermal receipts are English-only for now — most printers have no Arabic
-      // font ROM, so Kurdish glyphs print as replacement garbage. The `language`
-      // setting still drives the on-screen / browser receipt.
-      language:       'en',
+      // Kurdish receipts are raster-rendered (buildKurdishReceiptBytes) so they
+      // print correctly even without an Arabic font ROM — see raster.ts.
+      language:       (rsAny?.language as string) === 'en' ? 'en' : 'ku',
       paperWidth,
       tableNum:       body.tableNum,
       guests:         body.guests,
@@ -202,7 +179,7 @@ export async function POST(req: NextRequest) {
       qrBitmap,
     }
 
-    const bytes = buildReceiptBytes(payload)
+    const bytes = await buildReceiptBytes(payload)
 
     // Return bytes to client — printing happens browser-side via WebUSB
     return NextResponse.json({

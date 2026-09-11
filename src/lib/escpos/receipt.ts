@@ -1,6 +1,6 @@
 import { escpos, cols, enc, divBytes, rowBytes, threeColBytes, concat } from './commands'
-import { KU, kuTableLabel } from './kurdish'
 import { toAscii, enPaymentMethod, enCurrencySymbol } from './translate'
+import { buildKurdishReceiptBytes } from './kurdishReceipt'
 
 export interface ReceiptPayload {
   restaurantName: string
@@ -33,49 +33,48 @@ export interface ReceiptPayload {
   qrBitmap?:      Uint8Array | null
 }
 
-export function buildReceiptBytes(d: ReceiptPayload): Uint8Array {
-  const W      = cols(d.paperWidth)
-  const isKu   = (d.language ?? 'ku') === 'ku'
+export async function buildReceiptBytes(d: ReceiptPayload): Promise<Uint8Array> {
+  const isKu = (d.language ?? 'ku') === 'ku'
+
+  // Kurdish (Sorani) needs the Arabic script plus letters most printers'
+  // Arabic codepage doesn't cover — raster-render it instead of sending text
+  // bytes. See kurdishReceipt.ts / raster.ts for why.
+  if (isKu) return buildKurdishReceiptBytes(d)
+
+  const W = cols(d.paperWidth)
 
   // English receipts: force every dynamic value to printable ASCII (translating
   // the common Kurdish/Arabic terms first) so a printer without an Arabic font
-  // ROM never emits replacement garbage. Kurdish receipts are left untouched.
-  const tx        = (s?: string | null): string => (isKu ? (s ?? '') : toAscii(s))
-  const currency  = isKu ? d.currencySymbol : enCurrencySymbol(d.currencySymbol)
-  const payMethod = isKu ? d.paymentMethod  : enPaymentMethod(d.paymentMethod, d.paymentMethodType)
+  // ROM never emits replacement garbage.
+  const tx        = (s?: string | null): string => toAscii(s)
+  const currency  = enCurrencySymbol(d.currencySymbol)
+  const payMethod = enPaymentMethod(d.paymentMethod, d.paymentMethodType)
 
-  const fmt    = (n: number) => `${n.toLocaleString('en-US')}${currency ? ' ' + currency : ''}`
-  const div    = (ch = '-') => divBytes(W, ch)
-
-  // In Kurdish mode: swap columns so label is on right, value on left (RTL reading order)
-  const row = (label: string, value: string) =>
-    isKu ? rowBytes(value, label, W) : rowBytes(label, value, W)
+  const fmt = (n: number) => `${n.toLocaleString('en-US')}${currency ? ' ' + currency : ''}`
+  const div = (ch = '-') => divBytes(W, ch)
+  const row = (label: string, value: string) => rowBytes(label, value, W)
 
   const L = {
-    invoiceNo:      isKu ? KU.invoiceNo      : 'Invoice No.',
-    cashier:        isKu ? KU.cashier        : 'Cashier',
-    employee:       isKu ? KU.employee       : 'Employee',
-    paymentMethod:  isKu ? KU.paymentMethod  : 'Payment Method',
-    item:           isKu ? KU.item           : 'Item',
-    qty:            isKu ? KU.qty            : 'Qty',
-    price:          isKu ? KU.price          : 'Price',
-    subtotal:       isKu ? KU.subtotal       : 'Subtotal',
-    discount:       isKu ? KU.discount       : 'Discount',
-    surcharge:      isKu ? KU.surcharge      : 'Surcharge',
-    total:          isKu ? KU.total          : 'Total',
-    totalAmount:    isKu ? KU.totalAmount    : 'Total Amount',
-    amountTendered: isKu ? KU.amountTendered : 'Amount Tendered',
-    change:         isKu ? KU.change         : 'Change',
-    paid:           isKu ? KU.paid           : '*** PAID ***',
-    yourFeedback:   isKu ? KU.yourFeedback   : 'YOUR FEEDBACK',
-    nameLine:       isKu ? KU.name           : 'NAME:',
-    phoneLine:      isKu ? KU.phoneEmail     : 'PHONE / EMAIL:',
-    feedbackLine:   isKu ? KU.feedback       : 'FEEDBACK:',
+    invoiceNo:      'Invoice No.',
+    cashier:        'Cashier',
+    employee:       'Employee',
+    paymentMethod:  'Payment Method',
+    item:           'Item',
+    qty:            'Qty',
+    price:          'Price',
+    subtotal:       'Subtotal',
+    discount:       'Discount',
+    surcharge:      'Surcharge',
+    total:          'Total',
+    totalAmount:    'Total Amount',
+    paid:           '*** PAID ***',
+    yourFeedback:   'YOUR FEEDBACK',
+    nameLine:       'NAME:',
+    phoneLine:      'PHONE / EMAIL:',
+    feedbackLine:   'FEEDBACK:',
   }
 
-  const tableLabel = isKu
-    ? kuTableLabel(d.tableNum, d.guests)
-    : d.guests ? `Table ${tx(d.tableNum)} - ${d.guests} guests` : `Table ${tx(d.tableNum)}`
+  const tableLabel = d.guests ? `Table ${tx(d.tableNum)} - ${d.guests} guests` : `Table ${tx(d.tableNum)}`
 
   const parts: Uint8Array[] = [
     escpos.init(),
@@ -114,16 +113,12 @@ export function buildReceiptBytes(d: ReceiptPayload): Uint8Array {
     div(),
 
     // ── Items header ──────────────────────────────────────
-    isKu
-      ? threeColBytes(L.price, L.qty, L.item, W)
-      : threeColBytes(L.item,  L.qty, L.price, W),
+    threeColBytes(L.item, L.qty, L.price, W),
     div(),
 
     // ── Items ─────────────────────────────────────────────
     ...d.items.map(item =>
-      isKu
-        ? threeColBytes(fmt(item.price * item.qty), String(item.qty), item.name, W)
-        : threeColBytes(tx(item.name), String(item.qty), fmt(item.price * item.qty), W)
+      threeColBytes(tx(item.name), String(item.qty), fmt(item.price * item.qty), W)
     ),
     div(),
 
@@ -193,7 +188,7 @@ export function buildReceiptBytes(d: ReceiptPayload): Uint8Array {
   if (d.mode !== 'payment') {
     parts.push(
       escpos.alignCenter(),
-      enc('\n' + (tx(d.thankYouMsg) || (isKu ? d.thankYouMsg : 'Thank you for your visit!')) + '\n'),
+      enc('\n' + (tx(d.thankYouMsg) || 'Thank you for your visit!') + '\n'),
       enc(d.poweredBy
         ? `Powered by ClickGroup - ${tx(d.poweredBy)}\n`
         : 'Powered by ClickGroup\n'),
