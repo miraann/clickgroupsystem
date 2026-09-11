@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { ArrowLeft, Users, Printer, Loader2, Check, Delete, X, CreditCard, Star, MessageCircle } from 'lucide-react'
+import { ArrowLeft, Users, Printer, Loader2, Check, X, CreditCard, Star, MessageCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import InvoiceModal from './invoice-modal'
@@ -45,8 +45,6 @@ const ACTION_TABS: { id: ActionTab; labelKey: 'pay_tab_surcharge' | 'pay_tab_gra
   { id: 'split',     labelKey: 'pay_tab_split',     inactive: 'text-emerald-400/80 bg-emerald-500/15 hover:bg-emerald-500/25',active: 'text-white bg-emerald-500'},
   { id: 'paylater',  labelKey: 'pay_tab_paylater',  inactive: 'text-rose-400/80    bg-rose-500/15    hover:bg-rose-500/25',   active: 'text-white bg-rose-500'   },
 ]
-
-const NUMPAD = ['7','8','9','4','5','6','1','2','3','0','00','.']
 
 export default function PaymentScreen({ orderId, restaurantId, orderNum: orderNumProp, tableNum, guests, items, total, onClose, onPaid }: Props) {
   const { can, isOwner, isPinStaff, staffName, roleName } = usePermissions()
@@ -148,15 +146,8 @@ export default function PaymentScreen({ orderId, restaurantId, orderNum: orderNu
   const change      = Math.max(0, enteredNum - finalTotal)
   const shortfall   = Math.max(0, finalTotal - enteredNum)
 
-  const press = (key: string) => {
-    if (key === '⌫') { setEntered(v => v.slice(0, -1)); return }
-    if (key === 'C')  { setEntered(''); return }
-    if (key === 'Exact') { setEntered(finalTotal.toFixed(decimalPlaces)); return }
-    if (key === '.' && entered.includes('.')) return
-    const dotIdx = entered.indexOf('.')
-    if (dotIdx !== -1 && entered.length - dotIdx > 2) return
-    setEntered(v => v + key)
-  }
+  const setExact = () => setEntered(finalTotal.toFixed(decimalPlaces))
+  const clearEntered = () => setEntered('')
 
   const [payError, setPayError] = useState<string | null>(null)
 
@@ -689,7 +680,7 @@ export default function PaymentScreen({ orderId, restaurantId, orderNum: orderNu
           )}
 
           {/* Amount display */}
-          <div className="shrink-0 flex items-center justify-between px-4 md:px-6 py-3 md:py-4 border-b border-white/8">
+          <div className="flex-1 flex items-center justify-between px-4 md:px-6 py-3 md:py-4">
             <div>
               {entered ? (
                 <p className="text-3xl font-bold text-white tabular-nums">{cur}{entered}</p>
@@ -708,13 +699,13 @@ export default function PaymentScreen({ orderId, restaurantId, orderNum: orderNu
             </div>
             <div className="flex gap-2">
               <button
-                onClick={() => press('Exact')}
+                onClick={setExact}
                 className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-white/40 hover:bg-white/10 hover:text-white/60 transition-all active:scale-95 touch-manipulation"
               >
                 {t.pay_exact}
               </button>
               <button
-                onClick={() => press('C')}
+                onClick={clearEntered}
                 className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-rose-400/50 hover:bg-rose-500/10 hover:text-rose-400 transition-all active:scale-95 touch-manipulation"
               >
                 {t.clear}
@@ -722,20 +713,7 @@ export default function PaymentScreen({ orderId, restaurantId, orderNum: orderNu
             </div>
           </div>
 
-          {/* Numpad */}
-          <div className="flex-1 grid grid-cols-3 gap-px bg-white/5 overflow-hidden" dir="ltr">
-            {NUMPAD.map(key => (
-              <button
-                key={key}
-                onClick={() => press(key)}
-                className="bg-transparent hover:bg-white/5 active:bg-white/10 active:scale-95 text-xl font-semibold text-white/70 transition-all touch-manipulation flex items-center justify-center"
-              >
-                {key}
-              </button>
-            ))}
-          </div>
-
-          {/* Backspace | Receipt | Pay  —OR—  Confirm Pay Later */}
+          {/* Receipt | Pay  —OR—  Confirm Pay Later */}
           {activeTab === 'paylater' ? (
             <div className="shrink-0 flex gap-px h-20 bg-white/5">
               <button
@@ -766,12 +744,6 @@ export default function PaymentScreen({ orderId, restaurantId, orderNum: orderNu
             </div>
           ) : (
             <div className="shrink-0 flex gap-px h-20 bg-white/5">
-              <button
-                onClick={() => press('⌫')}
-                className="flex-1 bg-transparent hover:bg-white/5 active:bg-white/10 text-white/40 hover:text-rose-400 transition-all touch-manipulation flex items-center justify-center"
-              >
-                <Delete className="w-5 h-5" />
-              </button>
               {p('dashboard.receipt') && (
                 <button
                   onClick={() => { setInvoiceMode('receipt'); setShowInvoice(true) }}
