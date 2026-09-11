@@ -20,6 +20,7 @@ export async function buildKurdishReceiptBytes(d: ReceiptPayload): Promise<Uint8
 
     { t: 'row', first: d.dateStr,  second: KU.invoiceNo },
     { t: 'row', first: d.timeStr,  second: d.invoiceNum },
+    { t: 'row', first: KU.employee, second: d.cashier },
     { t: 'rule' },
 
     { t: 'right', text: tableLabel },

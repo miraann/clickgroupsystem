@@ -29,7 +29,14 @@ async function makeLogoBitmap(logoUrl: string, paperWidthMm: number): Promise<Ui
     const maxHeightPx = 180
     const res = await fetch(logoUrl, { signal: AbortSignal.timeout(6000) })
     if (!res.ok) return null
-    const buf = Buffer.from(await res.arrayBuffer())
+    let buf: Buffer = Buffer.from(await res.arrayBuffer())
+    // Many uploaded logo files carry asymmetric transparent/white padding
+    // baked into the canvas around the actual mark — centering the raw file
+    // then just re-centers that padding, so the visible logo still looks
+    // off-center on paper. Trim it down to the real content first.
+    try {
+      buf = await sharp(buf).trim().toBuffer()
+    } catch { /* uniform image or trim not applicable — use as-is */ }
     const resized = await sharp(buf)
       .resize(maxWidthPx, maxHeightPx, { fit: 'inside', withoutEnlargement: true })
       .greyscale()
