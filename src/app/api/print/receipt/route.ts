@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { buildReceiptBytes, ReceiptPayload } from '@/lib/escpos'
 import { pickPrinter } from '@/lib/printerPurpose'
-import { gsv0, packMonochrome } from '@/lib/escpos/raster'
+import { gsv0, packMonochrome, printableWidthPx } from '@/lib/escpos/raster'
 import sharp from 'sharp'
 import QRCode from 'qrcode'
 import { requireRestaurantId } from '@/lib/supabase/api-guard'
@@ -30,14 +30,27 @@ async function makeLogoBitmap(logoUrl: string, paperWidthMm: number): Promise<Ui
     const res = await fetch(logoUrl, { signal: AbortSignal.timeout(6000) })
     if (!res.ok) return null
     const buf = Buffer.from(await res.arrayBuffer())
-    const { data, info } = await sharp(buf)
+    const resized = await sharp(buf)
       .resize(maxWidthPx, maxHeightPx, { fit: 'inside', withoutEnlargement: true })
       .greyscale()
       .threshold(128)
+      .toBuffer()
+    const { width: logoW, height: logoH } = await sharp(resized).metadata()
+
+    // Bake the centering into the bitmap itself instead of relying on
+    // ESC/POS align-center: many printers ignore justification commands for
+    // GS v 0 raster images and just print them flush against the left margin.
+    const canvasW = printableWidthPx(paperWidthMm)
+    const offsetX = Math.max(0, Math.floor((canvasW - (logoW ?? canvasW)) / 2))
+    const { data, info } = await sharp({
+      create: { width: canvasW, height: logoH ?? maxHeightPx, channels: 3, background: '#ffffff' },
+    })
+      .composite([{ input: resized, left: offsetX, top: 0 }])
+      .greyscale()
       .raw()
       .toBuffer({ resolveWithObject: true })
-    const W = info.width, H = info.height
-    return gsv0(packMonochrome(data, W, H), W, H)
+
+    return gsv0(packMonochrome(data, info.width, info.height), info.width, info.height)
   } catch {
     return null
   }

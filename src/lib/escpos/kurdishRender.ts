@@ -7,7 +7,7 @@ import { gsv0, packMonochromeRgba, ensureKurdishFontsRegistered, KU_FONT_FAMILY 
 
 export type KuLine =
   | { t: 'center'; text: string; size?: 'normal' | 'wide' | 'tall' }
-  | { t: 'left';   text: string }
+  | { t: 'right';  text: string }
   // Two independently-anchored strings on one line — `first` sits at the
   // right edge, `second` at the left, mirroring the RTL column swap that
   // receipt.ts's row() helper used to do with monospace text.
@@ -72,9 +72,9 @@ function layout(measureCtx: SKRSContext2D, lines: KuLine[], widthPx: number): { 
         ops.push({ kind: 'text', x: widthPx / 2, y: y - lh * 0.28, text: line.text, align: 'center', fontPx })
         break
       }
-      case 'left': {
+      case 'right': {
         y += ROW_LINE
-        ops.push({ kind: 'text', x: PAD, y: y - ROW_LINE * 0.28, text: line.text, align: 'left', fontPx: ROW_FONT })
+        ops.push({ kind: 'text', x: widthPx - PAD, y: y - ROW_LINE * 0.28, text: line.text, align: 'right', fontPx: ROW_FONT })
         break
       }
       case 'row': {

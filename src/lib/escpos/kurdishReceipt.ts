@@ -20,11 +20,9 @@ export async function buildKurdishReceiptBytes(d: ReceiptPayload): Promise<Uint8
 
     { t: 'row', first: d.dateStr,  second: KU.invoiceNo },
     { t: 'row', first: d.timeStr,  second: d.invoiceNum },
-    { t: 'row', first: KU.cashier, second: KU.employee },
-    { t: 'row', first: d.cashier,  second: d.cashier },
     { t: 'rule' },
 
-    { t: 'row', first: tableLabel, second: d.orderNum },
+    { t: 'right', text: tableLabel },
     { t: 'rule' },
 
     { t: 'center', text: KU.paymentMethod },
@@ -65,12 +63,13 @@ export async function buildKurdishReceiptBytes(d: ReceiptPayload): Promise<Uint8
   if (d.mode !== 'payment') {
     bodyB.push(
       { t: 'center', text: KU.yourFeedback },
+      { t: 'blank' },
       { t: 'rule' },
-      { t: 'left', text: KU.name },
+      { t: 'right', text: KU.name },
       { t: 'underline' },
-      { t: 'left', text: KU.phoneEmail },
+      { t: 'right', text: KU.phoneEmail },
       { t: 'underline' },
-      { t: 'left', text: KU.feedback },
+      { t: 'right', text: KU.feedback },
       { t: 'underline' },
       { t: 'underline' },
       { t: 'underline' },

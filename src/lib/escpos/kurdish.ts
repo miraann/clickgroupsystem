@@ -25,5 +25,5 @@ export const KU = {
 }
 
 export function kuTableLabel(tableNum: string, guests?: number): string {
-  return guests ? `${tableNum} مێز · ${guests} کۆمەڵ` : `${tableNum} مێز`
+  return guests ? `${tableNum} مێز · ${guests} کەس` : `${tableNum} مێز`
 }
