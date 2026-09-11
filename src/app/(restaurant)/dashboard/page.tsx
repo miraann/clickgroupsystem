@@ -1539,8 +1539,12 @@ export default function TablesPage() {
   // Tables come straight from SWR — status already computed in the hook
   const tables = (swrData?.tables ?? []) as Table[]
 
-  const openOrder = (table: Table, guests?: number) => {
-    router.push(`/dashboard/order/${table.number}${guests ? `?guests=${guests}` : ''}`)
+  const openOrder = (table: Table, opts?: { guests?: number; screen?: 'payment' }) => {
+    const params = new URLSearchParams()
+    if (opts?.guests) params.set('guests', String(opts.guests))
+    if (opts?.screen) params.set('screen', opts.screen)
+    const qs = params.toString()
+    router.push(`/dashboard/order/${table.number}${qs ? `?${qs}` : ''}`)
   }
 
   const filtered = tables.filter(t =>
@@ -2149,7 +2153,7 @@ export default function TablesPage() {
       {guestTable && (
         <GuestNumpad
           table={guestTable}
-          onConfirm={guests => { setGuestTable(null); openOrder(guestTable, guests) }}
+          onConfirm={guests => { setGuestTable(null); openOrder(guestTable, { guests }) }}
           onClose={() => setGuestTable(null)}
         />
       )}
@@ -2323,7 +2327,7 @@ export default function TablesPage() {
                     <ChevronRight className="w-5 h-5" />
                   </button>
                   <button
-                    onClick={() => openOrder(selectedTable)}
+                    onClick={() => openOrder(selectedTable, { screen: 'payment' })}
                     className="h-14 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-base font-medium flex items-center justify-center gap-2 active:scale-95 transition-all touch-manipulation">
                     <DollarSign className="w-5 h-5" />
                     {tr.td_pay_bill}
