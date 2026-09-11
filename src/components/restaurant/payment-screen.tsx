@@ -799,28 +799,26 @@ export default function PaymentScreen({ orderId, restaurantId, orderNum: orderNu
           )}
 
           {/* Action tabs — surcharge/discount/note/split/pay-later */}
-          <div className="flex-1 flex flex-col justify-end overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
-            <div className="flex">
-              {ACTION_TABS.filter(tab =>
-                tab.id === 'surcharge' ? p('dashboard.surcharge') :
-                tab.id === 'gratuity'  ? p('dashboard.gratuity')  :
-                tab.id === 'discount'  ? p('dashboard.discount')  :
-                tab.id === 'note'      ? p('dashboard.note')      :
-                tab.id === 'split'     ? p('dashboard.split_bill'):
-                tab.id === 'paylater'  ? p('dashboard.pay_later') : true
-              ).map(tab => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(activeTab === tab.id ? null : tab.id)}
-                  className={cn(
-                    'shrink-0 flex-1 min-w-[72px] h-14 md:h-16 text-sm md:text-base font-bold border-t border-r border-white/8 transition-all active:scale-95 touch-manipulation',
-                    activeTab === tab.id ? tab.active : tab.inactive
-                  )}
-                >
-                  {t[tab.labelKey]}
-                </button>
-              ))}
-            </div>
+          <div className="shrink-0 flex overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+            {ACTION_TABS.filter(tab =>
+              tab.id === 'surcharge' ? p('dashboard.surcharge') :
+              tab.id === 'gratuity'  ? p('dashboard.gratuity')  :
+              tab.id === 'discount'  ? p('dashboard.discount')  :
+              tab.id === 'note'      ? p('dashboard.note')      :
+              tab.id === 'split'     ? p('dashboard.split_bill'):
+              tab.id === 'paylater'  ? p('dashboard.pay_later') : true
+            ).map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(activeTab === tab.id ? null : tab.id)}
+                className={cn(
+                  'shrink-0 flex-1 min-w-[72px] h-14 md:h-16 text-sm md:text-base font-bold border-t border-r border-white/8 transition-all active:scale-95 touch-manipulation',
+                  activeTab === tab.id ? tab.active : tab.inactive
+                )}
+              >
+                {t[tab.labelKey]}
+              </button>
+            ))}
           </div>
 
         </div>
