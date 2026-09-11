@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { ArrowLeft, Users, Printer, Loader2, Check, X, CreditCard, Star, MessageCircle } from 'lucide-react'
+import { ArrowLeft, Users, Printer, Loader2, Check, X, CreditCard, Star, MessageCircle, Pencil } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import InvoiceModal from './invoice-modal'
@@ -148,6 +148,14 @@ export default function PaymentScreen({ orderId, restaurantId, orderNum: orderNu
 
   const setExact = () => setEntered(finalTotal.toFixed(decimalPlaces))
   const clearEntered = () => setEntered('')
+
+  const [editingAmount, setEditingAmount] = useState(false)
+  const handleAmountInput = (raw: string) => {
+    if (!/^\d*\.?\d*$/.test(raw)) return
+    const dotIdx = raw.indexOf('.')
+    if (dotIdx !== -1 && raw.length - dotIdx - 1 > decimalPlaces) return
+    setEntered(raw)
+  }
 
   const [payError, setPayError] = useState<string | null>(null)
 
@@ -660,21 +668,42 @@ export default function PaymentScreen({ orderId, restaurantId, orderNum: orderNu
 
           {/* Amount display */}
           <div className="shrink-0 flex items-center justify-between px-4 md:px-6 py-3 md:py-4 border-b border-white/8">
-            <div>
-              {entered ? (
-                <p className="text-3xl font-bold text-white tabular-nums">{cur}{entered}</p>
-              ) : (
-                <p className="text-3xl font-bold text-white/20 tabular-nums">{formatPrice(finalTotal)}</p>
-              )}
-              {entered && shortfall > 0 && (
-                <p className="text-xs text-rose-400/70 mt-1">{t.pay_short_by} {formatPrice(shortfall)}</p>
-              )}
-              {entered && change > 0 && (
-                <p className="text-xs text-emerald-400/70 mt-1">{t.pay_change_label} {formatPrice(change)}</p>
-              )}
-              {payError && (
-                <p className="text-xs text-rose-400 mt-1 font-mono">{payError}</p>
-              )}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setEditingAmount(true)}
+                title={t.edit}
+                className="shrink-0 w-8 h-8 rounded-lg bg-white/5 border border-white/10 text-white/40 hover:bg-white/10 hover:text-amber-400 transition-all active:scale-95 touch-manipulation flex items-center justify-center"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+              </button>
+              <div>
+                {editingAmount ? (
+                  <input
+                    autoFocus
+                    type="text"
+                    inputMode="decimal"
+                    value={entered}
+                    onChange={e => handleAmountInput(e.target.value)}
+                    onBlur={() => setEditingAmount(false)}
+                    onKeyDown={e => { if (e.key === 'Enter') setEditingAmount(false) }}
+                    placeholder={finalTotal.toFixed(decimalPlaces)}
+                    className="w-40 text-3xl font-bold text-white tabular-nums bg-transparent border-b-2 border-amber-500/60 focus:outline-none placeholder-white/20"
+                  />
+                ) : entered ? (
+                  <p className="text-3xl font-bold text-white tabular-nums">{cur}{entered}</p>
+                ) : (
+                  <p className="text-3xl font-bold text-white/20 tabular-nums">{formatPrice(finalTotal)}</p>
+                )}
+                {entered && shortfall > 0 && (
+                  <p className="text-xs text-rose-400/70 mt-1">{t.pay_short_by} {formatPrice(shortfall)}</p>
+                )}
+                {entered && change > 0 && (
+                  <p className="text-xs text-emerald-400/70 mt-1">{t.pay_change_label} {formatPrice(change)}</p>
+                )}
+                {payError && (
+                  <p className="text-xs text-rose-400 mt-1 font-mono">{payError}</p>
+                )}
+              </div>
             </div>
             <div className="flex gap-2">
               <button
