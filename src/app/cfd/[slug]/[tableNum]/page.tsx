@@ -278,7 +278,7 @@ export default function CFDPage() {
               }
             </div>
             <h1 className="text-5xl font-black text-white mb-3 tracking-tight">{rest?.name ?? 'Welcome'}</h1>
-            <p className="text-2xl text-white/35 font-light mb-1">Welcome — بخێر بێ</p>
+            <p className="text-2xl text-white/35 font-light mb-1">Welcome — بەخێر بێیت</p>
             <p className="text-white/20 text-sm">Customer Display · شاشەی کڕیار</p>
           </div>
 

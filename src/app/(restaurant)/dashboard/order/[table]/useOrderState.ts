@@ -55,7 +55,6 @@ export function useOrderState(table: string, guestCount: number) {
   const [initError, setInitError]           = useState<string | null>(null)
   const [editingId, setEditingId]           = useState<string | null>(null)
   const [actionItem, setActionItem]         = useState<DbOrderItem | null>(null)
-  const [showPayment, setShowPayment]       = useState(false)
   // Flips true when this order's status leaves 'active' from a write this tab
   // didn't make — i.e. another device (or this same table's payment screen on
   // another device) paid/closed/voided it while this screen was still open.
@@ -67,27 +66,9 @@ export function useOrderState(table: string, guestCount: number) {
   const [syncing,     setSyncing]     = useState(false)
 
   // Refs for use inside event handlers registered once at mount
-  const showPaymentRef  = useRef(false)
   const restaurantIdRef = useRef<string | null>(null)
   const initRef         = useRef<() => Promise<void>>(() => Promise.resolve())
-  useEffect(() => { showPaymentRef.current  = showPayment },  [showPayment])
   useEffect(() => { restaurantIdRef.current = restaurantId }, [restaurantId])
-
-  // Browser back while payment modal open → close + broadcast idle
-  useEffect(() => {
-    const handler = () => {
-      if (!showPaymentRef.current) return
-      setShowPayment(false)
-      const rid = restaurantIdRef.current
-      if (rid) {
-        supabase.channel(`cfd-sync-${rid}`)
-          .send({ type: 'broadcast', event: 'table_change', payload: { table: 'idle' } })
-          .catch(() => {})
-      }
-    }
-    window.addEventListener('popstate', handler)
-    return () => window.removeEventListener('popstate', handler)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Online / offline detection + auto-sync ──────────────────
   useEffect(() => {
@@ -554,7 +535,6 @@ export function useOrderState(table: string, guestCount: number) {
     loading, menuLoading, initError, init,
     editingId, setEditingId,
     actionItem, setActionItem,
-    showPayment, setShowPayment,
     orderClosedElsewhere,
     // offline
     isOnline, queueCount, syncing, syncQueuedOrders,

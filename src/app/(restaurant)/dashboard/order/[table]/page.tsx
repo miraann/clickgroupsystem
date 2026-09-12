@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect, useRef, Suspense } from 'react'
 import { useParams, useSearchParams, useRouter } from 'next/navigation'
 import { AlertCircle, WifiOff, RefreshCw, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -79,6 +79,32 @@ function OrderPage() {
   // ── Entrance animation ────────────────────────────────────────
   const [mounted, setMounted] = useState(false)
   useEffect(() => { const t = requestAnimationFrame(() => setMounted(true)); return () => cancelAnimationFrame(t) }, [])
+
+  // Tell the CFD to drop this table and go back to idle whenever the payment
+  // screen stops being shown — closing it (X → history.back()), the browser
+  // back/forward buttons, or navigating away entirely (Home, sidebar, a typed
+  // URL) while it was open. onPaid already broadcasts its own idle event, so
+  // this is a harmless no-op double-send in that case.
+  const showPaymentRef = useRef(showPayment)
+  useEffect(() => {
+    const wasShowing = showPaymentRef.current
+    showPaymentRef.current = showPayment
+    if (wasShowing && !showPayment && order.restaurantId) {
+      order.supabase.channel(`cfd-sync-${order.restaurantId}`)
+        .send({ type: 'broadcast', event: 'table_change', payload: { table: 'idle' } })
+        .catch(() => {})
+    }
+  }, [showPayment, order.restaurantId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    return () => {
+      if (showPaymentRef.current && order.restaurantId) {
+        order.supabase.channel(`cfd-sync-${order.restaurantId}`)
+          .send({ type: 'broadcast', event: 'table_change', payload: { table: 'idle' } })
+          .catch(() => {})
+      }
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Another device paid/closed/voided this order while this screen was still
   // open on it (e.g. one device on the order/food screen, another on Pay for
