@@ -432,7 +432,7 @@ export default function CFDPage() {
           )}
           {tipAmt > 0 && (
             <div className="flex items-center justify-between text-sm mb-2 text-violet-400 font-semibold">
-              <span>Tip · تیپ</span>
+              <span>Tip · بەخشیش</span>
               <span className="tabular-nums">+{fmt(tipAmt)}</span>
             </div>
           )}

@@ -210,7 +210,7 @@ const ku: Record<keyof typeof en, string> = {
 
   // ── Preference page ───────────────────────────────
   pref_title:           'ئامادەکاری',
-  pref_subtitle:        'ڕێکخستنی پیشاندان، دەنگ، باج و تیپ',
+  pref_subtitle:        'ڕێکخستنی پیشاندان، دەنگ، باج و بەخشیش',
   pref_lang_display:    'زمان و پیشاندان',
   pref_interface_lang:  'زمانی ڕووکار',
   pref_time_format:     'شێوازی کات',
@@ -228,11 +228,11 @@ const ku: Record<keyof typeof en, string> = {
   pref_tax:             'باجی بنچینەیی',
   pref_tax_rate:        'ڕێژەی باجی بنچینەیی (%)',
   pref_tax_hint:        'بەخۆی لەسەر فەرمانەکان دەمالرێت. 0 بنووسە بۆ ناچالاككردن.',
-  pref_tips:            'ڕێکخستنی تیپ',
-  pref_tips_enable:     'چالاک کردنی تیپ',
-  pref_tips_enable_d:   'بژاردەکانی تیپ لە ئەکرانی پارەدان نیشان بدە',
-  pref_tip_pcts:        'ڕێژەکانی تیپی پێشنیارکراو',
-  pref_tip_pcts_hint:   'هەڵبژێرە کام ڕێژەکانی تیپ لە دوگمەی خێرا لە پارەدان دەرکەوێت',
+  pref_tips:            'ڕێکخستنی بەخشیش',
+  pref_tips_enable:     'چالاک کردنی بەخشیش',
+  pref_tips_enable_d:   'بژاردەکانی بەخشیش لە ئەکرانی پارەدان نیشان بدە',
+  pref_tip_pcts:        'ڕێژەکانی بەخشیشی پێشنیارکراو',
+  pref_tip_pcts_hint:   'هەڵبژێرە کام ڕێژەکانی بەخشیش لە دوگمەی خێرا لە پارەدان دەرکەوێت',
   pref_receipt:         'پسووڵە',
   pref_auto_print:      'بەخۆی چاپ بکە',
   pref_auto_print_d:    'پسووڵە بە ئۆتۆماتیکی بنێرە بۆ چاپەری دوای هەر پارەدانێک',
@@ -1647,9 +1647,9 @@ const ku: Record<keyof typeof en, string> = {
 
   // ── شاشەی پارەدان ────────────────────────────────────────────
   pay_tab_surcharge:    'زیادە',
-  pay_tab_gratuity:     'تیپ',
-  pay_tip_clear:        'سڕینەوەی تیپ',
-  pay_tip_custom_ph:    'بڕی تیپی دیاریکراو',
+  pay_tab_gratuity:     'بەخشیش',
+  pay_tip_clear:        'سڕینەوەی بەخشیش',
+  pay_tip_custom_ph:    'بڕی بەخشیشی دیاریکراو',
   pay_tab_discount:     'داشکاندن',
   pay_tab_note:         'تێبینی',
   pay_tab_split:        'دابەشکردنی پسووڵە',

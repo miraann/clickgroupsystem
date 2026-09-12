@@ -13,7 +13,7 @@ export const KU = {
   subtotal:       'کۆی کاڵاکان',
   discount:       'داشکاندن',
   surcharge:      'زیادە',
-  tip:            'تیپ',
+  tip:            'بەخشیش',
   total:          'کۆی گشتی',
   totalAmount:    'کۆی گشتی',
   amountTendered: 'پارەی دراو',
