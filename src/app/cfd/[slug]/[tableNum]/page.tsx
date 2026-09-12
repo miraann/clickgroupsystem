@@ -266,7 +266,7 @@ export default function CFDPage() {
       <header className="shrink-0 flex items-center justify-between px-8 py-5 border-b border-white/5">
         <div className="flex items-center gap-3">
           {rest?.logo_url
-            ? <img src={rest.logo_url} alt="" className="w-9 h-9 rounded-xl object-cover" />
+            ? <img src={rest.logo_url} alt="" className="w-9 h-9 rounded-xl object-contain" />
             : <div className="w-9 h-9 rounded-xl bg-amber-500/20 flex items-center justify-center"><ChefHat className="w-4 h-4 text-amber-400" /></div>
           }
           <span className="text-base font-bold text-white/70">{rest?.name}</span>
@@ -288,9 +288,9 @@ export default function CFDPage() {
               <div className="absolute inset-0 rounded-full cfd-ring bg-amber-400/20" />
               <div className="absolute inset-0 rounded-full cfd-ring bg-amber-400/10" style={{ animationDelay: '1.2s' }} />
               {rest?.logo_url
-                ? <img src={rest.logo_url} alt="" className="relative w-36 h-36 rounded-full object-cover border-4 border-amber-500/25 cfd-float shadow-2xl shadow-amber-500/20" />
-                : <div className="relative w-36 h-36 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center cfd-float shadow-2xl shadow-amber-500/30 border-4 border-amber-500/25">
-                    <UtensilsCrossed className="w-16 h-16 text-white" />
+                ? <img src={rest.logo_url} alt="" className="relative w-56 h-56 object-contain cfd-float drop-shadow-2xl" />
+                : <div className="relative w-56 h-56 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center cfd-float shadow-2xl shadow-amber-500/30 border-4 border-amber-500/25">
+                    <UtensilsCrossed className="w-24 h-24 text-white" />
                   </div>
               }
             </div>
@@ -340,7 +340,7 @@ export default function CFDPage() {
       <header className="shrink-0 flex items-center justify-between px-6 py-4 border-b border-white/8 bg-black/30 backdrop-blur-xl">
         <div className="flex items-center gap-3">
           {rest?.logo_url
-            ? <img src={rest.logo_url} alt="" className="w-10 h-10 rounded-xl object-cover border border-white/10" />
+            ? <img src={rest.logo_url} alt="" className="w-10 h-10 rounded-xl object-contain border border-white/10" />
             : <div className="w-10 h-10 rounded-xl bg-amber-500/15 flex items-center justify-center"><ChefHat className="w-5 h-5 text-amber-400" /></div>
           }
           <div>
