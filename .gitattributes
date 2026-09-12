@@ -1,0 +1,8 @@
+# Windows' core.autocrlf=true only skips line-ending conversion on files it can
+# tell are binary. Its heuristic (look for a NUL byte in the first ~8000 bytes)
+# can miss compressed formats like APKs, which is how public/apps/CFD.apk and
+# Seller.apk ended up as corrupted zip archives in git history — no NUL byte
+# early enough in those two files, so autocrlf mangled bytes on commit.
+*.apk binary
+*.keystore binary
+*.jks binary
