@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
     }
 
     const [{ data: rs }, { data: rest }, { data: currency }] = await Promise.all([
-      supabase.from('receipt_settings').select('shop_name, currency_symbol').eq('restaurant_id', restaurantId).maybeSingle(),
+      supabase.from('receipt_settings').select('shop_name, currency_symbol, language').eq('restaurant_id', restaurantId).maybeSingle(),
       supabase.from('restaurants').select('name').eq('id', restaurantId).maybeSingle(),
       supabase.from('currencies').select('symbol').eq('restaurant_id', restaurantId).eq('is_default', true).maybeSingle(),
     ])
@@ -60,10 +60,11 @@ export async function POST(req: NextRequest) {
       // the separate receipt_settings.currency_symbol text field, which drifts
       // out of sync whenever the restaurant's default currency changes.
       currencySymbol: (currency?.symbol as string | undefined) || (rs?.currency_symbol as string) || '',
+      language: (rs?.language as string) === 'en' ? 'en' : 'ku',
       paperWidth,
     }
 
-    const bytes = buildDailySalesReportBytes(payload)
+    const bytes = await buildDailySalesReportBytes(payload)
 
     return NextResponse.json({
       ok:             true,

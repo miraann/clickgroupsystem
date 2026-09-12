@@ -1,5 +1,6 @@
 import { escpos, cols, enc, divBytes, rowBytes, concat } from './commands'
 import { toAscii, enPaymentMethod, enCurrencySymbol } from './translate'
+import { buildKurdishDailySalesReportBytes } from './kurdishReport'
 
 export interface DailySalesReportPayload {
   restaurantName: string
@@ -7,6 +8,7 @@ export interface DailySalesReportPayload {
   timeStr:        string
   currencySymbol: string
   paperWidth:     number
+  language?:      'ku' | 'en'
 
   txCount:        number
   totalRevenue:   number
@@ -32,7 +34,12 @@ export interface DailySalesReportPayload {
   avgDailyExpenseMonth: number
 }
 
-export function buildDailySalesReportBytes(d: DailySalesReportPayload): Uint8Array {
+export async function buildDailySalesReportBytes(d: DailySalesReportPayload): Promise<Uint8Array> {
+  // Kurdish (Sorani) needs the Arabic script plus letters most printers'
+  // Arabic codepage doesn't cover — raster-render it instead of sending text
+  // bytes, same approach as the customer receipt (see kurdishReceipt.ts).
+  if ((d.language ?? 'ku') === 'ku') return buildKurdishDailySalesReportBytes(d)
+
   const W   = cols(d.paperWidth)
   // Thermal printers here have no Arabic/Kurdish font ROM — force every dynamic
   // value to printable ASCII, same as the receipt + kitchen builders.

@@ -28,3 +28,34 @@ export const KU = {
 export function kuTableLabel(tableNum: string, guests?: number): string {
   return guests ? `${tableNum} مێز · ${guests} کەس` : `${tableNum} مێز`
 }
+
+// Kurdish labels for the Daily Sales report — mirrors the dsr_* keys in
+// src/lib/i18n/ku.ts so the printed report reads the same as the on-screen one.
+export const KU_REPORT = {
+  title:            'ڕاپۆرتی فرۆشتنی ڕۆژانە',
+  transactions:     'مامەڵەکان',
+  totalRevenue:     'کۆی داهات',
+  avgOrder:         'ناوەندی نرخی داواکاری',
+  guestsServed:     'میوانی خزمەتکراو',
+  totalDiscounts:   'کۆی داشکاندنەکان',
+  totalTips:        'کۆی بەخشیشەکان',
+  changeGiven:      'پارەی گەڕاوە',
+  paymentMethods:   'شێوازەکانی پارەدان',
+  orderTypes:       'جۆرەکانی داواکاری',
+  dineIn:           'لەناو خواردنگە',
+  takeout:          'دەرکردن',
+  delivery:         'گەیاندن',
+  customerSplit:    'دابەشکردنی کڕیار',
+  member:           'ئەندام',
+  walkIn:           'کڕیاری ئاسایی',
+  topItems:         'باشترین کاڵا فرۆشراوەکان',
+  byCashier:        'بەپێی کاشێر',
+  expensesProfit:   'خەرجی و قازانجی ڕەها',
+  grossRevenue:     'کۆی داهاتی گشتی',
+  paidExpenses:     'خەرجی دراو',
+  netProfit:        'قازانجی ڕەها',
+  monthAvg:         'ناوەندی ڕۆژانەی مانگی ئێستا',
+  avgDailySales:    'ناوەندی فرۆشتنی ڕۆژانە',
+  avgDailyExpense:  'ناوەندی خەرجی ڕۆژانە',
+  endOfReport:      'کۆتایی ڕاپۆرت',
+}
