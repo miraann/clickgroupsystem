@@ -22,6 +22,8 @@ interface Props {
   restaurantId: string
   orderNum?:    string | null
   tableNum:     string
+  /** Raw table identifier ('takeout' for takeout orders) — matches the CFD route param, unlike tableNum which may be a translated display label. */
+  cfdTableKey:  string
   guests:       number
   items:        Item[]
   total:        number
@@ -46,7 +48,7 @@ const ACTION_TABS: { id: ActionTab; labelKey: 'pay_tab_surcharge' | 'pay_tab_gra
   { id: 'paylater',  labelKey: 'pay_tab_paylater',  inactive: 'text-rose-400/80    bg-rose-500/15    hover:bg-rose-500/25',   active: 'text-white bg-rose-500'   },
 ]
 
-export default function PaymentScreen({ orderId, restaurantId, orderNum: orderNumProp, tableNum, guests, items, total, onClose, onPaid }: Props) {
+export default function PaymentScreen({ orderId, restaurantId, orderNum: orderNumProp, tableNum, cfdTableKey, guests, items, total, onClose, onPaid }: Props) {
   const { can, isOwner, isPinStaff, staffName, roleName } = usePermissions()
   const { t } = useLanguage()
   const p = (key: string) => isOwner || can(key)
@@ -140,6 +142,14 @@ export default function PaymentScreen({ orderId, restaurantId, orderNum: orderNu
       : appliedSurcharge.value
     : 0
   const finalTotal  = Math.max(0, total - discountAmount + surchargeAmount)
+
+  // Live-update the CFD screen's total as the cashier applies/changes a
+  // discount or surcharge — it otherwise only ever sees the raw item total.
+  useEffect(() => {
+    supabase.channel(`cfd-sync-${restaurantId}`)
+      .send({ type: 'broadcast', event: 'bill_update', payload: { table: cfdTableKey, discountAmount, surchargeAmount } })
+      .catch(() => {})
+  }, [discountAmount, surchargeAmount, cfdTableKey, restaurantId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const enteredNum  = parseFloat(entered || '0') || 0
   const payAmount   = enteredNum > 0 ? enteredNum : finalTotal

@@ -323,6 +323,7 @@ function OrderPage() {
           restaurantId={order.restaurantId}
           orderNum={order.orderNum}
           tableNum={isTakeout ? tr.ord_takeout : table}
+          cfdTableKey={isTakeout ? 'takeout' : table}
           guests={guestCount}
           items={order.sentItems.map(i => ({ name: i.item_name, price: i.item_price, qty: i.qty }))}
           total={order.grandTotal}
