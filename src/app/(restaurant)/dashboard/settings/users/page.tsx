@@ -519,7 +519,7 @@ export default function UsersPage() {
   const [users, setUsers]           = useState<StaffUser[]>([])
   const [loadingUsers, setLoadingUsers] = useState(true)
   const [saving, setSaving]         = useState(false)
-  const [modal, setModal]           = useState<'add-edit' | 'permissions' | 'reset-pin' | null>(null)
+  const [modal, setModal]           = useState<'add-edit' | 'permissions' | 'reset-pin' | 'delete-role' | null>(null)
   const [editId, setEditId]         = useState<string | null>(null)
   const [form, setForm]             = useState<Omit<StaffUser, 'id'>>(EMPTY_STAFF)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
@@ -541,6 +541,7 @@ export default function UsersPage() {
   const [savedPerms, setSavedPerms] = useState(false)
   const [permError, setPermError] = useState<string | null>(null)
   const [deletingRoleId, setDeletingRoleId] = useState<string | null>(null)
+  const [roleToDelete, setRoleToDelete] = useState<RoleRecord | null>(null)
   const [rightTab, setRightTab]     = useState<'permissions' | 'staff' | 'message'>('permissions')
   const [messageText, setMessageText] = useState('')
   const [sendingMsg, setSendingMsg]   = useState(false)
@@ -704,15 +705,20 @@ export default function UsersPage() {
     setTimeout(() => setSentMsg(false), 3000)
   }
 
-  const deleteRole = async (id: string) => {
-    if (!restaurantId) return
+  const deleteRole = async (id: string): Promise<boolean> => {
+    if (!restaurantId) return false
     setDeletingRoleId(id); setPermError(null)
     try {
       await api('/api/settings/roles', 'DELETE', { id })
       if (selectedRoleId === id) { setSelectedRoleId(null); setPerms({}) }
       loadRoles(restaurantId)
-    } catch (e) { setPermError(e instanceof Error ? e.message : 'Could not delete role') }
-    setDeletingRoleId(null)
+      setDeletingRoleId(null)
+      return true
+    } catch (e) {
+      setPermError(e instanceof Error ? e.message : 'Could not delete role')
+      setDeletingRoleId(null)
+      return false
+    }
   }
   const assignRole = async (staffId: string, roleId: string | null) => {
     if (!restaurantId) return
@@ -937,7 +943,7 @@ export default function UsersPage() {
                           <p className="text-sm font-medium truncate">{role.name}</p>
                           {staffCount > 0 && <p className="text-[10px] text-white/50">{staffCount} staff</p>}
                         </div>
-                        <button onClick={e => { e.stopPropagation(); deleteRole(role.id) }} disabled={deletingRoleId === role.id}
+                        <button onClick={e => { e.stopPropagation(); setRoleToDelete(role); setModal('delete-role') }} disabled={deletingRoleId === role.id}
                           className="w-5 h-5 rounded flex items-center justify-center text-white/20 hover:text-rose-400 opacity-0 group-hover:opacity-100 disabled:opacity-50 transition-all shrink-0">
                           {deletingRoleId === role.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
                         </button>
@@ -1256,6 +1262,39 @@ export default function UsersPage() {
               <button onClick={savePin} disabled={newPin.length !== 6 || saving}
                 className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white text-sm font-medium transition-all active:scale-95 flex items-center justify-center gap-2">
                 {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}{t.save_changes}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── DELETE ROLE CONFIRM MODAL ── */}
+      {modal === 'delete-role' && roleToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          onClick={() => { setModal(null); setRoleToDelete(null); setPermError(null) }}>
+          <div onClick={e => e.stopPropagation()}
+            className="w-full max-w-sm bg-[#0d1220]/95 backdrop-blur-2xl border border-white/15 rounded-3xl p-6 shadow-2xl">
+            <div className="flex items-center gap-3">
+              <span className="w-10 h-10 rounded-full bg-rose-500/15 flex items-center justify-center shrink-0"><Trash2 className="w-4 h-4 text-rose-400" /></span>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-white">Delete role</p>
+                <p className="text-xs text-white/40 truncate">{roleToDelete.name}</p>
+              </div>
+            </div>
+            <p className="text-sm text-white/60 leading-relaxed mt-4">
+              Delete <span className="text-white font-medium">{roleToDelete.name}</span>? Any staff assigned to it will lose these permissions. This can't be undone.
+            </p>
+            {permError && <p className="text-xs text-rose-400 mt-2">{permError}</p>}
+            <div className="flex gap-2 mt-5">
+              <button onClick={() => { setModal(null); setRoleToDelete(null); setPermError(null) }}
+                className="flex-1 py-2.5 rounded-xl bg-white/8 text-white/70 text-sm font-semibold hover:bg-white/12 active:scale-95 transition-all">
+                {t.cancel}
+              </button>
+              <button
+                onClick={async () => { const ok = await deleteRole(roleToDelete.id); if (ok) { setModal(null); setRoleToDelete(null) } }}
+                disabled={deletingRoleId === roleToDelete.id}
+                className="flex-1 py-2.5 rounded-xl bg-rose-500 hover:bg-rose-600 disabled:opacity-40 text-white text-sm font-semibold active:scale-95 transition-all flex items-center justify-center gap-2">
+                {deletingRoleId === roleToDelete.id && <Loader2 className="w-3.5 h-3.5 animate-spin" />} Delete
               </button>
             </div>
           </div>
