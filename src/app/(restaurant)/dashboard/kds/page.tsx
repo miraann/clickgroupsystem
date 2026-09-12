@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, useRef, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { ChefHat, RefreshCw, Check, CheckCheck, Clock, Wifi, WifiOff, Flame, Bell, Layers, AlertTriangle, X, Volume2, Truck } from 'lucide-react'
+import { ChefHat, RefreshCw, Check, CheckCheck, Clock, Wifi, WifiOff, Flame, Bell, Layers, AlertTriangle, X, Volume2, Truck, LogOut } from 'lucide-react'
 import { logAudit } from '@/lib/logAudit'
 import { ModuleGate } from '@/components/ModuleGate'
 import { usePermissions } from '@/lib/permissions/PermissionsContext'
@@ -852,6 +852,16 @@ function KdsPage() {
     router.replace(url)
   }
 
+  // KDS has no Home / nav — this is the only way off the screen, whether it's
+  // running in the native single-screen kiosk shell or the regular dashboard.
+  const logout = async () => {
+    await supabase.auth.signOut().catch(() => {})
+    const slug = localStorage.getItem('restaurant_slug')
+    const keys = ['restaurant_id', 'restaurant_slug', 'restaurant_name', 'owner_session', 'pos_staff_id', 'pos_staff_name', 'pos_staff_role', 'pos_staff_color', 'pos_role_permissions', 'pos_role_name']
+    keys.forEach(k => localStorage.removeItem(k))
+    router.replace(slug ? `/pos/${slug}/login` : '/restaurant-login')
+  }
+
   const now = new Date()
   // Count of active (non-ready) items per station for badges
   const badgeCount = (stationId: string | null): number => {
@@ -915,6 +925,13 @@ function KdsPage() {
             className="w-8 h-8 rounded-xl bg-white/6 border border-white/10 flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 transition-all active:scale-95"
           >
             <RefreshCw className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={logout}
+            title="Log out"
+            className="w-8 h-8 rounded-xl bg-white/6 border border-white/10 flex items-center justify-center text-rose-400/60 hover:text-rose-400 hover:bg-rose-500/10 transition-all active:scale-95"
+          >
+            <LogOut className="w-3.5 h-3.5" />
           </button>
         </div>
       </header>
