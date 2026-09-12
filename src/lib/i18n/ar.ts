@@ -1064,7 +1064,7 @@ const ar: Record<keyof typeof en, string> = {
 
   // ── Pending Orders ────────────────────────────────────────────
   po_title:             'الطلبات المعلّقة',
-  po_subtitle:          'طلبات في انتظار التأكيد',
+  po_subtitle:          'عبر رمز QR',
   po_accept:            'قبول',
   po_reject:            'رفض',
   po_accepted:          'تم القبول',

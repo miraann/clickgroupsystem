@@ -327,7 +327,7 @@ const en = {
 
   // ── Pending Orders ────────────────────────────────────────────
   po_title:             'Pending Orders',
-  po_subtitle:          'QR and online orders awaiting confirmation',
+  po_subtitle:          'via QR Code',
   po_accept:            'Accept',
   po_reject:            'Reject',
   po_accepted:          'Accepted',

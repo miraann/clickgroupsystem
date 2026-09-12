@@ -1063,8 +1063,8 @@ const ku: Record<keyof typeof en, string> = {
   gst_breakdown:        'وردکردنەوە',
 
   // ── Pending Orders ────────────────────────────────────────────
-  po_title:             'فەرمانە چاوەڕوانەکان',
-  po_subtitle:          'فەرمانەکانی QR و ئۆنلاین چاوەڕوانی پشتڕاستکردنەوەن',
+  po_title:             'داواکاری میوان',
+  po_subtitle:          'لە ڕێگەی QR Code',
   po_accept:            'قبوڵکردن',
   po_reject:            'ڕەتکردنەوە',
   po_accepted:          'قبوڵکرا',

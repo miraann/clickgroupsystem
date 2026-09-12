@@ -8,6 +8,8 @@ import { useRouter } from 'next/navigation'
 import { usePermissions } from '@/lib/permissions/PermissionsContext'
 import { getStaffHome } from '@/lib/permissions/staffHome'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
+import type { Translations } from '@/lib/i18n/translations'
 import { motion, AnimatePresence, type Variants } from 'framer-motion'
 
 const PAGE: Variants = {
@@ -44,19 +46,19 @@ interface PendingGroup {
   arrived_at: string
 }
 
-function TimeAgo({ dateStr }: { dateStr: string }) {
+function TimeAgo({ dateStr, tr }: { dateStr: string; tr: Translations }) {
   const [label, setLabel] = useState('')
   useEffect(() => {
     const calc = () => {
       const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000)
-      if (diff < 60) setLabel(`${diff}s ago`)
-      else if (diff < 3600) setLabel(`${Math.floor(diff / 60)}m ago`)
-      else setLabel(`${Math.floor(diff / 3600)}h ago`)
+      if (diff < 60) setLabel(tr.po_sec_ago.replace('{n}', String(diff)))
+      else if (diff < 3600) setLabel(tr.po_min_ago.replace('{n}', String(Math.floor(diff / 60))))
+      else setLabel(tr.po_hour_ago.replace('{n}', String(Math.floor(diff / 3600))))
     }
     calc()
     const t = setInterval(calc, 5000)
     return () => clearInterval(t)
-  }, [dateStr])
+  }, [dateStr, tr])
   return <span>{label}</span>
 }
 
@@ -64,6 +66,7 @@ export default function PendingOrdersPage() {
   const supabase = createClient()
   const router = useRouter()
   const { formatPrice } = useDefaultCurrency()
+  const { t: tr } = useLanguage()
   const { can, isOwner, permissions, loading: permsLoading } = usePermissions()
 
   useEffect(() => {
@@ -79,7 +82,7 @@ export default function PendingOrdersPage() {
 
   const load = useCallback(async () => {
     const { data: rest } = await supabase.from('restaurants').select('id').eq('id', typeof window !== 'undefined' ? (localStorage.getItem('restaurant_id') ?? '') : '').maybeSingle()
-    if (!rest) { setError('Restaurant not found'); return }
+    if (!rest) { setError(tr.po_restaurant_not_found); return }
 
     const [{ data: pendingData, error: pendingErr }, { data: tablesData }, { data: groupsData }] = await Promise.all([
       supabase
@@ -139,7 +142,7 @@ export default function PendingOrdersPage() {
 
     setGroups(Array.from(map.values()))
     setLastRefresh(new Date())
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [tr]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { loadRef.current = load }, [load])
 
@@ -170,7 +173,7 @@ export default function PendingOrdersPage() {
       .then(({ error }) => {
         if (error) {
           setGroups(prev => [group, ...prev])
-          alert('Error approving: ' + error.message)
+          alert(tr.po_error_approving + error.message)
         } else {
           const r = rid(); if (r) logAudit(r, 'pending_approved', { table: group.table_label, items_count: ids.length })
         }
@@ -182,12 +185,12 @@ export default function PendingOrdersPage() {
     const ids = group.items.map(i => i.id)
     supabase
       .from('order_items')
-      .update({ status: 'void', void_reason: 'Declined by staff' })
+      .update({ status: 'void', void_reason: tr.po_declined_by_staff })
       .in('id', ids)
       .then(({ error }) => {
         if (error) {
           setGroups(prev => [group, ...prev])
-          alert('Error declining: ' + error.message)
+          alert(tr.po_error_declining + error.message)
         } else {
           const r = rid(); if (r) logAudit(r, 'pending_declined', { table: group.table_label, items_count: ids.length })
         }
@@ -212,7 +215,7 @@ export default function PendingOrdersPage() {
             if (group) return prev.map(g => g.order_id === groupOrderId ? { ...g, items: [...g.items, item] } : g)
             return prev
           })
-          alert('Error: ' + error.message)
+          alert(tr.po_error_generic + error.message)
         } else {
           const group = groups.find(g => g.order_id === groupOrderId)
           const r = rid(); if (r) logAudit(r, 'pending_approved', { table: group?.table_label, item_name: item.item_name, qty: item.qty })
@@ -229,7 +232,7 @@ export default function PendingOrdersPage() {
 
     supabase
       .from('order_items')
-      .update({ status: 'void', void_reason: 'Declined by staff' })
+      .update({ status: 'void', void_reason: tr.po_declined_by_staff })
       .eq('id', item.id)
       .then(({ error }) => {
         if (error) {
@@ -238,7 +241,7 @@ export default function PendingOrdersPage() {
             if (group) return prev.map(g => g.order_id === groupOrderId ? { ...g, items: [...g.items, item] } : g)
             return prev
           })
-          alert('Error: ' + error.message)
+          alert(tr.po_error_generic + error.message)
         } else {
           const group = groups.find(g => g.order_id === groupOrderId)
           const r = rid(); if (r) logAudit(r, 'pending_declined', { table: group?.table_label, item_name: item.item_name, qty: item.qty })
@@ -251,9 +254,9 @@ export default function PendingOrdersPage() {
       <div className="flex items-start gap-3 p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 max-w-sm">
         <AlertCircle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
         <div>
-          <p className="text-sm text-rose-400 font-semibold">Failed to load</p>
+          <p className="text-sm text-rose-400 font-semibold">{tr.po_failed_to_load}</p>
           <p className="text-xs text-white/40 mt-1 font-mono">{error}</p>
-          <button onClick={load} className="mt-2 px-3 py-1.5 rounded-lg bg-white/8 text-xs text-white/50 hover:bg-white/12 transition-all">Retry</button>
+          <button onClick={load} className="mt-2 px-3 py-1.5 rounded-lg bg-white/8 text-xs text-white/50 hover:bg-white/12 transition-all">{tr.po_retry}</button>
         </div>
       </div>
     </div>
@@ -265,7 +268,7 @@ export default function PendingOrdersPage() {
 
       {/* Header */}
       <header className="sticky top-0 z-30 border-b border-white/8 backdrop-blur-2xl" style={{ background: 'var(--app-anchor-80, rgba(2,38,88,0.8))' }}>
-        <div className="flex items-center justify-between px-5 py-4 max-w-2xl mx-auto w-full">
+        <div className="flex items-center px-5 py-4 max-w-2xl mx-auto w-full">
           <div className="flex items-center gap-3">
             <button
               onClick={() => router.push('/dashboard')}
@@ -275,27 +278,30 @@ export default function PendingOrdersPage() {
             </button>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-base font-bold text-white">Pending Orders</h1>
+                <h1 className="text-base font-bold text-white">{tr.po_title}</h1>
                 {groups.length > 0 && (
                   <span className="px-2 py-0.5 rounded-full bg-amber-500/20 border border-amber-500/30 text-amber-400 text-xs font-bold">
                     {groups.length}
                   </span>
                 )}
               </div>
-              <p className="text-xs text-white/35 flex items-center gap-1">
-                <Clock className="w-3 h-3" />
-                Refreshed {lastRefresh.toLocaleTimeString(undefined, { timeStyle: 'short' })}
-              </p>
+              <p className="text-xs text-white/40">{tr.po_subtitle}</p>
             </div>
+          </div>
+          <div className="flex-1 flex items-center justify-center">
+            <p className="text-sm font-semibold text-white flex items-center gap-1.5">
+              <Clock className="w-4 h-4" />
+              {tr.po_refreshed} {lastRefresh.toLocaleTimeString(undefined, { timeStyle: 'short' })}
+            </p>
           </div>
           <div className="flex items-center gap-2">
             <button onClick={() => router.push('/dashboard')}
-              className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 active:scale-95 transition-all">
-              <Home className="w-4 h-4" />
+              className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 active:scale-95 transition-all">
+              <Home className="w-5 h-5" />
             </button>
             <button onClick={() => load()}
-              className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 active:scale-95 transition-all">
-              <RefreshCw className="w-4 h-4" />
+              className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 active:scale-95 transition-all">
+              <RefreshCw className="w-5 h-5" />
             </button>
           </div>
         </div>
@@ -314,8 +320,8 @@ export default function PendingOrdersPage() {
               <Check className="w-8 h-8 text-emerald-400" />
             </div>
             <div className="text-center">
-              <p className="text-base font-semibold text-white/60">All caught up!</p>
-              <p className="text-sm text-white/25 mt-1">No pending guest orders right now</p>
+              <p className="text-base font-semibold text-white/60">{tr.po_all_caught_up}</p>
+              <p className="text-sm text-white/25 mt-1">{tr.po_no_pending_guest}</p>
             </div>
           </motion.div>
         ) : (
@@ -334,13 +340,13 @@ export default function PendingOrdersPage() {
                       <span className="text-sm font-bold text-amber-400">{group.table_label}</span>
                     </div>
                     <div>
-                      <p className="text-sm font-bold text-white">Table {group.table_label}</p>
+                      <p className="text-sm font-bold text-white">{tr.po_table} {group.table_label}</p>
                       <p className="text-xs text-white/35 flex items-center gap-1">
                         {group.group_label && (
                           <span className="text-amber-400/60 font-semibold">{group.group_label} · </span>
                         )}
                         <Clock className="w-3 h-3" />
-                        <TimeAgo dateStr={group.arrived_at} />
+                        <TimeAgo dateStr={group.arrived_at} tr={tr} />
                       </p>
                     </div>
                   </div>
@@ -349,17 +355,17 @@ export default function PendingOrdersPage() {
                     <div className="flex gap-1.5">
                       <button
                         onClick={() => declineGroup(group)}
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-500/15 border border-rose-500/25 text-rose-400 text-xs font-semibold hover:bg-rose-500/25 active:scale-95 transition-all"
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-500 text-white text-xs font-semibold hover:bg-rose-600 active:scale-95 transition-all"
                       >
                         <X className="w-3.5 h-3.5" />
-                        Decline All
+                        {tr.po_decline_all}
                       </button>
                       <button
                         onClick={() => approveGroup(group)}
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-xs font-semibold hover:bg-emerald-500/30 active:scale-95 transition-all"
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-500 text-white text-xs font-semibold hover:bg-emerald-600 active:scale-95 transition-all"
                       >
                         <Check className="w-3.5 h-3.5" />
-                        Approve All
+                        {tr.po_approve_all}
                       </button>
                     </div>
                   </div>
@@ -385,13 +391,13 @@ export default function PendingOrdersPage() {
                         <div className="flex gap-1.5 shrink-0">
                           <button
                             onClick={() => declineItem(item, group.order_id)}
-                            className="w-8 h-8 rounded-lg bg-rose-500/12 border border-rose-500/20 text-rose-400/70 flex items-center justify-center hover:bg-rose-500/20 active:scale-90 transition-all"
+                            className="w-8 h-8 rounded-lg bg-rose-500 text-white flex items-center justify-center hover:bg-rose-600 active:scale-90 transition-all"
                           >
                             <X className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={() => approveItem(item, group.order_id)}
-                            className="w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 flex items-center justify-center hover:bg-emerald-500/25 active:scale-90 transition-all"
+                            className="w-8 h-8 rounded-lg bg-emerald-500 text-white flex items-center justify-center hover:bg-emerald-600 active:scale-90 transition-all"
                           >
                             <Check className="w-3.5 h-3.5" />
                           </button>
