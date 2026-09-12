@@ -16,6 +16,7 @@ import {
 } from '@dnd-kit/core'
 import {
   arrayMove,
+  horizontalListSortingStrategy,
   rectSortingStrategy,
   SortableContext,
   useSortable,
@@ -69,7 +70,7 @@ export default function ItemPage() {
     typeof window !== 'undefined' ? localStorage.getItem('restaurant_id') : null
   )
 
-  const { data: swrCats }                       = useMenuCategories(restaurantId)
+  const { data: swrCats, mutate: mutateCats }   = useMenuCategories(restaurantId)
   const { data: swrMods }                       = useMenuModifiers(restaurantId)
   const { data: swrItems, mutate: mutateItems } = useMenuItems(restaurantId)
   const { data: swrInv }                        = useInventoryData(restaurantId)
@@ -322,6 +323,25 @@ export default function ItemPage() {
     )
   }
 
+  // ── Category tab drag & drop reorder ──────────────────────
+  const handleCatDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+
+    const oldIndex = categories.findIndex(c => c.id === active.id)
+    const newIndex = categories.findIndex(c => c.id === over.id)
+    if (oldIndex === -1 || newIndex === -1) return
+
+    const reordered = arrayMove(categories, oldIndex, newIndex).map((c, i) => ({ ...c, sort_order: i + 1 }))
+    mutateCats(reordered, false)
+
+    await Promise.all(
+      reordered.map(c =>
+        supabase.from('menu_categories').update({ sort_order: c.sort_order, updated_at: new Date().toISOString() }).eq('id', c.id)
+      )
+    )
+  }
+
   const filtered = filterCatId === 'all' ? items : items.filter(i => i.category_id === filterCatId)
 
   // ── Render ─────────────────────────────────────────────────
@@ -352,25 +372,28 @@ export default function ItemPage() {
       </div>
 
       {/* Category filter */}
-      <div className="flex gap-2 overflow-x-auto pb-3 mb-4" style={{ scrollbarWidth: 'none' }}>
-        <button
-          onClick={() => setFilterCatId('all')}
-          className={cn('px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all active:scale-95 shrink-0',
-            filterCatId === 'all' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-white/5 text-white/40 hover:bg-white/8 hover:text-white/70')}
-        >
-          {t.all} ({items.length})
-        </button>
-        {categories.map(c => (
-          <button key={c.id} onClick={() => setFilterCatId(filterCatId === c.id ? 'all' : c.id)}
-            className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all active:scale-95 shrink-0 border',
-              filterCatId === c.id ? '' : 'bg-white/5 text-white/40 border-white/8 hover:text-white/70')}
-            style={filterCatId === c.id ? { backgroundColor: c.color + '25', borderColor: c.color + '60', color: c.color } : {}}
-          >
-            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
-            {c.name} ({items.filter(i => i.category_id === c.id).length})
-          </button>
-        ))}
-      </div>
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleCatDragEnd}>
+        <SortableContext items={categories.map(c => c.id)} strategy={horizontalListSortingStrategy}>
+          <div className="flex gap-2 overflow-x-auto pb-3 mb-4" style={{ scrollbarWidth: 'none' }}>
+            <button
+              onClick={() => setFilterCatId('all')}
+              className={cn('px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all active:scale-95 shrink-0',
+                filterCatId === 'all' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-white/5 text-white/40 hover:bg-white/8 hover:text-white/70')}
+            >
+              {t.all} ({items.length})
+            </button>
+            {categories.map(c => (
+              <SortableCatTab
+                key={c.id}
+                c={c}
+                active={filterCatId === c.id}
+                count={items.filter(i => i.category_id === c.id).length}
+                onClick={() => setFilterCatId(filterCatId === c.id ? 'all' : c.id)}
+              />
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={filtered.map(i => i.id)} strategy={rectSortingStrategy}>
@@ -643,6 +666,42 @@ export default function ItemPage() {
         </div>
       )}
     </motion.div>
+  )
+}
+
+// ── Sortable category tab ──────────────────────────────────────
+function SortableCatTab({
+  c, active, count, onClick,
+}: {
+  c: Category
+  active: boolean
+  count: number
+  onClick: () => void
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: c.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+    zIndex: isDragging ? 50 : undefined,
+    ...(active ? { backgroundColor: c.color + '25', borderColor: c.color + '60', color: c.color } : {}),
+  }
+
+  return (
+    <button
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      onClick={onClick}
+      className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all active:scale-95 shrink-0 border touch-none cursor-grab active:cursor-grabbing',
+        active ? '' : 'bg-white/5 text-white/40 border-white/8 hover:text-white/70')}
+    >
+      <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
+      {c.name} ({count})
+    </button>
   )
 }
 
