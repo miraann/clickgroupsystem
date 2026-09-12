@@ -6,6 +6,7 @@ import 'server-only'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import crypto from 'node:crypto'
 import { hashSecret } from '@/lib/crypto'
+import { DEFAULT_ROLES } from '@/lib/defaultRoles'
 
 export function serviceClient(): SupabaseClient {
   return createClient(
@@ -73,6 +74,14 @@ export async function provisionRestaurantAuth(
   if (secErr) throw new Error(`store secrets: ${secErr.message}`)
 
   return { userId, authSecret }
+}
+
+/** Seed the starter Cashier / Driver / CFD / KDS roles for a new restaurant. */
+export async function seedDefaultRoles(admin: SupabaseClient, restaurantId: string): Promise<void> {
+  const { error } = await admin.from('restaurant_roles').insert(
+    DEFAULT_ROLES.map(r => ({ restaurant_id: restaurantId, name: r.name, permissions: r.permissions })),
+  )
+  if (error) throw new Error(`seed default roles: ${error.message}`)
 }
 
 /** Store / rotate just the hashed password &/or owner PIN (no auth-user change). */

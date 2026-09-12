@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireSeller, serverError } from '@/lib/api-auth'
-import { serviceClient, provisionRestaurantAuth, updateRestaurantSecrets } from '@/lib/provision'
+import { serviceClient, provisionRestaurantAuth, updateRestaurantSecrets, seedDefaultRoles } from '@/lib/provision'
 
 export const runtime = 'nodejs'
 
@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
     }).select('id').single()
     if (insErr || !rest) return serverError(insErr ?? new Error('insert failed'))
 
-    // default currency + payment method
+    // default currency + payment method + starter roles
     await Promise.all([
       admin.from('currencies').insert({
         restaurant_id: rest.id, name: 'Iraqi Dinar', symbol: 'IQD',
@@ -75,6 +75,7 @@ export async function POST(req: NextRequest) {
         restaurant_id: rest.id, name: 'کاش', icon_type: 'cash',
         active: true, is_default: true, sort_order: 0,
       }),
+      seedDefaultRoles(admin, rest.id),
     ])
 
     await provisionRestaurantAuth(admin, {
