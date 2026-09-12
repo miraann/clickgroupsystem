@@ -239,8 +239,6 @@ export default function GuestPage() {
   const [primaryColor, setPrimaryColor] = useState('#f59e0b')
   const [categoryStyle, setCategoryStyle] = useState<'circles'|'pills'|'square'|'horizontal'>('circles')
   const [itemStyle, setItemStyle]   = useState<'grid'|'list'|'compact'>('grid')
-  const [eventStyle, setEventStyle] = useState<'cards'|'banner'|'story'>('cards')
-  const [socialStyle, setSocialStyle] = useState<'pills'|'grid'|'icons'>('pills')
   const [showPrices, setShowPrices] = useState(true)
   const [showDescs, setShowDescs]   = useState(true)
   const [welcomeText, setWelcomeText] = useState<string|null>(null)
@@ -369,8 +367,6 @@ export default function GuestPage() {
       if (d.primary_color)    setPrimaryColor(d.primary_color)
       if (d.category_style)   setCategoryStyle(d.category_style)
       if (d.item_style)       setItemStyle(d.item_style)
-      if (d.event_style)      setEventStyle(d.event_style)
-      if (d.social_style)     setSocialStyle(d.social_style)
       if (d.show_prices       !== undefined) setShowPrices(d.show_prices)
       if (d.show_descriptions !== undefined) setShowDescs(d.show_descriptions)
       if (d.welcome_text)     setWelcomeText(d.welcome_text)
@@ -571,17 +567,17 @@ export default function GuestPage() {
   ].filter(s => s.value.trim() !== '')
 
   return (
-    <div className={`min-h-screen ${tpl.pageBg} flex flex-col items-center pt-6 sm:pt-16 text-center pb-28`}>
-      <style>{`.cat-scroll::-webkit-scrollbar{display:none} .social-scroll::-webkit-scrollbar{display:none}`}</style>
+    <div className={`min-h-screen ${tpl.pageBg} flex flex-col items-center pt-6 sm:pt-14 text-center pb-28`}>
+      <style>{`.cat-scroll::-webkit-scrollbar{display:none} .scroll-hide::-webkit-scrollbar{display:none}`}</style>
 
 
       {/* Circle logo */}
       <motion.div initial={{ opacity: 0, y: 28 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-        className="w-20 h-20 sm:w-36 sm:h-36 rounded-full overflow-hidden shadow-xl relative"
-        style={{ outline: `4px solid ${tpl.logoRing}`, outlineOffset: '4px', background: '#f3f4f6' }}>
+        className="w-20 h-20 sm:w-32 sm:h-32 rounded-full overflow-hidden shadow-xl relative"
+        style={{ outline: `4px solid ${primaryColor}`, outlineOffset: '4px', background: '#f3f4f6' }}>
         {restaurant.logo_url
           ? <NextImage src={restaurant.logo_url} alt={restaurant.name} fill className="object-cover" />
-          : <div className="w-full h-full flex items-center justify-center" style={{ background: tpl.logoRing }}>
+          : <div className="w-full h-full flex items-center justify-center" style={{ background: primaryColor }}>
               <span className="text-white text-5xl font-bold">{restaurant.name.charAt(0).toUpperCase()}</span>
             </div>
         }
@@ -671,10 +667,10 @@ export default function GuestPage() {
                   <button
                     key={cat.id}
                     onClick={() => { setActiveId(cat.id); setShowItems(true) }}
-                    className="flex flex-col items-center gap-1.5 shrink-0 focus:outline-none"
+                    className="flex flex-col items-center gap-2.5 sm:gap-4 shrink-0 focus:outline-none"
                   >
                     <div
-                      className="w-16 h-16 sm:w-24 sm:h-24 rounded-full flex items-center justify-center shadow-md transition-all duration-200"
+                      className="w-20 h-20 sm:w-28 sm:h-28 rounded-full flex items-center justify-center overflow-hidden shadow-md transition-all duration-200"
                       style={{
                         background: cat.color,
                         outline: isActive ? `3px solid ${primaryColor}` : 'none',
@@ -684,12 +680,12 @@ export default function GuestPage() {
                       }}
                     >
                       {cat.icon
-                        ? <span style={{ fontSize: '2rem', lineHeight: 1 }} className="sm:text-[3.5rem]">{cat.icon}</span>
-                        : <span className="text-white text-2xl sm:text-3xl font-bold">{cat.name.charAt(0).toUpperCase()}</span>
+                        ? <span className="flex items-center justify-center w-full h-full leading-none sm:text-[6rem]" style={{ fontSize: '3.9rem', lineHeight: 1 }}>{cat.icon}</span>
+                        : <span className="text-white text-6xl sm:text-7xl font-bold leading-none">{cat.name.charAt(0).toUpperCase()}</span>
                       }
                     </div>
                     <span
-                      className="text-xs font-semibold w-12 sm:w-16 text-center leading-tight line-clamp-1 transition-colors"
+                      className="relative z-[1] text-xs font-semibold w-12 sm:w-16 text-center leading-tight line-clamp-1"
                       style={{ color: isActive ? primaryColor : (isDark ? '#9ca3af' : '#6b7280') }}
                     >
                       {cat.name}
@@ -810,7 +806,7 @@ export default function GuestPage() {
         const activeCat = categories.find(c => c.id === activeId)
         const items = menuItems.filter(i => i.category_id === activeId)
         return (
-          <div className="w-full mt-4 px-4 pb-10 text-start">
+          <div className="w-full max-w-lg mx-auto mt-4 px-4 pb-10 text-start">
             {/* Back button */}
             <button
               onClick={() => setShowItems(false)}
@@ -843,18 +839,18 @@ export default function GuestPage() {
                       className={`flex gap-3 rounded-2xl border shadow-sm overflow-hidden ${tpl.itemCardBg} ${tpl.itemCardBorder}`}
                       style={{ boxShadow: qty > 0 ? `0 0 0 2px ${primaryColor}` : undefined }}
                     >
-                      <div className="w-24 aspect-[3/2] self-center shrink-0 bg-gray-100 overflow-hidden relative">
+                      <div className="w-32 sm:w-36 aspect-[3/2] self-center shrink-0 bg-gray-100 overflow-hidden relative">
                         {item.image_url
                           ? <NextImage src={item.image_url} alt={item.name} fill className="object-cover" />
                           : <div className="w-full h-full flex items-center justify-center"><UtensilsCrossed className="w-5 h-5 text-gray-200" /></div>
                         }
                       </div>
-                      <div className="flex flex-col justify-center flex-1 py-3 pr-3 gap-1.5">
+                      <div className="flex flex-col justify-center flex-1 py-3 pe-3 gap-1.5">
                         <p className={`text-sm font-bold line-clamp-1 ${tpl.itemNameColor}`}>{item.name}</p>
                         {showDescs && item.description && (
                           <p className="text-xs line-clamp-1" style={{ color: isDark ? 'rgba(255,255,255,0.4)' : '#9ca3af' }}>{item.description}</p>
                         )}
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between mt-0.5 mb-1">
                           {showPrices && <p className={`text-sm font-extrabold ${tpl.priceColor}`}>{formatPrice(item.price)}</p>}
                           {qty === 0 ? (
                             <button
@@ -924,7 +920,7 @@ export default function GuestPage() {
               </div>
             ) : (
               /* ── Grid layout ── */
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {items.map(item => {
                   const qty = getQty(item.id)
                   const isDark = tpl.pageBg.includes('0a0a') || tpl.pageBg.includes('080c')
@@ -988,83 +984,23 @@ export default function GuestPage() {
       {!showItems && (
         <>
           {events.length > 0 && (
-            <motion.div className="w-full mt-6"
+            <motion.div className="w-full max-w-2xl mx-auto mt-6"
               initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1], delay: 0.62 }}>
-              <h2 className={`text-lg font-bold mb-3 ps-4 text-start ${tpl.sectionTitleColor}`}>{t.gm_events_offers}</h2>
-
-              {eventStyle === 'story' ? (
-                /* ── Story circles ── */
-                <div
-                  className="cat-scroll flex gap-4 overflow-x-auto ps-4 pe-6 pb-4 pt-2 justify-start"
-                  style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
-                >
+              <h2 className={`text-lg font-bold mb-3 px-4 text-center ${tpl.sectionTitleColor}`}>{t.gm_events_offers}</h2>
+              <div className="scroll-hide overflow-x-auto pb-4 pt-2"
+                style={{ scrollbarWidth: 'none' } as React.CSSProperties}>
+                <div className="flex gap-5 w-max mx-auto px-4">
                   {events.map((ev, idx) => (
                     <motion.div key={ev.id} onClick={() => openStory(idx)}
-                      initial={{ opacity: 0, y: 32, scale: 0.92 }} animate={{ opacity: 1, y: 0, scale: 1 }}
-                      transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1], delay: 0.62 + idx * 0.12 }}
-                      className="shrink-0 flex flex-col items-center gap-2 cursor-pointer active:scale-95 transition-transform">
-                      <div
-                        className="rounded-full p-[3px] shadow-lg"
-                        style={{ background: `linear-gradient(135deg, ${primaryColor}, #f97316)` }}
-                      >
-                        <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-200 relative">
-                          {ev.image_url
-                            ? <NextImage src={ev.image_url} alt={ev.title} fill className="object-cover" />
-                            : <div className="w-full h-full flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${primaryColor}cc, #f97316cc)` }}>
-                                <span className="text-white text-2xl font-bold">{ev.title.charAt(0)}</span>
-                              </div>
-                          }
-                        </div>
-                      </div>
-                      <p className={`text-[10px] font-semibold w-14 text-center line-clamp-2 leading-tight ${tpl.sectionTitleColor}`}>{ev.title}</p>
-                    </motion.div>
-                  ))}
-                </div>
-              ) : eventStyle === 'banner' ? (
-                /* ── Stacked banners ── */
-                <div className="flex flex-col gap-3 px-4 max-w-lg mx-auto w-full">
-                  {events.map((ev, idx) => (
-                    <motion.div
-                      key={ev.id}
-                      onClick={() => openStory(idx)}
-                      initial={{ opacity: 0, y: 24, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }}
-                      transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1], delay: 0.62 + idx * 0.12 }}
-                      className="relative rounded-2xl overflow-hidden h-32 shadow-md cursor-pointer active:scale-[0.98] transition-transform"
-                      style={{ border: `2px solid ${primaryColor}44` }}
-                    >
-                      {ev.image_url
-                        ? <NextImage src={ev.image_url} alt={ev.title} fill className="object-cover" />
-                        : <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, ${primaryColor}cc, #f97316cc)` }} />
-                      }
-                      <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/30 to-transparent" />
-                      <div className="absolute inset-0 flex flex-col justify-center px-5">
-                        <p className="text-white text-sm font-bold leading-snug line-clamp-2">{ev.title}</p>
-                        {ev.date_label && <p className="text-white/70 text-xs mt-1">{ev.date_label}</p>}
-                        {ev.description && <p className="text-white/60 text-xs mt-1 line-clamp-1">{ev.description}</p>}
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
-              ) : (
-                /* ── Cards (default horizontal scroll) ── */
-                <div
-                  className="cat-scroll flex gap-5 overflow-x-auto ps-4 pe-6 pb-4 pt-2 justify-start"
-                  style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
-                >
-                  {events.map((ev, idx) => (
-                    <motion.div
-                      key={ev.id}
-                      onClick={() => openStory(idx)}
-                      initial={{ opacity: 0, y: 32, scale: 0.92 }} animate={{ opacity: 1, y: 0, scale: 1 }}
+                      initial={{ opacity: 0, y: 32, scale: 0.92 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
                       transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1], delay: 0.62 + idx * 0.12 }}
                       className="shrink-0 rounded-2xl p-[3px] shadow-lg cursor-pointer active:scale-95 transition-transform"
-                      style={{ background: primaryColor, boxShadow: `0 4px 18px ${primaryColor}55` }}
-                    >
-                      <div className="relative rounded-[14px] overflow-hidden w-40 h-56">
+                      style={{ background: primaryColor, boxShadow: `0 4px 18px ${primaryColor}55` }}>
+                      <div className="relative rounded-[14px] overflow-hidden w-40 aspect-[9/16]">
                         {ev.image_url
                           ? <NextImage src={ev.image_url} alt={ev.title} fill className="object-cover" />
-                          : <div className="absolute inset-0 bg-gradient-to-br from-amber-400 to-orange-500" />
-                        }
+                          : <div className="absolute inset-0 bg-gradient-to-br from-amber-400 to-orange-500" />}
                         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
                         <div className="absolute bottom-0 left-0 right-0 p-2">
                           <p className="text-white text-xs font-bold leading-snug line-clamp-2">{ev.title}</p>
@@ -1074,93 +1010,32 @@ export default function GuestPage() {
                     </motion.div>
                   ))}
                 </div>
-              )}
+              </div>
             </motion.div>
           )}
 
           {socialLinks.length > 0 && (
-            <motion.div className="w-full mt-6 pb-10"
+            <motion.div className="w-full max-w-2xl mx-auto mt-4 pb-10"
               initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1], delay: 0.86 }}>
-              {socialStyle === 'grid' ? (
-                /* ── 2-col grid ── */
-                <div className="grid grid-cols-2 gap-2 px-4 max-w-sm mx-auto w-full">
-                  {socialLinks.map((s, idx) => {
-                    const href = buildSocialHref(s.key, s.value)
-                    const isDark = tpl.pageBg.includes('0a0a') || tpl.pageBg.includes('080c')
-                    return (
-                      <motion.a
-                        key={s.key}
-                        href={href === '#' ? undefined : href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        initial={{ opacity: 0, scale: 0.88 }} animate={{ opacity: 1, scale: 1 }}
-                        transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1], delay: 0.91 + idx * 0.08 }}
-                        className="flex items-center gap-3 px-4 py-3 rounded-2xl border active:scale-95 transition-all"
-                        style={{ borderColor: s.borderColor, background: isDark ? 'rgba(255,255,255,0.05)' : '#fff', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
-                      >
-                        <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: s.iconBg }}>
-                          <span style={{ color: s.key === 'snapchat' ? '#111' : '#fff' }}>{s.icon}</span>
-                        </div>
-                        <span className="text-sm font-semibold whitespace-nowrap" style={{ color: s.textColor }}>{s.label}</span>
-                      </motion.a>
-                    )
-                  })}
-                </div>
-              ) : socialStyle === 'icons' ? (
-                /* ── Icon circles only ── */
-                <div
-                  className="social-scroll flex gap-4 overflow-x-auto ps-4 pe-6 py-2 justify-start"
-                  style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
-                >
-                  {socialLinks.map((s, idx) => {
-                    const href = buildSocialHref(s.key, s.value)
-                    return (
-                      <motion.a
-                        key={s.key}
-                        href={href === '#' ? undefined : href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}
-                        transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1], delay: 0.91 + idx * 0.09 }}
-                        className="shrink-0 flex flex-col items-center gap-1.5 active:scale-90 transition-all"
-                      >
-                        <div className="w-12 h-12 rounded-full flex items-center justify-center shadow-md" style={{ backgroundColor: s.iconBg }}>
-                          <span style={{ color: s.key === 'snapchat' ? '#111' : '#fff' }}>{s.icon}</span>
-                        </div>
-                        <span className="text-[10px] font-semibold" style={{ color: tpl.pageBg.includes('0a0a') || tpl.pageBg.includes('080c') ? '#9ca3af' : '#6b7280' }}>{s.label}</span>
-                      </motion.a>
-                    )
-                  })}
-                </div>
-              ) : (
-                /* ── Pills (default horizontal scroll) ── */
-                <div
-                  className="social-scroll flex gap-3 overflow-x-auto ps-4 pe-6 py-2 justify-start"
-                  style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
-                >
-                  {socialLinks.map((s, idx) => {
-                    const href = buildSocialHref(s.key, s.value)
-                    const isDark = tpl.pageBg.includes('0a0a') || tpl.pageBg.includes('080c')
-                    return (
-                      <motion.a
-                        key={s.key}
-                        href={href === '#' ? undefined : href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        initial={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }}
-                        transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1], delay: 0.91 + idx * 0.09 }}
-                        className="shrink-0 flex items-center gap-2.5 px-4 py-3 rounded-full border active:scale-95 transition-all"
-                        style={{ borderColor: s.borderColor, background: isDark ? 'rgba(255,255,255,0.06)' : '#fff', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
-                      >
-                        <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: s.iconBg }}>
-                          <span style={{ color: s.key === 'snapchat' ? '#111' : '#fff' }}>{s.icon}</span>
-                        </div>
-                        <span className="text-base font-semibold whitespace-nowrap" style={{ color: s.textColor }}>{s.label}</span>
-                      </motion.a>
-                    )
-                  })}
-                </div>
-              )}
+              <div className="flex flex-wrap justify-center gap-3 px-4 py-2">
+                {socialLinks.map((s, idx) => {
+                  const href = buildSocialHref(s.key, s.value)
+                  return (
+                    <motion.a key={s.key} href={href === '#' ? undefined : href}
+                      initial={{ opacity: 0, scale: 0.85 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1], delay: 0.91 + idx * 0.09 }}
+                      target="_blank" rel="noopener noreferrer"
+                      className="shrink-0 flex items-center gap-2.5 px-4 py-3 rounded-full border bg-white shadow-sm active:scale-95 transition-all"
+                      style={{ borderColor: s.borderColor }}>
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: s.iconBg }}>
+                        <span style={{ color: s.key === 'snapchat' ? '#111' : '#fff' }}>{s.icon}</span>
+                      </div>
+                      <span className="text-base font-semibold whitespace-nowrap" style={{ color: s.textColor }}>{s.label}</span>
+                    </motion.a>
+                  )
+                })}
+              </div>
             </motion.div>
           )}
         </>

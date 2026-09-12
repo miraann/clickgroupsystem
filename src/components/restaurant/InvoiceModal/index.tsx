@@ -130,14 +130,6 @@ export default function InvoiceModal({
               : printStatus === 'error' ? 'ESC/POS failed'
               : 'ESC/POS'}
           </button>
-
-          <button
-            onClick={onClose}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/8 border border-white/12 text-white/60 text-sm font-bold active:scale-95 transition-all hover:bg-white/12"
-          >
-            <X className="w-4 h-4" />
-            Done
-          </button>
         </div>
       </div>
 
@@ -157,7 +149,7 @@ export default function InvoiceModal({
 
       {/* ── Scrollable receipt area ── */}
       <div className="flex-1 overflow-y-auto">
-        <div className="flex justify-center p-4 pb-8">
+        <div className="flex flex-col items-center p-4 pb-8">
           <div className="w-full max-w-sm">
             <InvoicePrintTemplate
               mode={mode}
@@ -184,6 +176,15 @@ export default function InvoiceModal({
               formatPrice={formatPrice}
             />
           </div>
+
+          {/* ── Big finger-friendly Done button, centered below the receipt ── */}
+          <button
+            onClick={onClose}
+            className="mt-8 w-full max-w-sm flex items-center justify-center gap-3 px-8 py-5 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white text-xl font-extrabold active:scale-95 transition-all shadow-xl shadow-orange-500/40"
+          >
+            <X className="w-6 h-6" />
+            Done
+          </button>
         </div>
       </div>
 

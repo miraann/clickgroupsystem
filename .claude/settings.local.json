@@ -82,7 +82,8 @@
       "Bash(curl -s -o /dev/null -w \"restaurant-login: %{http_code}\\\\n\" http://localhost:3000/restaurant-login)",
       "Bash(curl -s -o /dev/null -w \"dashboard: %{http_code}\\\\n\" -L http://localhost:3000/dashboard)",
       "Bash(curl -s -o /dev/null -w \"order/3: %{http_code}\\\\n\" -L http://localhost:3000/dashboard/order/3)",
-      "Bash(git --no-pager diff .claude/settings.local.json)"
+      "Bash(git --no-pager diff .claude/settings.local.json)",
+      "Bash(echo \"=== tsc exit: $? ===\")"
     ]
   }
 }
