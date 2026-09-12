@@ -63,6 +63,9 @@ android {
     //              the staff PIN screen, landing on /dashboard/delivery-orders. Binds
     //              the restaurant slug to the device exactly like cashier — see
     //              MainActivity.java.
+    //   kds      → com.clickgroup.pos.kds     → /restaurant-login (first run) then
+    //              the staff PIN screen, landing on /dashboard/kds. Same slug-binding
+    //              + single-screen kiosk lock as delivery — see MainActivity.java.
     //
     // Each applicationId must have a matching client entry in
     // google-services.json or the com.google.gms.google-services task fails the
@@ -101,6 +104,13 @@ android {
             versionNameSuffix "-cfd"
             resValue "string", "app_name", "ClickGroup CFD"
             resValue "string", "title_activity_main", "ClickGroup CFD"
+        }
+        kds {
+            dimension "role"
+            applicationIdSuffix ".kds"
+            versionNameSuffix "-kds"
+            resValue "string", "app_name", "ClickGroup KDS"
+            resValue "string", "title_activity_main", "ClickGroup KDS"
         }
     }
 }

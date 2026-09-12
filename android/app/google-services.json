@@ -99,6 +99,25 @@
           "other_platform_oauth_client": []
         }
       }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:172919359973:android:d2ee1b1c2d3e4f5068c70c",
+        "android_client_info": {
+          "package_name": "com.clickgroup.pos.kds"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCokDQD_vvb6nursKt2LzJi72c1W83tGkU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
     }
   ],
   "configuration_version": "1"

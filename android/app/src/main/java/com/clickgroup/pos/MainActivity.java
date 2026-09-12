@@ -19,16 +19,18 @@ public class MainActivity extends BridgeActivity {
     private static final String PREFS     = "clickgroup_login";
     private static final String KEY_SLUG  = "restaurant_slug";
     // The cashier flavor keeps the com.clickgroup.pos applicationId (no suffix);
-    // delivery is com.clickgroup.pos.delivery. Both bind the restaurant slug to
-    // the device and boot straight to the staff PIN screen on later launches
-    // (delivery appends ?next=/dashboard/delivery-orders). driver / seller / cfd
-    // each carry their own boot URL in their flavor capacitor.config.json and
-    // must NOT be redirected to the PIN screen.
+    // delivery is com.clickgroup.pos.delivery, kds is com.clickgroup.pos.kds. All
+    // three bind the restaurant slug to the device and boot straight to the staff
+    // PIN screen on later launches (delivery/kds append their own ?next=). driver /
+    // seller / cfd each carry their own boot URL in their flavor capacitor.config.json
+    // and must NOT be redirected to the PIN screen.
     private static final String CASHIER_PACKAGE  = "com.clickgroup.pos";
     private static final String DELIVERY_PACKAGE = "com.clickgroup.pos.delivery";
     private static final String CFD_PACKAGE      = "com.clickgroup.pos.cfd";
-    // Where the delivery flavor sends the user after a successful PIN.
+    private static final String KDS_PACKAGE      = "com.clickgroup.pos.kds";
+    // Where the delivery / kds flavors send the user after a successful PIN.
     private static final String DELIVERY_NEXT    = "/dashboard/delivery-orders";
+    private static final String KDS_NEXT         = "/dashboard/kds";
     // Web sets this in localStorage from the CFD "Keep screen awake" toggle.
     private static final String KEY_KEEP_AWAKE  = "cfd_keep_awake";
 
@@ -45,6 +47,10 @@ public class MainActivity extends BridgeActivity {
 
     private boolean isCfdFlavor() {
         return CFD_PACKAGE.equals(getPackageName());
+    }
+
+    private boolean isKdsFlavor() {
+        return KDS_PACKAGE.equals(getPackageName());
     }
 
     @Override
@@ -72,6 +78,23 @@ public class MainActivity extends BridgeActivity {
             });
         }
 
+        if (isKdsFlavor()) {
+            // Single-screen kiosk: the KDS app may only show /dashboard/kds.
+            // The web KioskGuard handles in-app (SPA) navigation; this listener
+            // is the native backstop for full page loads to any other /dashboard route.
+            bridge.addWebViewListener(new WebViewListener() {
+                @Override
+                public void onPageCommitVisible(WebView view, String url) {
+                    enforceKdsScope(view, url);
+                }
+
+                @Override
+                public void onPageStarted(WebView view) {
+                    enforceKdsScope(view, view != null ? view.getUrl() : null);
+                }
+            });
+        }
+
         if (isCfdFlavor()) {
             // Customer-facing display: hold the screen on by default. The web
             // "Keep screen awake" toggle (localStorage cfd_keep_awake) can clear
@@ -82,7 +105,7 @@ public class MainActivity extends BridgeActivity {
             return;
         }
 
-        if (!isCashierFlavor() && !isDeliveryFlavor()) {
+        if (!isCashierFlavor() && !isDeliveryFlavor() && !isKdsFlavor()) {
             // driver / seller: just load the flavor's configured URL.
             return;
         }
@@ -99,6 +122,9 @@ public class MainActivity extends BridgeActivity {
             if (isDeliveryFlavor()) {
                 // Land on the delivery-orders screen once the PIN is accepted.
                 url += "?next=" + Uri.encode(DELIVERY_NEXT);
+            } else if (isKdsFlavor()) {
+                // Land on the kitchen display screen once the PIN is accepted.
+                url += "?next=" + Uri.encode(KDS_NEXT);
             }
             final String target = url;
             WebView wv = bridge.getWebView();
@@ -117,6 +143,16 @@ public class MainActivity extends BridgeActivity {
         if (!url.contains("clickgroupsystem.vercel.app/dashboard")) return;
         if (url.contains("/dashboard/delivery-orders")) return;
         view.post(() -> view.loadUrl(APP_BASE + DELIVERY_NEXT));
+    }
+
+    // KDS kiosk: bounce any full-load navigation to a non-kds dashboard route
+    // back to the kitchen display screen. Login / PIN screens and the encoded
+    // ?next= query are left alone.
+    private void enforceKdsScope(WebView view, String url) {
+        if (view == null || url == null) return;
+        if (!url.contains("clickgroupsystem.vercel.app/dashboard")) return;
+        if (url.contains(KDS_NEXT)) return;
+        view.post(() -> view.loadUrl(APP_BASE + KDS_NEXT));
     }
 
     private void syncSlug() {

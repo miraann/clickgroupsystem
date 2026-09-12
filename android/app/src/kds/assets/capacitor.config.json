@@ -1,0 +1,22 @@
+{
+	"appId": "com.clickgroup.pos",
+	"appName": "ClickGroup KDS",
+	"webDir": "public",
+	"server": {
+		"url": "https://clickgroupsystem.vercel.app/restaurant-login?next=%2Fdashboard%2Fkds",
+		"cleartext": false
+	},
+	"android": {
+		"backgroundColor": "#022658",
+		"appendUserAgent": "ClickGroupKDS"
+	},
+	"plugins": {
+		"PushNotifications": {
+			"presentationOptions": [
+				"badge",
+				"sound",
+				"alert"
+			]
+		}
+	}
+}
