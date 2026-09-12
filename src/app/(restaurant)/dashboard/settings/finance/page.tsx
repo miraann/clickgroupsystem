@@ -313,19 +313,22 @@ export default function FinancePage() {
       <motion.div
         initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.42, ease: 'circOut' as const, delay: 0.15 }}
-        className="flex flex-wrap items-center gap-2 -mt-2">
-        <BarChart2 className="w-3.5 h-3.5 text-white/25 shrink-0" />
-        <span className="text-xs text-white/40">{t.fin_daily_report}</span>
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-white/5 border border-white/10 rounded-xl">
-          <Calendar className="w-3.5 h-3.5 text-white/30 shrink-0" />
+        className="flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-2">
+          <BarChart2 className="w-5 h-5 text-white/30 shrink-0" />
+          <span className="text-sm text-white/50 font-medium">{t.fin_daily_report}</span>
+        </div>
+        <div className="flex items-center gap-2.5 px-4 py-3 bg-white/5 border border-white/10 rounded-xl">
+          <Calendar className="w-5 h-5 text-white/30 shrink-0" />
           <input type="date" value={dailyReportDate} onChange={e => setDailyReportDate(e.target.value)}
             max={new Date().toISOString().slice(0, 10)}
-            className="bg-transparent text-xs text-white/70 focus:outline-none w-28 cursor-pointer [color-scheme:dark]" />
+            className="bg-transparent text-base text-white/80 focus:outline-none w-40 cursor-pointer [color-scheme:dark]" />
         </div>
         <button
           onClick={() => dailyReportDate && setShowDailyReport(true)}
           disabled={!dailyReportDate}
-          className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-xs text-white font-medium transition-all active:scale-95">
+          className="flex items-center gap-2 px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-base text-white font-semibold transition-all active:scale-95 shadow-lg shadow-amber-500/20">
+          <BarChart2 className="w-5 h-5" />
           {t.fin_view_report}
         </button>
       </motion.div>
