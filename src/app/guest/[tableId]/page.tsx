@@ -239,6 +239,8 @@ export default function GuestPage() {
   const [primaryColor, setPrimaryColor] = useState('#f59e0b')
   const [categoryStyle, setCategoryStyle] = useState<'circles'|'pills'|'square'|'horizontal'>('circles')
   const [itemStyle, setItemStyle]   = useState<'grid'|'list'|'compact'>('grid')
+  const [socialStyle, setSocialStyle] = useState<'pills'|'grid'|'icons'>('pills')
+  const [eventStyle, setEventStyle] = useState<'cards'|'story'|'banner'>('cards')
   const [showPrices, setShowPrices] = useState(true)
   const [showDescs, setShowDescs]   = useState(true)
   const [welcomeText, setWelcomeText] = useState<string|null>(null)
@@ -367,6 +369,8 @@ export default function GuestPage() {
       if (d.primary_color)    setPrimaryColor(d.primary_color)
       if (d.category_style)   setCategoryStyle(d.category_style)
       if (d.item_style)       setItemStyle(d.item_style)
+      if (d.social_style)     setSocialStyle(d.social_style)
+      if (d.event_style)      setEventStyle(d.event_style)
       if (d.show_prices       !== undefined) setShowPrices(d.show_prices)
       if (d.show_descriptions !== undefined) setShowDescs(d.show_descriptions)
       if (d.welcome_text)     setWelcomeText(d.welcome_text)
@@ -987,55 +991,140 @@ export default function GuestPage() {
             <motion.div className="w-full max-w-2xl mx-auto mt-6"
               initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1], delay: 0.62 }}>
               <h2 className={`text-lg font-bold mb-3 px-4 text-center ${tpl.sectionTitleColor}`}>{t.gm_events_offers}</h2>
-              <div className="scroll-hide overflow-x-auto pb-4 pt-2"
-                style={{ scrollbarWidth: 'none' } as React.CSSProperties}>
-                <div className="flex gap-5 w-max mx-auto px-4">
+              {eventStyle === 'story' ? (
+                <div className="scroll-hide overflow-x-auto pb-4 pt-2"
+                  style={{ scrollbarWidth: 'none' } as React.CSSProperties}>
+                  <div className="flex gap-4 w-max mx-auto px-4">
+                    {events.map((ev, idx) => (
+                      <motion.div key={ev.id} onClick={() => openStory(idx)}
+                        initial={{ opacity: 0, y: 32, scale: 0.92 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1], delay: 0.62 + idx * 0.12 }}
+                        className="shrink-0 flex flex-col items-center gap-2 cursor-pointer active:scale-95 transition-transform">
+                        <div className="relative w-20 h-20 rounded-full overflow-hidden shadow-lg"
+                          style={{ outline: `3px solid ${primaryColor}`, outlineOffset: '3px', background: '#f3f4f6' }}>
+                          {ev.image_url
+                            ? <NextImage src={ev.image_url} alt={ev.title} fill className="object-cover" />
+                            : <div className="absolute inset-0 bg-gradient-to-br from-amber-400 to-orange-500" />}
+                        </div>
+                        <p className={`text-xs font-semibold text-center w-20 leading-tight line-clamp-2 ${tpl.sectionTitleColor}`}>{ev.title}</p>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              ) : eventStyle === 'banner' ? (
+                <div className="flex flex-col gap-3 px-4">
                   {events.map((ev, idx) => (
                     <motion.div key={ev.id} onClick={() => openStory(idx)}
-                      initial={{ opacity: 0, y: 32, scale: 0.92 }}
+                      initial={{ opacity: 0, y: 24, scale: 0.96 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1], delay: 0.62 + idx * 0.12 }}
-                      className="shrink-0 rounded-2xl p-[3px] shadow-lg cursor-pointer active:scale-95 transition-transform"
-                      style={{ background: primaryColor, boxShadow: `0 4px 18px ${primaryColor}55` }}>
-                      <div className="relative rounded-[14px] overflow-hidden w-40 aspect-[9/16]">
-                        {ev.image_url
-                          ? <NextImage src={ev.image_url} alt={ev.title} fill className="object-cover" />
-                          : <div className="absolute inset-0 bg-gradient-to-br from-amber-400 to-orange-500" />}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-                        <div className="absolute bottom-0 left-0 right-0 p-2">
-                          <p className="text-white text-xs font-bold leading-snug line-clamp-2">{ev.title}</p>
-                          {ev.date_label && <p className="text-white/70 text-[10px] mt-0.5">{ev.date_label}</p>}
-                        </div>
+                      className="relative rounded-2xl overflow-hidden h-40 shadow-lg cursor-pointer active:scale-95 transition-transform"
+                      style={{ border: `1.5px solid ${primaryColor}44` }}>
+                      {ev.image_url
+                        ? <NextImage src={ev.image_url} alt={ev.title} fill className="object-cover" />
+                        : <div className="absolute inset-0 bg-gradient-to-br from-amber-400 to-orange-500" />}
+                      <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/30 to-transparent" />
+                      <div className="absolute inset-0 flex flex-col justify-center px-4">
+                        <p className="text-white text-xl font-bold line-clamp-1">{ev.title}</p>
+                        {ev.date_label && <p className="text-white/70 text-sm mt-1">{ev.date_label}</p>}
+                        {ev.description && <p className="text-white/60 text-xs mt-0.5 line-clamp-2">{ev.description}</p>}
                       </div>
                     </motion.div>
                   ))}
                 </div>
-              </div>
+              ) : (
+                <div className="scroll-hide overflow-x-auto pb-4 pt-2"
+                  style={{ scrollbarWidth: 'none' } as React.CSSProperties}>
+                  <div className="flex gap-5 w-max mx-auto px-4">
+                    {events.map((ev, idx) => (
+                      <motion.div key={ev.id} onClick={() => openStory(idx)}
+                        initial={{ opacity: 0, y: 32, scale: 0.92 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1], delay: 0.62 + idx * 0.12 }}
+                        className="shrink-0 rounded-2xl p-[3px] shadow-lg cursor-pointer active:scale-95 transition-transform"
+                        style={{ background: primaryColor, boxShadow: `0 4px 18px ${primaryColor}55` }}>
+                        <div className="relative rounded-[14px] overflow-hidden w-40 aspect-[9/16]">
+                          {ev.image_url
+                            ? <NextImage src={ev.image_url} alt={ev.title} fill className="object-cover" />
+                            : <div className="absolute inset-0 bg-gradient-to-br from-amber-400 to-orange-500" />}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+                          <div className="absolute bottom-0 left-0 right-0 p-2">
+                            <p className="text-white text-xs font-bold leading-snug line-clamp-2">{ev.title}</p>
+                            {ev.date_label && <p className="text-white/70 text-[10px] mt-0.5">{ev.date_label}</p>}
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </motion.div>
           )}
 
           {socialLinks.length > 0 && (
             <motion.div className="w-full max-w-2xl mx-auto mt-4 pb-10"
               initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1], delay: 0.86 }}>
-              <div className="flex flex-wrap justify-center gap-3 px-4 py-2">
-                {socialLinks.map((s, idx) => {
-                  const href = buildSocialHref(s.key, s.value)
-                  return (
-                    <motion.a key={s.key} href={href === '#' ? undefined : href}
-                      initial={{ opacity: 0, scale: 0.85 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1], delay: 0.91 + idx * 0.09 }}
-                      target="_blank" rel="noopener noreferrer"
-                      className="shrink-0 flex items-center gap-2.5 px-4 py-3 rounded-full border bg-white shadow-sm active:scale-95 transition-all"
-                      style={{ borderColor: s.borderColor }}>
-                      <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: s.iconBg }}>
-                        <span style={{ color: s.key === 'snapchat' ? '#111' : '#fff' }}>{s.icon}</span>
-                      </div>
-                      <span className="text-base font-semibold whitespace-nowrap" style={{ color: s.textColor }}>{s.label}</span>
-                    </motion.a>
-                  )
-                })}
-              </div>
+              {socialStyle === 'grid' ? (
+                <div className="grid grid-cols-2 gap-3 px-4 py-2">
+                  {socialLinks.map((s, idx) => {
+                    const href = buildSocialHref(s.key, s.value)
+                    return (
+                      <motion.a key={s.key} href={href === '#' ? undefined : href}
+                        initial={{ opacity: 0, scale: 0.85 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1], delay: 0.91 + idx * 0.09 }}
+                        target="_blank" rel="noopener noreferrer"
+                        className="flex items-center gap-2.5 px-3.5 py-3 rounded-2xl border bg-white shadow-sm active:scale-95 transition-all"
+                        style={{ borderColor: s.borderColor }}>
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: s.iconBg }}>
+                          <span style={{ color: s.key === 'snapchat' ? '#111' : '#fff' }}>{s.icon}</span>
+                        </div>
+                        <span className="text-sm font-semibold truncate" style={{ color: s.textColor }}>{s.label}</span>
+                      </motion.a>
+                    )
+                  })}
+                </div>
+              ) : socialStyle === 'icons' ? (
+                <div className="flex flex-wrap justify-center gap-5 px-4 py-2">
+                  {socialLinks.map((s, idx) => {
+                    const href = buildSocialHref(s.key, s.value)
+                    return (
+                      <motion.a key={s.key} href={href === '#' ? undefined : href}
+                        initial={{ opacity: 0, scale: 0.85 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1], delay: 0.91 + idx * 0.09 }}
+                        target="_blank" rel="noopener noreferrer"
+                        className="flex flex-col items-center gap-1.5 active:scale-95 transition-all">
+                        <div className="w-12 h-12 rounded-full flex items-center justify-center shadow-sm" style={{ backgroundColor: s.iconBg }}>
+                          <span style={{ color: s.key === 'snapchat' ? '#111' : '#fff' }}>{s.icon}</span>
+                        </div>
+                        <span className="text-xs font-medium whitespace-nowrap" style={{ color: s.textColor }}>{s.label}</span>
+                      </motion.a>
+                    )
+                  })}
+                </div>
+              ) : (
+                <div className="flex flex-wrap justify-center gap-3 px-4 py-2">
+                  {socialLinks.map((s, idx) => {
+                    const href = buildSocialHref(s.key, s.value)
+                    return (
+                      <motion.a key={s.key} href={href === '#' ? undefined : href}
+                        initial={{ opacity: 0, scale: 0.85 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1], delay: 0.91 + idx * 0.09 }}
+                        target="_blank" rel="noopener noreferrer"
+                        className="shrink-0 flex items-center gap-2.5 px-4 py-3 rounded-full border bg-white shadow-sm active:scale-95 transition-all"
+                        style={{ borderColor: s.borderColor }}>
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: s.iconBg }}>
+                          <span style={{ color: s.key === 'snapchat' ? '#111' : '#fff' }}>{s.icon}</span>
+                        </div>
+                        <span className="text-base font-semibold whitespace-nowrap" style={{ color: s.textColor }}>{s.label}</span>
+                      </motion.a>
+                    )
+                  })}
+                </div>
+              )}
             </motion.div>
           )}
         </>
