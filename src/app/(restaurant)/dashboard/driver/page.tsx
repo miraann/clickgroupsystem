@@ -10,7 +10,7 @@ import { usePermissions } from '@/lib/permissions/PermissionsContext'
 import {
   Truck, Phone, MapPin, Navigation, Clock,
   CheckCircle2, Package, ArrowLeft, Loader2,
-  MessageCircle, Banknote, CreditCard, WifiOff,
+  MessageCircle, Banknote, CreditCard, WifiOff, LogOut,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -173,6 +173,16 @@ export default function DriverPage() {
   const pickupCount = orders.filter(o => o.status === 'confirmed' || o.status === 'preparing').length
   const onWayCount  = orders.filter(o => o.status === 'out_for_delivery').length
 
+  // PIN-only drivers have no dashboard.access, so router.back() has nowhere
+  // useful to land — this is the only way to end the session on this screen.
+  const logout = async () => {
+    await supabase.auth.signOut().catch(() => {})
+    const slug = localStorage.getItem('restaurant_slug')
+    const keys = ['restaurant_id', 'restaurant_slug', 'restaurant_name', 'owner_session', 'pos_staff_id', 'pos_staff_name', 'pos_staff_role', 'pos_staff_color', 'pos_role_permissions', 'pos_role_name']
+    keys.forEach(k => localStorage.removeItem(k))
+    router.replace(slug ? `/pos/${slug}/login` : '/restaurant-login')
+  }
+
   return (
     <div className="min-h-screen bg-[#080c18] text-white">
       <DriverOrderAlert staffId={isPinStaff ? staffId : null} />
@@ -187,6 +197,13 @@ export default function DriverPage() {
               className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center active:scale-95 transition-transform"
             >
               <ArrowLeft className="w-5 h-5 text-white/60" />
+            </button>
+            <button
+              onClick={logout}
+              title="Log out"
+              className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-rose-400/60 hover:text-rose-400 hover:bg-rose-500/10 active:scale-95 transition-all"
+            >
+              <LogOut className="w-5 h-5" />
             </button>
             <div>
               <div className="flex items-center gap-2">
