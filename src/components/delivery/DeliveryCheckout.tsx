@@ -101,7 +101,7 @@ const GUIDE_CFG: Record<NonNullable<Guidance>, { icon: string; key: 'dck_fs_move
   show_full_face: { icon: '↕', key: 'dck_fs_show_full_face', color: '#fbbf24', bg: 'rgba(245,158,11,0.22)', border: 'rgba(245,158,11,0.50)' },
 }
 
-function FaceScanPanel({ onVerified }: { onVerified: (selfieUrl: string) => void }) {
+function FaceScanPanel({ onVerified, placing, placeError }: { onVerified: (selfieUrl: string) => void; placing: boolean; placeError: string | null }) {
   const { t } = useLanguage()
   const videoRef   = useRef<HTMLVideoElement>(null)
   const canvasRef  = useRef<HTMLCanvasElement>(null)
@@ -123,6 +123,11 @@ function FaceScanPanel({ onVerified }: { onVerified: (selfieUrl: string) => void
   const [uploadErr, setUploadErr] = useState<string | null>(null)
   const [guidance,  setGuidance]  = useState<Guidance>(null)
   const [hasFace,   setHasFace]   = useState(false)
+
+  // Order submission (fired after upload) failed — re-enable confirm/retake so the user can retry
+  useEffect(() => {
+    if (placeError) setUploading(false)
+  }, [placeError])
 
   function retake() {
     didCapture.current = false
@@ -825,14 +830,14 @@ function FaceScanPanel({ onVerified }: { onVerified: (selfieUrl: string) => void
           )}
 
           <div className="grid grid-cols-2 gap-2">
-            <button onClick={retake} disabled={uploading}
+            <button onClick={retake} disabled={uploading || placing}
               className="py-3 rounded-2xl text-sm font-semibold transition-all active:scale-95 disabled:opacity-40"
               style={{ background: 'rgba(0,0,0,0.05)', border: '1px solid rgba(0,0,0,0.15)', color: 'rgba(0,0,0,0.65)' }}>
               ↩ {t.dck_fs_retake}
             </button>
             <button
               onClick={async () => {
-                if (!captured || uploading) return
+                if (!captured || uploading || placing) return
                 setUploading(true)
                 setUploadErr(null)
                 try {
@@ -843,10 +848,12 @@ function FaceScanPanel({ onVerified }: { onVerified: (selfieUrl: string) => void
                   setUploading(false)
                 }
               }}
-              disabled={uploading}
+              disabled={uploading || placing}
               className="py-3 rounded-2xl text-sm font-bold text-black transition-all active:scale-[0.97] disabled:opacity-60 flex items-center justify-center gap-1.5"
               style={{ background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)', boxShadow: '0 6px 20px rgba(245,158,11,0.35)' }}>
-              {t.dck_fs_confirm} →
+              {placing
+                ? <><Loader2 className="w-4 h-4 animate-spin" /> {t.dck_placing_order}</>
+                : <>{t.dck_fs_confirm} →</>}
             </button>
           </div>
         </motion.div>
@@ -875,8 +882,8 @@ function FaceScanPanel({ onVerified }: { onVerified: (selfieUrl: string) => void
 function StepIndicator({ step, primaryColor }: { step: Step; primaryColor: string }) {
   const { t } = useLanguage()
   const steps: { id: Step; label: string }[] = [
-    { id: 'scan',    label: t.dck_step_verify },
     { id: 'details', label: t.dck_step_order  },
+    { id: 'scan',    label: t.dck_step_verify },
   ]
   const activeIdx = steps.findIndex(s => s.id === step)
 
@@ -960,9 +967,8 @@ export default function DeliveryCheckout({
 
   const { t } = useLanguage()
 
-  // ── Navigation step — skip face scan when disabled ─────────
-  const [step,      setStep]      = useState<Step>(faceScanEnabled ? 'scan' : 'details')
-  const [selfieUrl, setSelfieUrl] = useState<string | null>(null)
+  // ── Navigation step — details first, face scan (when enabled) confirms last ─
+  const [step, setStep] = useState<Step>('details')
 
   // ── Form state ─────────────────────────────────────────────
   const [name,     setName]     = useState('')
@@ -1105,17 +1111,22 @@ export default function DeliveryCheckout({
   const grandTotal     = cartTotal + effFee - discountAmount
   const belowMin       = effMinOrder > 0 && cartTotal < effMinOrder
 
-  // ── Liveness verified → store selfie URL → advance to step 2 ─
-  const handleVerified = useCallback((url: string) => {
-    setSelfieUrl(url)
-    setStep('details')
-  }, [])
-
-  // ── Submit (step 2 CTA — face already verified) ─────────────
-  const submit = () => {
-    if (!validateForm()) return
-    onConfirm(name.trim(), phone.trim(), lat, lng, address, discountAmount, appliedCoupon?.id ?? null, selfieUrl, effFee)
+  // ── Submit — fires once details are valid and (if required) face is verified ─
+  const submit = (verifiedSelfieUrl: string | null) => {
+    onConfirm(name.trim(), phone.trim(), lat, lng, address, discountAmount, appliedCoupon?.id ?? null, verifiedSelfieUrl, effFee)
   }
+
+  // ── Details step CTA — validate, then move to face scan (or submit if disabled) ─
+  const goToNext = () => {
+    if (!validateForm()) return
+    if (faceScanEnabled) setStep('scan')
+    else submit(null)
+  }
+
+  // ── Liveness verified → submit the order with the selfie URL ─
+  const handleVerified = useCallback((url: string) => {
+    submit(url)
+  }, [name, phone, lat, lng, address, discountAmount, appliedCoupon, effFee])
 
   // ── Render ─────────────────────────────────────────────────
   return (
@@ -1199,48 +1210,16 @@ export default function DeliveryCheckout({
         {/* ── Scrollable step content ─────────────────────── */}
         <div className="flex-1 overflow-y-auto overscroll-contain">
         <AnimatePresence mode="wait" initial={false}>
-          {step === 'scan' ? (
-            /* ── Step 1: Face scan liveness check ── */
+          {step === 'details' ? (
+            /* ── Step 1: Delivery details ── */
             <motion.div
-              key="scan"
+              key="details"
               initial={{ opacity: 0, x: -24 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -24 }}
               transition={{ duration: 0.22, ease: 'easeOut' }}
-              className="px-4 pt-2 pb-4"
-            >
-              <FaceScanPanel onVerified={handleVerified} />
-            </motion.div>
-          ) : (
-            /* ── Step 2: Delivery details (unlocked after face scan) ── */
-            <motion.div
-              key="details"
-              initial={{ opacity: 0, x: 24 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 24 }}
-              transition={{ duration: 0.22, ease: 'easeOut' }}
               className="px-4 pt-1 pb-4 space-y-3"
             >
-              {/* Verified badge */}
-              <div
-                className="flex items-center gap-2 px-3 py-2 rounded-xl"
-                style={{ background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.22)' }}
-              >
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                <p className="text-[11px] text-emerald-400 font-semibold">{t.dck_identity_verified}</p>
-              </div>
-
-              {/* Order error */}
-              {placeError && (
-                <div
-                  className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl"
-                  style={{ background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.18)' }}
-                >
-                  <AlertCircle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
-                  <p className="text-[11px] text-rose-400">{placeError}</p>
-                </div>
-              )}
-
               {/* Full name */}
               <FieldWrap label={t.dck_full_name} error={errors.name}>
                 <div className="relative">
@@ -1451,6 +1430,18 @@ export default function DeliveryCheckout({
               </div>
 
             </motion.div>
+          ) : (
+            /* ── Step 2: Face scan liveness check (confirms & submits the order) ── */
+            <motion.div
+              key="scan"
+              initial={{ opacity: 0, x: 24 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 24 }}
+              transition={{ duration: 0.22, ease: 'easeOut' }}
+              className="px-4 pt-2 pb-4"
+            >
+              <FaceScanPanel onVerified={handleVerified} placing={placing} placeError={placeError} />
+            </motion.div>
           )}
         </AnimatePresence>
         </div>{/* end scrollable area */}
@@ -1463,9 +1454,20 @@ export default function DeliveryCheckout({
             borderTop: '1px solid rgba(0,0,0,0.06)',
           }}
         >
+          {/* Order error — surfaced here since submission now happens after face scan */}
+          {placeError && (
+            <div
+              className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl mb-2.5"
+              style={{ background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.18)' }}
+            >
+              <AlertCircle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+              <p className="text-[11px] text-rose-400">{placeError}</p>
+            </div>
+          )}
+
           {step === 'details' ? (
             <button
-              onClick={submit}
+              onClick={faceScanEnabled ? goToNext : () => submit(null)}
               disabled={placing || belowMin}
               className="w-full py-4 rounded-2xl font-extrabold text-sm flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-40"
               style={{
@@ -1474,9 +1476,9 @@ export default function DeliveryCheckout({
                 color: '#000',
               }}
             >
-              {placing
+              {!faceScanEnabled && placing
                 ? <><Loader2 className="w-4 h-4 animate-spin" /> {t.dck_placing_order}</>
-                : <>{t.dck_place_order} <ChevronRight className="w-4 h-4" strokeWidth={2.5} /></>}
+                : <>{faceScanEnabled ? t.dck_continue : t.dck_place_order} <ChevronRight className="w-4 h-4" strokeWidth={2.5} /></>}
             </button>
           ) : (
             <div
@@ -1488,7 +1490,9 @@ export default function DeliveryCheckout({
                 cursor: 'default',
               }}
             >
-              <Eye className="w-4 h-4" /> Complete Face Scan to Continue
+              {placing
+                ? <><Loader2 className="w-4 h-4 animate-spin" /> {t.dck_placing_order}</>
+                : <><Eye className="w-4 h-4" /> Complete Face Scan to Continue</>}
             </div>
           )}
         </div>
