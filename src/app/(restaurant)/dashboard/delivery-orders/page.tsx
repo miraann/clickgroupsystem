@@ -12,7 +12,7 @@ import {
   Truck, Phone, MapPin, Clock, Check, X, Loader2,
   RefreshCw, Package,
   CheckCircle2, XCircle, AlertCircle,
-  Navigation, UtensilsCrossed, FileText, Home, MonitorSmartphone, UserRound, Camera,
+  Navigation, UtensilsCrossed, FileText, Home, MonitorSmartphone, UserRound, Camera, LogOut,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
@@ -547,6 +547,23 @@ export default function DeliveryOrdersPage() {
             >
               <RefreshCw className="w-5 h-5" />
             </button>
+            {kiosk && (
+              // The delivery kiosk hides Home / Driver above — this is the only
+              // way out of the app, so it has to live on this one locked screen.
+              <button
+                onClick={async () => {
+                  const supabase = createClient()
+                  await supabase.auth.signOut().catch(() => {})
+                  const slug = localStorage.getItem('restaurant_slug')
+                  const keys = ['restaurant_id', 'restaurant_slug', 'restaurant_name', 'owner_session', 'pos_staff_id', 'pos_staff_name', 'pos_staff_role', 'pos_staff_color', 'pos_role_permissions', 'pos_role_name']
+                  keys.forEach(k => localStorage.removeItem(k))
+                  router.replace(slug ? `/pos/${slug}/login` : '/restaurant-login')
+                }}
+                className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-rose-400/60 hover:text-rose-400 hover:bg-rose-500/10 transition-all active:scale-95"
+              >
+                <LogOut className="w-5 h-5" />
+              </button>
+            )}
           </div>
         </div>
 
