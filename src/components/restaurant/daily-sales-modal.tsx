@@ -5,6 +5,7 @@ import { X, Printer, Loader2, BarChart2, CheckCircle2, AlertCircle } from 'lucid
 import { createClient } from '@/lib/supabase/client'
 import { enqueuePrint } from '@/lib/printQueue'
 import { sendPrinterBytes } from '@/lib/sendToPrinter'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 interface InvoiceRow {
   id: string
@@ -59,6 +60,7 @@ function DoubleLine() {
 
 // ── Main component ────────────────────────────────────────────
 export function DailySalesModal({ restaurantId, restaurantName, formatPrice, onClose }: Props) {
+  const { t } = useLanguage()
   const supabase = createClient()
   const receiptRef = useRef<HTMLDivElement>(null)
 
@@ -146,7 +148,7 @@ export function DailySalesModal({ restaurantId, restaurantName, formatPrice, onC
   // Payment methods
   const payMap = new Map<string, { total: number; count: number }>()
   for (const inv of invoices) {
-    const m = inv.payment_method || 'Unknown'
+    const m = inv.payment_method || t.dsr_unknown
     const c = payMap.get(m) ?? { total: 0, count: 0 }
     payMap.set(m, { total: c.total + inv.total, count: c.count + 1 })
   }
@@ -155,16 +157,16 @@ export function DailySalesModal({ restaurantId, restaurantName, formatPrice, onC
   // Order types
   const typeAcc = { dineIn: 0, dineInN: 0, takeout: 0, takeoutN: 0, delivery: 0, deliveryN: 0 }
   for (const inv of invoices) {
-    const t = (inv.table_num ?? '').toLowerCase().trim()
-    if (t === 'takeout' || t === 'take out' || t === 'take-out') { typeAcc.takeout += inv.total; typeAcc.takeoutN++ }
-    else if (t.includes('delivery') || t.includes('deliver'))    { typeAcc.delivery += inv.total; typeAcc.deliveryN++ }
-    else                                                          { typeAcc.dineIn  += inv.total; typeAcc.dineInN++  }
+    const tbl = (inv.table_num ?? '').toLowerCase().trim()
+    if (tbl === 'takeout' || tbl === 'take out' || tbl === 'take-out') { typeAcc.takeout += inv.total; typeAcc.takeoutN++ }
+    else if (tbl.includes('delivery') || tbl.includes('deliver'))      { typeAcc.delivery += inv.total; typeAcc.deliveryN++ }
+    else                                                                { typeAcc.dineIn  += inv.total; typeAcc.dineInN++  }
   }
   const orderTypes = [
-    { label: 'Dine-in',  total: typeAcc.dineIn,   count: typeAcc.dineInN   },
-    { label: 'Takeout',  total: typeAcc.takeout,  count: typeAcc.takeoutN  },
-    { label: 'Delivery', total: typeAcc.delivery, count: typeAcc.deliveryN },
-  ].filter(t => t.count > 0)
+    { label: t.dsr_dine_in,  total: typeAcc.dineIn,   count: typeAcc.dineInN   },
+    { label: t.dsr_takeout,  total: typeAcc.takeout,  count: typeAcc.takeoutN  },
+    { label: t.dsr_delivery, total: typeAcc.delivery, count: typeAcc.deliveryN },
+  ].filter(ot => ot.count > 0)
 
   // Customer split
   const memberInvs  = invoices.filter(i => i.customer_id)
@@ -185,7 +187,7 @@ export function DailySalesModal({ restaurantId, restaurantName, formatPrice, onC
   // By cashier
   const cashierMap = new Map<string, { total: number; count: number }>()
   for (const inv of invoices) {
-    const c = inv.cashier || 'Unknown'
+    const c = inv.cashier || t.dsr_unknown
     const cur = cashierMap.get(c) ?? { total: 0, count: 0 }
     cashierMap.set(c, { total: cur.total + inv.total, count: cur.count + 1 })
   }
@@ -201,7 +203,7 @@ export function DailySalesModal({ restaurantId, restaurantName, formatPrice, onC
     const win = window.open('', '_blank', 'width=400,height=800')
     if (!win) return
     win.document.write(`
-      <html><head><title>Daily Sales - ${dateStr}</title>
+      <html><head><title>${t.dsr_title} - ${dateStr}</title>
       <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Courier New', monospace; font-size: 11px; color: #111; background: #fff; padding: 12px; }
@@ -272,7 +274,7 @@ export function DailySalesModal({ restaurantId, restaurantName, formatPrice, onC
       setPrintStatus('ok')
       setTimeout(() => setPrintStatus('idle'), 3000)
     } else {
-      setPrintError('Printing failed — see the Print Queue on the dashboard')
+      setPrintError(t.dsr_print_failed)
       setPrintStatus('error')
     }
     return ok
@@ -311,7 +313,7 @@ export function DailySalesModal({ restaurantId, restaurantName, formatPrice, onC
             <div className="flex items-center justify-between px-4 py-2 bg-gray-100 border-b border-gray-200 shrink-0">
               <div className="flex items-center gap-2">
                 <BarChart2 className="w-4 h-4 text-gray-500" />
-                <span className="text-xs font-bold text-gray-600 uppercase tracking-wider">Daily Sales</span>
+                <span className="text-xs font-bold text-gray-600 uppercase tracking-wider">{t.dsr_title}</span>
               </div>
               <div className="flex items-center gap-2">
                 {!loading && txCount > 0 && (
@@ -324,7 +326,7 @@ export function DailySalesModal({ restaurantId, restaurantName, formatPrice, onC
                       : printStatus === 'ok'    ? <CheckCircle2 className="w-3.5 h-3.5" />
                       : printStatus === 'error' ? <AlertCircle className="w-3.5 h-3.5" />
                       : <Printer className="w-3.5 h-3.5" />}
-                    {printStatus === 'sending' ? 'Sending…' : printStatus === 'ok' ? 'Sent!' : 'Print'}
+                    {printStatus === 'sending' ? t.dsr_sending : printStatus === 'ok' ? t.dsr_sent : t.dsr_print}
                   </button>
                 )}
                 <button
@@ -340,7 +342,7 @@ export function DailySalesModal({ restaurantId, restaurantName, formatPrice, onC
             {printStatus === 'error' && printError && (
               <div className="shrink-0 mx-4 mt-2 px-3 py-2 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-[11px] space-y-1">
                 <p>{printError}</p>
-                <p className="text-gray-500">Opened the browser print dialog instead.</p>
+                <p className="text-gray-500">{t.dsr_print_fallback_hint}</p>
               </div>
             )}
 
@@ -358,30 +360,30 @@ export function DailySalesModal({ restaurantId, restaurantName, formatPrice, onC
                     {restaurantName && (
                       <p className="text-base font-black text-black tracking-wide uppercase">{restaurantName}</p>
                     )}
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-black mt-0.5">Daily Sales Report</p>
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-black mt-0.5">{t.dsr_report_title}</p>
                     <p className="text-xs font-bold text-black mt-1">{dateStr} &nbsp;·&nbsp; {timeStr}</p>
                   </div>
 
                   <DoubleLine />
 
                   {txCount === 0 ? (
-                    <p className="text-center text-xs font-bold text-black py-8">No sales recorded today.</p>
+                    <p className="text-center text-xs font-bold text-black py-8">{t.dsr_no_sales}</p>
                   ) : (
                     <>
                       {/* ── Summary ────────────────────────────── */}
-                      <Row label="Transactions"    value={String(txCount)} />
-                      <Row label="Total Revenue"   value={formatPrice(totalRevenue)} large />
-                      <Row label="Avg Order Value" value={formatPrice(avgOrder)} />
-                      <Row label="Guests Served"   value={String(totalGuests)} />
+                      <Row label={t.dsr_transactions}  value={String(txCount)} />
+                      <Row label={t.dsr_total_revenue} value={formatPrice(totalRevenue)} large />
+                      <Row label={t.dsr_avg_order}     value={formatPrice(avgOrder)} />
+                      <Row label={t.dsr_guests_served} value={String(totalGuests)} />
 
                       <Divider dashed />
-                      <Row label="Total Discounts" value={formatPrice(totalDiscount)} hiColor="text-rose-600" />
-                      <Row label="Total Tips"      value={formatPrice(totalTips)} />
-                      <Row label="Change Given"    value={formatPrice(totalChange)} />
+                      <Row label={t.dsr_total_discounts} value={formatPrice(totalDiscount)} hiColor="text-rose-600" />
+                      <Row label={t.dsr_total_tips}      value={formatPrice(totalTips)} />
+                      <Row label={t.dsr_change_given}    value={formatPrice(totalChange)} />
 
                       {/* ── Payment Methods ────────────────────── */}
                       <DoubleLine />
-                      <SectionTitle>Payment Methods</SectionTitle>
+                      <SectionTitle>{t.dsr_payment_methods}</SectionTitle>
                       <Divider dashed />
                       {byPayment.map(pm => (
                         <div key={pm.method} className="flex items-baseline justify-between py-[3px]">
@@ -395,7 +397,7 @@ export function DailySalesModal({ restaurantId, restaurantName, formatPrice, onC
                       {orderTypes.length > 0 && (
                         <>
                           <DoubleLine />
-                          <SectionTitle>Order Types</SectionTitle>
+                          <SectionTitle>{t.dsr_order_types}</SectionTitle>
                           <Divider dashed />
                           {orderTypes.map(ot => (
                             <div key={ot.label} className="flex items-baseline justify-between py-[3px]">
@@ -409,15 +411,15 @@ export function DailySalesModal({ restaurantId, restaurantName, formatPrice, onC
 
                       {/* ── Customer Split ─────────────────────── */}
                       <DoubleLine />
-                      <SectionTitle>Customer Split</SectionTitle>
+                      <SectionTitle>{t.dsr_customer_split}</SectionTitle>
                       <Divider dashed />
                       <div className="flex items-baseline justify-between py-[3px]">
-                        <span className="text-xs font-bold text-black">Member</span>
+                        <span className="text-xs font-bold text-black">{t.dsr_member}</span>
                         <span className="text-xs font-bold text-black mx-2">{memberInvs.length}×</span>
                         <span className="text-xs tabular-nums font-mono font-bold text-black ml-auto">{formatPrice(memberTotal)}</span>
                       </div>
                       <div className="flex items-baseline justify-between py-[3px]">
-                        <span className="text-xs font-bold text-black">Walk-in</span>
+                        <span className="text-xs font-bold text-black">{t.dsr_walk_in}</span>
                         <span className="text-xs font-bold text-black mx-2">{walkInInvs.length}×</span>
                         <span className="text-xs tabular-nums font-mono font-bold text-black ml-auto">{formatPrice(walkInTotal)}</span>
                       </div>
@@ -426,7 +428,7 @@ export function DailySalesModal({ restaurantId, restaurantName, formatPrice, onC
                       {topItems.length > 0 && (
                         <>
                           <DoubleLine />
-                          <SectionTitle>Top Selling Items</SectionTitle>
+                          <SectionTitle>{t.dsr_top_items}</SectionTitle>
                           <Divider dashed />
                           {topItems.map((item, idx) => (
                             <div key={item.name} className="flex items-baseline justify-between py-[3px]">
@@ -443,7 +445,7 @@ export function DailySalesModal({ restaurantId, restaurantName, formatPrice, onC
                       {byCashier.length > 0 && (
                         <>
                           <DoubleLine />
-                          <SectionTitle>By Cashier</SectionTitle>
+                          <SectionTitle>{t.dsr_by_cashier}</SectionTitle>
                           <Divider dashed />
                           {byCashier.map(c => (
                             <div key={c.name} className="flex items-baseline justify-between py-[3px]">
@@ -457,24 +459,24 @@ export function DailySalesModal({ restaurantId, restaurantName, formatPrice, onC
 
                       {/* ── Expenses & Profit ──────────────────── */}
                       <DoubleLine />
-                      <SectionTitle>Expenses & Net Profit</SectionTitle>
+                      <SectionTitle>{t.dsr_expenses_profit}</SectionTitle>
                       <Divider dashed />
-                      <Row label="Gross Revenue" value={formatPrice(totalRevenue)} />
-                      <Row label="Paid Expenses" value={`- ${formatPrice(totalExpenses)}`} hiColor="text-rose-600" />
+                      <Row label={t.dsr_gross_revenue} value={formatPrice(totalRevenue)} />
+                      <Row label={t.dsr_paid_expenses} value={`- ${formatPrice(totalExpenses)}`} hiColor="text-rose-600" />
                       <Divider />
-                      <Row label="NET PROFIT" value={formatPrice(netProfit)} large hiColor={netProfit >= 0 ? 'text-green-700' : 'text-red-600'} />
+                      <Row label={t.dsr_net_profit} value={formatPrice(netProfit)} large hiColor={netProfit >= 0 ? 'text-green-700' : 'text-red-600'} />
 
                       {/* ── Month-to-Date Daily Averages ───────── */}
                       <DoubleLine />
-                      <SectionTitle>Current Month Daily Avg</SectionTitle>
+                      <SectionTitle>{t.dsr_month_avg}</SectionTitle>
                       <Divider dashed />
-                      <Row label="Avg Daily Sales"   value={formatPrice(avgDailySalesMonth)} />
-                      <Row label="Avg Daily Expense" value={formatPrice(avgDailyExpenseMonth)} hiColor="text-rose-600" />
+                      <Row label={t.dsr_avg_daily_sales}   value={formatPrice(avgDailySalesMonth)} />
+                      <Row label={t.dsr_avg_daily_expense} value={formatPrice(avgDailyExpenseMonth)} hiColor="text-rose-600" />
 
                       <DoubleLine />
 
                       {/* Footer */}
-                      <p className="text-center text-[9px] font-black text-black mt-3 tracking-widest uppercase">End of Report</p>
+                      <p className="text-center text-[9px] font-black text-black mt-3 tracking-widest uppercase">{t.dsr_end_of_report}</p>
                     </>
                   )}
                 </div>
