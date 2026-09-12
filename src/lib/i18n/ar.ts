@@ -1230,6 +1230,8 @@ const ar: Record<keyof typeof en, string> = {
   fin_custom:           'مخصص',
   fin_to:               'إلى',
   fin_apply:            'تطبيق',
+  fin_daily_report:     'التقرير اليومي:',
+  fin_view_report:      'عرض التقرير',
   fin_other:            'أخرى',
 
   // ── Sales additions ───────────────────────────────────────────

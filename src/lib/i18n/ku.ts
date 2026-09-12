@@ -1230,6 +1230,8 @@ const ku: Record<keyof typeof en, string> = {
   fin_custom:           'دیاریکراو',
   fin_to:               'بۆ',
   fin_apply:            'جێبەجێکردن',
+  fin_daily_report:     'ڕاپۆرتی ڕۆژانە:',
+  fin_view_report:      'بینینی ڕاپۆرت',
   fin_other:            'هیتر',
 
   // ── Sales additions ───────────────────────────────────────────

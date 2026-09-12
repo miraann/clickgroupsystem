@@ -777,6 +777,8 @@ const en = {
   fin_custom:           'Custom',
   fin_to:               'to',
   fin_apply:            'Apply',
+  fin_daily_report:     'Daily Report:',
+  fin_view_report:      'View Report',
   fin_other:            'Other',
 
   // ── Sales page ────────────────────────────────────────────────

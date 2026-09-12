@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react'
 import {
   Download,
   DollarSign, ShoppingBag, Wallet,
-  ArrowUpRight, ArrowDownRight, Calendar,
+  ArrowUpRight, ArrowDownRight, Calendar, BarChart2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
@@ -28,6 +28,8 @@ import {
 } from 'recharts'
 import { BUILTIN_CATS } from '../expense/types'
 import type { Expense, Category } from '../expense/types'
+import { useRestaurant } from '@/hooks/useRestaurant'
+import { DailySalesModal } from '@/components/restaurant/daily-sales-modal'
 
 // ── Types ─────────────────────────────────────────────────────────
 interface Invoice {
@@ -126,10 +128,15 @@ export default function FinancePage() {
   const { t } = useLanguage()
 
   const [restaurantId, setRestaurantId] = useState<string | null>(null)
+  const { restaurant }                  = useRestaurant(restaurantId)
   const [period, setPeriod]             = useState<Period>('month')
   const [customFrom, setCustomFrom]     = useState('')
   const [customTo, setCustomTo]         = useState('')
   const [loading, setLoading]           = useState(true)
+
+  // ── Daily report (any past date) ─────────────────────────────
+  const [dailyReportDate, setDailyReportDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [showDailyReport, setShowDailyReport] = useState(false)
 
   const [invoices, setInvoices]         = useState<Invoice[]>([])
   const [expenses, setExpenses]         = useState<Expense[]>([])
@@ -300,6 +307,27 @@ export default function FinancePage() {
             </button>
           </div>
         )}
+      </motion.div>
+
+      {/* Daily report — detailed receipt-style breakdown for any one picked day */}
+      <motion.div
+        initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.42, ease: 'circOut' as const, delay: 0.15 }}
+        className="flex flex-wrap items-center gap-2 -mt-2">
+        <BarChart2 className="w-3.5 h-3.5 text-white/25 shrink-0" />
+        <span className="text-xs text-white/40">{t.fin_daily_report}</span>
+        <div className="flex items-center gap-2 px-3 py-1.5 bg-white/5 border border-white/10 rounded-xl">
+          <Calendar className="w-3.5 h-3.5 text-white/30 shrink-0" />
+          <input type="date" value={dailyReportDate} onChange={e => setDailyReportDate(e.target.value)}
+            max={new Date().toISOString().slice(0, 10)}
+            className="bg-transparent text-xs text-white/70 focus:outline-none w-28 cursor-pointer [color-scheme:dark]" />
+        </div>
+        <button
+          onClick={() => dailyReportDate && setShowDailyReport(true)}
+          disabled={!dailyReportDate}
+          className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-xs text-white font-medium transition-all active:scale-95">
+          {t.fin_view_report}
+        </button>
       </motion.div>
 
       {/* Data sections */}
@@ -554,6 +582,17 @@ export default function FinancePage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {showDailyReport && restaurantId && (
+        <DailySalesModal
+          restaurantId={restaurantId}
+          restaurantName={restaurant?.name ?? undefined}
+          dayStartTime={((restaurant?.settings as Record<string, unknown> | undefined)?.day_start_time as string) || '00:00'}
+          date={dailyReportDate}
+          formatPrice={formatPrice}
+          onClose={() => setShowDailyReport(false)}
+        />
+      )}
 
     </div>
   )

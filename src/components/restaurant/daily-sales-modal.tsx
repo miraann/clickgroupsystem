@@ -30,6 +30,8 @@ interface Props {
   restaurantName?: string
   /** "HH:MM" — when the restaurant's business day starts (Settings → Restaurant Info). Default '00:00' = real midnight. */
   dayStartTime?: string
+  /** "YYYY-MM-DD" — view a specific past business day instead of the one still open right now. */
+  date?: string
   formatPrice: (n: number) => string
   onClose: () => void
 }
@@ -61,7 +63,7 @@ function DoubleLine() {
 }
 
 // ── Main component ────────────────────────────────────────────
-export function DailySalesModal({ restaurantId, restaurantName, dayStartTime = '00:00', formatPrice, onClose }: Props) {
+export function DailySalesModal({ restaurantId, restaurantName, dayStartTime = '00:00', date, formatPrice, onClose }: Props) {
   const { t } = useLanguage()
   const supabase = createClient()
   const receiptRef = useRef<HTMLDivElement>(null)
@@ -81,14 +83,24 @@ export function DailySalesModal({ restaurantId, restaurantName, dayStartTime = '
       const now = new Date()
       const [dayStartH, dayStartM] = dayStartTime.split(':').map(Number)
 
-      // "Today" runs from the configured business-day start time to the same
-      // time tomorrow — a restaurant open past midnight sets this later than
+      // The business day runs from the configured start time to the same time
+      // the next day — a restaurant open past midnight sets this later than
       // 00:00 so a 1am sale still counts toward the day that's still open.
-      const start = new Date()
-      start.setHours(dayStartH || 0, dayStartM || 0, 0, 0)
-      if (now < start) start.setDate(start.getDate() - 1)
+      let start: Date
+      if (date) {
+        // A specific past day was picked — anchor to it exactly, no "hasn't
+        // started yet" rollback (that only applies to the live/open day).
+        const [y, mo, d] = date.split('-').map(Number)
+        start = new Date(y, mo - 1, d, dayStartH || 0, dayStartM || 0, 0, 0)
+      } else {
+        start = new Date()
+        start.setHours(dayStartH || 0, dayStartM || 0, 0, 0)
+        if (now < start) start.setDate(start.getDate() - 1)
+      }
+      const end = new Date(start)
+      end.setDate(end.getDate() + 1)
 
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, dayStartH || 0, dayStartM || 0, 0, 0)
+      const monthStart = new Date(start.getFullYear(), start.getMonth(), 1, dayStartH || 0, dayStartM || 0, 0, 0)
 
       // tip_amount is a recent column — fall back to the select without it if
       // the migration hasn't been applied yet, instead of silently returning
@@ -100,12 +112,14 @@ export function DailySalesModal({ restaurantId, restaurantName, dayStartTime = '
           .select(cols)
           .eq('restaurant_id', restaurantId)
           .gte('created_at', start.toISOString())
+          .lt('created_at', end.toISOString())
         if (!error) return data
         const fallback = await supabase
           .from('invoices')
           .select(cols.replace('tip_amount,', ''))
           .eq('restaurant_id', restaurantId)
           .gte('created_at', start.toISOString())
+          .lt('created_at', end.toISOString())
         return fallback.data
       }
 
@@ -116,29 +130,32 @@ export function DailySalesModal({ restaurantId, restaurantName, dayStartTime = '
           .select('id,amount')
           .eq('restaurant_id', restaurantId)
           .eq('status', 'paid')
-          .gte('created_at', start.toISOString()),
-        // Month-to-date totals (day 1 of current month -> now), used for the daily-avg section below
+          .gte('created_at', start.toISOString())
+          .lt('created_at', end.toISOString()),
+        // Month-to-date totals (day 1 of the report's month -> end of the reported day), used for the daily-avg section below
         supabase
           .from('invoices')
           .select('total')
           .eq('restaurant_id', restaurantId)
-          .gte('created_at', monthStart.toISOString()),
+          .gte('created_at', monthStart.toISOString())
+          .lt('created_at', end.toISOString()),
         supabase
           .from('expenses')
           .select('amount')
           .eq('restaurant_id', restaurantId)
           .eq('status', 'paid')
-          .gte('created_at', monthStart.toISOString()),
+          .gte('created_at', monthStart.toISOString())
+          .lt('created_at', end.toISOString()),
       ])
       setInvoices((inv ?? []) as InvoiceRow[])
       setExpenses((exp ?? []) as ExpenseRow[])
       setMtdRevenue((mtdInv ?? []).reduce((s, r) => s + (r.total ?? 0), 0))
       setMtdExpenses((mtdExp ?? []).reduce((s, r) => s + (r.amount ?? 0), 0))
-      setDayOfMonth(now.getDate())
+      setDayOfMonth(start.getDate())
       setLoading(false)
     }
     load()
-  }, [restaurantId, dayStartTime]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [restaurantId, dayStartTime, date]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Metrics ───────────────────────────────────────────────────
   const totalRevenue  = invoices.reduce((s, i) => s + i.total, 0)
@@ -206,11 +223,17 @@ export function DailySalesModal({ restaurantId, restaurantName, dayStartTime = '
   const now       = new Date()
   // Label the report by the business day it covers, not the calendar date —
   // before the day-start cutoff (e.g. 2am with a 6am cutoff) "today" is still
-  // yesterday's business day.
-  const [dsH, dsM] = dayStartTime.split(':').map(Number)
-  const businessDate = new Date()
-  businessDate.setHours(dsH || 0, dsM || 0, 0, 0)
-  if (now < businessDate) businessDate.setDate(businessDate.getDate() - 1)
+  // yesterday's business day. A picked past date is shown as-is.
+  let businessDate: Date
+  if (date) {
+    const [y, mo, d] = date.split('-').map(Number)
+    businessDate = new Date(y, mo - 1, d)
+  } else {
+    const [dsH, dsM] = dayStartTime.split(':').map(Number)
+    businessDate = new Date()
+    businessDate.setHours(dsH || 0, dsM || 0, 0, 0)
+    if (now < businessDate) businessDate.setDate(businessDate.getDate() - 1)
+  }
   const dateStr   = businessDate.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
   const timeStr   = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: true })
 
