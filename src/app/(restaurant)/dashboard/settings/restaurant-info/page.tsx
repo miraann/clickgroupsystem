@@ -1,7 +1,7 @@
 'use client'
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence, type Variants } from 'framer-motion'
-import { Store, Camera, Mail, Phone, MapPin, Globe, AlertCircle } from 'lucide-react'
+import { Store, Camera, Mail, Phone, MapPin, Globe, AlertCircle, Clock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { logAudit } from '@/lib/logAudit'
@@ -105,13 +105,13 @@ function FadeSwitch({ id, children }: { id: string; children: React.ReactNode })
 // ── Types ────────────────────────────────────────────────────
 interface FormData {
   name: string; email: string; phone: string; phone2: string
-  location: string; website: string; instagram: string
+  location: string; day_start_time: string; website: string; instagram: string
   facebook: string; twitter: string; whatsapp: string
   tiktok: string; youtube: string; snapchat: string; maps_url: string
 }
 
 const EMPTY_FORM: FormData = {
-  name: '', email: '', phone: '', phone2: '', location: '',
+  name: '', email: '', phone: '', phone2: '', location: '', day_start_time: '00:00',
   website: '', instagram: '', facebook: '', twitter: '',
   whatsapp: '', tiktok: '', youtube: '', snapchat: '', maps_url: '',
 }
@@ -159,6 +159,7 @@ export default function RestaurantInfoPage() {
       phone:     data.phone       ?? '',
       phone2:    s.phone2         ?? '',
       location:  data.address     ?? '',
+      day_start_time: s.day_start_time ?? '00:00',
       website:   s.website        ?? '',
       instagram: s.instagram      ?? '',
       facebook:  s.facebook       ?? '',
@@ -226,6 +227,7 @@ export default function RestaurantInfoPage() {
     const mergedSettings = {
       ...((existing?.settings ?? {}) as Record<string, unknown>),
       phone2:    form.phone2,
+      day_start_time: form.day_start_time,
       website:   form.website,
       instagram: form.instagram,
       facebook:  form.facebook,
@@ -385,6 +387,19 @@ export default function RestaurantInfoPage() {
               <motion.div variants={FIELD_ITEM}>
                 <Field label={t.ri_location}>
                   <Input icon={<MapPin className="w-4 h-4" />} value={form.location} onChange={set('location')} placeholder="Street, City, Country" />
+                </Field>
+              </motion.div>
+              <motion.div variants={FIELD_ITEM}>
+                <Field label={t.ri_day_start} hint={t.ri_day_start_hint}>
+                  <div className="relative">
+                    <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30"><Clock className="w-4 h-4" /></div>
+                    <input
+                      type="time"
+                      value={form.day_start_time}
+                      onChange={set('day_start_time')}
+                      className="w-full h-11 rounded-xl bg-white/5 border border-white/10 text-sm text-white pl-10 pr-4 focus:outline-none focus:border-amber-500/50 focus:bg-white/8 transition-all [color-scheme:dark]"
+                    />
+                  </div>
                 </Field>
               </motion.div>
             </motion.div>

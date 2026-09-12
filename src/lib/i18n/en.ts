@@ -500,6 +500,8 @@ const en = {
   ri_name:              'Restaurant Name',
   ri_email:             'Email Address',
   ri_location:          'Location / Address',
+  ri_day_start:         'Business Day Start Time',
+  ri_day_start_hint:    'Daily Sales counts from this time until the same time the next day — set it later than midnight if you stay open past 12am',
   ri_contact:           'Contact Numbers',
   ri_phone_primary:     'Primary Phone',
   ri_phone_secondary:   'Secondary Phone',

@@ -110,6 +110,8 @@ const ku: Record<keyof typeof en, string> = {
   ri_name:              'ناوی چێشتخانە',
   ri_email:             'ئیمەیڵ',
   ri_location:          'شوێن / ناونیشان',
+  ri_day_start:         'کاتی دەستپێکردنی ڕۆژی کار',
+  ri_day_start_hint:    'فرۆشتنی ڕۆژانە لەم کاتەوە ژمارە دەکرێت تا هەمان کات ڕۆژی دواتر — ئەگەر تا دوای نیوەشەو کاردەکەیت، کاتێک دیاری بکە دواتر لە 12ی شەو بێت',
   ri_contact:           'ژمارەی پەیوەندی',
   ri_phone_primary:     'ژمارەی سەرەکی',
   ri_phone_secondary:   'ژمارەی دووەم',

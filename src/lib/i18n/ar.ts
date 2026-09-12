@@ -110,6 +110,8 @@ const ar: Record<keyof typeof en, string> = {
   ri_name:              'اسم المطعم',
   ri_email:             'البريد الإلكتروني',
   ri_location:          'الموقع / العنوان',
+  ri_day_start:         'وقت بدء يوم العمل',
+  ri_day_start_hint:    'تُحسب المبيعات اليومية من هذا الوقت حتى نفس الوقت في اليوم التالي — اضبطه بعد منتصف الليل إذا كنت تعمل حتى ما بعد الساعة 12 صباحاً',
   ri_contact:           'أرقام التواصل',
   ri_phone_primary:     'الهاتف الرئيسي',
   ri_phone_secondary:   'الهاتف الثانوي',

@@ -28,6 +28,8 @@ interface ExpenseRow { id: string; amount: number }
 interface Props {
   restaurantId: string
   restaurantName?: string
+  /** "HH:MM" — when the restaurant's business day starts (Settings → Restaurant Info). Default '00:00' = real midnight. */
+  dayStartTime?: string
   formatPrice: (n: number) => string
   onClose: () => void
 }
@@ -59,7 +61,7 @@ function DoubleLine() {
 }
 
 // ── Main component ────────────────────────────────────────────
-export function DailySalesModal({ restaurantId, restaurantName, formatPrice, onClose }: Props) {
+export function DailySalesModal({ restaurantId, restaurantName, dayStartTime = '00:00', formatPrice, onClose }: Props) {
   const { t } = useLanguage()
   const supabase = createClient()
   const receiptRef = useRef<HTMLDivElement>(null)
@@ -77,8 +79,16 @@ export function DailySalesModal({ restaurantId, restaurantName, formatPrice, onC
   useEffect(() => {
     const load = async () => {
       const now = new Date()
-      const start = new Date(); start.setHours(0, 0, 0, 0)
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0)
+      const [dayStartH, dayStartM] = dayStartTime.split(':').map(Number)
+
+      // "Today" runs from the configured business-day start time to the same
+      // time tomorrow — a restaurant open past midnight sets this later than
+      // 00:00 so a 1am sale still counts toward the day that's still open.
+      const start = new Date()
+      start.setHours(dayStartH || 0, dayStartM || 0, 0, 0)
+      if (now < start) start.setDate(start.getDate() - 1)
+
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, dayStartH || 0, dayStartM || 0, 0, 0)
 
       // tip_amount is a recent column — fall back to the select without it if
       // the migration hasn't been applied yet, instead of silently returning
@@ -128,7 +138,7 @@ export function DailySalesModal({ restaurantId, restaurantName, formatPrice, onC
       setLoading(false)
     }
     load()
-  }, [restaurantId]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [restaurantId, dayStartTime]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Metrics ───────────────────────────────────────────────────
   const totalRevenue  = invoices.reduce((s, i) => s + i.total, 0)
@@ -194,7 +204,14 @@ export function DailySalesModal({ restaurantId, restaurantName, formatPrice, onC
   const byCashier = [...cashierMap.entries()].map(([name, d]) => ({ name, ...d })).sort((a, b) => b.total - a.total)
 
   const now       = new Date()
-  const dateStr   = now.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
+  // Label the report by the business day it covers, not the calendar date —
+  // before the day-start cutoff (e.g. 2am with a 6am cutoff) "today" is still
+  // yesterday's business day.
+  const [dsH, dsM] = dayStartTime.split(':').map(Number)
+  const businessDate = new Date()
+  businessDate.setHours(dsH || 0, dsM || 0, 0, 0)
+  if (now < businessDate) businessDate.setDate(businessDate.getDate() - 1)
+  const dateStr   = businessDate.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
   const timeStr   = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: true })
 
   const handlePrint = () => {

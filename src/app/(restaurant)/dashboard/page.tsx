@@ -2420,6 +2420,7 @@ export default function TablesPage() {
         <DailySalesModal
           restaurantId={cachedRestaurantId}
           restaurantName={restaurant?.name ?? undefined}
+          dayStartTime={(settings.day_start_time as string) || '00:00'}
           formatPrice={formatPrice}
           onClose={() => setShowDailySales(false)}
         />
