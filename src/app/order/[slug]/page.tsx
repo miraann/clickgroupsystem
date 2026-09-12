@@ -1309,7 +1309,7 @@ export default function DeliveryOrderPage() {
                     <div key={item.id}
                       className={`flex gap-3 rounded-2xl border shadow-sm overflow-hidden ${tpl.itemCardBg} ${tpl.itemCardBorder}`}
                       style={{ boxShadow: qty > 0 ? `0 0 0 2px ${primaryColor}` : undefined }}>
-                      <div className="w-32 sm:w-36 aspect-[3/2] self-center shrink-0 bg-gray-100 overflow-hidden relative">
+                      <div className="w-48 sm:w-56 aspect-[3/2] self-center shrink-0 bg-gray-100 overflow-hidden relative">
                         {item.image_url
                           ? <NextImage src={item.image_url} alt={item.name} fill className="object-cover" />
                           : <div className="w-full h-full flex items-center justify-center"><UtensilsCrossed className="w-5 h-5 text-gray-200" /></div>}
