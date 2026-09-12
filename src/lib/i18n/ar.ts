@@ -1274,6 +1274,9 @@ const ar: Record<keyof typeof en, string> = {
   usr_none:             'لا شيء',
   usr_staff_count:      'موظف',
   usr_change_perms:     'لتغيير الصلاحيات، عدّل دور المستخدم',
+  usr_delete_role:       'حذف الدور',
+  usr_delete_role_pre:   'هل تريد حذف الدور ',
+  usr_delete_role_after: '؟ سيفقد الموظفون المعينون له هذه الصلاحيات. لا يمكن التراجع عن هذا الإجراء.',
 
   // ── Advanced page ─────────────────────────────────────────────
   adv_title:              'متقدّم',

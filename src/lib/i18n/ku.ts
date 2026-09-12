@@ -1274,6 +1274,9 @@ const ku: Record<keyof typeof en, string> = {
   usr_none:             'هیچ',
   usr_staff_count:      'ستاف',
   usr_change_perms:     'بۆ گۆڕینی مۆڵەت، ڕۆڵی بەکارهێنەر بگۆڕە',
+  usr_delete_role:       'سڕینەوەی ڕۆڵ',
+  usr_delete_role_pre:   'دڵنیایت لە سڕینەوەی ڕۆڵی ',
+  usr_delete_role_after: '؟ ستافی دانراو لەسەر ئەم ڕۆڵە ئەم مۆڵەتانە لەدەست دەدات. ناتوانرێت پاشگەزبوونەوە.',
 
   // ── Advanced page ─────────────────────────────────────────────
   adv_title:              'پێشکەوتوو',

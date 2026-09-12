@@ -892,6 +892,9 @@ const en = {
   usr_none:             'None',
   usr_staff_count:      'staff',
   usr_change_perms:     'To change permissions, update the user\'s role',
+  usr_delete_role:       'Delete role',
+  usr_delete_role_pre:   'Delete ',
+  usr_delete_role_after: '? Any staff assigned to it will lose these permissions. This can\'t be undone.',
 
   // ── Advanced page ─────────────────────────────────────────────
   adv_title:              'Advanced',

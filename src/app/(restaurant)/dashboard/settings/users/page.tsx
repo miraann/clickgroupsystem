@@ -1277,12 +1277,12 @@ export default function UsersPage() {
             <div className="flex items-center gap-3">
               <span className="w-10 h-10 rounded-full bg-rose-500/15 flex items-center justify-center shrink-0"><Trash2 className="w-4 h-4 text-rose-400" /></span>
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-white">Delete role</p>
+                <p className="text-sm font-semibold text-white">{t.usr_delete_role}</p>
                 <p className="text-xs text-white/40 truncate">{roleToDelete.name}</p>
               </div>
             </div>
             <p className="text-sm text-white/60 leading-relaxed mt-4">
-              Delete <span className="text-white font-medium">{roleToDelete.name}</span>? Any staff assigned to it will lose these permissions. This can't be undone.
+              {t.usr_delete_role_pre}<span className="text-white font-medium">{roleToDelete.name}</span>{t.usr_delete_role_after}
             </p>
             {permError && <p className="text-xs text-rose-400 mt-2">{permError}</p>}
             <div className="flex gap-2 mt-5">
@@ -1294,7 +1294,7 @@ export default function UsersPage() {
                 onClick={async () => { const ok = await deleteRole(roleToDelete.id); if (ok) { setModal(null); setRoleToDelete(null) } }}
                 disabled={deletingRoleId === roleToDelete.id}
                 className="flex-1 py-2.5 rounded-xl bg-rose-500 hover:bg-rose-600 disabled:opacity-40 text-white text-sm font-semibold active:scale-95 transition-all flex items-center justify-center gap-2">
-                {deletingRoleId === roleToDelete.id && <Loader2 className="w-3.5 h-3.5 animate-spin" />} Delete
+                {deletingRoleId === roleToDelete.id && <Loader2 className="w-3.5 h-3.5 animate-spin" />} {t.delete}
               </button>
             </div>
           </div>
