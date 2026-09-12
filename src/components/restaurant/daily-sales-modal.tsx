@@ -78,12 +78,27 @@ export function DailySalesModal({ restaurantId, restaurantName, formatPrice, onC
       const start = new Date(); start.setHours(0, 0, 0, 0)
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0)
 
-      const [{ data: inv }, { data: exp }, { data: mtdInv }, { data: mtdExp }] = await Promise.all([
-        supabase
+      // tip_amount is a recent column — fall back to the select without it if
+      // the migration hasn't been applied yet, instead of silently returning
+      // no rows at all (Supabase errors the whole query on an unknown column).
+      const loadInvoices = async () => {
+        const cols = 'id,subtotal,discount,tip_amount,total,amount_paid,change_amount,payment_method,cashier,table_num,guests,customer_id,items'
+        const { data, error } = await supabase
           .from('invoices')
-          .select('id,subtotal,discount,tip_amount,total,amount_paid,change_amount,payment_method,cashier,table_num,guests,customer_id,items')
+          .select(cols)
           .eq('restaurant_id', restaurantId)
-          .gte('created_at', start.toISOString()),
+          .gte('created_at', start.toISOString())
+        if (!error) return data
+        const fallback = await supabase
+          .from('invoices')
+          .select(cols.replace('tip_amount,', ''))
+          .eq('restaurant_id', restaurantId)
+          .gte('created_at', start.toISOString())
+        return fallback.data
+      }
+
+      const [inv, { data: exp }, { data: mtdInv }, { data: mtdExp }] = await Promise.all([
+        loadInvoices(),
         supabase
           .from('expenses')
           .select('id,amount')
