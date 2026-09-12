@@ -353,6 +353,10 @@ const en = {
   po_sec_ago:           '{n}s ago',
   po_min_ago:           '{n}m ago',
   po_hour_ago:          '{n}h ago',
+  po_confirm_approve_all: 'Approve all items for this table?',
+  po_confirm_decline_all: 'Decline all items for this table?',
+  po_confirm_approve_item: 'Approve this item?',
+  po_confirm_decline_item: 'Decline this item?',
 
   // ── Delivery Orders ───────────────────────────────────────────
   do_title:             'Delivery Orders',

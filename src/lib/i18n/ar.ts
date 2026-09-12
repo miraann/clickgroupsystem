@@ -1090,6 +1090,10 @@ const ar: Record<keyof typeof en, string> = {
   po_sec_ago:           'قبل {n} ث',
   po_min_ago:           'قبل {n} د',
   po_hour_ago:          'قبل {n} س',
+  po_confirm_approve_all: 'هل تريد قبول كل عناصر هذه الطاولة؟',
+  po_confirm_decline_all: 'هل تريد رفض كل عناصر هذه الطاولة؟',
+  po_confirm_approve_item: 'هل تريد قبول هذا العنصر؟',
+  po_confirm_decline_item: 'هل تريد رفض هذا العنصر؟',
 
   // ── Delivery Orders ───────────────────────────────────────────
   do_title:             'طلبات التوصيل',

@@ -1090,6 +1090,10 @@ const ku: Record<keyof typeof en, string> = {
   po_sec_ago:           '{n} چرکە لەمەوپێش',
   po_min_ago:           '{n} خولەک لەمەوپێش',
   po_hour_ago:          '{n} کاتژمێر لەمەوپێش',
+  po_confirm_approve_all: 'دڵنیایت لە پەسەندکردنی هەموو بابەتەکانی ئەم مێزە؟',
+  po_confirm_decline_all: 'دڵنیایت لە ڕەتکردنەوەی هەموو بابەتەکانی ئەم مێزە؟',
+  po_confirm_approve_item: 'دڵنیایت لە پەسەندکردنی ئەم بابەتە؟',
+  po_confirm_decline_item: 'دڵنیایت لە ڕەتکردنەوەی ئەم بابەتە؟',
 
   // ── Delivery Orders ───────────────────────────────────────────
   do_title:             'فەرمانەکانی گەیاندن',

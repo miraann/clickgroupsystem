@@ -77,6 +77,11 @@ export default function PendingOrdersPage() {
   const [groups, setGroups]       = useState<PendingGroup[]>([])
   const [error, setError]         = useState<string | null>(null)
   const [lastRefresh, setLastRefresh] = useState(new Date())
+  const [confirmAction, setConfirmAction] = useState<
+    | { kind: 'group'; type: 'approve' | 'decline'; group: PendingGroup }
+    | { kind: 'item'; type: 'approve' | 'decline'; item: PendingItem; groupOrderId: string }
+    | null
+  >(null)
   // eslint-disable-next-line @typescript-eslint/no-empty-function
   const loadRef = useRef<() => void>(() => {})
 
@@ -264,6 +269,7 @@ export default function PendingOrdersPage() {
 
   return (
     <ModuleGate moduleKey="dine_in">
+    <>
     <motion.div key="pending-orders-page" variants={PAGE} initial="hidden" animate="show" className="min-h-screen flex flex-col" style={{ background: 'var(--app-bg, #022658)' }}>
 
       {/* Header */}
@@ -354,14 +360,14 @@ export default function PendingOrdersPage() {
                     <span className="text-sm font-bold text-white/50">{formatPrice(groupTotal)}</span>
                     <div className="flex gap-1.5">
                       <button
-                        onClick={() => declineGroup(group)}
+                        onClick={() => setConfirmAction({ kind: 'group', type: 'decline', group })}
                         className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-500 text-white text-xs font-semibold hover:bg-rose-600 active:scale-95 transition-all"
                       >
                         <X className="w-3.5 h-3.5" />
                         {tr.po_decline_all}
                       </button>
                       <button
-                        onClick={() => approveGroup(group)}
+                        onClick={() => setConfirmAction({ kind: 'group', type: 'approve', group })}
                         className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-500 text-white text-xs font-semibold hover:bg-emerald-600 active:scale-95 transition-all"
                       >
                         <Check className="w-3.5 h-3.5" />
@@ -390,13 +396,13 @@ export default function PendingOrdersPage() {
                         </span>
                         <div className="flex gap-1.5 shrink-0">
                           <button
-                            onClick={() => declineItem(item, group.order_id)}
+                            onClick={() => setConfirmAction({ kind: 'item', type: 'decline', item, groupOrderId: group.order_id })}
                             className="w-8 h-8 rounded-lg bg-rose-500 text-white flex items-center justify-center hover:bg-rose-600 active:scale-90 transition-all"
                           >
                             <X className="w-3.5 h-3.5" />
                           </button>
                           <button
-                            onClick={() => approveItem(item, group.order_id)}
+                            onClick={() => setConfirmAction({ kind: 'item', type: 'approve', item, groupOrderId: group.order_id })}
                             className="w-8 h-8 rounded-lg bg-emerald-500 text-white flex items-center justify-center hover:bg-emerald-600 active:scale-90 transition-all"
                           >
                             <Check className="w-3.5 h-3.5" />
@@ -415,6 +421,54 @@ export default function PendingOrdersPage() {
         )}
       </div>
     </motion.div>
+
+    <AnimatePresence>
+      {confirmAction && (
+        <motion.div
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          transition={{ duration: 0.15 }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          onClick={() => setConfirmAction(null)}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.94, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.94, y: 10 }}
+            transition={{ duration: 0.2, ease: 'circOut' }}
+            onClick={e => e.stopPropagation()}
+            className="w-full max-w-sm bg-[#0d1220]/95 backdrop-blur-2xl border border-white/15 rounded-3xl p-6 shadow-2xl"
+          >
+            <p className="text-sm font-semibold text-white text-center leading-relaxed">
+              {confirmAction.kind === 'group'
+                ? (confirmAction.type === 'approve' ? tr.po_confirm_approve_all : tr.po_confirm_decline_all)
+                : (confirmAction.type === 'approve' ? tr.po_confirm_approve_item : tr.po_confirm_decline_item)}
+            </p>
+            <div className="flex gap-2 mt-5">
+              <button
+                onClick={() => setConfirmAction(null)}
+                className="flex-1 py-2.5 rounded-xl bg-white/8 text-white/70 text-sm font-semibold hover:bg-white/12 active:scale-95 transition-all"
+              >
+                {tr.cancel}
+              </button>
+              <button
+                onClick={() => {
+                  if (confirmAction.kind === 'group') {
+                    if (confirmAction.type === 'approve') approveGroup(confirmAction.group)
+                    else declineGroup(confirmAction.group)
+                  } else {
+                    if (confirmAction.type === 'approve') approveItem(confirmAction.item, confirmAction.groupOrderId)
+                    else declineItem(confirmAction.item, confirmAction.groupOrderId)
+                  }
+                  setConfirmAction(null)
+                }}
+                className={`flex-1 py-2.5 rounded-xl text-white text-sm font-semibold active:scale-95 transition-all ${confirmAction.type === 'approve' ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-rose-500 hover:bg-rose-600'}`}
+              >
+                {tr.confirm}
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+    </>
     </ModuleGate>
   )
 }
