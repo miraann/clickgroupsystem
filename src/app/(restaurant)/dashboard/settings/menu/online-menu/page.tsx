@@ -7,6 +7,7 @@ import { motion, AnimatePresence, type Variants } from 'framer-motion'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { createClient } from '@/lib/supabase/client'
 import { useOnlineMenuSettings } from '@/hooks/useOnlineMenuSettings'
+import { openInAppBrowser } from '@/lib/openInAppBrowser'
 
 function Skel({ className }: { className?: string }) {
   return <div className={cn('animate-pulse rounded-xl bg-white/8', className)} />
@@ -762,10 +763,10 @@ export default function OnlineMenuTemplatePage({ linksSlot }: { linksSlot?: Reac
                     {copied ? t.om_copied : t.om_copy}
                   </button>
                   {publicUrl && (
-                    <a href={publicUrl} target="_blank" rel="noopener noreferrer"
+                    <button onClick={() => openInAppBrowser(publicUrl)}
                       className="shrink-0 w-8 h-8 flex items-center justify-center rounded-xl bg-white/5 border border-white/10 text-white/40 hover:text-white/70 transition-all">
                       <ExternalLink className="w-3.5 h-3.5" />
-                    </a>
+                    </button>
                   )}
                 </div>
               </div>
@@ -789,10 +790,10 @@ export default function OnlineMenuTemplatePage({ linksSlot }: { linksSlot?: Reac
                     <Copy className="w-3.5 h-3.5" /> {t.om_copy}
                   </button>
                   {restaurantSlug && typeof window !== 'undefined' && (
-                    <a href={`${window.location.origin}/order/${restaurantSlug}`} target="_blank" rel="noopener noreferrer"
+                    <button onClick={() => openInAppBrowser(`${window.location.origin}/order/${restaurantSlug}`)}
                       className="shrink-0 w-8 h-8 flex items-center justify-center rounded-xl bg-white/5 border border-white/10 text-white/40 hover:text-white/70 transition-all">
                       <ExternalLink className="w-3.5 h-3.5" />
-                    </a>
+                    </button>
                   )}
                 </div>
               </div>

@@ -1371,7 +1371,7 @@ export default function DeliveryOrderPage() {
                 })}
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 gap-3">
                 {catItems.map(item => {
                   const qty = getQty(item.id)
                   return (

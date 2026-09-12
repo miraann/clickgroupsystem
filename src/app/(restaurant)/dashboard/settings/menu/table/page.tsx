@@ -5,6 +5,7 @@ import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { Plus, Pencil, Trash2, LayoutGrid, X, Users, Loader2, AlertCircle, QrCode, Download, Copy, Check, Printer } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { printTableQr } from '@/lib/printTableQr'
+import { openInAppBrowser } from '@/lib/openInAppBrowser'
 import { logAudit } from '@/lib/logAudit'
 import { useTableGroups } from '@/hooks/useTableGroups'
 import { useTables, type CachedTable } from '@/hooks/useTables'
@@ -412,10 +413,10 @@ export default function TablePage() {
                     className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium transition-all active:scale-95">
                     <Download className="w-4 h-4" /> {t.tbl_download_qr}
                   </button>
-                  <a href={guestUrl} target="_blank" rel="noreferrer"
+                  <button onClick={() => openInAppBrowser(guestUrl)}
                     className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white/8 hover:bg-white/12 border border-white/10 text-white/60 text-sm font-medium transition-all active:scale-95">
                     Preview
-                  </a>
+                  </button>
                 </div>
 
                 <button onClick={handlePrint} disabled={qrPrinting}

@@ -920,7 +920,7 @@ export default function GuestPage() {
               </div>
             ) : (
               /* ── Grid layout ── */
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 gap-3">
                 {items.map(item => {
                   const qty = getQty(item.id)
                   const isDark = tpl.pageBg.includes('0a0a') || tpl.pageBg.includes('080c')
