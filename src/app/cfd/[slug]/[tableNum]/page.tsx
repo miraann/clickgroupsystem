@@ -288,7 +288,11 @@ export default function CFDPage() {
               <div className="absolute inset-0 rounded-full cfd-ring bg-amber-400/20" />
               <div className="absolute inset-0 rounded-full cfd-ring bg-amber-400/10" style={{ animationDelay: '1.2s' }} />
               {rest?.logo_url
-                ? <img src={rest.logo_url} alt="" className="relative w-56 h-56 object-contain cfd-float drop-shadow-2xl" />
+                ? (
+                  <div className="relative w-56 h-56 rounded-full bg-white cfd-float shadow-2xl shadow-amber-500/20 border-4 border-amber-500/25 flex items-center justify-center overflow-hidden">
+                    <img src={rest.logo_url} alt="" className="w-[65%] h-[65%] object-contain" />
+                  </div>
+                )
                 : <div className="relative w-56 h-56 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center cfd-float shadow-2xl shadow-amber-500/30 border-4 border-amber-500/25">
                     <UtensilsCrossed className="w-24 h-24 text-white" />
                   </div>
