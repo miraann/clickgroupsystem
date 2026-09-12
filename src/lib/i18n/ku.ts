@@ -1276,7 +1276,7 @@ const ku: Record<keyof typeof en, string> = {
   usr_change_perms:     'بۆ گۆڕینی مۆڵەت، ڕۆڵی بەکارهێنەر بگۆڕە',
   usr_delete_role:       'سڕینەوەی ڕۆڵ',
   usr_delete_role_pre:   'دڵنیایت لە سڕینەوەی ڕۆڵی ',
-  usr_delete_role_after: '؟ ستافی دانراو لەسەر ئەم ڕۆڵە ئەم مۆڵەتانە لەدەست دەدات. ناتوانرێت پاشگەزبوونەوە.',
+  usr_delete_role_after: '؟ ستافی دانراو لەسەر ئەم ڕۆڵە ئەم مۆڵەتانە لەدەست دەدات. ناتوانرێت دواتر پاشگەزببیتەوە.',
 
   // ── Advanced page ─────────────────────────────────────────────
   adv_title:              'پێشکەوتوو',
@@ -1345,14 +1345,16 @@ const ku: Record<keyof typeof en, string> = {
   apk_download:           'دابەزاندن بۆ سیستیمی ئەندرۆید',
   apk_version:            'وەشانی {v}',
   apk_latest_release:     'دوایین بڵاوکردنەوە',
-  apk_app_cashier:        'کلیک گروپ کاشێر',
-  apk_app_driver:         'کلیک گروپ شۆفێر',
-  apk_app_delivery:       'کلیک گروپ گەیاندن',
-  apk_app_cfd:            'کلیک گروپ شاشەی کڕیار',
+  apk_app_cashier:        'کاشێر',
+  apk_app_driver:         'شۆفێر',
+  apk_app_delivery:       'گەیاندن',
+  apk_app_cfd:            'شاشەی کڕیار',
+  apk_app_kds:            'شاشەی چێشتخانە',
   apk_desc_cashier:       'تێرمیناڵی سەرەکیی فرۆشتن — مێز، داواکاری، پارەدان',
   apk_desc_driver:        'بۆ شۆفێرانی گەیاندن — داواکارییە دیاریکراوەکان',
   apk_desc_delivery:      'مێزی گەیاندن — شاشەی داواکارییە هاتووەکان',
   apk_desc_cfd:           'شاشەی بەرامبەر کڕیار — نیشاندانی داواکاری و کۆی گشتی',
+  apk_desc_kds:           'شاشەی چێشتخانە — پیشاندانی داواکارییەکان بە زیندوویی بەپێی بەش',
 
   // ── Database page ─────────────────────────────────────────────
   db_title:                 'بنکەی داتا',

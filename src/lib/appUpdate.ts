@@ -60,7 +60,7 @@ export const APK_RELEASE_TAG = 'v1.4'
  * platform admin app, not something a restaurant tenant installs.
  */
 export interface AndroidApp {
-  id:      'cashier' | 'driver' | 'delivery' | 'cfd'
+  id:      'cashier' | 'driver' | 'delivery' | 'cfd' | 'kds'
   /** applicationId — also the key in android-latest.json's `flavors` map */
   pkg:     string
   /** APK filename under /public/apps */
@@ -69,8 +69,8 @@ export interface AndroidApp {
   url:     string
   /** /public path to the launcher icon */
   icon:    string
-  nameKey: 'apk_app_cashier' | 'apk_app_driver' | 'apk_app_delivery' | 'apk_app_cfd'
-  descKey?: 'apk_desc_cashier' | 'apk_desc_driver' | 'apk_desc_delivery' | 'apk_desc_cfd'
+  nameKey: 'apk_app_cashier' | 'apk_app_driver' | 'apk_app_delivery' | 'apk_app_cfd' | 'apk_app_kds'
+  descKey?: 'apk_desc_cashier' | 'apk_desc_driver' | 'apk_desc_delivery' | 'apk_desc_cfd' | 'apk_desc_kds'
 }
 
 export const ANDROID_APPS: AndroidApp[] = (
@@ -78,6 +78,7 @@ export const ANDROID_APPS: AndroidApp[] = (
     { id: 'cashier',  pkg: 'com.clickgroup.pos',          asset: 'Cashier.apk',  icon: '/app-icons/cashier.png',  nameKey: 'apk_app_cashier',  descKey: 'apk_desc_cashier'  },
     { id: 'driver',   pkg: 'com.clickgroup.pos.driver',   asset: 'Driver.apk',   icon: '/app-icons/driver.png',   nameKey: 'apk_app_driver',   descKey: 'apk_desc_driver'   },
     { id: 'delivery', pkg: 'com.clickgroup.pos.delivery', asset: 'Delivery.apk', icon: '/app-icons/delivery.png', nameKey: 'apk_app_delivery', descKey: 'apk_desc_delivery' },
+    { id: 'kds',      pkg: 'com.clickgroup.pos.kds',      asset: 'KDS.apk',      icon: '/app-icons/kds.png',      nameKey: 'apk_app_kds',      descKey: 'apk_desc_kds'      },
     { id: 'cfd',      pkg: 'com.clickgroup.pos.cfd',      asset: 'CFD.apk',      icon: '/app-icons/cfd.png',      nameKey: 'apk_app_cfd',      descKey: 'apk_desc_cfd'      },
   ] as const
 ).map(a => ({ ...a, url: `${APK_DIR}/${a.asset}` }))
