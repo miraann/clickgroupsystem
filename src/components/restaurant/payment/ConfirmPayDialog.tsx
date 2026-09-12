@@ -15,6 +15,7 @@ interface Props {
   discountAmount:   number
   appliedSurcharge: DbSurcharge | null
   surchargeAmount:  number
+  tipAmount:        number
   payMethods:       DbPayMethod[]
   method:           string
   enteredNum:       number
@@ -27,7 +28,7 @@ interface Props {
 export function ConfirmPayDialog({
   open, onCancel, onConfirm,
   tableNum, guests, items, total, finalTotal,
-  appliedDiscount, discountAmount, appliedSurcharge, surchargeAmount,
+  appliedDiscount, discountAmount, appliedSurcharge, surchargeAmount, tipAmount,
   payMethods, method, enteredNum, change,
   selectedMember, selectedCustomer, formatPrice,
 }: Props) {
@@ -81,6 +82,12 @@ export function ConfirmPayDialog({
             <div className="flex justify-between text-xs text-lime-400">
               <span>{appliedSurcharge.name}</span>
               <span className="tabular-nums">+{formatPrice(surchargeAmount)}</span>
+            </div>
+          )}
+          {tipAmount > 0 && (
+            <div className="flex justify-between text-xs text-violet-400">
+              <span>{t.pay_tab_gratuity}</span>
+              <span className="tabular-nums">+{formatPrice(tipAmount)}</span>
             </div>
           )}
           <div className="flex justify-between text-sm font-bold text-white pt-1 border-t border-white/8">

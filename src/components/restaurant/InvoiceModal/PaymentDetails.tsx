@@ -6,6 +6,7 @@ const LABELS = {
     subtotal:       'Subtotal',
     discount:       'Discount',
     surcharge:      'Surcharge',
+    tip:            'Tip',
     total:          'Total',
     totalAmount:    'Total Amount',
     amountTendered: 'Amount Tendered',
@@ -17,6 +18,7 @@ const LABELS = {
     subtotal:       'کۆی کاڵاکان',
     discount:       'داشکاندن',
     surcharge:      'زیادە',
+    tip:            'تیپ',
     total:          'کۆی گشتی',
     totalAmount:    'کۆی گشتی',
     amountTendered: 'پارەی دراو',
@@ -32,6 +34,7 @@ interface Props {
   subtotal:      number
   discount:      number
   surcharge:     number
+  tip?:          number
   total:         number
   amountPaid:    number
   changeAmount:  number
@@ -42,7 +45,7 @@ interface Props {
 
 export function PaymentDetails({
   mode, language, paymentMethod,
-  subtotal, discount, surcharge, total,
+  subtotal, discount, surcharge, tip = 0, total,
   amountPaid, changeAmount,
   dateStr, timeStr,
   formatPrice,
@@ -76,6 +79,12 @@ export function PaymentDetails({
           <div className="flex justify-between font-bold text-orange-600">
             <span>{L.surcharge}</span>
             <span className="tabular-nums" dir="ltr">+{formatPrice(surcharge)}</span>
+          </div>
+        )}
+        {tip > 0 && (
+          <div className="flex justify-between font-bold text-violet-600">
+            <span>{L.tip}</span>
+            <span className="tabular-nums" dir="ltr">+{formatPrice(tip)}</span>
           </div>
         )}
         <div className="flex justify-between font-extrabold text-black text-[13px] pt-1 border-t border-gray-200">

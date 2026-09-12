@@ -1648,6 +1648,8 @@ const ar: Record<keyof typeof en, string> = {
   // ── شاشة الدفع ───────────────────────────────────────────────
   pay_tab_surcharge:    'رسوم إضافية',
   pay_tab_gratuity:     'إكرامية',
+  pay_tip_clear:        'حذف الإكرامية',
+  pay_tip_custom_ph:    'مبلغ إكرامية مخصص',
   pay_tab_discount:     'خصم',
   pay_tab_note:         'ملاحظة',
   pay_tab_split:        'تقسيم الفاتورة',

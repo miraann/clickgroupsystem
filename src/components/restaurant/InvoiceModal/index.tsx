@@ -11,7 +11,7 @@ import type { InvoiceModalProps } from './types'
 export default function InvoiceModal({
   mode, orderId, restaurantId,
   tableNum, guests, items,
-  subtotal, discount, surcharge, total,
+  subtotal, discount, surcharge, tip = 0, total,
   paymentMethod, paymentMethodType, amountPaid, changeAmount,
   cashier, note,
   customerName, customerPhone,
@@ -62,7 +62,7 @@ export default function InvoiceModal({
         invoiceNum, orderNum, cashier,
         dateStr: ts.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }),
         timeStr: ts.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
-        items, subtotal, discount, surcharge, total,
+        items, subtotal, discount, surcharge, tip, total,
         paymentMethod, paymentMethodType, amountPaid, change: changeAmount,
         note: note ?? null, mode,
         qrUrl: rs.show_qr ? (rs.qr_url ?? null) : null,
@@ -169,6 +169,7 @@ export default function InvoiceModal({
               subtotal={subtotal}
               discount={discount}
               surcharge={surcharge}
+              tip={tip}
               total={total}
               amountPaid={amountPaid}
               changeAmount={changeAmount}

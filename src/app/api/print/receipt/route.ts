@@ -110,6 +110,7 @@ export async function POST(req: NextRequest) {
       subtotal:      number
       discount:      number
       surcharge:     number
+      tip?:          number
       total:         number
       paymentMethod: string
       paymentMethodType?: string | null
@@ -188,6 +189,7 @@ export async function POST(req: NextRequest) {
       subtotal:       body.subtotal,
       discount:       body.discount,
       surcharge:      body.surcharge,
+      tip:            body.tip ?? 0,
       total:          body.total,
       paymentMethod:  body.paymentMethod,
       paymentMethodType: body.paymentMethodType ?? null,

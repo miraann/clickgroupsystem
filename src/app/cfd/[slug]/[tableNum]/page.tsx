@@ -33,10 +33,11 @@ export default function CFDPage() {
   const [items,     setItems]     = useState<OItem[]>([])
   const [imgMap,    setImgMap]    = useState<Map<string, string | null>>(new Map())
   const [newestId,  setNewestId]  = useState<string | null>(null)
-  // Live discount/surcharge from the payment screen (broadcast, not persisted
-  // until the cashier actually finalizes payment) — see 'bill_update' below.
+  // Live discount/surcharge/tip from the payment screen (broadcast, not
+  // persisted until the cashier actually finalizes payment) — see 'bill_update' below.
   const [discountAmt,  setDiscountAmt]  = useState(0)
   const [surchargeAmt, setSurchargeAmt] = useState(0)
+  const [tipAmt,       setTipAmt]       = useState(0)
 
   // Clock
   const [time, setTime] = useState('')
@@ -88,7 +89,7 @@ export default function CFDPage() {
   // ── Find active order for this table ─────────────────────
   const findOrder = useCallback(async () => {
     if (!restaurantId) return
-    setDiscountAmt(0); setSurchargeAmt(0)
+    setDiscountAmt(0); setSurchargeAmt(0); setTipAmt(0)
     if (tableNum === 'idle') { setPhase('idle'); setItems([]); setOrderId(null); return }
     const n = parseInt(tableNum)
     const q = isNaN(n)
@@ -110,7 +111,7 @@ export default function CFDPage() {
   useEffect(() => { findOrder() }, [findOrder])
 
   // ── POS broadcast: switch table when staff opens payment screen,
-  //    and live-update the bill as a discount/surcharge is applied ──
+  //    and live-update the bill as a discount/surcharge/tip is applied ──
   useEffect(() => {
     if (!restaurantId) return
     const channel = supabase
@@ -118,7 +119,8 @@ export default function CFDPage() {
       .on('broadcast', { event: 'table_change' }, ({ payload }) => {
         if (!payload?.table) return
         if (payload.table === 'idle') {
-          setPhase('idle'); setItems([]); setOrderId(null); setDiscountAmt(0); setSurchargeAmt(0)
+          setPhase('idle'); setItems([]); setOrderId(null)
+          setDiscountAmt(0); setSurchargeAmt(0); setTipAmt(0)
         } else if (String(payload.table) === String(tableNum)) {
           findOrder()
         } else {
@@ -129,6 +131,7 @@ export default function CFDPage() {
         if (!payload || String(payload.table) !== String(tableNum)) return
         setDiscountAmt(payload.discountAmount ?? 0)
         setSurchargeAmt(payload.surchargeAmount ?? 0)
+        setTipAmt(payload.tipAmount ?? 0)
       })
       .subscribe()
     return () => { supabase.removeChannel(channel) }
@@ -164,7 +167,7 @@ export default function CFDPage() {
 
         if (rec.status === 'active') {
           setOrderId(rec.id); setPhase('ordering')
-          setDiscountAmt(0); setSurchargeAmt(0)
+          setDiscountAmt(0); setSurchargeAmt(0); setTipAmt(0)
           const { data: ois } = await supabase
             .from('order_items').select('id,menu_item_id,item_name,item_price,qty,status')
             .eq('order_id', rec.id).neq('status', 'void').order('created_at')
@@ -174,7 +177,7 @@ export default function CFDPage() {
           setOrderId(null)
           setPhase('thankyou')
           setRating(0); setHoverStar(0); setComment(''); setSubmitted(false)
-          setDiscountAmt(0); setSurchargeAmt(0)
+          setDiscountAmt(0); setSurchargeAmt(0); setTipAmt(0)
           startCountdown(40)
         }
       })
@@ -214,7 +217,7 @@ export default function CFDPage() {
 
   // ── Helpers ───────────────────────────────────────────────
   const itemsTotal = items.reduce((s, i) => s + i.item_price * i.qty, 0)
-  const total = Math.max(0, itemsTotal - discountAmt + surchargeAmt)
+  const total = Math.max(0, itemsTotal - discountAmt + surchargeAmt + tipAmt)
   const fmt = (n: number) =>
     `${currency.symbol} ${n.toLocaleString(undefined, { minimumFractionDigits: currency.decimal_places, maximumFractionDigits: currency.decimal_places })}`
   const menuUrl = typeof window !== 'undefined' ? `${window.location.origin}/r/${slug}` : ''
@@ -409,7 +412,7 @@ export default function CFDPage() {
       {/* Footer total bar */}
       <footer className="shrink-0 border-t border-white/8 bg-black/40 backdrop-blur-xl">
         <div className="max-w-2xl mx-auto px-6 py-4">
-          {(discountAmt > 0 || surchargeAmt > 0) && (
+          {(discountAmt > 0 || surchargeAmt > 0 || tipAmt > 0) && (
             <div className="flex items-center justify-between text-xs mb-2 text-white/40">
               <span>Subtotal · کۆی لاوەکی</span>
               <span className="tabular-nums">{fmt(itemsTotal)}</span>
@@ -425,6 +428,12 @@ export default function CFDPage() {
             <div className="flex items-center justify-between text-sm mb-2 text-orange-400 font-semibold">
               <span>Surcharge · زیادکراو</span>
               <span className="tabular-nums">+{fmt(surchargeAmt)}</span>
+            </div>
+          )}
+          {tipAmt > 0 && (
+            <div className="flex items-center justify-between text-sm mb-2 text-violet-400 font-semibold">
+              <span>Tip · تیپ</span>
+              <span className="tabular-nums">+{fmt(tipAmt)}</span>
             </div>
           )}
           <div className="flex items-center justify-between">

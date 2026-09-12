@@ -44,6 +44,7 @@ export interface InvoiceModalProps {
   subtotal:        number
   discount:        number
   surcharge:       number
+  tip?:            number
   total:           number
   paymentMethod:   string
   paymentMethodType?: string | null

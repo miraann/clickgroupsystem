@@ -10,6 +10,7 @@ interface InvoiceRow {
   id: string
   subtotal: number
   discount: number
+  tip_amount: number | null
   total: number
   amount_paid: number
   change_amount: number
@@ -80,7 +81,7 @@ export function DailySalesModal({ restaurantId, restaurantName, formatPrice, onC
       const [{ data: inv }, { data: exp }, { data: mtdInv }, { data: mtdExp }] = await Promise.all([
         supabase
           .from('invoices')
-          .select('id,subtotal,discount,total,amount_paid,change_amount,payment_method,cashier,table_num,guests,customer_id,items')
+          .select('id,subtotal,discount,tip_amount,total,amount_paid,change_amount,payment_method,cashier,table_num,guests,customer_id,items')
           .eq('restaurant_id', restaurantId)
           .gte('created_at', start.toISOString()),
         supabase
@@ -115,6 +116,7 @@ export function DailySalesModal({ restaurantId, restaurantName, formatPrice, onC
   // ── Metrics ───────────────────────────────────────────────────
   const totalRevenue  = invoices.reduce((s, i) => s + i.total, 0)
   const totalDiscount = invoices.reduce((s, i) => s + (i.discount ?? 0), 0)
+  const totalTips      = invoices.reduce((s, i) => s + (i.tip_amount ?? 0), 0)
   const totalChange   = invoices.reduce((s, i) => s + (i.change_amount ?? 0), 0)
   const txCount       = invoices.length
   const avgOrder      = txCount ? totalRevenue / txCount : 0
@@ -227,7 +229,7 @@ export function DailySalesModal({ restaurantId, restaurantName, formatPrice, onC
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             restaurantId, dateStr, timeStr,
-            txCount, totalRevenue, avgOrder, totalGuests, totalDiscount, totalChange,
+            txCount, totalRevenue, avgOrder, totalGuests, totalDiscount, totalTips, totalChange,
             byPayment, orderTypes,
             memberCount: memberInvs.length, memberTotal,
             walkInCount: walkInInvs.length, walkInTotal,
@@ -359,6 +361,7 @@ export function DailySalesModal({ restaurantId, restaurantName, formatPrice, onC
 
                       <Divider dashed />
                       <Row label="Total Discounts" value={formatPrice(totalDiscount)} hiColor="text-rose-600" />
+                      <Row label="Total Tips"      value={formatPrice(totalTips)} />
                       <Row label="Change Given"    value={formatPrice(totalChange)} />
 
                       {/* ── Payment Methods ────────────────────── */}

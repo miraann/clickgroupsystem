@@ -1635,6 +1635,8 @@ const en = {
   // ── Payment screen ───────────────────────────────────────────
   pay_tab_surcharge:    'Surcharge',
   pay_tab_gratuity:     'Gratuity',
+  pay_tip_clear:        'Clear tip',
+  pay_tip_custom_ph:    'Custom tip amount',
   pay_tab_discount:     'Discount',
   pay_tab_note:         'Note',
   pay_tab_split:        'Split Bill',

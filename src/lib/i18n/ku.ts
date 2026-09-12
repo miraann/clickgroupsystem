@@ -1648,6 +1648,8 @@ const ku: Record<keyof typeof en, string> = {
   // ── شاشەی پارەدان ────────────────────────────────────────────
   pay_tab_surcharge:    'زیادە',
   pay_tab_gratuity:     'تیپ',
+  pay_tip_clear:        'سڕینەوەی تیپ',
+  pay_tip_custom_ph:    'بڕی تیپی دیاریکراو',
   pay_tab_discount:     'داشکاندن',
   pay_tab_note:         'تێبینی',
   pay_tab_split:        'دابەشکردنی پسووڵە',

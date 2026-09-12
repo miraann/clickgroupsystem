@@ -18,6 +18,7 @@ export interface ReceiptPrintBody {
   subtotal:      number
   discount:      number
   surcharge:     number
+  tip?:          number
   total:         number
   paymentMethod: string
   paymentMethodType?: string | null
@@ -39,6 +40,7 @@ export interface StoredInvoiceLike {
   items?:          Array<{ name: string; price: number; qty: number; isDeliveryFee?: boolean }> | null
   subtotal:        number | string
   discount:        number | string
+  tip_amount?:     number | string | null
   total:           number | string
   amount_paid?:    number | string | null
   change_amount?:  number | string | null
@@ -66,6 +68,7 @@ export function reprintBodyFromInvoice(inv: StoredInvoiceLike, restaurantId: str
     subtotal:      Number(inv.subtotal),
     discount:      Number(inv.discount),
     surcharge:     deliveryFee ? Number(deliveryFee.price) : 0,
+    tip:           Number(inv.tip_amount ?? 0),
     total:         Number(inv.total),
     paymentMethod: inv.payment_method ?? '—',
     amountPaid:    Number(inv.amount_paid ?? 0),

@@ -15,6 +15,7 @@ export async function POST(req: NextRequest) {
       restaurantId:    string
       discountId?:     string | null
       surchargeId?:    string | null
+      tipAmount?:      number
       paymentMethodId: string
       amountPaid:      number   // cash tendered; 0 = exact
       note?:           string | null
@@ -131,8 +132,12 @@ export async function POST(req: NextRequest) {
         : (surcharge.value ?? 0)
     }
 
+    // Tip is a free-form cashier/customer choice — there's no catalog row to
+    // verify it against (unlike discount/surcharge), so just sanitize it.
+    const tipAmount = Math.max(0, Number.isFinite(body.tipAmount) ? (body.tipAmount as number) : 0)
+
     // Verified total
-    const finalTotal = Math.max(0, subtotal - discountAmount + surchargeAmount)
+    const finalTotal = Math.max(0, subtotal - discountAmount + surchargeAmount + tipAmount)
 
     // Payment method must belong to this restaurant
     const payMethod = payMethodRes.data as { name: string } | null
@@ -190,7 +195,7 @@ export async function POST(req: NextRequest) {
         if (attempt > 0) await new Promise(r => setTimeout(r, 300))
         const { data } = await supabase
           .from('invoices')
-          .select('invoice_num, order_num, total, amount_paid, change_amount, payment_method, cashier')
+          .select('invoice_num, order_num, total, amount_paid, change_amount, payment_method, cashier, tip_amount')
           .eq('restaurant_id', body.restaurantId)
           .eq('order_id', body.orderId)
           .order('created_at', { ascending: false })
@@ -212,6 +217,7 @@ export async function POST(req: NextRequest) {
         subtotal,
         discountAmount,
         surchargeAmount,
+        tipAmount:         existingInvoice.tip_amount ?? tipAmount,
         invoiceNum:        existingInvoice.invoice_num,
         orderNum:          existingInvoice.order_num,
         amountPaid:        existingInvoice.amount_paid,
@@ -243,6 +249,7 @@ export async function POST(req: NextRequest) {
       items:          invoiceItems,
       subtotal,
       discount:       discountAmount,
+      tip_amount:     tipAmount,
       total:          finalTotal,
       amount_paid:    amountPaid,
       change_amount:  changeAmount,
@@ -292,7 +299,7 @@ export async function POST(req: NextRequest) {
 
     const invErr1 = (invoiceRes as { error?: { message?: string } } | null)?.error
     if (invErr1) {
-      // Retry without optional customer fields in case the column doesn't exist yet
+      // Retry without optional customer/tip fields in case a column doesn't exist yet
       const { error: invErr2 } = await supabase.from('invoices').insert({
         restaurant_id:  body.restaurantId,
         order_id:       body.orderId,
@@ -318,6 +325,7 @@ export async function POST(req: NextRequest) {
       subtotal,
       discountAmount,
       surchargeAmount,
+      tipAmount,
       invoiceNum,
       orderNum,
       amountPaid,

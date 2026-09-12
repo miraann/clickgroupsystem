@@ -41,8 +41,9 @@ export async function buildKurdishReceiptBytes(d: ReceiptPayload): Promise<Uint8
     { t: 'rule' },
 
     { t: 'row', first: KU.subtotal, second: fmt(d.subtotal) },
-    ...(d.discount  > 0 ? [{ t: 'row', first: KU.discount,  second: `-${fmt(d.discount)}`  } as KuLine] : []),
-    ...(d.surcharge > 0 ? [{ t: 'row', first: KU.surcharge, second: `+${fmt(d.surcharge)}` } as KuLine] : []),
+    ...(d.discount  > 0    ? [{ t: 'row', first: KU.discount,  second: `-${fmt(d.discount)}`    } as KuLine] : []),
+    ...(d.surcharge > 0    ? [{ t: 'row', first: KU.surcharge, second: `+${fmt(d.surcharge)}`   } as KuLine] : []),
+    ...((d.tip ?? 0) > 0   ? [{ t: 'row', first: KU.tip,       second: `+${fmt(d.tip ?? 0)}`    } as KuLine] : []),
     { t: 'row', first: KU.total, second: fmt(d.total) },
 
     { t: 'rule', heavy: true },

@@ -58,6 +58,7 @@ interface Props {
   subtotal:       number
   discount:       number
   surcharge:      number
+  tip?:           number
   total:          number
   amountPaid:     number
   changeAmount:   number
@@ -71,7 +72,7 @@ export function InvoicePrintTemplate({
   tableNum, guests, invoiceNum, orderNum,
   customerName, customerPhone,
   paymentMethod,
-  items, subtotal, discount, surcharge, total,
+  items, subtotal, discount, surcharge, tip = 0, total,
   amountPaid, changeAmount,
   note, formatPrice,
 }: Props) {
@@ -195,6 +196,7 @@ export function InvoicePrintTemplate({
         subtotal={subtotal}
         discount={discount}
         surcharge={surcharge}
+        tip={tip}
         total={total}
         amountPaid={amountPaid}
         changeAmount={changeAmount}

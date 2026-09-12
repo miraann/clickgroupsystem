@@ -73,6 +73,8 @@ export default function PaymentScreen({ orderId, restaurantId, orderNum: orderNu
   const surcharges        = checkout.surcharges
   const [appliedDiscount, setApplied]     = useState<DbDiscount | null>(null)
   const [appliedSurcharge, setAppliedSur] = useState<DbSurcharge | null>(null)
+  const [tipAmount, setTipAmount]         = useState(0)
+  const [customTip, setCustomTip]         = useState('')
   const [invoiceNote, setInvoiceNote]     = useState('')
   const [plName, setPlName]               = useState('')
   const [plPhone, setPlPhone]             = useState('')
@@ -141,15 +143,15 @@ export default function PaymentScreen({ orderId, restaurantId, orderNum: orderNu
       ? Math.round(total * appliedSurcharge.value) / 100
       : appliedSurcharge.value
     : 0
-  const finalTotal  = Math.max(0, total - discountAmount + surchargeAmount)
+  const finalTotal  = Math.max(0, total - discountAmount + surchargeAmount + tipAmount)
 
   // Live-update the CFD screen's total as the cashier applies/changes a
-  // discount or surcharge — it otherwise only ever sees the raw item total.
+  // discount, surcharge, or tip — it otherwise only ever sees the raw item total.
   useEffect(() => {
     supabase.channel(`cfd-sync-${restaurantId}`)
-      .send({ type: 'broadcast', event: 'bill_update', payload: { table: cfdTableKey, discountAmount, surchargeAmount } })
+      .send({ type: 'broadcast', event: 'bill_update', payload: { table: cfdTableKey, discountAmount, surchargeAmount, tipAmount } })
       .catch(() => {})
-  }, [discountAmount, surchargeAmount, cfdTableKey, restaurantId]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [discountAmount, surchargeAmount, tipAmount, cfdTableKey, restaurantId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const enteredNum  = parseFloat(entered || '0') || 0
   const payAmount   = enteredNum > 0 ? enteredNum : finalTotal
@@ -182,7 +184,7 @@ export default function PaymentScreen({ orderId, restaurantId, orderNum: orderNu
       .eq('order_id', orderId)
       .neq('status', 'void')
     const verifiedTotal = liveItems
-      ? Math.max(0, liveItems.reduce((s, i) => s + (i.item_price ?? 0) * (i.qty ?? 1), 0) - discountAmount + surchargeAmount)
+      ? Math.max(0, liveItems.reduce((s, i) => s + (i.item_price ?? 0) * (i.qty ?? 1), 0) - discountAmount + surchargeAmount + tipAmount)
       : finalTotal
 
     const { error: orderErr } = await supabase
@@ -238,6 +240,7 @@ export default function PaymentScreen({ orderId, restaurantId, orderNum: orderNu
         restaurantId,
         discountId:      appliedDiscount?.id   ?? null,
         surchargeId:     appliedSurcharge?.id  ?? null,
+        tipAmount,
         paymentMethodId: method,
         amountPaid:      enteredNum > 0 ? enteredNum : 0,
         note:            invoiceNote || null,
@@ -461,6 +464,12 @@ export default function PaymentScreen({ orderId, restaurantId, orderNum: orderNu
                   <span className="tabular-nums">+{formatPrice(surchargeAmount)}</span>
                 </div>
               )}
+              {tipAmount > 0 && (
+                <div className="flex justify-between text-[12px] text-violet-700">
+                  <span>{t.pay_tab_gratuity}</span>
+                  <span className="tabular-nums">+{formatPrice(tipAmount)}</span>
+                </div>
+              )}
               <div className="flex justify-between items-baseline pt-2 mt-1 border-t-2 border-double border-neutral-800">
                 <span className="text-[13px] font-bold uppercase tracking-wide text-neutral-900">{t.pay_total}</span>
                 <span className="text-[24px] font-extrabold text-neutral-900 tabular-nums">{formatPrice(finalTotal)}</span>
@@ -601,6 +610,56 @@ export default function PaymentScreen({ orderId, restaurantId, orderNum: orderNu
                   })}
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Gratuity / Tip panel */}
+          {activeTab === 'gratuity' && (
+            <div className="shrink-0 border-b border-white/8 bg-[#080b14] p-4 space-y-3">
+              <div className="flex flex-wrap gap-2">
+                {[10, 15, 20].map(pct => {
+                  const amt = Math.round(total * pct) / 100
+                  const selected = tipAmount === amt && amt > 0
+                  return (
+                    <button
+                      key={pct}
+                      onClick={() => { setTipAmount(selected ? 0 : amt); setCustomTip('') }}
+                      className={cn(
+                        'flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-semibold transition-all active:scale-95',
+                        selected
+                          ? 'bg-violet-500/20 border-violet-500/40 text-violet-300'
+                          : 'bg-white/5 border-white/10 text-white/60 hover:bg-violet-500/10 hover:border-violet-500/20 hover:text-violet-300'
+                      )}
+                    >
+                      <span className="text-xs font-bold">{pct}%</span>
+                      <span>{formatPrice(amt)}</span>
+                      {selected && <span className="text-xs">✓</span>}
+                    </button>
+                  )
+                })}
+                {tipAmount > 0 && (
+                  <button
+                    onClick={() => { setTipAmount(0); setCustomTip('') }}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-rose-500/25 bg-rose-500/10 text-rose-400 text-sm font-semibold transition-all active:scale-95 hover:bg-rose-500/20"
+                  >
+                    {t.pay_tip_clear}
+                  </button>
+                )}
+              </div>
+              <input
+                type="text"
+                inputMode="decimal"
+                value={customTip}
+                onChange={e => {
+                  const raw = e.target.value
+                  if (!/^\d*\.?\d*$/.test(raw)) return
+                  setCustomTip(raw)
+                  const n = parseFloat(raw)
+                  setTipAmount(isNaN(n) ? 0 : n)
+                }}
+                placeholder={t.pay_tip_custom_ph}
+                className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/25 focus:outline-none focus:border-violet-500/40 transition-colors"
+              />
             </div>
           )}
 
@@ -877,6 +936,7 @@ export default function PaymentScreen({ orderId, restaurantId, orderNum: orderNu
       discountAmount={discountAmount}
       appliedSurcharge={appliedSurcharge}
       surchargeAmount={surchargeAmount}
+      tipAmount={tipAmount}
       payMethods={payMethods}
       method={method}
       enteredNum={enteredNum}
@@ -897,6 +957,7 @@ export default function PaymentScreen({ orderId, restaurantId, orderNum: orderNu
         subtotal={total}
         discount={discountAmount}
         surcharge={surchargeAmount}
+        tip={tipAmount}
         total={finalTotal}
         paymentMethod={payMethods.find(m => m.id === method)?.name ?? method}
         paymentMethodType={payMethods.find(m => m.id === method)?.icon_type ?? null}

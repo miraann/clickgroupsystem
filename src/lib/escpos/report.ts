@@ -13,6 +13,7 @@ export interface DailySalesReportPayload {
   avgOrder:       number
   totalGuests:    number
   totalDiscount:  number
+  totalTips:      number
   totalChange:    number
 
   byPayment:      { method: string; count: number; total: number }[]
@@ -65,6 +66,7 @@ export function buildDailySalesReportBytes(d: DailySalesReportPayload): Uint8Arr
     row('Guests Served', String(d.totalGuests)),
     div('.'),
     row('Total Discounts', fmt(d.totalDiscount)),
+    row('Total Tips', fmt(d.totalTips)),
     row('Change Given', fmt(d.totalChange)),
     div('='),
   ]
