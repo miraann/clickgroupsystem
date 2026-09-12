@@ -62,10 +62,10 @@ const LANGUAGES = [
 const ACCENT = 'bg-indigo-500'
 
 const SOUND_OPTIONS = [
-  { id: 'classic', label: 'Classic', desc: 'Three ascending beeps',      emoji: '🔔' },
-  { id: 'chime',   label: 'Chime',   desc: 'Soft four-note melody',       emoji: '🎵' },
-  { id: 'bell',    label: 'Bell',    desc: 'Deep resonant bell strike',   emoji: '🔕' },
-  { id: 'buzz',    label: 'Alert',   desc: 'Sharp urgent double ping',    emoji: '📢' },
+  { id: 'classic', labelKey: 'pref_sound_classic', descKey: 'pref_sound_classic_d', emoji: '🔔' },
+  { id: 'chime',   labelKey: 'pref_sound_chime',   descKey: 'pref_sound_chime_d',   emoji: '🎵' },
+  { id: 'bell',    labelKey: 'pref_sound_bell',    descKey: 'pref_sound_bell_d',    emoji: '🔕' },
+  { id: 'buzz',    labelKey: 'pref_sound_alert',   descKey: 'pref_sound_alert_d',   emoji: '📢' },
 ] as const
 
 function previewSound(id: string) {
@@ -115,10 +115,10 @@ function previewSound(id: string) {
 }
 
 const ONLINE_SOUND_OPTIONS = [
-  { id: 'doorbell', label: 'Doorbell', desc: 'Classic two-tone ding-dong',    emoji: '🚪' },
-  { id: 'fanfare',  label: 'Fanfare',  desc: 'Short bright three-note rise',  emoji: '🎺' },
-  { id: 'ping',     label: 'Ping',     desc: 'Single clean high ping',        emoji: '✨' },
-  { id: 'bubble',   label: 'Bubble',   desc: 'Quick four-note ascending run', emoji: '🫧' },
+  { id: 'doorbell', labelKey: 'pref_sound_doorbell', descKey: 'pref_sound_doorbell_d', emoji: '🚪' },
+  { id: 'fanfare',  labelKey: 'pref_sound_fanfare',  descKey: 'pref_sound_fanfare_d',  emoji: '🎺' },
+  { id: 'ping',     labelKey: 'pref_sound_ping',     descKey: 'pref_sound_ping_d',     emoji: '✨' },
+  { id: 'bubble',   labelKey: 'pref_sound_bubble',   descKey: 'pref_sound_bubble_d',   emoji: '🫧' },
 ] as const
 
 function previewOnlineSound(id: string) {
@@ -166,10 +166,10 @@ function previewOnlineSound(id: string) {
 }
 
 const WAITER_SOUND_OPTIONS = [
-  { id: 'whistle',   label: 'Whistle',   desc: 'Descending whistle slide',      emoji: '🪈' },
-  { id: 'tap',       label: 'Tap',       desc: 'Three soft percussive taps',     emoji: '👆' },
-  { id: 'horn',      label: 'Horn',      desc: 'Short warm horn blast',          emoji: '🎺' },
-  { id: 'xylophone', label: 'Xylophone', desc: 'Bright two-note xylophone hit',  emoji: '🎼' },
+  { id: 'whistle',   labelKey: 'pref_sound_whistle',   descKey: 'pref_sound_whistle_d',   emoji: '🪈' },
+  { id: 'tap',       labelKey: 'pref_sound_tap',       descKey: 'pref_sound_tap_d',       emoji: '👆' },
+  { id: 'horn',      labelKey: 'pref_sound_horn',      descKey: 'pref_sound_horn_d',      emoji: '🎺' },
+  { id: 'xylophone', labelKey: 'pref_sound_xylophone', descKey: 'pref_sound_xylophone_d', emoji: '🎼' },
 ] as const
 
 function previewWaiterSound(id: string) {
@@ -282,13 +282,13 @@ function FadeSwitch({ id, children }: { id: string; children: React.ReactNode })
 }
 
 const PUSH_ITEMS = [
-  { key: 'push_notif_delivery' as const, icon: Truck,    label: 'Delivery Orders',    desc: 'New delivery order received'          },
-  { key: 'push_notif_waiter'   as const, icon: BellRing, label: 'Waiter Calls',       desc: 'Guest requesting assistance at table' },
-  { key: 'push_notif_guest'    as const, icon: QrCode,   label: 'Guest Menu Orders',  desc: 'Order from QR code guest menu'        },
+  { key: 'push_notif_delivery' as const, icon: Truck,    labelKey: 'pref_push_delivery', descKey: 'pref_push_delivery_d' },
+  { key: 'push_notif_waiter'   as const, icon: BellRing, labelKey: 'pref_push_waiter',   descKey: 'pref_push_waiter_d'   },
+  { key: 'push_notif_guest'    as const, icon: QrCode,   labelKey: 'pref_push_guest',    descKey: 'pref_push_guest_d'    },
 ] as const
 
 export default function PreferencePage() {
-  const { t, setLang } = useLanguage()
+  const { t, lang, setLang } = useLanguage()
   const { settings: cfg, setSettings: setCfg, loading, saveState, save, autoSave } =
     useRestaurantSettings<PrefSettings>(DEFAULTS, 'settings.preference')
 
@@ -347,23 +347,23 @@ export default function PreferencePage() {
                   <div className="space-y-2">
                     <label className="text-[11px] font-semibold text-white/40 uppercase tracking-wider">{t.pref_interface_lang}</label>
                     <div className="grid grid-cols-2 gap-2">
-                      {LANGUAGES.map(lang => (
+                      {LANGUAGES.map(l => (
                         <button
-                          key={lang.code}
+                          key={l.code}
                           onClick={() => {
-                            setCfg(c => ({ ...c, language: lang.code }))
-                            setLang(lang.code as 'en' | 'ku' | 'ar')
+                            setCfg(c => ({ ...c, language: l.code }))
+                            setLang(l.code as 'en' | 'ku' | 'ar')
                           }}
                           className={cn(
                             'flex items-center gap-3 px-4 py-3 rounded-xl border text-sm font-semibold transition-all active:scale-95',
-                            cfg.language === lang.code
+                            lang === l.code
                               ? 'bg-indigo-500/20 border-indigo-500/40 text-indigo-300'
                               : 'bg-white/4 border-white/8 text-white/50 hover:text-white/80 hover:bg-white/8',
                           )}
                         >
-                          <span className="text-base">{lang.flag}</span>
-                          {lang.label}
-                          {cfg.language === lang.code && (
+                          <span className="text-base">{l.flag}</span>
+                          {l.label}
+                          {lang === l.code && (
                             <span className="ml-auto w-2 h-2 rounded-full bg-indigo-400" />
                           )}
                         </button>
@@ -426,9 +426,9 @@ export default function PreferencePage() {
 
                       {/* ── Sound Theme ── */}
                       <div className="space-y-2">
-                        <label className="text-[11px] font-semibold text-white/40 uppercase tracking-wider">Sound Theme</label>
+                        <label className="text-[11px] font-semibold text-white/40 uppercase tracking-wider">{t.pref_sound_theme}</label>
                         <div className="grid grid-cols-2 gap-2">
-                          {SOUND_OPTIONS.map(({ id, label, desc, emoji }) => {
+                          {SOUND_OPTIONS.map(({ id, labelKey, descKey, emoji }) => {
                             const active = (cfg.alert_sound ?? 'classic') === id
                             const playing = previewingId === id
                             return (
@@ -444,8 +444,8 @@ export default function PreferencePage() {
                               >
                                 <span className="text-xl shrink-0">{emoji}</span>
                                 <div className="flex-1 min-w-0">
-                                  <p className={cn('text-sm font-semibold', active ? 'text-indigo-300' : 'text-white/80')}>{label}</p>
-                                  <p className="text-[10px] text-white/35 truncate">{desc}</p>
+                                  <p className={cn('text-sm font-semibold', active ? 'text-indigo-300' : 'text-white/80')}>{t[labelKey]}</p>
+                                  <p className="text-[10px] text-white/35 truncate">{t[descKey]}</p>
                                 </div>
                                 <div
                                   role="button"
@@ -523,9 +523,9 @@ export default function PreferencePage() {
 
                       {/* ── Sound Theme ── */}
                       <div className="space-y-2">
-                        <label className="text-[11px] font-semibold text-white/40 uppercase tracking-wider">Sound Theme</label>
+                        <label className="text-[11px] font-semibold text-white/40 uppercase tracking-wider">{t.pref_sound_theme}</label>
                         <div className="grid grid-cols-2 gap-2">
-                          {ONLINE_SOUND_OPTIONS.map(({ id, label, desc, emoji }) => {
+                          {ONLINE_SOUND_OPTIONS.map(({ id, labelKey, descKey, emoji }) => {
                             const active = (cfg.online_alert_sound ?? 'doorbell') === id
                             const playing = previewingId === `online-${id}`
                             return (
@@ -541,8 +541,8 @@ export default function PreferencePage() {
                               >
                                 <span className="text-xl shrink-0">{emoji}</span>
                                 <div className="flex-1 min-w-0">
-                                  <p className={cn('text-sm font-semibold', active ? 'text-indigo-300' : 'text-white/80')}>{label}</p>
-                                  <p className="text-[10px] text-white/35 truncate">{desc}</p>
+                                  <p className={cn('text-sm font-semibold', active ? 'text-indigo-300' : 'text-white/80')}>{t[labelKey]}</p>
+                                  <p className="text-[10px] text-white/35 truncate">{t[descKey]}</p>
                                 </div>
                                 <div
                                   role="button"
@@ -619,9 +619,9 @@ export default function PreferencePage() {
                       <div className="border-t border-white/6" />
 
                       <div className="space-y-2">
-                        <label className="text-[11px] font-semibold text-white/40 uppercase tracking-wider">Sound Theme</label>
+                        <label className="text-[11px] font-semibold text-white/40 uppercase tracking-wider">{t.pref_sound_theme}</label>
                         <div className="grid grid-cols-2 gap-2">
-                          {WAITER_SOUND_OPTIONS.map(({ id, label, desc, emoji }) => {
+                          {WAITER_SOUND_OPTIONS.map(({ id, labelKey, descKey, emoji }) => {
                             const active = (cfg.waiter_alert_sound ?? 'whistle') === id
                             const playing = previewingId === `waiter-${id}`
                             return (
@@ -637,8 +637,8 @@ export default function PreferencePage() {
                               >
                                 <span className="text-xl shrink-0">{emoji}</span>
                                 <div className="flex-1 min-w-0">
-                                  <p className={cn('text-sm font-semibold', active ? 'text-indigo-300' : 'text-white/80')}>{label}</p>
-                                  <p className="text-[10px] text-white/35 truncate">{desc}</p>
+                                  <p className={cn('text-sm font-semibold', active ? 'text-indigo-300' : 'text-white/80')}>{t[labelKey]}</p>
+                                  <p className="text-[10px] text-white/35 truncate">{t[descKey]}</p>
                                 </div>
                                 <div
                                   role="button"
@@ -691,7 +691,7 @@ export default function PreferencePage() {
 
             {/* ── Push Notifications ── */}
             <motion.div variants={FIELD_ITEM}>
-              <SettingsSection title="Push Notifications" icon={<Smartphone className="w-4 h-4 text-white/80" />} color="bg-rose-500/70">
+              <SettingsSection title={t.pref_push_title} icon={<Smartphone className="w-4 h-4 text-white/80" />} color="bg-rose-500/70">
                 <div className="space-y-5">
 
                   {/* Permission row */}
@@ -710,13 +710,13 @@ export default function PreferencePage() {
                           : <AlertCircle className="w-5 h-5 text-amber-400" />}
                       </div>
                       <div>
-                        <p className="text-sm font-semibold text-white">Push Notifications</p>
+                        <p className="text-sm font-semibold text-white">{t.pref_push_title}</p>
                         <p className="text-xs text-white/40">
-                          {pushStatus === 'subscribed'   ? 'Active — this device will receive alerts'
-                           : pushStatus === 'denied'     ? 'Blocked — allow notifications in browser settings'
-                           : pushStatus === 'unsupported'? 'Not supported in this browser'
-                           : pushStatus === 'loading'    ? 'Checking…'
-                           :                              'Not enabled on this device yet'}
+                          {pushStatus === 'subscribed'   ? t.pref_push_active
+                           : pushStatus === 'denied'     ? t.pref_push_blocked
+                           : pushStatus === 'unsupported'? t.pref_push_unsupported
+                           : pushStatus === 'loading'    ? t.pref_push_checking
+                           :                              t.pref_push_not_enabled}
                         </p>
                         {pushError && (
                           <p className="text-xs text-rose-400 mt-1 break-all">{pushError}</p>
@@ -726,13 +726,13 @@ export default function PreferencePage() {
                     {pushStatus === 'unsubscribed' && (
                       <button onClick={subscribe} disabled={pushBusy}
                         className="shrink-0 px-4 py-2 rounded-xl bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 text-white text-xs font-semibold transition-all active:scale-95">
-                        {pushBusy ? 'Enabling…' : 'Enable'}
+                        {pushBusy ? t.pref_push_enabling : t.pref_push_enable}
                       </button>
                     )}
                     {pushStatus === 'subscribed' && (
                       <button onClick={unsubscribe} disabled={pushBusy}
                         className="shrink-0 px-4 py-2 rounded-xl bg-white/8 hover:bg-rose-500/20 border border-white/10 hover:border-rose-500/30 disabled:opacity-50 text-white/60 hover:text-rose-400 text-xs font-semibold transition-all active:scale-95">
-                        {pushBusy ? 'Disabling…' : 'Disable'}
+                        {pushBusy ? t.pref_push_disabling : t.pref_push_disable}
                       </button>
                     )}
                   </div>
@@ -741,9 +741,9 @@ export default function PreferencePage() {
 
                   {/* Per-type toggles */}
                   <div className="space-y-1">
-                    <label className="text-[11px] font-semibold text-white/40 uppercase tracking-wider mb-3 block">Notify me for</label>
+                    <label className="text-[11px] font-semibold text-white/40 uppercase tracking-wider mb-3 block">{t.pref_push_notify_for}</label>
                     <div className="space-y-2">
-                      {PUSH_ITEMS.map(({ key, icon: Icon, label, desc }) => (
+                      {PUSH_ITEMS.map(({ key, icon: Icon, labelKey, descKey }) => (
                         <div key={key} className={cn(
                           'flex items-center justify-between gap-4 px-4 py-3 rounded-xl border transition-all',
                           cfg[key] ? 'bg-indigo-500/8 border-indigo-500/20' : 'bg-white/3 border-white/8',
@@ -754,8 +754,8 @@ export default function PreferencePage() {
                               <Icon className={cn('w-4 h-4', cfg[key] ? 'text-indigo-400' : 'text-white/30')} />
                             </div>
                             <div>
-                              <p className={cn('text-sm font-semibold', cfg[key] ? 'text-white' : 'text-white/50')}>{label}</p>
-                              <p className="text-[11px] text-white/35">{desc}</p>
+                              <p className={cn('text-sm font-semibold', cfg[key] ? 'text-white' : 'text-white/50')}>{t[labelKey]}</p>
+                              <p className="text-[11px] text-white/35">{t[descKey]}</p>
                             </div>
                           </div>
                           <ToggleSwitch
@@ -770,7 +770,7 @@ export default function PreferencePage() {
 
                   {pushStatus === 'unsupported' && (
                     <p className="text-[11px] text-white/25 bg-white/3 border border-white/8 rounded-xl px-4 py-2.5">
-                      Open this page in Chrome or the Android app to enable push notifications.
+                      {t.pref_push_unsupported_hint}
                     </p>
                   )}
 
@@ -780,11 +780,11 @@ export default function PreferencePage() {
 
             {/* ── Activity Toasts ── */}
             <motion.div variants={FIELD_ITEM}>
-              <SettingsSection title="Activity Toasts" icon={<BellRing className="w-4 h-4 text-white/80" />} color="bg-cyan-500/70">
+              <SettingsSection title={t.pref_toasts_title} icon={<BellRing className="w-4 h-4 text-white/80" />} color="bg-cyan-500/70">
                 <div className="space-y-5">
 
                   <div className="space-y-2">
-                    <label className="text-[11px] font-semibold text-white/40 uppercase tracking-wider">Dismiss behaviour</label>
+                    <label className="text-[11px] font-semibold text-white/40 uppercase tracking-wider">{t.pref_toasts_dismiss_behavior}</label>
                     <div className="flex gap-2">
                       {(['auto', 'manual'] as const).map(mode => (
                         <button
@@ -797,14 +797,14 @@ export default function PreferencePage() {
                               : 'bg-white/4 border-white/8 text-white/50 hover:text-white/80',
                           )}
                         >
-                          {mode === 'auto' ? 'Auto-dismiss' : 'Manual close'}
+                          {mode === 'auto' ? t.pref_toasts_auto : t.pref_toasts_manual}
                         </button>
                       ))}
                     </div>
                     <p className="text-[11px] text-white/30">
                       {cfg.toast_dismiss_mode === 'manual'
-                        ? 'Toasts stay visible until you press ✕'
-                        : 'Toasts disappear automatically after the set duration'}
+                        ? t.pref_toasts_manual_hint
+                        : t.pref_toasts_auto_hint}
                     </p>
                   </div>
 
@@ -814,7 +814,7 @@ export default function PreferencePage() {
                       <div className="space-y-1.5">
                         <label className="flex items-center gap-1.5 text-[11px] font-semibold text-white/40 uppercase tracking-wider">
                           <Clock className="w-3.5 h-3.5" />
-                          Auto-dismiss after
+                          {t.pref_toasts_auto_after}
                         </label>
                         <div className="flex gap-2">
                           {[3, 5, 7, 10, 15].map(sec => (
