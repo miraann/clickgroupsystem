@@ -26,7 +26,7 @@
     },
     {
       "client_info": {
-        "mobilesdk_app_id": "1:172919359973:android:e4f8f4d5f258d6ef68c70c",
+        "mobilesdk_app_id": "1:172919359973:android:b709cde27ff8bc6468c70c",
         "android_client_info": {
           "package_name": "com.clickgroup.pos.driver"
         }
@@ -45,7 +45,7 @@
     },
     {
       "client_info": {
-        "mobilesdk_app_id": "1:172919359973:android:d2ee0b0c1d2e3f5068c70c",
+        "mobilesdk_app_id": "1:172919359973:android:35de7822b50ee67768c70c",
         "android_client_info": {
           "package_name": "com.clickgroup.pos.delivery"
         }

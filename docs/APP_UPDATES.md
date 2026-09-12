@@ -94,6 +94,20 @@ Each APK is ~10 MB → ~50 MB of binaries live in `public/apps/` and in git
 history. The filenames are stable so the working tree stays ~50 MB, but every
 release adds another ~50 MB of history.
 
+> **Gotcha:** `capacitor.config.ts` sets `webDir: 'public'`, so `npx cap sync
+> android` copies the *entire* `public/` folder — including whatever is
+> already sitting in `public/apps/*.apk` from the previous release — into
+> each flavor's bundled assets. Those bundled assets are never actually read
+> (every flavor boots straight to the remote `server.url`), but the Gradle
+> packaging step still includes them, roughly tripling the output APK size
+> (~10 MB → ~27 MB) if you don't account for it. There's no `.capacitorignore`
+> support in this project's `@capacitor/cli` version to exclude it. Cheapest
+> workaround until `webDir` is split from `public/apps/`: `mv public/apps
+> /tmp/apps_backup` before `cap sync`, build, then restore + overwrite with
+> the fresh APKs. (Fixed this way for the 2026-09-12 push-notification
+> release; the size jump was caught by comparing against a known-good flavor
+> before shipping — always sanity-check new APK sizes against the others.)
+
 ### Publish the EXE (GitHub release)
 
 Only the Electron build still uses a GitHub release:

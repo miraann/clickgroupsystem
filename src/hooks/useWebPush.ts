@@ -10,7 +10,7 @@ function urlBase64ToUint8Array(base64String: string) {
   return Uint8Array.from([...raw].map(c => c.charCodeAt(0)))
 }
 
-async function isCapacitorNative(): Promise<boolean> {
+export async function isCapacitorNative(): Promise<boolean> {
   try {
     const { Capacitor } = await import('@capacitor/core')
     return Capacitor.isNativePlatform()

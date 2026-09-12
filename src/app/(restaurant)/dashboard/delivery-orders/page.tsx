@@ -21,6 +21,8 @@ import { motion, AnimatePresence, type Variants } from 'framer-motion'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import { notifyDriver, buildStatusWhatsAppMessage, buildWhatsAppDeepLink } from '@/lib/delivery/notify'
 import { isDeliveryKiosk } from '@/lib/kioskMode'
+import { useWebPush } from '@/hooks/useWebPush'
+import DeliveryOrderAlert from '@/components/delivery/DeliveryOrderAlert'
 
 const CONTAINER: Variants = {
   hidden: {},
@@ -153,6 +155,15 @@ export default function DeliveryOrdersPage() {
 
   // Shared restaurant row (settings/modules) — one round-trip per session
   const { restaurant } = useRestaurant(restaurantId)
+
+  // Register this device for restaurant-wide "delivery" push (new order alerts)
+  // when running inside the native delivery kiosk APK. Settings → Preference
+  // (the manual enable toggle) is unreachable under the kiosk route lock, so
+  // this is the only way that flavor ever gets a push subscription registered.
+  const { status: deliveryPushStatus, subscribe: subscribeDeliveryPush } = useWebPush(restaurantId)
+  useEffect(() => {
+    if (kiosk && restaurantId && deliveryPushStatus === 'unsubscribed') subscribeDeliveryPush()
+  }, [kiosk, restaurantId, deliveryPushStatus, subscribeDeliveryPush])
 
   // SWR: delivery orders — shows cached data instantly on return navigation, revalidates in background
   const { data: swrOrders, isLoading: swrLoading, mutate: reloadOrders } = useDeliveryOrders(restaurantId)
@@ -496,6 +507,7 @@ export default function DeliveryOrdersPage() {
   return (
     <ModuleGate moduleKey="delivery">
     <div className="min-h-screen text-white flex flex-col" style={{ background: 'var(--app-bg, #022658)' }}>
+      <DeliveryOrderAlert restaurantId={restaurantId} />
 
       {/* ── Header ── */}
       <header className="sticky top-0 z-20 backdrop-blur-xl border-b border-white/8 px-4 py-3" style={{ background: 'var(--app-anchor-95, rgba(2,38,88,0.95))' }}>

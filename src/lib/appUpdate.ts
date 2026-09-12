@@ -52,7 +52,7 @@ const APK_DIR = '/apps'
  * the matching source). Bump on every release alongside android/app/build.gradle
  * + public/android-latest.json — see docs/APP_UPDATES.md.
  */
-export const APK_RELEASE_TAG = 'v1.3'
+export const APK_RELEASE_TAG = 'v1.4'
 
 /**
  * One entry per restaurant-facing Android flavor for the Settings → Apps

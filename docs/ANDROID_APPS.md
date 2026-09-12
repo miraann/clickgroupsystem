@@ -38,11 +38,19 @@ launcher name/icon colour, and the `server.url` each one boots to.
   email/password once, stores the menu slug in `localStorage['cfd_slug']`, then
   every later launch jumps straight to `/cfd/<slug>`. Open `/cfd?switch=1` to
   re-pair.
-- `seller` / `cfd` / `delivery` have structural-stub `google-services.json`
-  client entries (build fails without them). `seller` / `cfd` don't use push.
-  `delivery` **would** benefit from new-order push — register a real Firebase
-  Android app for `com.clickgroup.pos.delivery` and drop its `google-services.json`
-  block in to enable it; until then push silently no-ops on that flavor.
+- `seller` / `cfd` / `delivery` / `driver` have structural-stub `google-services.json`
+  client entries (build fails without them) — their `mobilesdk_app_id` values were
+  hand-crafted, not issued by Firebase, so FCM registration silently fails on-device
+  for these flavors (Firebase Installations rejects an app_id that isn't a real
+  registered app in the project). `seller` / `cfd` don't use push and can stay
+  stubbed. **`delivery` and `driver` DO need real push** (new-order / assignment
+  alerts) — to enable it: in the Firebase console for project `clickgroup-c089f`,
+  add an Android app for `com.clickgroup.pos.delivery` and another for
+  `com.clickgroup.pos.driver` (no SHA-1 needed, this project only uses FCM
+  messaging), then download the project's `google-services.json` and replace
+  `android/app/google-services.json` with it — it will contain real entries for
+  all 5 packages, keep the seller/cfd ones as-is. All the app-side subscribe/send
+  code and per-flavor push wiring is already in place and waits on just this file.
 - **CFD keep-awake:** the CFD screens keep the display on via the Wake Lock API
   (`src/hooks/useWakeLock.ts`), toggled by "Keep screen awake" on the `/cfd/<slug>`
   setup screen and persisted to `localStorage['cfd_keep_awake']` (default on).

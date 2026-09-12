@@ -27,6 +27,7 @@ import InventoryNotificationBell from '@/components/restaurant/InventoryNotifica
 import PrintQueueButton from '@/components/restaurant/PrintQueueButton'
 import { DailySalesModal } from '@/components/restaurant/daily-sales-modal'
 import { logAudit } from '@/lib/logAudit'
+import { useWebPush, isCapacitorNative } from '@/hooks/useWebPush'
 
 type TableStatus = 'available' | 'occupied' | 'reserved' | 'dirty' | 'bill_requested'
 
@@ -1219,6 +1220,17 @@ export default function TablesPage() {
   const { data: swrData } = useDashboardTables(cachedRestaurantId)
   // Shared restaurant row (name/logo/settings/menu_slug) — one round-trip per session
   const { restaurant } = useRestaurant(cachedRestaurantId)
+
+  // Auto-register this device for push (new delivery/guest orders, waiter calls)
+  // on the native Cashier APK, instead of relying on someone remembering to flip
+  // the manual toggle in Settings → Preference. Browser/desktop dashboard users
+  // are untouched — they keep the manual opt-in there.
+  const [isNativeCashier, setIsNativeCashier] = useState(false)
+  useEffect(() => { isCapacitorNative().then(setIsNativeCashier) }, [])
+  const { status: cashierPushStatus, subscribe: subscribeCashierPush } = useWebPush(cachedRestaurantId)
+  useEffect(() => {
+    if (isNativeCashier && cachedRestaurantId && cashierPushStatus === 'unsubscribed') subscribeCashierPush()
+  }, [isNativeCashier, cachedRestaurantId, cashierPushStatus, subscribeCashierPush])
 
   const [filter, setFilter] = useState<TableStatus | 'all'>('all')
   const [groupFilter, setGroupFilter] = useState<string | 'all'>('all')

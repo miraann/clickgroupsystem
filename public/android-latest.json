@@ -8,16 +8,16 @@
       "notes": "New app icon."
     },
     "com.clickgroup.pos.driver": {
-      "versionCode": 5,
-      "versionName": "1.3-driver",
+      "versionCode": 6,
+      "versionName": "1.4-driver",
       "url": "https://clickgroupsystem.vercel.app/apps/Driver.apk",
-      "notes": "Updated app icon."
+      "notes": "Fixed push notifications (real Firebase registration)."
     },
     "com.clickgroup.pos.delivery": {
-      "versionCode": 5,
-      "versionName": "1.3-delivery",
+      "versionCode": 6,
+      "versionName": "1.4-delivery",
       "url": "https://clickgroupsystem.vercel.app/apps/Delivery.apk",
-      "notes": "Updated app icon."
+      "notes": "Fixed push notifications (real Firebase registration) + new-order sound alert."
     },
     "com.clickgroup.pos.seller": {
       "versionCode": 4,
