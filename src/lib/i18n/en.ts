@@ -324,6 +324,8 @@ const en = {
   gst_by_month:         'Guests by Month',
   gst_no_data:          'No guest data for this period',
   gst_breakdown:        'Breakdown',
+  gst_order_word:       'order',
+  gst_pick_date:        'Pick a date',
 
   // ── Pending Orders ────────────────────────────────────────────
   po_title:             'Pending Orders',

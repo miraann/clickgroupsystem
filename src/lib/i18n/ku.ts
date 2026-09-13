@@ -1112,8 +1112,8 @@ const ku: Record<keyof typeof en, string> = {
   gst_month:            'ئەم مانگە',
   gst_year:             'ئەم ساڵە',
   gst_total_guests:     'کۆی میوانەکان',
-  gst_total_orders:     'کۆی فەرمانەکان',
-  gst_avg_order:        'تێکڕا / فەرمان',
+  gst_total_orders:     'کۆی داواکارییەکان',
+  gst_avg_order:        'تێکڕا / داواکاری',
   gst_peak:             'بەرزترین',
   gst_by_hour:          'میوان بەپێی کاتژمێر',
   gst_by_day:           'میوان بەپێی ڕۆژ',
@@ -1121,6 +1121,8 @@ const ku: Record<keyof typeof en, string> = {
   gst_by_month:         'میوان بەپێی مانگ',
   gst_no_data:          'هیچ داتایەکی میوان نییە بۆ ئەم سەردەمە',
   gst_breakdown:        'وردکردنەوە',
+  gst_order_word:       'داواکاری',
+  gst_pick_date:        'ڕێکەوتێک دیاری بکە',
 
   // ── Pending Orders ────────────────────────────────────────────
   po_title:             'داواکاری میوان',

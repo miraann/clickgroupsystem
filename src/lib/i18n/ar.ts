@@ -1121,6 +1121,8 @@ const ar: Record<keyof typeof en, string> = {
   gst_by_month:         'الضيوف بالشهر',
   gst_no_data:          'لا توجد بيانات ضيوف لهذه الفترة',
   gst_breakdown:        'التفصيل',
+  gst_order_word:       'طلب',
+  gst_pick_date:        'اختر تاريخاً',
 
   // ── Pending Orders ────────────────────────────────────────────
   po_title:             'الطلبات المعلّقة',

@@ -1,25 +1,27 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
-import { Users, ArrowLeft, TrendingUp, Clock, Calendar, CalendarDays } from 'lucide-react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { Users, ArrowLeft, TrendingUp, Clock, Calendar, CalendarDays, CalendarRange } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { usePermissions } from '@/lib/permissions/PermissionsContext'
 import { getStaffHome } from '@/lib/permissions/staffHome'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { motion, AnimatePresence, type Variants } from 'framer-motion'
 
-type Period = 'today' | 'week' | 'month' | 'year'
+type TabPeriod = 'today' | 'week' | 'month' | 'year'
+type Period = TabPeriod | 'custom'
 
 interface OrderRow { guests: number; created_at: string }
 interface Bucket   { label: string; guests: number; orders: number }
 
-const PERIOD_TABS: { id: Period; label: string; icon: React.ElementType }[] = [
-  { id: 'today', label: 'Today',      icon: Clock       },
-  { id: 'week',  label: 'This Week',  icon: CalendarDays },
-  { id: 'month', label: 'This Month', icon: Calendar    },
-  { id: 'year',  label: 'This Year',  icon: TrendingUp  },
-]
+const PERIOD_ICONS: Record<TabPeriod, React.ElementType> = {
+  today: Clock,
+  week:  CalendarDays,
+  month: Calendar,
+  year:  TrendingUp,
+}
 
 const HOURS   = Array.from({ length: 24 }, (_, i) => {
   const h = i % 12 || 12
@@ -28,14 +30,15 @@ const HOURS   = Array.from({ length: 24 }, (_, i) => {
 const DAYS    = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const MONTHS  = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
-function buildBuckets(period: Period, rows: OrderRow[]): Bucket[] {
+function buildBuckets(period: Period, rows: OrderRow[], customDate: string): Bucket[] {
   const now = new Date()
 
-  if (period === 'today') {
+  if (period === 'today' || period === 'custom') {
+    const target = period === 'custom' && customDate ? new Date(`${customDate}T00:00:00`) : now
     const buckets: Bucket[] = HOURS.map(label => ({ label, guests: 0, orders: 0 }))
     rows.forEach(r => {
       const d = new Date(r.created_at)
-      if (d.toDateString() === now.toDateString()) {
+      if (d.toDateString() === target.toDateString()) {
         buckets[d.getHours()].guests += r.guests ?? 0
         buckets[d.getHours()].orders += 1
       }
@@ -124,24 +127,38 @@ function Skel({ className }: { className?: string }) {
 export default function GuestsPage() {
   const supabase = createClient()
   const router = useRouter()
+  const { t, lang } = useLanguage()
   const { can, isOwner, permissions, loading: permsLoading } = usePermissions()
+
+  const PERIOD_TABS: { id: TabPeriod; label: string; icon: React.ElementType }[] = [
+    { id: 'today', label: t.gst_today, icon: PERIOD_ICONS.today },
+    { id: 'week',  label: t.gst_week,  icon: PERIOD_ICONS.week  },
+    { id: 'month', label: t.gst_month, icon: PERIOD_ICONS.month },
+    { id: 'year',  label: t.gst_year,  icon: PERIOD_ICONS.year  },
+  ]
 
   useEffect(() => {
     if (permsLoading || isOwner) return
     if (!can('guests')) router.replace(getStaffHome(permissions))
   }, [permsLoading, isOwner, permissions, can, router])
 
-  const [period, setPeriod] = useState<Period>('today')
-  const [rows, setRows]     = useState<OrderRow[]>([])
-  const [loading, setLoading] = useState(true)
+  const [period, setPeriod]         = useState<Period>('today')
+  const [customDate, setCustomDate] = useState('')
+  const dateInputRef = useRef<HTMLInputElement>(null)
+  const [rows, setRows]             = useState<OrderRow[]>([])
+  const [loading, setLoading]       = useState(true)
 
-  const load = useCallback(async () => {
+  const targetYear = period === 'custom' && customDate
+    ? new Date(`${customDate}T00:00:00`).getFullYear()
+    : new Date().getFullYear()
+
+  const load = useCallback(async (year: number) => {
     setLoading(true)
     const { data: rest } = await supabase.from('restaurants').select('id').eq('id', typeof window !== 'undefined' ? (localStorage.getItem('restaurant_id') ?? '') : '').maybeSingle()
     if (!rest) { setLoading(false); return }
 
-    const yearStart = `${new Date().getFullYear()}-01-01T00:00:00`
-    const yearEnd   = `${new Date().getFullYear()}-12-31T23:59:59`
+    const yearStart = `${year}-01-01T00:00:00`
+    const yearEnd   = `${year}-12-31T23:59:59`
 
     const { data } = await supabase
       .from('orders')
@@ -156,9 +173,9 @@ export default function GuestsPage() {
     setLoading(false)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => { load(targetYear) }, [load, targetYear])
 
-  const buckets = buildBuckets(period, rows)
+  const buckets = buildBuckets(period, rows, customDate)
   const maxGuests = Math.max(...buckets.map(b => b.guests), 1)
 
   const totalGuests  = buckets.reduce((s, b) => s + b.guests, 0)
@@ -167,11 +184,11 @@ export default function GuestsPage() {
   const peakBucket   = buckets.reduce((a, b) => b.guests > a.guests ? b : a, buckets[0])
 
   const SUMMARY_CARDS = [
-    { label: 'Total Guests',  value: totalGuests.toLocaleString(), color: 'text-amber-400',   bg: 'bg-amber-500/10',   border: 'border-amber-500/20'   },
-    { label: 'Total Orders',  value: totalOrders.toLocaleString(), color: 'text-indigo-400',  bg: 'bg-indigo-500/10',  border: 'border-indigo-500/20'  },
-    { label: 'Avg / Order',   value: avgPerOrder,                  color: 'text-violet-400',  bg: 'bg-violet-500/10',  border: 'border-violet-500/20'  },
+    { label: t.gst_total_guests, value: totalGuests.toLocaleString(), color: 'text-amber-400',   bg: 'bg-amber-500/10',   border: 'border-amber-500/20'   },
+    { label: t.gst_total_orders, value: totalOrders.toLocaleString(), color: 'text-indigo-400',  bg: 'bg-indigo-500/10',  border: 'border-indigo-500/20'  },
+    { label: t.gst_avg_order,    value: avgPerOrder,                  color: 'text-violet-400',  bg: 'bg-violet-500/10',  border: 'border-violet-500/20'  },
     {
-      label: 'Peak',
+      label: t.gst_peak,
       value: peakBucket?.guests > 0 ? `${peakBucket.label} · ${peakBucket.guests}` : '—',
       color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20',
     },
@@ -194,8 +211,8 @@ export default function GuestsPage() {
           <Users className="w-5 h-5 text-amber-400" />
         </div>
         <div>
-          <h1 className="text-base font-bold text-white">Guest Tracking</h1>
-          <p className="text-xs text-white/35">Guest count analytics</p>
+          <h1 className="text-base font-bold text-white">{t.gst_title}</h1>
+          <p className="text-xs text-white/35">{t.gst_subtitle}</p>
         </div>
       </div>
 
@@ -207,25 +224,54 @@ export default function GuestsPage() {
       >
 
         {/* Period tabs */}
-        <motion.div variants={ITEM} className="flex gap-2">
-          {PERIOD_TABS.map(t => {
-            const Icon = t.icon
+        <motion.div variants={ITEM} className="flex gap-2 flex-wrap">
+          {PERIOD_TABS.map(tab => {
+            const Icon = tab.icon
             return (
               <button
-                key={t.id}
-                onClick={() => setPeriod(t.id)}
+                key={tab.id}
+                onClick={() => setPeriod(tab.id)}
                 className={cn(
                   'flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium transition-all active:scale-95',
-                  period === t.id
+                  period === tab.id
                     ? 'bg-amber-500/20 border-amber-500/40 text-amber-300'
                     : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/8 hover:text-white/70'
                 )}
               >
                 <Icon className="w-4 h-4" />
-                {t.label}
+                {tab.label}
               </button>
             )
           })}
+
+          <button
+            type="button"
+            onClick={() => {
+              const el = dateInputRef.current
+              if (!el) return
+              if (typeof el.showPicker === 'function') el.showPicker()
+              else el.click()
+            }}
+            className={cn(
+              'relative flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium transition-all active:scale-95 cursor-pointer',
+              period === 'custom'
+                ? 'bg-amber-500/20 border-amber-500/40 text-amber-300'
+                : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/8 hover:text-white/70'
+            )}
+          >
+            <CalendarRange className="w-4 h-4" />
+            {period === 'custom' && customDate
+              ? new Date(`${customDate}T00:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+              : t.gst_pick_date}
+            <input
+              ref={dateInputRef}
+              type="date"
+              value={customDate}
+              onChange={e => { setCustomDate(e.target.value); setPeriod('custom') }}
+              className="absolute inset-0 w-full h-full opacity-0 pointer-events-none [color-scheme:dark]"
+              tabIndex={-1}
+            />
+          </button>
         </motion.div>
 
         {/* Summary cards */}
@@ -261,7 +307,7 @@ export default function GuestsPage() {
         {/* Bar chart */}
         <motion.div variants={ITEM} className="bg-white/4 border border-white/8 rounded-2xl p-5">
           <p className="text-xs font-semibold uppercase tracking-wider text-white/30 mb-5">
-            {period === 'today' ? 'Guests by Hour' : period === 'week' ? 'Guests by Day' : period === 'month' ? 'Guests by Day of Month' : 'Guests by Month'}
+            {period === 'today' || period === 'custom' ? t.gst_by_hour : period === 'week' ? t.gst_by_day : period === 'month' ? t.gst_by_day_month : t.gst_by_month}
           </p>
 
           <AnimatePresence mode="wait" initial={false}>
@@ -288,7 +334,7 @@ export default function GuestsPage() {
                 transition={{ duration: 0.18 }}
                 className="flex items-center justify-center h-[80px] text-white/20 text-sm"
               >
-                No guest data for this period
+                {t.gst_no_data}
               </motion.div>
             ) : (
               <motion.div
@@ -299,7 +345,7 @@ export default function GuestsPage() {
                 transition={{ duration: 0.22 }}
                 className={cn(
                   'flex items-end gap-1',
-                  period === 'today' ? 'overflow-x-auto pb-2' : 'flex-wrap'
+                  period === 'today' || period === 'custom' ? 'overflow-x-auto pb-2' : 'flex-wrap'
                 )}
               >
                 {buckets.map((b, i) => {
@@ -308,7 +354,7 @@ export default function GuestsPage() {
                   return (
                     <div
                       key={i}
-                      className={cn('flex flex-col items-center gap-1 group', period === 'today' ? 'min-w-[32px]' : 'flex-1 min-w-[28px]')}
+                      className={cn('flex flex-col items-center gap-1 group', period === 'today' || period === 'custom' ? 'min-w-[32px]' : 'flex-1 min-w-[28px]')}
                     >
                       <div className={cn('text-[10px] font-semibold tabular-nums transition-all', isActive ? 'text-amber-400' : 'text-white/10')}>
                         {b.guests > 0 ? b.guests : ''}
@@ -344,7 +390,7 @@ export default function GuestsPage() {
               className="bg-white/4 border border-white/8 rounded-2xl overflow-hidden"
             >
               <div className="px-5 py-3 border-b border-white/8">
-                <p className="text-xs font-semibold uppercase tracking-wider text-white/30">Breakdown</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-white/30">{t.gst_breakdown}</p>
               </div>
               <div className="divide-y divide-white/5">
                 {buckets
@@ -370,7 +416,7 @@ export default function GuestsPage() {
                           />
                         </div>
                         <span className="text-sm font-bold text-amber-400 tabular-nums w-10 text-right">{b.guests}</span>
-                        <span className="text-xs text-white/30 tabular-nums w-16 text-right">{b.orders} order{b.orders !== 1 ? 's' : ''}</span>
+                        <span className="text-xs text-white/30 tabular-nums w-16 text-right">{b.orders} {t.gst_order_word}{lang === 'en' && b.orders !== 1 ? 's' : ''}</span>
                       </div>
                     </motion.div>
                   ))}
