@@ -27,7 +27,7 @@ export function SentRow({ item, onAction, formatPrice }: Props) {
     >
       <div className="flex items-center gap-2.5 sm:gap-3 px-3 py-2.5 sm:px-4 sm:py-3.5">
         <div className="flex-1 min-w-0">
-          <p className="text-sm sm:text-lg font-semibold text-white/90 truncate leading-tight">{item.item_name}</p>
+          <p className="text-[11px] sm:text-xs font-semibold text-white/90 leading-tight">{item.item_name}</p>
           <p className="text-base sm:text-lg font-bold text-amber-400 tabular-nums mt-0.5 sm:mt-1">{formatPrice(item.item_price * item.qty)}</p>
         </div>
         <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">

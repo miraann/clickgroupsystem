@@ -124,11 +124,11 @@ export function MenuPanel({
 
                   {/* Name + price */}
                   <div className="flex flex-col items-center p-2.5 sm:p-3 text-center">
-                    <p className={cn('text-sm sm:text-base font-bold leading-snug line-clamp-2', qty > 0 ? 'text-white' : 'text-white/90')}>
+                    <p className={cn('text-xs sm:text-sm font-bold leading-snug', qty > 0 ? 'text-white' : 'text-white/90')}>
                       {item.name}
                     </p>
                     <span className="my-1.5 h-0.5 w-10 rounded-full bg-gradient-to-r from-transparent via-amber-400 to-transparent" />
-                    <p className={cn('text-sm sm:text-lg font-extrabold tabular-nums', qty > 0 ? 'text-amber-400' : 'text-amber-300/90')}>
+                    <p className={cn('text-xs sm:text-base font-extrabold tabular-nums', qty > 0 ? 'text-amber-400' : 'text-amber-300/90')}>
                       {formatPrice(Number(item.price))}
                     </p>
                   </div>

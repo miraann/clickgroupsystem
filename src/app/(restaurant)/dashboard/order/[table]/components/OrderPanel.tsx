@@ -34,7 +34,7 @@ export function OrderPanel({
   return (
     <div className={cn(
       'shrink-0 flex-col border-r border-white/8 bg-white/[0.01]',
-      mobilePanel === 'order' ? 'flex w-full sm:w-[380px] xl:w-[440px]' : 'hidden sm:flex sm:w-[380px] xl:w-[440px]'
+      mobilePanel === 'order' ? 'flex w-full sm:w-[320px] xl:w-[380px]' : 'hidden sm:flex sm:w-[320px] xl:w-[380px]'
     )}>
       {/* Tabs */}
       <div className="shrink-0 flex border-b border-white/8">
