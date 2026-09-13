@@ -7,6 +7,13 @@ import { enqueuePrint } from '@/lib/printQueue'
 import { sendPrinterBytes } from '@/lib/sendToPrinter'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 
+// getDay(): 0 = Sunday … 6 = Saturday
+const WEEKDAY_NAMES: Record<'en' | 'ku' | 'ar', string[]> = {
+  en: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+  ku: ['یەکشەممە', 'دووشەممە', 'سێشەممە', 'چوارشەممە', 'پێنجشەممە', 'هەینی', 'شەممە'],
+  ar: ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'],
+}
+
 interface InvoiceRow {
   id: string
   subtotal: number
@@ -64,7 +71,7 @@ function DoubleLine() {
 
 // ── Main component ────────────────────────────────────────────
 export function DailySalesModal({ restaurantId, restaurantName, dayStartTime = '00:00', date, formatPrice, onClose }: Props) {
-  const { t } = useLanguage()
+  const { t, lang } = useLanguage()
   const supabase = createClient()
   const receiptRef = useRef<HTMLDivElement>(null)
 
@@ -234,7 +241,11 @@ export function DailySalesModal({ restaurantId, restaurantName, dayStartTime = '
     businessDate.setHours(dsH || 0, dsM || 0, 0, 0)
     if (now < businessDate) businessDate.setDate(businessDate.getDate() - 1)
   }
-  const dateStr   = businessDate.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
+  const weekday   = WEEKDAY_NAMES[lang][businessDate.getDay()]
+  const numericDate = `${businessDate.getDate()}-${businessDate.getMonth() + 1}-${businessDate.getFullYear()}`
+  const dateStr   = lang === 'ku' ? `ڕۆژی ${weekday} , ${numericDate}`
+                   : lang === 'ar' ? `${weekday} ، ${numericDate}`
+                   : `${weekday}, ${numericDate}`
   const timeStr   = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: true })
 
   const handlePrint = () => {
