@@ -12,6 +12,14 @@ const ku: Record<keyof typeof en, string> = {
   nav_notifications:  'ئاگادارکردنەوە',
   nav_settings:       'ڕێکخستن',
 
+  // ── Dashboard top bar labels ────────────────────────
+  dnav_check:         'پشکنین',
+  dnav_print:         'چاپکردن',
+  dnav_audit:         'چاودێری',
+  dnav_waiter:        'گارسۆن',
+  dnav_guests:        'میوانەکان',
+  dnav_logout:        'دەرچوون',
+
   // ── Settings groups ───────────────────────────────
   sg_general:     'گشتی',
   sg_operations:  'کارکردن',

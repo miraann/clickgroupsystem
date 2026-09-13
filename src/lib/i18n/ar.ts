@@ -12,6 +12,14 @@ const ar: Record<keyof typeof en, string> = {
   nav_notifications:  'الإشعارات',
   nav_settings:       'الإعدادات',
 
+  // ── Dashboard top bar labels ────────────────────────
+  dnav_check:         'فحص',
+  dnav_print:         'الطباعة',
+  dnav_audit:         'تدقيق',
+  dnav_waiter:        'النادل',
+  dnav_guests:        'الضيوف',
+  dnav_logout:        'خروج',
+
   // ── Settings groups ───────────────────────────────
   sg_general:     'عام',
   sg_operations:  'العمليات',

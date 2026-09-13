@@ -11,6 +11,14 @@ const en = {
   nav_notifications:  'Notifications',
   nav_settings:       'Settings',
 
+  // ── Dashboard top bar labels ────────────────────────────────────
+  dnav_check:         'Check',
+  dnav_print:         'Print',
+  dnav_audit:         'Audit',
+  dnav_waiter:        'Waiter',
+  dnav_guests:        'Guests',
+  dnav_logout:        'Logout',
+
   // ── Settings groups ───────────────────────────────────────────
   sg_general:     'General',
   sg_operations:  'Operations',

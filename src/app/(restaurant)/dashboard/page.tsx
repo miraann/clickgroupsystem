@@ -1631,68 +1631,89 @@ export default function TablesPage() {
                 {roleName && <span className="text-[10px] text-white/30 truncate max-w-[60px]">· {roleName}</span>}
               </div>
             )}
-            <SystemCheckButton
-              restaurantId={cachedRestaurantId}
-              wrapperClassName="hidden lg:block"
-              buttonClassName="w-14 h-14"
-            />
+            <div className="hidden lg:flex flex-col items-center gap-1">
+              <SystemCheckButton
+                restaurantId={cachedRestaurantId}
+                buttonClassName="w-14 h-14"
+              />
+              <span className="text-[10px] font-medium text-white/40">{tr.dnav_check}</span>
+            </div>
             {can('dashboard.btn_print_queue') && (
-              <PrintQueueButton wrapperClassName="hidden lg:block" buttonClassName="w-14 h-14" />
+              <div className="hidden lg:flex flex-col items-center gap-1">
+                <PrintQueueButton buttonClassName="w-14 h-14" />
+                <span className="text-[10px] font-medium text-white/40">{tr.dnav_print}</span>
+              </div>
             )}
             {(isOwner || can('dashboard.btn_audit_log')) && (
-              <Link href="/dashboard/settings/audit-log" title="Audit Log" className={cn('hidden lg:flex w-14 h-14 rounded-xl items-center justify-center transition-all active:scale-95', navBtnCn)} style={navBtn('audit')}>
-                <Shield size={26} />
+              <Link href="/dashboard/settings/audit-log" title={tr.dnav_audit} className="hidden lg:flex flex-col items-center gap-1">
+                <span className={cn('w-14 h-14 rounded-xl flex items-center justify-center transition-all active:scale-95', navBtnCn)} style={navBtn('audit')}>
+                  <Shield size={26} />
+                </span>
+                <span className="text-[10px] font-medium text-white/40">{tr.dnav_audit}</span>
               </Link>
             )}
             {can('dashboard.btn_waiter') && (
               <button
                 onClick={() => setShowWaiterPanel(p => !p)}
-                className={cn(
-                  'hidden lg:flex w-9 h-9 lg:w-14 lg:h-14 rounded-xl border items-center justify-center transition-all active:scale-95 relative shrink-0',
+                className="hidden lg:flex flex-col items-center gap-1 active:scale-95 transition-all shrink-0"
+                title={tr.dnav_waiter}
+              >
+                <span className={cn(
+                  'relative w-14 h-14 rounded-xl border flex items-center justify-center',
                   waiterCalls.length > 0
                     ? 'bg-violet-500/15 border-violet-500/40 text-violet-400 hover:bg-violet-500/25 animate-pulse'
                     : 'bg-white/5 border-white/10 text-white/40 hover:text-white/70 hover:bg-white/10'
-                )}
-                title="Waiter Calls"
-              >
-                <BellRing className="w-[18px] h-[18px] lg:w-[26px] lg:h-[26px]" />
-                {waiterCalls.length > 0 && (
-                  <span className="absolute -top-1 -right-1 min-w-[16px] h-4 lg:min-w-[22px] lg:h-[22px] rounded-full bg-violet-500 text-white text-[9px] lg:text-xs font-bold flex items-center justify-center px-0.5 lg:px-1 shadow-lg shadow-violet-500/40">
-                    {waiterCalls.length > 99 ? '99+' : waiterCalls.length}
-                  </span>
-                )}
+                )}>
+                  <BellRing className="w-[26px] h-[26px]" />
+                  {waiterCalls.length > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-[22px] h-[22px] rounded-full bg-violet-500 text-white text-xs font-bold flex items-center justify-center px-1 shadow-lg shadow-violet-500/40">
+                      {waiterCalls.length > 99 ? '99+' : waiterCalls.length}
+                    </span>
+                  )}
+                </span>
+                <span className="text-[10px] font-medium text-white/40">{tr.dnav_waiter}</span>
               </button>
             )}
             {can('dashboard.btn_kds') && (
-              <Link href="/dashboard/kds" className={cn('hidden lg:flex w-14 h-14 rounded-xl items-center justify-center transition-all active:scale-95', navBtnCn)} style={navBtn('kds')} title="Kitchen Display">
-                <ChefHat size={26} />
+              <Link href="/dashboard/kds" className="hidden lg:flex flex-col items-center gap-1" title={tr.nav_kitchen}>
+                <span className={cn('w-14 h-14 rounded-xl flex items-center justify-center transition-all active:scale-95', navBtnCn)} style={navBtn('kds')}>
+                  <ChefHat size={26} />
+                </span>
+                <span className="text-[10px] font-medium text-white/40">{tr.nav_kitchen}</span>
               </Link>
             )}
             {can('dashboard.cfd') && restaurant?.menu_slug && (
               <button
                 onClick={() => window.open(`/cfd/${restaurant.menu_slug}`, 'CFD', 'width=1024,height=768,menubar=no,toolbar=no,location=no,status=no')}
-                className="hidden lg:flex w-14 h-14 rounded-xl bg-blue-500/10 border border-blue-500/20 items-center justify-center text-blue-400 hover:bg-blue-500/20 hover:border-blue-500/40 transition-all active:scale-95"
-                title="Customer Facing Display"
+                className="hidden lg:flex flex-col items-center gap-1 active:scale-95 transition-all"
+                title={tr.ord_cfd}
               >
-                <Monitor size={26} />
+                <span className="w-14 h-14 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 hover:bg-blue-500/20 hover:border-blue-500/40 transition-all">
+                  <Monitor size={26} />
+                </span>
+                <span className="text-[10px] font-medium text-white/40">{tr.ord_cfd}</span>
               </button>
             )}
             {can('dashboard.btn_guests') && (
-              <Link href="/dashboard/guests" className={cn('hidden lg:flex w-14 h-14 rounded-xl items-center justify-center transition-all active:scale-95', navBtnCn)} style={navBtn('guests')} title="Guest Tracking">
-                <Users size={26} />
+              <Link href="/dashboard/guests" className="hidden lg:flex flex-col items-center gap-1" title={tr.dnav_guests}>
+                <span className={cn('w-14 h-14 rounded-xl flex items-center justify-center transition-all active:scale-95', navBtnCn)} style={navBtn('guests')}>
+                  <Users size={26} />
+                </span>
+                <span className="text-[10px] font-medium text-white/40">{tr.dnav_guests}</span>
               </Link>
             )}
             {/* Language picker */}
             {can('dashboard.btn_language') && (
-              <div className="relative hidden lg:block">
+              <div className="relative hidden lg:flex flex-col items-center gap-1">
                 <button
                   onClick={() => setShowLangPicker(v => !v)}
-                  className={cn('w-9 h-9 sm:w-14 sm:h-14 rounded-xl flex items-center justify-center transition-all active:scale-95 shrink-0', navBtnCn)}
+                  className={cn('w-14 h-14 rounded-xl flex items-center justify-center transition-all active:scale-95 shrink-0', navBtnCn)}
                   style={navBtn('language')}
-                  title="Language"
+                  title={tr.language}
                 >
-                  <Globe className="w-[18px] h-[18px] lg:w-[26px] lg:h-[26px]" />
+                  <Globe className="w-[26px] h-[26px]" />
                 </button>
+                <span className="text-[10px] font-medium text-white/40">{tr.language}</span>
                 {showLangPicker && (
                   <div className="absolute top-full mt-2 right-0 w-44 rounded-2xl border border-white/12 bg-[#0d1120] shadow-2xl overflow-hidden z-50">
                     <p className="px-4 py-2.5 text-[10px] font-bold text-white/30 uppercase tracking-widest border-b border-white/8">
@@ -1722,11 +1743,13 @@ export default function TablesPage() {
             {can('dashboard.btn_reports') && (
               <button
                 onClick={() => setShowDailySales(true)}
-                className={cn('hidden lg:flex w-9 h-9 lg:w-14 lg:h-14 rounded-xl items-center justify-center transition-all active:scale-95 shrink-0', navBtnCn)}
-                style={navBtn('reports')}
-                title="Daily Sales"
+                className="hidden lg:flex flex-col items-center gap-1 active:scale-95 transition-all shrink-0"
+                title={tr.nav_reports}
               >
-                <BarChart2 className="w-[18px] h-[18px] lg:w-[26px] lg:h-[26px]" />
+                <span className={cn('w-14 h-14 rounded-xl flex items-center justify-center', navBtnCn)} style={navBtn('reports')}>
+                  <BarChart2 className="w-[26px] h-[26px]" />
+                </span>
+                <span className="text-[10px] font-medium text-white/40">{tr.nav_reports}</span>
               </button>
             )}
 
@@ -1739,9 +1762,12 @@ export default function TablesPage() {
                 keys.forEach(k => localStorage.removeItem(k))
                 router.replace(slug ? `/pos/${slug}/login` : '/restaurant-login')
               }}
-              className="w-9 h-9 lg:w-14 lg:h-14 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-rose-400/50 hover:text-rose-400 hover:bg-rose-500/10 transition-all active:scale-95 shrink-0"
+              className="flex flex-col items-center gap-1 active:scale-95 transition-all shrink-0"
             >
-              <LogOut className="w-[18px] h-[18px] lg:w-[26px] lg:h-[26px]" />
+              <span className="w-9 h-9 lg:w-14 lg:h-14 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-rose-400/50 hover:text-rose-400 hover:bg-rose-500/10 transition-all">
+                <LogOut className="w-[18px] h-[18px] lg:w-[26px] lg:h-[26px]" />
+              </span>
+              <span className="hidden lg:block text-[10px] font-medium text-white/40">{tr.dnav_logout}</span>
             </button>
           </div>
         </div>
