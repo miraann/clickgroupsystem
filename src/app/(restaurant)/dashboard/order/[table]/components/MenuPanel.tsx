@@ -1,4 +1,5 @@
 'use client'
+import Image from 'next/image'
 import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
@@ -106,8 +107,9 @@ export function MenuPanel({
                   {/* Image — fixed 3:2 crop, matches the guest / delivery menus and the editor preview */}
                   <div className="relative w-full aspect-[3/2] overflow-hidden bg-[radial-gradient(circle_at_50%_38%,rgba(255,255,255,0.08),transparent_70%)]">
                     {item.image_url ? (
-                      <img src={item.image_url} alt={item.name} loading="lazy" decoding="async"
-                        className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                      <Image src={item.image_url} alt={item.name} fill
+                        sizes="(max-width: 640px) 50vw, (max-width: 1280px) 33vw, 25vw"
+                        className="object-cover transition-transform duration-300 group-hover:scale-105" />
                     ) : (
                       <div className="absolute inset-0 flex items-center justify-center">
                         <span className="text-4xl opacity-15 select-none">🍽</span>

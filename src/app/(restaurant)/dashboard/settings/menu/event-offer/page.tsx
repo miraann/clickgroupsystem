@@ -34,6 +34,7 @@
 
 'use client'
 import { useState } from 'react'
+import NextImage from 'next/image'
 import { cn } from '@/lib/utils'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import {
@@ -109,7 +110,7 @@ function SortableEventCard({
       <div className="p-2.5 pb-0">
         <div className="relative w-full aspect-[9/16] rounded-xl overflow-hidden bg-white/8 border border-white/10">
           {ev.image_url
-            ? <img src={ev.image_url} alt="" className="w-full h-full object-cover" />
+            ? <NextImage src={ev.image_url} alt="" fill sizes="(max-width: 640px) 50vw, 240px" className="object-cover" />
             : <div className="w-full h-full flex items-center justify-center"><CalendarDays className="w-6 h-6 text-white/20" /></div>}
           <button
             {...attributes}

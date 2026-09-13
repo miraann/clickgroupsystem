@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+import Image from 'next/image'
 import { X, Minus, Plus, Send, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
@@ -78,7 +79,7 @@ export function ItemModal({ item, entry, kitchenNotes, supabase, formatPrice, se
 
         {item.image_url ? (
           <div className="shrink-0 relative w-full aspect-[3/2] overflow-hidden">
-            <img src={item.image_url} alt={item.name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
+            <Image src={item.image_url} alt={item.name} fill sizes="500px" className="object-cover" />
             <div className="absolute inset-0 bg-gradient-to-t from-[#0d1220]/90 via-[#0d1220]/30 to-transparent" />
             <button onClick={onClose} className="absolute top-3 right-3 w-8 h-8 rounded-xl bg-black/40 backdrop-blur-sm border border-white/10 flex items-center justify-center text-white/70 hover:text-white transition-all active:scale-95">
               <X className="w-4 h-4" />

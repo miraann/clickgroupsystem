@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
 import { QRCodeSVG } from 'qrcode.react'
 import { Star, Check, ChefHat, UtensilsCrossed } from 'lucide-react'
@@ -266,7 +267,7 @@ export default function CFDPage() {
       <header className="shrink-0 flex items-center justify-between px-8 py-5 border-b border-white/5">
         <div className="flex items-center gap-3">
           {rest?.logo_url
-            ? <img src={rest.logo_url} alt="" className="w-9 h-9 rounded-xl object-contain" />
+            ? <Image src={rest.logo_url} alt="" width={36} height={36} className="w-9 h-9 rounded-xl object-contain" />
             : <div className="w-9 h-9 rounded-xl bg-amber-500/20 flex items-center justify-center"><ChefHat className="w-4 h-4 text-amber-400" /></div>
           }
           <span className="text-base font-bold text-white/70">{rest?.name}</span>
@@ -290,7 +291,9 @@ export default function CFDPage() {
               {rest?.logo_url
                 ? (
                   <div className="relative w-56 h-56 rounded-full bg-white cfd-float shadow-2xl shadow-amber-500/20 border-4 border-amber-500/25 flex items-center justify-center overflow-hidden">
-                    <img src={rest.logo_url} alt="" className="w-[65%] h-[65%] object-contain" />
+                    <div className="relative w-[65%] h-[65%]">
+                      <Image src={rest.logo_url} alt="" fill sizes="150px" className="object-contain" />
+                    </div>
                   </div>
                 )
                 : <div className="relative w-56 h-56 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center cfd-float shadow-2xl shadow-amber-500/30 border-4 border-amber-500/25">
@@ -344,7 +347,7 @@ export default function CFDPage() {
       <header className="shrink-0 flex items-center justify-between px-6 py-4 border-b border-white/8 bg-black/30 backdrop-blur-xl">
         <div className="flex items-center gap-3">
           {rest?.logo_url
-            ? <img src={rest.logo_url} alt="" className="w-10 h-10 rounded-xl object-contain border border-white/10" />
+            ? <Image src={rest.logo_url} alt="" width={40} height={40} className="w-10 h-10 rounded-xl object-contain border border-white/10" />
             : <div className="w-10 h-10 rounded-xl bg-amber-500/15 flex items-center justify-center"><ChefHat className="w-5 h-5 text-amber-400" /></div>
           }
           <div>
@@ -382,9 +385,9 @@ export default function CFDPage() {
                   )}
                 >
                   {/* Photo */}
-                  <div className="w-16 h-16 rounded-xl overflow-hidden shrink-0 bg-white/5 border border-white/8">
+                  <div className="relative w-16 h-16 rounded-xl overflow-hidden shrink-0 bg-white/5 border border-white/8">
                     {img
-                      ? <img src={img} alt={item.item_name} className="w-full h-full object-cover" />
+                      ? <Image src={img} alt={item.item_name} fill sizes="64px" className="object-cover" />
                       : <div className="w-full h-full flex items-center justify-center text-3xl">🍽️</div>
                     }
                   </div>

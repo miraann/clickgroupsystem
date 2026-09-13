@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
@@ -1593,9 +1594,9 @@ export default function TablesPage() {
         <div className="flex items-center justify-between px-2 sm:px-5 py-2 sm:py-3">
           {/* Left: restaurant + user */}
           <div className="flex items-center gap-2 sm:gap-3">
-            <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-lg sm:rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/30 shrink-0 overflow-hidden">
+            <div className="relative w-10 h-10 sm:w-14 sm:h-14 rounded-lg sm:rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/30 shrink-0 overflow-hidden">
               {restaurant?.logo_url
-                ? <img src={restaurant.logo_url} alt="logo" className="w-full h-full object-cover" />
+                ? <Image src={restaurant.logo_url} alt="logo" fill sizes="56px" className="object-cover" />
                 : <ChefHat className="w-5 h-5 lg:w-[26px] lg:h-[26px] text-white" />}
             </div>
             <div className="min-w-0">

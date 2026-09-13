@@ -1,5 +1,6 @@
 ﻿'use client'
 import { useState, useEffect } from 'react'
+import Image from 'next/image'
 import { cn } from '@/lib/utils'
 import { Globe, Copy, Check, Loader2, Save, ExternalLink, UtensilsCrossed, Plus, Palette, LayoutGrid, Link2, Ticket, ScanFace, Clock, Eye, X } from 'lucide-react'
 import DiscountCodePage from '../discount-code/page'
@@ -114,9 +115,9 @@ function PhonePreview({ s, data }: { s: MenuSettings; data: PreviewData | null }
         <div className="pt-8 pb-6 flex flex-col items-center text-center">
 
           {/* Logo */}
-          <div className="w-16 h-16 rounded-full overflow-hidden shadow-lg" style={{ outline: `3px solid ${p}`, outlineOffset: '3px', background: '#f3f4f6' }}>
+          <div className="relative w-16 h-16 rounded-full overflow-hidden shadow-lg" style={{ outline: `3px solid ${p}`, outlineOffset: '3px', background: '#f3f4f6' }}>
             {logo
-              ? <img src={logo} alt={name} className="w-full h-full object-cover" />
+              ? <Image src={logo} alt={name} fill sizes="64px" className="object-cover" />
               : <div className="w-full h-full flex items-center justify-center" style={{ background: p }}>
                   <span className="text-white text-xl font-bold">{name.charAt(0)}</span>
                 </div>}
@@ -202,9 +203,9 @@ function PhonePreview({ s, data }: { s: MenuSettings; data: PreviewData | null }
                   { id:'4', name:'Tiramisu',   price:6,  image_url:null, description:'Italian dessert' },
                 ]).map(item => (
                   <div key={item.id} className="rounded-xl overflow-hidden" style={{ background: cardBg, border: `1px solid ${cardBorder}` }}>
-                    <div className="w-full h-14 flex items-center justify-center" style={{ background: isDark ? 'rgba(255,255,255,0.05)' : '#f9fafb' }}>
+                    <div className="relative w-full h-14 flex items-center justify-center" style={{ background: isDark ? 'rgba(255,255,255,0.05)' : '#f9fafb' }}>
                       {item.image_url
-                        ? <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+                        ? <Image src={item.image_url} alt={item.name} fill sizes="150px" className="object-cover" />
                         : <UtensilsCrossed className="w-4 h-4" style={{ color: mutedColor }} />}
                     </div>
                     <div className="p-1.5">
@@ -226,8 +227,8 @@ function PhonePreview({ s, data }: { s: MenuSettings; data: PreviewData | null }
                   { id:'3', name:'Caesar Salad',   price:11, image_url:null, description:'Romaine & croutons' },
                 ]).map(item => (
                   <div key={item.id} className="flex gap-2 rounded-xl overflow-hidden" style={{ background: cardBg, border: `1px solid ${cardBorder}` }}>
-                    <div className="w-14 h-14 shrink-0 flex items-center justify-center" style={{ background: isDark ? 'rgba(255,255,255,0.05)' : '#f9fafb' }}>
-                      {item.image_url ? <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" /> : <UtensilsCrossed className="w-4 h-4" style={{ color: mutedColor }} />}
+                    <div className="relative w-14 h-14 shrink-0 flex items-center justify-center" style={{ background: isDark ? 'rgba(255,255,255,0.05)' : '#f9fafb' }}>
+                      {item.image_url ? <Image src={item.image_url} alt={item.name} fill sizes="56px" className="object-cover" /> : <UtensilsCrossed className="w-4 h-4" style={{ color: mutedColor }} />}
                     </div>
                     <div className="flex-1 py-2 pr-2 flex flex-col justify-between">
                       <div>
@@ -276,9 +277,9 @@ function PhonePreview({ s, data }: { s: MenuSettings; data: PreviewData | null }
                 <div className="flex gap-2 px-3 pb-2" style={{ overflowX: 'auto', scrollbarWidth: 'none' }}>
                   {(data?.events ?? []).map(ev => (
                     <div key={ev.id} className="shrink-0 flex flex-col items-center gap-1">
-                      <div className="w-10 h-10 rounded-full overflow-hidden" style={{ outline: `2px solid ${p}`, outlineOffset: '2px', background: '#f3f4f6' }}>
+                      <div className="relative w-10 h-10 rounded-full overflow-hidden" style={{ outline: `2px solid ${p}`, outlineOffset: '2px', background: '#f3f4f6' }}>
                         {ev.image_url
-                          ? <img src={ev.image_url} alt={ev.title} className="w-full h-full object-cover" />
+                          ? <Image src={ev.image_url} alt={ev.title} fill sizes="40px" className="object-cover" />
                           : <div className="w-full h-full" style={{ background: `linear-gradient(135deg, ${p}cc, #f97316cc)` }} />}
                       </div>
                       <p className="text-[7px] font-semibold text-center w-10 leading-tight truncate" style={{ color: mutedColor }}>{ev.title}</p>
@@ -290,7 +291,7 @@ function PhonePreview({ s, data }: { s: MenuSettings; data: PreviewData | null }
                   {(data?.events ?? []).map(ev => (
                     <div key={ev.id} className="relative rounded-xl overflow-hidden h-12" style={{ border: `1.5px solid ${p}44` }}>
                       {ev.image_url
-                        ? <img src={ev.image_url} alt={ev.title} className="absolute inset-0 w-full h-full object-cover" />
+                        ? <Image src={ev.image_url} alt={ev.title} fill sizes="300px" className="object-cover" />
                         : <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, ${p}bb, #f97316bb)` }} />}
                       <div className="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent" />
                       <div className="absolute inset-0 flex items-center px-2.5">
@@ -305,7 +306,7 @@ function PhonePreview({ s, data }: { s: MenuSettings; data: PreviewData | null }
                     <div key={ev.id} className="shrink-0 rounded-xl p-[2px]" style={{ background: p }}>
                       <div className="relative rounded-[9px] overflow-hidden w-20 h-28">
                         {ev.image_url
-                          ? <img src={ev.image_url} alt={ev.title} className="absolute inset-0 w-full h-full object-cover" />
+                          ? <Image src={ev.image_url} alt={ev.title} fill sizes="80px" className="object-cover" />
                           : <div className="absolute inset-0 bg-gradient-to-br from-amber-400 to-orange-500" />}
                         <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
                         <div className="absolute bottom-0 left-0 right-0 p-1">

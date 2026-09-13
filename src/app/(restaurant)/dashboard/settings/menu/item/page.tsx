@@ -1,4 +1,5 @@
 ﻿'use client'
+import NextImage from 'next/image'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import { useInventoryData } from '@/hooks/useInventoryData'
 import { useMenuCategories } from '@/hooks/useMenuCategories'
@@ -748,7 +749,7 @@ function SortableItemCard({
       <div className="p-2.5 pb-0">
         <div className="relative w-full aspect-[3/2] rounded-xl overflow-hidden bg-white/8 border border-white/10">
           {item.image_url
-            ? <img src={item.image_url} alt="" className="w-full h-full object-cover" />
+            ? <NextImage src={item.image_url} alt="" fill sizes="(max-width: 640px) 50vw, 240px" className="object-cover" />
             : <div className="w-full h-full flex items-center justify-center text-3xl opacity-20 select-none">🍽</div>}
           {modCount > 0 && (
             <span className="absolute top-1.5 left-1.5 flex items-center gap-0.5 h-5 px-1.5 rounded-full bg-violet-500/90 text-white text-[10px] font-bold">

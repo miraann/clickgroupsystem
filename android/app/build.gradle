@@ -25,7 +25,14 @@ android {
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
              // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
-            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+             //
+             // `apps` excludes assets/public/apps — the self-hosted APK downloads
+             // (public/apps/*.apk) that Next.js serves to browsers. This shell never
+             // loads its own bundled assets/public at runtime (capacitor.config.ts sets
+             // server.url, so the WebView navigates straight to the live Vercel URL) —
+             // so packaging that folder just embeds every previously-built APK inside
+             // each new one, compounding in size release after release.
+            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~:apps'
         }
     }
     signingConfigs {
@@ -42,8 +49,13 @@ android {
     buildTypes {
         release {
             signingConfig hasReleaseKeystore ? signingConfigs.release : signingConfigs.debug
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            // capacitor-android's own consumerProguardFiles (node_modules/@capacitor/android/
+            // capacitor/proguard-rules.pro) already keeps every class extending
+            // com.getcapacitor.Plugin in full, so our custom TcpPlugin/UpdaterPlugin
+            // (reflectively invoked by the JS bridge) survive R8 untouched.
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
 

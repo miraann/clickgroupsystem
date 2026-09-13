@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
+import Image from 'next/image'
 import useSWR from 'swr'
 import { Delete, ChefHat, Clock, Loader2, CheckCircle2, Download, ArrowLeftRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -209,9 +210,9 @@ export default function POSLoginPage() {
 
         {/* Restaurant logo / icon */}
         <div className="flex flex-col items-center mb-8">
-          <div className="w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 rounded-3xl bg-gradient-to-br from-amber-400/20 to-orange-500/20 border border-amber-500/20 flex items-center justify-center mb-4 shadow-2xl shadow-amber-500/10 overflow-hidden">
+          <div className="relative w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 rounded-3xl bg-gradient-to-br from-amber-400/20 to-orange-500/20 border border-amber-500/20 flex items-center justify-center mb-4 shadow-2xl shadow-amber-500/10 overflow-hidden">
             {restaurant?.logo_url
-              ? <img src={restaurant.logo_url} alt={restaurant.name} className="w-full h-full object-cover" />
+              ? <Image src={restaurant.logo_url} alt={restaurant.name} fill sizes="112px" className="object-cover" />
               : <ChefHat className="w-9 h-9 sm:w-11 sm:h-11 md:w-14 md:h-14 text-amber-400" />}
           </div>
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white">{t.pl_enter_pin}</h1>
