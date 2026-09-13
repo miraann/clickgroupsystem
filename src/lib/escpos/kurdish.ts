@@ -29,6 +29,13 @@ export function kuTableLabel(tableNum: string, guests?: number): string {
   return guests ? `${tableNum} مێز · ${guests} کەس` : `${tableNum} مێز`
 }
 
+// Kurdish labels for the kitchen ticket — mirrors the header/labels used on
+// the KDS screen (kds_title etc. in src/lib/i18n/ku.ts) so the printed
+// ticket reads the same as the on-screen kitchen order.
+export const KU_KITCHEN = {
+  title: 'داواکاری چێشتخانە',
+}
+
 // Kurdish labels for the Daily Sales report — mirrors the dsr_* keys in
 // src/lib/i18n/ku.ts so the printed report reads the same as the on-screen one.
 export const KU_REPORT = {

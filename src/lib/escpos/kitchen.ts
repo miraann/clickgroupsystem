@@ -1,5 +1,6 @@
 import { escpos, cols, enc, divBytes, rowBytes, concat } from './commands'
 import { toAscii } from './translate'
+import { buildKurdishKitchenBytes } from './kurdishKitchen'
 
 export interface KitchenPayload {
   tableNum:   string
@@ -9,9 +10,16 @@ export interface KitchenPayload {
   items:      { name: string; qty: number; note?: string | null }[]
   paperWidth: number
   note?:      string | null
+  language?:  'ku' | 'en'
 }
 
-export function buildKitchenBytes(d: KitchenPayload): Uint8Array {
+export async function buildKitchenBytes(d: KitchenPayload): Promise<Uint8Array> {
+  // Kurdish (Sorani) needs the Arabic script plus letters most printers'
+  // Arabic codepage doesn't cover — raster-render it instead of sending text
+  // bytes, same approach as the customer receipt (see kurdishReceipt.ts).
+  const isKu = (d.language ?? 'ku') === 'ku'
+  if (isKu) return buildKurdishKitchenBytes(d)
+
   const W   = cols(d.paperWidth)
   const div = (ch = '-') => divBytes(W, ch)
 

@@ -62,7 +62,16 @@ export async function POST(req: NextRequest) {
 
     const paperWidth = p.paper_width ?? 80
 
-    const bytes = buildKitchenBytes({
+    // Same source of truth as the customer receipt (receipt_settings.language)
+    // — kitchen tickets are raster-rendered in Kurdish too, see kurdishKitchen.ts.
+    const { data: rs } = await supabase
+      .from('receipt_settings')
+      .select('language')
+      .eq('restaurant_id', body.restaurantId)
+      .maybeSingle()
+    const language = (rs?.language as string) === 'en' ? 'en' : 'ku'
+
+    const bytes = await buildKitchenBytes({
       tableNum:  body.tableNum,
       orderNum:  body.orderNum ?? null,
       timeStr:   body.timeStr,
@@ -70,6 +79,7 @@ export async function POST(req: NextRequest) {
       items:     body.items,
       paperWidth,
       note:      body.note ?? null,
+      language,
     })
 
     return NextResponse.json({
