@@ -11,6 +11,8 @@ export interface KitchenPayload {
   paperWidth: number
   note?:      string | null
   language?:  'ku' | 'en'
+  /** Staff name who sent the order — never a login email (see payment-screen's cashier logic). */
+  sentBy?:    string | null
 }
 
 export async function buildKitchenBytes(d: KitchenPayload): Promise<Uint8Array> {
@@ -51,6 +53,7 @@ export async function buildKitchenBytes(d: KitchenPayload): Promise<Uint8Array> 
     header,
     escpos.boldOff(),
     enc(`${d.dateStr}  ${d.timeStr}\n`),
+    ...(d.sentBy?.trim() ? [enc(`Server: ${tx(d.sentBy)}\n`)] : []),
     div(),
 
     // ── Items ─────────────────────────────────────────────────

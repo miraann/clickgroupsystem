@@ -10,6 +10,7 @@ import { sendPush } from '@/lib/push'
 import { enqueueOrder, getQueueCount, syncAllQueued } from '@/lib/offlineQueue'
 import { useRestaurant } from '@/hooks/useRestaurant'
 import { useOrderMenu } from '@/hooks/useOrderMenu'
+import { usePermissions } from '@/lib/permissions/PermissionsContext'
 import type { DraftEntry, DbOrderItem, DbMenuItem } from './types'
 
 export function useOrderState(table: string, guestCount: number) {
@@ -21,6 +22,21 @@ export function useOrderState(table: string, guestCount: number) {
   )
   const { restaurant } = useRestaurant(restaurantId)
   const restaurantName = restaurant?.name ?? ''
+
+  // ── Staff identity, for "who sent this" on the kitchen ticket ──
+  // Never a login email (same rule as the receipt's cashier field) — see
+  // payment-screen.tsx's identical cashier resolution.
+  const { isOwner, isPinStaff, staffName, roleName } = usePermissions()
+  const [authFullName, setAuthFullName] = useState<string | null>(null)
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setAuthFullName((user?.user_metadata?.full_name as string) ?? null)
+    })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  const staffLabel =
+    isOwner                      ? 'SuperAdmin'
+    : (isPinStaff && staffName)  ? staffName
+    : (authFullName || staffName || roleName || 'Staff')
 
   // ── Menu data (shared SWR cache, reused between table opens) ──
   const { menu, loading: menuLoading } = useOrderMenu(restaurantId)
@@ -324,7 +340,7 @@ export function useOrderState(table: string, guestCount: number) {
         kind:   'kitchen',
         title:  `Kitchen ticket · Table ${table}`,
         detail: ticketItems.map(i => `${i.qty}× ${i.name}`).join(', '),
-        run:    () => printKitchenTicket({ restaurantId, tableNum: table, orderNum: ordNum, items: ticketItems }),
+        run:    () => printKitchenTicket({ restaurantId, tableNum: table, orderNum: ordNum, items: ticketItems, sentBy: staffLabel }),
       })
     }
 

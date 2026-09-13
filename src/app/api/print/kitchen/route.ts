@@ -29,6 +29,7 @@ export async function POST(req: NextRequest) {
       dateStr:      string
       items:        { name: string; qty: number; note?: string | null }[]
       note?:        string | null
+      sentBy?:      string | null
     }
 
     const { error: authError } = await requireRestaurantId(body.restaurantId)
@@ -80,6 +81,7 @@ export async function POST(req: NextRequest) {
       paperWidth,
       note:      body.note ?? null,
       language,
+      sentBy:    body.sentBy ?? null,
     })
 
     return NextResponse.json({

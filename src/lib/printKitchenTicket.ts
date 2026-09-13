@@ -6,6 +6,8 @@ export interface KitchenTicketParams {
   orderNum?:    string | null
   items:        { name: string; qty: number; note?: string | null }[]
   note?:        string | null
+  /** Staff name who sent the order — printed on the ticket so the kitchen knows who rang it in. */
+  sentBy?:      string | null
 }
 
 // Fetches the ESC/POS bytes for a kitchen ticket and prints them silently.

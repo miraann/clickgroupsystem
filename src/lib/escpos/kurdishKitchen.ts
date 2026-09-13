@@ -5,7 +5,7 @@
 import { escpos, concat } from './commands'
 import { printableWidthPx } from './raster'
 import { renderKurdishBlock, KuLine } from './kurdishRender'
-import { KU_KITCHEN as K, kuTableLabel } from './kurdish'
+import { KU, KU_KITCHEN as K, kuTableLabel } from './kurdish'
 import type { KitchenPayload } from './kitchen'
 
 export async function buildKurdishKitchenBytes(d: KitchenPayload): Promise<Uint8Array> {
@@ -20,6 +20,7 @@ export async function buildKurdishKitchenBytes(d: KitchenPayload): Promise<Uint8
       ? { t: 'row', first: tableLabel, second: d.orderNum }
       : { t: 'right', text: tableLabel },
     { t: 'right', text: `${d.dateStr}  ${d.timeStr}` },
+    ...(d.sentBy?.trim() ? [{ t: 'row', first: KU.employee, second: d.sentBy.trim() } as KuLine] : []),
     { t: 'rule' },
 
     ...d.items.flatMap(item => {
