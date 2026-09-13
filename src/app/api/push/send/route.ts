@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import webpush from 'web-push'
-import { createClient } from '@/lib/supabase/server'
+import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { rateLimit } from '@/lib/rate-limit'
 import { getRestaurantSession } from '@/lib/api-auth'
 
@@ -140,7 +140,15 @@ export async function POST(req: NextRequest) {
     const session = await getRestaurantSession()
     const trusted = !!session && session.rid === restaurant_id
 
-    const supabase = await createClient()
+    // Service role: this route validates the caller itself (signed session
+    // for trusted callers, a real recent orders/waiter_calls row for guest
+    // callers) rather than relying on table-level anon RLS, so it no longer
+    // needs an anon SELECT policy on push_subscriptions.
+    const supabase = createServiceClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { persistSession: false } },
+    )
 
     // Verify restaurant exists and fetch settings in one query
     const { data: restaurant } = await supabase

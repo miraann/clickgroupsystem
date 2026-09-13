@@ -3,14 +3,14 @@ import { createClient } from '@supabase/supabase-js'
 import { escpos, cmd, enc, concat } from '@/lib/escpos/commands'
 import { pickPrinter } from '@/lib/printerPurpose'
 import QRCode from 'qrcode'
-import { requireRestaurantId } from '@/lib/supabase/api-guard'
+import { requireRestaurant } from '@/lib/api-auth'
 import { rateLimit } from '@/lib/rate-limit'
 
 export const runtime = 'nodejs'
 
 // Prints a table's digital-menu QR to the Receipt / Cashier printer.
 // Service role: tenant RLS (20260829_02) hides `printers` / `restaurants`
-// from the anon key. Server-only, gated by rateLimit + requireRestaurantId.
+// from the anon key. Server-only, gated by rateLimit + requireRestaurant (session-bound).
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: 'Missing restaurantId or url' }, { status: 400 })
     }
 
-    const { error: authError } = await requireRestaurantId(restaurantId)
+    const { error: authError } = await requireRestaurant(restaurantId)
     if (authError) return authError
 
     const [{ data: printerRows }, { data: rest }] = await Promise.all([

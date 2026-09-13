@@ -2,14 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { buildDailySalesReportBytes, DailySalesReportPayload } from '@/lib/escpos'
 import { pickPrinter } from '@/lib/printerPurpose'
-import { requireRestaurantId } from '@/lib/supabase/api-guard'
+import { requireRestaurant } from '@/lib/api-auth'
 import { rateLimit } from '@/lib/rate-limit'
 
 export const runtime = 'nodejs'
 
 // Service role: tenant RLS (migration 20260829_02) hides `printers`,
 // `receipt_settings` and `restaurants` from the anon key. Server-only
-// route, gated by rateLimit + requireRestaurantId.
+// route, gated by rateLimit + requireRestaurant (session-bound).
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json() as { restaurantId: string } & Omit<DailySalesReportPayload, 'restaurantName' | 'currencySymbol' | 'paperWidth'>
 
     const { restaurantId } = body
-    const { error: authError } = await requireRestaurantId(restaurantId)
+    const { error: authError } = await requireRestaurant(restaurantId)
     if (authError) return authError
 
     const { data: printerRows } = await supabase

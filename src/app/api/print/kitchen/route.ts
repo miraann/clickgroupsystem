@@ -2,14 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { buildKitchenBytes } from '@/lib/escpos'
 import { pickPrinter } from '@/lib/printerPurpose'
-import { requireRestaurantId } from '@/lib/supabase/api-guard'
+import { requireRestaurant } from '@/lib/api-auth'
 import { rateLimit } from '@/lib/rate-limit'
 
 export const runtime = 'nodejs'
 
 // Service role: tenant RLS (migration 20260829_02) hides `printers` and
 // `restaurants` from the anon key, which broke auto kitchen printing. This
-// route is server-only and gated by rateLimit + requireRestaurantId.
+// route is server-only and gated by rateLimit + requireRestaurant (session-bound).
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
       sentBy?:      string | null
     }
 
-    const { error: authError } = await requireRestaurantId(body.restaurantId)
+    const { error: authError } = await requireRestaurant(body.restaurantId)
     if (authError) return authError
 
     const { data: rows } = await supabase

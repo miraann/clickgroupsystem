@@ -1,11 +1,15 @@
 import { NextResponse } from 'next/server'
 import { createWriteStream } from 'fs'
 import { rateLimit } from '@/lib/rate-limit'
+import { requireAuth } from '@/lib/supabase/api-guard'
 import { writeFileSync, unlinkSync } from 'fs'
 import { spawnSync } from 'child_process'
 import { join } from 'path'
 import { tmpdir, platform } from 'os'
 import * as net from 'net'
+
+// Same allow-list as devices/usb-paths — never write outside a real device node.
+const SAFE_DEVICE_PATH = /^\/dev\/(usb\/lp\d{1,2}|ttyUSB\d{1,2}|ttyACM\d{1,2})$/
 
 // ── ESC/POS helpers ────────────────────────────────────────────
 const ESC = 0x1B, GS = 0x1D, LF = 0x0A
@@ -190,6 +194,8 @@ export async function POST(req: Request) {
   if (!rateLimit(req, 'printer/print-test', 5)) {
     return NextResponse.json({ ok: false, error: 'Too many requests' }, { status: 429 })
   }
+  const { error: authError } = await requireAuth()
+  if (authError) return authError
 
   const { path, ip, port: netPort, name, paper_width } = await req.json()
 
@@ -219,6 +225,9 @@ export async function POST(req: Request) {
     const isLinux   = path.startsWith('/dev/')
 
     if (isLinux) {
+      if (!SAFE_DEVICE_PATH.test(path)) {
+        return NextResponse.json({ ok: false, error: 'Unrecognized device path' }, { status: 400 })
+      }
       await writeStream(path, bytes)
     } else if (isWindows && isComPort) {
       await writeStream(`\\\\.\\${path}`, bytes)

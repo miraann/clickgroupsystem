@@ -339,49 +339,35 @@ function TrackOrderSection({
     if (!raw) { setError(t.gm_err_enter_phone); return }
     setLoading(true); setError(null); setOrders(null)
 
-    const { data: delivRows, error: dErr } = await supabase
-      .from('delivery_orders')
-      .select('id, order_id, customer_name, address_text, delivery_fee, status, created_at')
-      .eq('restaurant_id', restaurantId)
-      .eq('customer_phone', raw)
-      .order('created_at', { ascending: false })
-      .limit(10)
+    // Server-side (SECURITY DEFINER) phone match — RLS can't verify a
+    // client-supplied filter, so the lookup itself must happen in the DB
+    // function rather than as a raw anon SELECT on delivery_orders.
+    const { data: rows, error: dErr } = await supabase
+      .rpc('guest_track_delivery_orders', { p_restaurant_id: restaurantId, p_phone: raw })
 
     if (dErr) { setError(t.gm_err_fetch); setLoading(false); return }
-    if (!delivRows || delivRows.length === 0) {
+    const delivRows = (rows ?? []) as {
+      id: string; order_id: string; customer_name: string; address_text: string | null
+      delivery_fee: number; status: string; created_at: string
+      order_number: number | null; order_status: string | null; total: number | null
+      items: { item_name: string; qty: number; item_price: number }[]
+    }[]
+    if (delivRows.length === 0) {
       setError(t.gm_err_no_orders); setLoading(false); return
     }
 
-    const orderIds = delivRows.map(r => r.order_id)
-
-    const [ordersRes, itemsRes] = await Promise.all([
-      supabase.from('orders').select('id, status, total, order_number, created_at').in('id', orderIds),
-      supabase.from('order_items').select('order_id, item_name, qty, item_price').in('order_id', orderIds),
-    ])
-
-    const ordersMap = new Map((ordersRes.data ?? []).map(o => [o.id, o]))
-    const itemsMap  = new Map<string, { item_name: string; qty: number; item_price: number }[]>()
-    for (const item of (itemsRes.data ?? [])) {
-      const arr = itemsMap.get(item.order_id) ?? []
-      arr.push(item)
-      itemsMap.set(item.order_id, arr)
-    }
-
-    const allResult: TrackOrder[] = delivRows.map(d => {
-      const o = ordersMap.get(d.order_id)
-      return {
-        id:            d.id,
-        order_number:  o?.order_number ?? null,
-        customer_name: d.customer_name,
-        address_text:  d.address_text,
-        delivery_fee:  d.delivery_fee,
-        status:        d.status,
-        created_at:    d.created_at,
-        order_status:  o?.status ?? 'active',
-        total:         o?.total ?? 0,
-        items:         itemsMap.get(d.order_id) ?? [],
-      }
-    })
+    const allResult: TrackOrder[] = delivRows.map(d => ({
+      id:            d.id,
+      order_number:  d.order_number ?? null,
+      customer_name: d.customer_name,
+      address_text:  d.address_text,
+      delivery_fee:  d.delivery_fee,
+      status:        d.status,
+      created_at:    d.created_at,
+      order_status:  d.order_status ?? 'active',
+      total:         d.total ?? 0,
+      items:         d.items ?? [],
+    }))
 
     const todayStr = new Date().toDateString()
     const result   = allResult.filter(r => new Date(r.created_at).toDateString() === todayStr)

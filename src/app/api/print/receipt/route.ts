@@ -5,7 +5,7 @@ import { pickPrinter } from '@/lib/printerPurpose'
 import { gsv0, packMonochrome, printableWidthPx } from '@/lib/escpos/raster'
 import sharp from 'sharp'
 import QRCode from 'qrcode'
-import { requireRestaurantId } from '@/lib/supabase/api-guard'
+import { requireRestaurant } from '@/lib/api-auth'
 import { rateLimit } from '@/lib/rate-limit'
 
 export const runtime = 'nodejs'
@@ -13,7 +13,7 @@ export const runtime = 'nodejs'
 // Service role: tenant RLS (migration 20260829_02) hides `printers`,
 // `receipt_settings` and `restaurants` from the anon key, which broke
 // auto receipt printing. Server-only route, gated by rateLimit +
-// requireRestaurantId.
+// requireRestaurant (session-bound).
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
@@ -123,7 +123,7 @@ export async function POST(req: NextRequest) {
 
     const { restaurantId } = body
 
-    const { error: authError } = await requireRestaurantId(restaurantId)
+    const { error: authError } = await requireRestaurant(restaurantId)
     if (authError) return authError
 
     const { data: printerRows } = await supabase

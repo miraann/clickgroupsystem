@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { escpos, enc, divBytes, cols, concat } from '@/lib/escpos/commands'
-import { requireRestaurantId } from '@/lib/supabase/api-guard'
+import { requireRestaurant } from '@/lib/api-auth'
 import { rateLimit } from '@/lib/rate-limit'
 
 export const runtime = 'nodejs'
@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json() as { restaurantId: string; name: string; paper_width?: number }
-  const { error: authError } = await requireRestaurantId(body.restaurantId)
+  const { error: authError } = await requireRestaurant(body.restaurantId)
   if (authError) return authError
 
   const paperWidth = body.paper_width ?? 80
