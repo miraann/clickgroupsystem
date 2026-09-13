@@ -1427,14 +1427,13 @@ export default function DeliveryOrderPage() {
       {(!showItems || !orderingOpen) && (
         <>
           {events.length > 0 && (
-            <motion.div className="w-full max-w-2xl mx-auto mt-6"
+            <motion.div className="w-full mt-6"
               initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1], delay: 0.84 }}>
               <h2 className={`text-lg font-bold mb-3 px-4 text-center ${tpl.sectionTitle}`}>{t.gm_events_offers}</h2>
               {eventStyle === 'story' ? (
-                <div className="scroll-hide overflow-x-auto pb-4 pt-2"
+                <div className="scroll-hide flex gap-4 overflow-x-auto pb-4 pt-2 px-4 justify-center"
                   style={{ scrollbarWidth: 'none' } as React.CSSProperties}>
-                  <div className="flex gap-4 w-max mx-auto px-4">
-                    {events.map((ev, idx) => (
+                  {events.map((ev, idx) => (
                       <motion.div key={ev.id} onClick={() => openStory(idx)}
                         initial={{ opacity: 0, y: 32, scale: 0.92 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -1448,11 +1447,10 @@ export default function DeliveryOrderPage() {
                         </div>
                         <p className={`text-xs font-semibold text-center w-20 leading-tight line-clamp-2 ${tpl.sectionTitle}`}>{ev.title}</p>
                       </motion.div>
-                    ))}
-                  </div>
+                  ))}
                 </div>
               ) : eventStyle === 'banner' ? (
-                <div className="flex flex-col gap-3 px-4">
+                <div className="flex flex-col gap-3 px-4 max-w-2xl mx-auto">
                   {events.map((ev, idx) => (
                     <motion.div key={ev.id} onClick={() => openStory(idx)}
                       initial={{ opacity: 0, y: 24, scale: 0.96 }}
@@ -1473,10 +1471,9 @@ export default function DeliveryOrderPage() {
                   ))}
                 </div>
               ) : (
-                <div className="scroll-hide overflow-x-auto pb-4 pt-2"
+                <div className="scroll-hide flex gap-5 overflow-x-auto pb-4 pt-2 px-4 justify-center"
                   style={{ scrollbarWidth: 'none' } as React.CSSProperties}>
-                  <div className="flex gap-5 w-max mx-auto px-4">
-                    {events.map((ev, idx) => (
+                  {events.map((ev, idx) => (
                       <motion.div key={ev.id} onClick={() => openStory(idx)}
                         initial={{ opacity: 0, y: 32, scale: 0.92 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -1494,8 +1491,7 @@ export default function DeliveryOrderPage() {
                           </div>
                         </div>
                       </motion.div>
-                    ))}
-                  </div>
+                  ))}
                 </div>
               )}
             </motion.div>
