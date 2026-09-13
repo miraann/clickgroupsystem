@@ -136,6 +136,21 @@ export function useOrderState(table: string, guestCount: number) {
   useEffect(() => { initRef.current = init }, [init])
   useEffect(() => { init() }, [init])
 
+  // ── Reset order identity when the table itself changes ────────
+  // The order screen for /dashboard/order/[table] is the same React
+  // component across a client-side navigation between tables (only the
+  // route param changes), so without this, switching straight from a table
+  // with an open order to a brand-new one left orderId/orderNum/dbItems/draft
+  // holding the PREVIOUS table's values until init()'s async fetch resolved —
+  // a fast tap on Send in that window could attach new items to the old
+  // table's order number instead of getting the new table's own number.
+  useEffect(() => {
+    setOrderId(null); setOrderNum(null); setDbGuests(null)
+    setDbItems([])
+    setDraft(new Map())
+    setActiveTab('ordering')
+  }, [table])
+
   // ── Realtime: KDS status updates + the order itself being closed out
   // from under this screen (paid/voided/closed on another device) ───
   useEffect(() => {
@@ -195,8 +210,15 @@ export function useOrderState(table: string, guestCount: number) {
       .insert({ restaurant_id: restaurantId, table_number: parseInt(table), guests: guestCount, status: 'active', total: 0 })
       .select('id').single()
     if (error || !newOrder) { setSendError(error?.message ?? 'Failed to open table'); return null }
-    const ordNum = await assignOrderNumber(supabase, restaurantId, newOrder.id)
-    setOrderNum(ordNum)
+    try {
+      const ordNum = await assignOrderNumber(supabase, restaurantId, newOrder.id)
+      setOrderNum(ordNum)
+    } catch (e) {
+      // Number assignment failed (see legacyAssignOrderNumber) — surface it
+      // rather than silently leaving the order numberless or mis-numbered.
+      setSendError(e instanceof Error ? e.message : 'Failed to assign order number')
+      return null
+    }
     setOrderId(newOrder.id)
     return newOrder.id
   }
@@ -220,7 +242,7 @@ export function useOrderState(table: string, guestCount: number) {
 
   // ── Send all draft items to kitchen ──────────────────────────
   const handleSend = async () => {
-    if (draft.size === 0) return
+    if (draft.size === 0 || loading) return
     setSending(true); setSendError(null)
     if (!restaurantId) { setSending(false); return }
 
@@ -367,6 +389,7 @@ export function useOrderState(table: string, guestCount: number) {
     menuItem: DbMenuItem,
     entry: DraftEntry,
   ): Promise<boolean> => {
+    if (loading) return false
     setSending(true); setSendError(null)
     if (!restaurantId) { setSending(false); return false }
 

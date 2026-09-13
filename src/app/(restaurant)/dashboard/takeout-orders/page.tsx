@@ -178,7 +178,13 @@ export default function TakeoutOrdersPage() {
 
     if (err || !newOrder) { setCreateErr(err?.message ?? 'Failed to create order'); setCreating(false); return }
 
-    await assignOrderNumber(supabase, restaurantId, newOrder.id)
+    try {
+      await assignOrderNumber(supabase, restaurantId, newOrder.id)
+    } catch (e) {
+      setCreateErr(e instanceof Error ? e.message : 'Failed to assign order number')
+      setCreating(false)
+      return
+    }
 
     setShowModal(false)
     setCreating(false)
