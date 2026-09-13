@@ -27,9 +27,9 @@ export function DraftRow({ item, entry, kitchenNotes, onQty, onRemove, onEdit, f
     <div className="rounded-xl sm:rounded-2xl border bg-white/4 border-white/8 overflow-hidden">
       <div className="flex items-center gap-2 sm:gap-3 px-3 py-2.5 sm:px-4 sm:py-3.5">
         <button onClick={onEdit} className="flex-1 min-w-0 text-start touch-manipulation group">
-          <div className="flex items-center gap-1.5 sm:gap-2">
+          <div className="relative pe-4 sm:pe-5">
             <p className="text-[11px] sm:text-xs font-semibold text-white/90 leading-tight">{item.name}</p>
-            <Pencil className="w-3 h-3 sm:w-4 sm:h-4 text-white/20 group-hover:text-amber-400/60 transition-colors shrink-0" />
+            <Pencil className="absolute top-0 end-0 w-3 h-3 sm:w-4 sm:h-4 text-white/20 group-hover:text-amber-400/60 transition-colors" />
           </div>
           <p className="text-base sm:text-lg font-bold text-amber-400 tabular-nums mt-0.5 sm:mt-1">
             {formatPrice(lineTotal)}
