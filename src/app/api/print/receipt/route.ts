@@ -178,6 +178,8 @@ export async function POST(req: NextRequest) {
       // Kurdish receipts are raster-rendered (buildKurdishReceiptBytes) so they
       // print correctly even without an Arabic font ROM — see raster.ts.
       language:       (rsAny?.language as string) === 'en' ? 'en' : 'ku',
+      showWarning:    (rsAny?.show_warning as boolean | undefined) ?? false,
+      warningMsg:     (rsAny?.warning_msg  as string | null)       ?? null,
       paperWidth,
       tableNum:       body.tableNum,
       guests:         body.guests,

@@ -93,6 +93,8 @@ export default function PaymentScreen({ orderId, restaurantId, orderNum: orderNu
   const [showCustomerPicker, setShowCustomerPicker] = useState(false)
   const [selectedMember, setSelectedMember]         = useState<{ id: string; name: string; phone: string | null; points: number; tier: string } | null>(null)
   const [showMemberPicker, setShowMemberPicker]     = useState(false)
+  const [printCount, setPrintCount]                 = useState(0)
+  const [printLog, setPrintLog]                     = useState<{ at: string; by: string }[]>([])
   const [showWaModal, setShowWaModal]               = useState(false)
   const [waPhone, setWaPhone]                       = useState('+964')
   const [waTemplates, setWaTemplates]               = useState<{id:string;name:string;message:string}[]>([])
@@ -123,6 +125,37 @@ export default function PaymentScreen({ orderId, restaurantId, orderNum: orderNu
     isOwner                     ? 'SuperAdmin'
     : (isPinStaff && staffName)  ? staffName
     : (authFullName || staffName || roleName || 'Staff')
+
+  // Fraud-monitoring: how many times, and by whom, the (unpaid) Print Receipt
+  // button has already been hit for this order — same order, same food,
+  // printed twice is exactly how a cashier hands a duplicate to a second
+  // table while only one ever gets marked paid. Count is surfaced as "N×" on
+  // the button below; the full per-print log (who/when) is what the manager
+  // sees on the Settings → Receipt invoices list.
+  useEffect(() => {
+    supabase.from('orders').select('print_count, print_log').eq('id', orderId).maybeSingle().then(({ data }) => {
+      const row = data as { print_count?: number; print_log?: { at: string; by: string }[] } | null
+      setPrintCount(row?.print_count ?? 0)
+      setPrintLog(row?.print_log ?? [])
+    })
+  }, [orderId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handlePrintReceipt = () => {
+    setInvoiceMode('receipt')
+    setShowInvoice(true)
+    const next = printCount + 1
+    const nextLog = [...printLog, { at: new Date().toISOString(), by: cashier }]
+    setPrintCount(next)
+    setPrintLog(nextLog)
+    // .then() is what actually fires the request — a builder that's built
+    // and dropped without being awaited/chained never sends anything.
+    supabase.from('orders')
+      .update({ print_count: next, last_printed_at: new Date().toISOString(), print_log: nextLog })
+      .eq('id', orderId)
+      .then(({ error }) => {
+        if (error) console.error('Failed to record receipt print count:', error.message)
+      })
+  }
 
   // Reference data (methods / discounts / surcharges / invoice #) comes from
   // the shared `useCheckoutData` SWR cache, prewarmed by the order screen.
@@ -823,10 +856,20 @@ export default function PaymentScreen({ orderId, restaurantId, orderNum: orderNu
             <div className="flex-[3] flex gap-px bg-white/5">
               {p('dashboard.receipt') && (
                 <button
-                  onClick={() => { setInvoiceMode('receipt'); setShowInvoice(true) }}
+                  onClick={handlePrintReceipt}
+                  title={printLog.length > 0
+                    ? `${t.pay_receipt_reprint_warn}\n` + printLog.map((e, i) =>
+                        `${i + 1}) ${new Date(e.at).toLocaleString()} — ${e.by}`
+                      ).join('\n')
+                    : undefined}
                   className="flex-1 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 text-base font-bold flex items-center justify-center gap-2 transition-all active:scale-95 touch-manipulation"
                 >
                   <Printer className="w-5 h-5" />{t.pay_receipt}
+                  {printCount > 0 && (
+                    <span className="px-1.5 py-0.5 rounded-full bg-amber-500/25 text-amber-300 text-xs font-extrabold">
+                      {printCount}×
+                    </span>
+                  )}
                 </button>
               )}
               {p('payment_screen.wa') && (

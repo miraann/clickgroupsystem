@@ -359,6 +359,9 @@ const ar: Record<keyof typeof en, string> = {
   rec_upload_logo:      'رفع الشعار',
   rec_appearance:       'المظهر',
   rec_general:          'عام',
+  rec_show_warning:     'إظهار التحذير على الإيصال',
+  rec_warning_msg:      'نص التحذير',
+  rec_warning_hint:     'يُطبع على كل إيصال للمساعدة في منع النسخ المكررة أو غير المصرح بها',
 
   // ── KDS Monitor ───────────────────────────────────
   kds_title:            'شاشة المطبخ',
@@ -1726,6 +1729,7 @@ const ar: Record<keyof typeof en, string> = {
   pay_saving:           'جارٍ الحفظ…',
   pay_confirm_paylater: 'تأكيد الدفع لاحقاً',
   pay_receipt:          'إيصال',
+  pay_receipt_reprint_warn: 'تمت طباعتها لهذا الطلب من قبل — تأكد قبل تسليم نسخة أخرى',
   pay_paid_excl:        'تم الدفع!',
   pay_processing:       'جارٍ المعالجة…',
   pay_drawer:           'الدرج',

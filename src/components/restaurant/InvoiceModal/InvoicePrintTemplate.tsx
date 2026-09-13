@@ -163,6 +163,16 @@ export function InvoicePrintTemplate({
         </>
       )}
 
+      {/* ── Warning notice (duplicate-receipt deterrent) ── */}
+      {rs.show_warning && rs.warning_msg?.trim() && (
+        <>
+          <div className="border-t border-dashed border-gray-300" />
+          <div className="px-5 py-2 bg-red-50">
+            <p className="text-[10px] font-extrabold text-red-700 text-center leading-snug">{rs.warning_msg}</p>
+          </div>
+        </>
+      )}
+
       {/* ── Items table ── */}
       <div className="border-t border-dashed border-gray-300" />
       <div className="px-5 py-3">

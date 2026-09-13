@@ -17,6 +17,9 @@ export interface ReceiptSettings {
   show_address:    boolean
   show_phone:      boolean
   language:        'ku' | 'en'
+  /** Deterrent line printed on every receipt — see 20260913_01 migration. */
+  show_warning:    boolean
+  warning_msg:     string | null
 }
 
 export const DEFAULT_RS: ReceiptSettings = {
@@ -32,6 +35,8 @@ export const DEFAULT_RS: ReceiptSettings = {
   show_address:    true,
   show_phone:      true,
   language:        'ku',
+  show_warning:    false,
+  warning_msg:     null,
 }
 
 export interface InvoiceModalProps {

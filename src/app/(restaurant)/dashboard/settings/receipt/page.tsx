@@ -50,6 +50,8 @@ interface RS {
   show_address: boolean
   show_phone: boolean
   language: string
+  show_warning: boolean
+  warning_msg: string
 }
 
 const DEFAULTS: RS = {
@@ -65,6 +67,8 @@ const DEFAULTS: RS = {
   show_address: true,
   show_phone: true,
   language: 'ku',
+  show_warning: false,
+  warning_msg: '',
 }
 
 const SAMPLE_ITEMS = [
@@ -96,6 +100,8 @@ function InvoicePreview({ s, restaurantName }: { s: RS; restaurantName: string }
     show_address:    s.show_address,
     show_phone:      s.show_phone,
     language:        (s.language === 'en' ? 'en' : 'ku'),
+    show_warning:    s.show_warning,
+    warning_msg:     s.warning_msg || null,
   }
 
   const fmtSample = (n: number) => `${n.toFixed(2)} ${sym}`
@@ -143,6 +149,7 @@ const INPUT = 'w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5
 interface StoredInvoice {
   id: string
   invoice_num: string
+  order_id: string | null
   order_num: string | null
   table_num: string | null
   guests: number
@@ -157,6 +164,23 @@ interface StoredInvoice {
   customer_name: string | null
   customer_phone: string | null
   created_at: string
+  /** Merged in from orders.print_count — how many times Print Receipt was hit for this order before it was paid. */
+  print_count?: number
+  /** Merged in from orders.print_log — who printed it and when, one entry per click. */
+  print_times?: { at: string; by: string }[]
+}
+
+// ── Flagged-print badge — bigger, tappable, opens the per-print log ──
+function PrintFlagBadge({ count, onClick }: { count: number; onClick: (e: React.MouseEvent) => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-rose-500 hover:bg-rose-400 text-white text-sm font-extrabold transition-all active:scale-95"
+    >
+      <AlertCircle className="w-4 h-4" />{count}×
+    </button>
+  )
 }
 
 // ── All Invoices tab ───────────────────────────────────────────
@@ -171,6 +195,7 @@ function AllInvoices({ restaurantId }: { restaurantId: string }) {
   const [expanded, setExpanded]       = useState<string | null>(null)
   const [viewInvoice, setViewInvoice] = useState<StoredInvoice | null>(null)
   const [printingId, setPrintingId]   = useState<string | null>(null)
+  const [logInvoice, setLogInvoice]   = useState<StoredInvoice | null>(null)
 
   // One-tap silent reprint to the configured Receipt / Cashier printer.
   const reprint = (inv: StoredInvoice) => {
@@ -201,7 +226,26 @@ function AllInvoices({ restaurantId }: { restaurantId: string }) {
     if (dateTo)         query = query.lte('created_at', `${dateTo}T23:59:59`)
 
     const { data } = await query.limit(200)
-    setInvoices(data ?? [])
+    const rows: StoredInvoice[] = data ?? []
+
+    // Flag orders whose (unpaid) Print Receipt button was hit more than once —
+    // the duplicate-receipt fraud pattern this whole feature exists to surface.
+    const orderIds = [...new Set(rows.map(r => r.order_id).filter((id): id is string => !!id))]
+    if (orderIds.length) {
+      const { data: orderRows } = await supabase
+        .from('orders')
+        .select('id, print_count, print_log')
+        .in('id', orderIds)
+      type OrderPrintRow = { id: string; print_count: number; print_log: { at: string; by: string }[] | null }
+      const byOrder = new Map((orderRows ?? []).map((o: OrderPrintRow) => [o.id, o]))
+      for (const row of rows) {
+        const found = row.order_id ? byOrder.get(row.order_id) : undefined
+        row.print_count = found?.print_count ?? 0
+        row.print_times = found?.print_log ?? []
+      }
+    }
+
+    setInvoices(rows)
     setLoading(false)
   }, [restaurantId, search, dateFrom, dateTo]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -306,8 +350,16 @@ function AllInvoices({ restaurantId }: { restaurantId: string }) {
             {invoices.map(inv => {
               const date = new Date(inv.created_at)
               const isOpen = expanded === inv.id
+              const flagged = (inv.print_count ?? 0) > 1
               return (
-                <motion.div variants={ITEM} key={inv.id} className="rounded-2xl bg-white/4 border border-white/8 overflow-hidden">
+                <motion.div
+                  variants={ITEM}
+                  key={inv.id}
+                  className={cn(
+                    'rounded-2xl border overflow-hidden',
+                    flagged ? 'bg-rose-500/10 border-rose-500/40' : 'bg-white/4 border-white/8',
+                  )}
+                >
 
                 {/* Row — single layout that works at all sizes */}
                 <div
@@ -336,10 +388,18 @@ function AllInvoices({ restaurantId }: { restaurantId: string }) {
                       <p className="text-[10px] text-white/40">پارەدان</p>
                       <p className="text-sm font-semibold text-white truncate">{inv.payment_method || '—'}</p>
                     </div>
-                    {/* Cashier — fills remaining space on lg+ */}
+                    {/* Cashier — fills remaining space on lg+; the flagged badge lives in its slack space */}
                     <div className="flex-1 min-w-0 hidden lg:block">
                       <p className="text-[10px] text-white/40">کاشێر</p>
-                      <p className="text-sm font-semibold text-white truncate">{inv.cashier || '—'}</p>
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm font-semibold text-white truncate">{inv.cashier || '—'}</p>
+                        {flagged && (
+                          <PrintFlagBadge
+                            count={inv.print_count ?? 0}
+                            onClick={e => { e.stopPropagation(); setLogInvoice(inv) }}
+                          />
+                        )}
+                      </div>
                     </div>
                     {/* Date — lg+ */}
                     <div className="w-[110px] shrink-0 hidden lg:block">
@@ -378,11 +438,17 @@ function AllInvoices({ restaurantId }: { restaurantId: string }) {
                       {isOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                     </div>
                   </div>
-                  {/* Mobile sub-line */}
-                  <div className="flex items-center gap-3 mt-1 sm:hidden text-[10px] text-white/40">
-                    {inv.table_num && <span>مێز: <span className="text-white/60">{inv.table_num}</span></span>}
-                    {inv.payment_method && <span>{inv.payment_method}</span>}
-                    <span className="ml-auto text-white/30">{date.toLocaleDateString()} {date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                  {/* Mobile sub-line — also carries the flagged badge, since the cashier column (where it normally sits) is lg+ only */}
+                  <div className="flex items-center gap-3 mt-1 lg:hidden text-[10px] text-white/40">
+                    {inv.table_num && <span className="sm:hidden">مێز: <span className="text-white/60">{inv.table_num}</span></span>}
+                    {inv.payment_method && <span className="sm:hidden">{inv.payment_method}</span>}
+                    {flagged && (
+                      <PrintFlagBadge
+                        count={inv.print_count ?? 0}
+                        onClick={e => { e.stopPropagation(); setLogInvoice(inv) }}
+                      />
+                    )}
+                    <span className="ml-auto text-white/30 sm:hidden">{date.toLocaleDateString()} {date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                   </div>
                 </div>
 
@@ -451,9 +517,54 @@ function AllInvoices({ restaurantId }: { restaurantId: string }) {
         <InvoiceViewModal
           invoice={viewInvoice}
           restaurantId={restaurantId}
+          printCount={viewInvoice.print_count ?? 0}
+          printTimes={viewInvoice.print_times ?? []}
           onClose={() => setViewInvoice(null)}
         />
       )}
+
+      {/* Print log popup — who printed this order's receipt, and when, before it was paid */}
+      <AnimatePresence>
+        {logInvoice && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[80] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={() => setLogInvoice(null)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 12 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96 }}
+              transition={{ duration: 0.2, ease: 'circOut' }}
+              className="w-full max-w-sm rounded-2xl bg-[#0c1322] border border-rose-500/30 p-5"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-start justify-between mb-1">
+                <div className="flex items-center gap-2 text-rose-400 font-extrabold text-sm">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  چاپکراوە {logInvoice.print_count}× پێش پارەدان
+                </div>
+                <button onClick={() => setLogInvoice(null)} className="shrink-0 text-white/40 hover:text-white transition-colors">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <p className="text-xs text-white/40 mb-4">
+                پسووڵە <span className="text-amber-400 font-semibold">{logInvoice.invoice_num}</span>
+                {logInvoice.order_num && <> · فەرمان <span className="text-white/60 font-semibold">{logInvoice.order_num}</span></>}
+              </p>
+              <ul className="space-y-1.5">
+                {(logInvoice.print_times ?? []).map((e, i) => (
+                  <li key={i} className="flex items-center justify-between gap-3 px-3 py-2 rounded-xl bg-white/5 border border-white/8">
+                    <span className="flex items-center gap-2 text-sm font-bold text-white truncate">
+                      <span className="shrink-0 w-5 h-5 rounded-full bg-rose-500/20 text-rose-300 text-[11px] font-extrabold flex items-center justify-center">{i + 1}</span>
+                      {e.by}
+                    </span>
+                    <span className="shrink-0 text-[11px] text-white/50 tabular-nums">{new Date(e.at).toLocaleString()}</span>
+                  </li>
+                ))}
+              </ul>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
@@ -945,6 +1056,8 @@ export default function ReceiptSettingsPage() {
         show_address:     data.show_address     ?? true,
         show_phone:       data.show_phone       ?? true,
         language:         data.language         ?? 'ku',
+        show_warning:     data.show_warning     ?? false,
+        warning_msg:      data.warning_msg      ?? DEFAULTS.warning_msg,
       })
     }
     setLoading(false)
@@ -1011,6 +1124,8 @@ export default function ReceiptSettingsPage() {
       show_address:    form.show_address,
       show_phone:      form.show_phone,
       language:        form.language || 'ku',
+      show_warning:    form.show_warning,
+      warning_msg:     form.warning_msg     || null,
       updated_at:      new Date().toISOString(),
     }
 
@@ -1204,6 +1319,34 @@ export default function ReceiptSettingsPage() {
                 <span className="text-xs text-white/35">تێبینی ژێرەوە</span>
                 <span className="text-xs text-white/25 italic">Powered by ClickGroup · 07701466787</span>
               </div>
+            </motion.section>
+
+            {/* Warning notice — duplicate-receipt deterrent, printed on every receipt */}
+            <motion.section
+              className="rounded-2xl bg-white/4 border border-white/8 p-4 space-y-4"
+              initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.45, ease: 'circOut', delay: 0.30 }}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-white/40" />
+                  <p className="text-xs font-bold text-white/40 uppercase tracking-widest">{t.rec_show_warning}</p>
+                </div>
+                <ToggleSwitch on={form.show_warning} onChange={v => set('show_warning', v)} />
+              </div>
+
+              {form.show_warning && (
+                <Field label={t.rec_warning_msg}>
+                  <textarea
+                    value={form.warning_msg}
+                    onChange={e => set('warning_msg', e.target.value)}
+                    placeholder={t.rec_warning_msg}
+                    rows={2}
+                    className={cn(INPUT, 'resize-none')}
+                  />
+                  <p className="text-[11px] text-white/30 mt-1.5">{t.rec_warning_hint}</p>
+                </Field>
+              )}
             </motion.section>
 
             {/* QR Code */}

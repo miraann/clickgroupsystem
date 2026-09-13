@@ -634,6 +634,9 @@ const en = {
   rec_upload_logo:      'Upload Logo',
   rec_appearance:       'Appearance',
   rec_general:          'General',
+  rec_show_warning:     'Show Warning on Receipt',
+  rec_warning_msg:      'Warning Message',
+  rec_warning_hint:     'Printed on every receipt to help prevent duplicate or unauthorized reprints',
 
   // ── Reservation page ──────────────────────────────────────────
   rsv_title:            'Reservation',
@@ -1713,6 +1716,7 @@ const en = {
   pay_saving:           'Saving…',
   pay_confirm_paylater: 'Confirm Pay Later',
   pay_receipt:          'Receipt',
+  pay_receipt_reprint_warn: 'Already printed for this order — check before handing out another copy',
   pay_paid_excl:        'Paid!',
   pay_processing:       'Processing',
   pay_drawer:           'Drawer',

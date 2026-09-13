@@ -27,6 +27,11 @@ export async function buildKurdishReceiptBytes(d: ReceiptPayload): Promise<Uint8
     { t: 'right', text: tableLabel },
     { t: 'rule' },
 
+    ...(d.showWarning && d.warningMsg?.trim() ? [
+      { t: 'center', text: d.warningMsg.trim() } as KuLine,
+      { t: 'rule' } as KuLine,
+    ] : []),
+
     { t: 'center', text: KU.paymentMethod },
     { t: 'center', text: d.paymentMethod },
     { t: 'rule' },

@@ -90,6 +90,8 @@ export function useInvoiceData({
           show_address:    r.show_address    ?? true,
           show_phone:      r.show_phone      ?? true,
           language:        (r.language === 'en' ? 'en' : 'ku'),
+          show_warning:    r.show_warning    ?? false,
+          warning_msg:     r.warning_msg     ?? null,
         })
       }
 

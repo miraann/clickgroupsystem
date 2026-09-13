@@ -359,6 +359,9 @@ const ku: Record<keyof typeof en, string> = {
   rec_upload_logo:      'لۆگۆ بار بکە',
   rec_appearance:       'ئەستیل',
   rec_general:          'گشتی',
+  rec_show_warning:     'ئاگاداری لەسەر پسووڵە نیشان بدە',
+  rec_warning_msg:      'دەقی ئاگاداری',
+  rec_warning_hint:     'لەسەر هەموو پسووڵەیەک چاپ دەکرێت بۆ ڕێگریکردن لە چاپکردنی دووبارە یان ناڕەوای پسووڵە',
 
   // ── KDS Monitor ───────────────────────────────────
   kds_title:            'شاشەی چێشتخانە',
@@ -1726,6 +1729,7 @@ const ku: Record<keyof typeof en, string> = {
   pay_saving:           'پاشەکەوتکردن…',
   pay_confirm_paylater: 'دڵنیاکردنەوەی قەرز',
   pay_receipt:          'پسووڵە',
+  pay_receipt_reprint_warn: 'پێشتر بۆ ئەم داواکارییە چاپکراوە — پێش دانی کۆپیایەکی تر دڵنیابەرەوە',
   pay_paid_excl:        'درا!',
   pay_processing:       'پرۆسێسکردن…',
   pay_drawer:           'سندووقی پارە',

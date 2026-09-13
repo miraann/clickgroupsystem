@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { X, Printer, Loader2, ImageIcon, CheckCircle2, AlertCircle } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import { enqueuePrint } from '@/lib/printQueue'
@@ -43,10 +44,14 @@ interface ReceiptSettings {
 interface Props {
   invoice: StoredInvoice
   restaurantId: string
+  /** How many times Print Receipt was hit for this order before it was paid — fraud-monitoring signal. */
+  printCount?: number
+  /** Who printed it and when, one entry per click. */
+  printTimes?: { at: string; by: string }[]
   onClose: () => void
 }
 
-export default function InvoiceViewModal({ invoice, restaurantId, onClose }: Props) {
+export default function InvoiceViewModal({ invoice, restaurantId, printCount = 0, printTimes = [], onClose }: Props) {
   const supabase = createClient()
   const { formatPrice } = useDefaultCurrency()
   const [loading, setLoading] = useState(true)
@@ -320,6 +325,32 @@ ${qrHtml}
             Close
           </button>
         </div>
+
+        {printCount > 0 && (
+          <div className={cn(
+            'mb-3 px-3 py-2 rounded-lg text-xs',
+            printCount > 1
+              ? 'bg-rose-500/15 border border-rose-500/30 text-rose-300'
+              : 'bg-white/5 border border-white/10 text-white/50',
+          )}>
+            <div className="flex items-center gap-2 font-semibold">
+              {printCount > 1 ? <AlertCircle className="w-3.5 h-3.5 shrink-0" /> : <Printer className="w-3.5 h-3.5 shrink-0" />}
+              <span>
+                چاپکراوە {printCount} جار پێش پارەدان
+                {printCount > 1 && ' — پشکنین بکە، لەوانەیە دووبارە چاپکردنی نادروست بێت'}
+              </span>
+            </div>
+            {printTimes.length > 0 && (
+              <ul className="mt-1.5 space-y-0.5 pl-5" style={{ listStyleType: 'decimal' }}>
+                {printTimes.map((e, i) => (
+                  <li key={i} className="tabular-nums opacity-90">
+                    {new Date(e.at).toLocaleString()} — <span className="font-semibold">{e.by}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
 
         {printStatus === 'error' && printError && (
           <div className="mb-3 px-3 py-2 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-300 text-[11px] space-y-0.5">
