@@ -9,7 +9,8 @@ import type { ReceiptPayload } from './receipt'
 
 export async function buildKurdishReceiptBytes(d: ReceiptPayload): Promise<Uint8Array> {
   const widthPx = printableWidthPx(d.paperWidth)
-  const fmt = (n: number) => `${n.toLocaleString('en-US')}${d.currencySymbol ? ' ' + d.currencySymbol : ''}`
+  const decimals = d.decimalPlaces ?? 0
+  const fmt = (n: number) => `${n.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}${d.currencySymbol ? ' ' + d.currencySymbol : ''}`
   const tableLabel = kuTableLabel(d.tableNum, d.guests)
 
   const bodyA: KuLine[] = [

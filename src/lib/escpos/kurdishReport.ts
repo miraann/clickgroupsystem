@@ -10,7 +10,8 @@ import type { DailySalesReportPayload } from './report'
 
 export async function buildKurdishDailySalesReportBytes(d: DailySalesReportPayload): Promise<Uint8Array> {
   const widthPx = printableWidthPx(d.paperWidth)
-  const fmt = (n: number) => `${n.toLocaleString('en-US')}${d.currencySymbol ? ' ' + d.currencySymbol : ''}`
+  const decimals = d.decimalPlaces ?? 0
+  const fmt = (n: number) => `${n.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}${d.currencySymbol ? ' ' + d.currencySymbol : ''}`
 
   const lines: KuLine[] = [
     { t: 'center', text: d.restaurantName || 'Restaurant', size: 'wide' },

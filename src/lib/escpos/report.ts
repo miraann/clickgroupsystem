@@ -7,6 +7,8 @@ export interface DailySalesReportPayload {
   dateStr:        string
   timeStr:        string
   currencySymbol: string
+  /** Decimal places for the restaurant's default currency (matches useDefaultCurrency) — averages (avgOrder etc.) are divisions and can otherwise print with stray decimals. */
+  decimalPlaces?: number
   paperWidth:     number
   language?:      'ku' | 'en'
 
@@ -45,7 +47,8 @@ export async function buildDailySalesReportBytes(d: DailySalesReportPayload): Pr
   // value to printable ASCII, same as the receipt + kitchen builders.
   const tx  = (s?: string | null) => toAscii(s)
   const currency = enCurrencySymbol(d.currencySymbol)
-  const fmt = (n: number) => `${n.toLocaleString('en-US')}${currency ? ' ' + currency : ''}`
+  const decimals = d.decimalPlaces ?? 0
+  const fmt = (n: number) => `${n.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}${currency ? ' ' + currency : ''}`
   const div = (ch = '-') => divBytes(W, ch)
   const row = (label: string, value: string) => rowBytes(label, value, W)
 

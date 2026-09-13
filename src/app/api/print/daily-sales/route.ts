@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
     const [{ data: rs }, { data: rest }, { data: currency }] = await Promise.all([
       supabase.from('receipt_settings').select('shop_name, currency_symbol, language').eq('restaurant_id', restaurantId).maybeSingle(),
       supabase.from('restaurants').select('name').eq('id', restaurantId).maybeSingle(),
-      supabase.from('currencies').select('symbol').eq('restaurant_id', restaurantId).eq('is_default', true).maybeSingle(),
+      supabase.from('currencies').select('symbol, decimal_places').eq('restaurant_id', restaurantId).eq('is_default', true).maybeSingle(),
     ])
 
     const p = printer as { name: string; connection_type: string; ip_address?: string; port?: number; bt_address?: string; paper_width?: number }
@@ -60,6 +60,7 @@ export async function POST(req: NextRequest) {
       // the separate receipt_settings.currency_symbol text field, which drifts
       // out of sync whenever the restaurant's default currency changes.
       currencySymbol: (currency?.symbol as string | undefined) || (rs?.currency_symbol as string) || '',
+      decimalPlaces: (currency?.decimal_places as number | undefined) ?? 0,
       language: (rs?.language as string) === 'en' ? 'en' : 'ku',
       paperWidth,
     }
