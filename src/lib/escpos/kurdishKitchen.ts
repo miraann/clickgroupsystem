@@ -24,7 +24,7 @@ export async function buildKurdishKitchenBytes(d: KitchenPayload): Promise<Uint8
 
     ...d.items.flatMap(item => {
       const rows: KuLine[] = [
-        { t: 'row', first: item.name, second: `${String(item.qty).padStart(2, '0')}x` },
+        { t: 'row', first: item.name, second: `${item.qty}x` },
       ]
       if (item.note?.trim()) rows.push({ t: 'right', text: `» ${item.note.trim()}` })
       return rows
