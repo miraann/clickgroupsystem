@@ -210,17 +210,26 @@ export function useOrderState(table: string, guestCount: number) {
       .insert({ restaurant_id: restaurantId, table_number: parseInt(table), guests: guestCount, status: 'active', total: 0 })
       .select('id').single()
     if (error || !newOrder) { setSendError(error?.message ?? 'Failed to open table'); return null }
+    setOrderId(newOrder.id)
+    return newOrder.id
+  }
+
+  // ── Mint a fresh order number for THIS send ────────────────────
+  // Mirrors pos_send_to_kitchen (20260913_03), which reassigns order_num on
+  // every send instead of only the table's first — two separate kitchen
+  // tickets for the same still-open table must never carry the same number.
+  const nextOrderNumber = async (oid: string): Promise<string | null> => {
+    if (!restaurantId) return null
     try {
-      const ordNum = await assignOrderNumber(supabase, restaurantId, newOrder.id)
+      const ordNum = await assignOrderNumber(supabase, restaurantId, oid)
       setOrderNum(ordNum)
+      return ordNum
     } catch (e) {
       // Number assignment failed (see legacyAssignOrderNumber) — surface it
       // rather than silently leaving the order numberless or mis-numbered.
       setSendError(e instanceof Error ? e.message : 'Failed to assign order number')
       return null
     }
-    setOrderId(newOrder.id)
-    return newOrder.id
   }
 
   // ── Update guest count in DB ──────────────────────────────────
@@ -355,6 +364,8 @@ export function useOrderState(table: string, guestCount: number) {
     // ── Fallback: legacy multi-step path (pre-migration only) ──────────────
     const oid = await createOrderIfNeeded()
     if (!oid) { setSending(false); return }
+    const ordNum = await nextOrderNumber(oid)
+    if (!ordNum) { setSending(false); return }
 
     const rows = baseRows.map(r => ({ ...r, order_id: oid }))
     const { data: inserted, error } = await supabase
@@ -378,7 +389,7 @@ export function useOrderState(table: string, guestCount: number) {
           item_count: rows.length,
           items:      rows.map(r => `${r.qty}× ${r.item_name}`).join(', '),
         })
-        printTicket(orderNum)
+        printTicket(ordNum)
       }
     }
     setSending(false)
@@ -480,6 +491,7 @@ export function useOrderState(table: string, guestCount: number) {
     // ── Fallback: legacy multi-step path (pre-migration only) ─────────────
     const oid = await createOrderIfNeeded()
     if (!oid) { setSending(false); return false }
+    if (!(await nextOrderNumber(oid))) { setSending(false); return false }
 
     const row = { ...baseRow, order_id: oid }
     const { data: inserted, error } = await supabase
