@@ -12,7 +12,7 @@ import {
   Truck, Phone, MapPin, Clock, Check, X, Loader2,
   RefreshCw, Package,
   CheckCircle2, XCircle, AlertCircle,
-  Navigation, UtensilsCrossed, FileText, Home, MonitorSmartphone, UserRound, Camera, LogOut,
+  Navigation, UtensilsCrossed, FileText, Home, MonitorSmartphone, UserRound, Camera, LogOut, Eye,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
@@ -76,13 +76,13 @@ interface Driver {
   phone: string | null
 }
 
-const STATUS_CFG: Record<DeliveryStatus, { label: string; color: string; bg: string; border: string; icon: React.ElementType }> = {
-  pending:          { label: 'Pending',          color: 'text-amber-400',   bg: 'bg-amber-500/15',   border: 'border-amber-500/30',   icon: Clock          },
-  confirmed:        { label: 'Confirmed',         color: 'text-blue-400',    bg: 'bg-blue-500/15',    border: 'border-blue-500/30',    icon: CheckCircle2   },
-  preparing:        { label: 'Preparing',         color: 'text-violet-400',  bg: 'bg-violet-500/15',  border: 'border-violet-500/30',  icon: Package        },
-  out_for_delivery: { label: 'Out for Delivery',  color: 'text-indigo-400',  bg: 'bg-indigo-500/15',  border: 'border-indigo-500/30',  icon: Truck          },
-  delivered:        { label: 'Delivered',         color: 'text-emerald-400', bg: 'bg-emerald-500/15', border: 'border-emerald-500/30', icon: CheckCircle2   },
-  cancelled:        { label: 'Cancelled',         color: 'text-rose-400',    bg: 'bg-rose-500/15',    border: 'border-rose-500/30',    icon: XCircle        },
+const STATUS_CFG: Record<DeliveryStatus, { label: string; color: string; bg: string; border: string; icon: React.ElementType; strip: string }> = {
+  pending:          { label: 'Pending',          color: 'text-amber-400',   bg: 'bg-amber-500/15',   border: 'border-amber-500/30',   icon: Clock,        strip: 'from-amber-400 to-orange-500'   },
+  confirmed:        { label: 'Confirmed',         color: 'text-blue-400',    bg: 'bg-blue-500/15',    border: 'border-blue-500/30',    icon: CheckCircle2, strip: 'from-blue-400 to-sky-500'       },
+  preparing:        { label: 'Preparing',         color: 'text-violet-400',  bg: 'bg-violet-500/15',  border: 'border-violet-500/30',  icon: Package,      strip: 'from-violet-400 to-purple-500'  },
+  out_for_delivery: { label: 'Out for Delivery',  color: 'text-indigo-400',  bg: 'bg-indigo-500/15',  border: 'border-indigo-500/30',  icon: Truck,        strip: 'from-indigo-400 to-blue-500'    },
+  delivered:        { label: 'Delivered',         color: 'text-emerald-400', bg: 'bg-emerald-500/15', border: 'border-emerald-500/30', icon: CheckCircle2, strip: 'from-emerald-400 to-teal-500'   },
+  cancelled:        { label: 'Cancelled',         color: 'text-rose-400',    bg: 'bg-rose-500/15',    border: 'border-rose-500/30',    icon: XCircle,      strip: 'from-rose-400 to-red-500'       },
 }
 
 const STATUS_FLOW: DeliveryStatus[] = ['pending', 'confirmed', 'preparing', 'out_for_delivery', 'delivered']
@@ -195,7 +195,12 @@ export default function DeliveryOrdersPage() {
   const [processing, setProcessing] = useState<Set<string>>(new Set())
   const [lastRefresh, setLastRefresh] = useState(new Date())
   const [cancelTarget, setCancelTarget] = useState<{ deliveryId: string; orderId: string; name: string } | null>(null)
+  const [advanceTarget, setAdvanceTarget] = useState<{
+    deliveryId: string; orderId: string; nextStatus: DeliveryStatus; label: string; name: string
+    driver?: { driver_id: string; driver_name: string }
+  } | null>(null)
   const [selfiePreview, setSelfiePreview] = useState<string | null>(null)
+  const [viewItem, setViewItem] = useState<DeliveryItem | null>(null)
   const [drivers, setDrivers]     = useState<Driver[]>([])
   const [driverPick, setDriverPick] = useState<Record<string, string>>({})
   const [whatsappDropdown, setWhatsappDropdown] = useState<string | null>(null)
@@ -537,8 +542,8 @@ export default function DeliveryOrdersPage() {
   if (loading) return (
     <ModuleGate moduleKey="delivery">
       <div className="min-h-screen text-white" style={{ background: 'var(--app-bg, #022658)' }}>
-        <div className="px-4 pt-8 pb-4 max-w-2xl mx-auto space-y-3">
-          {Array.from({ length: 4 }).map((_, i) => <Skel key={i} className="h-44" />)}
+        <div className="px-4 sm:px-6 pt-8 pb-4 max-w-3xl mx-auto space-y-4">
+          {Array.from({ length: 4 }).map((_, i) => <Skel key={i} className="h-52 rounded-3xl" />)}
         </div>
       </div>
     </ModuleGate>
@@ -550,40 +555,40 @@ export default function DeliveryOrdersPage() {
       <DeliveryOrderAlert restaurantId={restaurantId} />
 
       {/* ── Header ── */}
-      <header className="sticky top-0 z-20 backdrop-blur-xl border-b border-white/8 px-4 py-3" style={{ background: 'var(--app-anchor-95, rgba(2,38,88,0.95))' }}>
-        <div className="flex items-center justify-between max-w-2xl mx-auto">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-indigo-500/20 flex items-center justify-center">
+      <header className="sticky top-0 z-20 backdrop-blur-xl border-b border-white/8 px-4 sm:px-6 py-3.5" style={{ background: 'var(--app-anchor-95, rgba(2,38,88,0.95))' }}>
+        <div className="flex items-center justify-between max-w-3xl mx-auto gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-11 h-11 rounded-2xl bg-indigo-500/20 flex items-center justify-center shrink-0">
               <Truck className="w-5 h-5 text-indigo-400" />
             </div>
-            <div>
-              <h1 className="text-base font-bold text-white">Delivery Orders</h1>
-              <p className="text-[11px] text-white/40">
+            <div className="min-w-0">
+              <h1 className="text-lg font-extrabold text-white tracking-tight truncate">Delivery Orders</h1>
+              <p className="text-xs text-white/40">
                 Refreshed {lastRefresh.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             {!kiosk && (
               <button
                 onClick={() => router.push('/dashboard/driver')}
-                className="flex items-center gap-2 px-5 h-12 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/25 transition-all active:scale-95 text-sm font-semibold"
+                className="flex items-center gap-2 px-5 h-14 rounded-2xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/25 transition-all active:scale-95 text-sm font-bold"
               >
                 <MonitorSmartphone className="w-5 h-5" />
-                Driver
+                <span className="hidden sm:inline">Driver</span>
               </button>
             )}
             {!kiosk && (
               <button
                 onClick={() => router.push('/dashboard')}
-                className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 transition-all active:scale-95"
+                className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 transition-all active:scale-95"
               >
                 <Home className="w-5 h-5" />
               </button>
             )}
             <button
               onClick={() => { setLoading(true); load() }}
-              className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 transition-all active:scale-95"
+              className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 transition-all active:scale-95"
             >
               <RefreshCw className="w-5 h-5" />
             </button>
@@ -599,7 +604,7 @@ export default function DeliveryOrdersPage() {
                   keys.forEach(k => localStorage.removeItem(k))
                   router.replace(slug ? `/pos/${slug}/login` : '/restaurant-login')
                 }}
-                className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-rose-400/60 hover:text-rose-400 hover:bg-rose-500/10 transition-all active:scale-95"
+                className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-rose-400/60 hover:text-rose-400 hover:bg-rose-500/10 transition-all active:scale-95"
               >
                 <LogOut className="w-5 h-5" />
               </button>
@@ -608,10 +613,13 @@ export default function DeliveryOrdersPage() {
         </div>
 
         {/* ── Status Stepper ── */}
-        <div className="mt-3 max-w-2xl mx-auto">
-          {/* Main flow stepper — scrollable on small screens */}
-          <div className="overflow-x-auto pb-1 pt-2" style={{ scrollbarWidth: 'none' }}>
-            <div className="flex items-start min-w-[340px]">
+        <div className="mt-3 max-w-3xl mx-auto">
+          {/* Main flow stepper — scrollable on small screens, big touch circles.
+              dir="ltr" keeps the progress reading start→finish left-to-right
+              regardless of the page's RTL locale, so the highlighted segment
+              always makes sense against STATUS_FLOW's index order. */}
+          <div className="overflow-x-auto pb-2 pt-3 rounded-2xl bg-white/[0.03] border border-white/5 px-3" style={{ scrollbarWidth: 'none' }} dir="ltr">
+            <div className="flex items-start min-w-[420px]">
               {(['pending', 'confirmed', 'preparing', 'out_for_delivery', 'delivered'] as DeliveryStatus[]).map((s, idx) => {
                 const cfg = STATUS_CFG[s]
                 const Icon = cfg.icon
@@ -620,30 +628,30 @@ export default function DeliveryOrdersPage() {
                 const isLast = idx === 4
 
                 return (
-                  <div key={s} className="flex items-start flex-1">
+                  <div key={s} className={cn('flex items-start', !isLast && 'flex-1')}>
                     <button
                       onClick={() => setFilter(s)}
-                      className="flex flex-col items-center gap-1.5 group flex-shrink-0 active:scale-95 transition-transform"
+                      className="flex flex-col items-center gap-2 group flex-shrink-0 active:scale-95 transition-transform"
                     >
                       {/* Circle */}
                       <div className="relative">
                         <div className={cn(
-                          'w-11 h-11 rounded-full flex items-center justify-center border-2 transition-all',
+                          'w-14 h-14 rounded-full flex items-center justify-center border-2 transition-all',
                           isActive
-                            ? 'bg-amber-500 border-amber-400 shadow-[0_0_16px_rgba(245,158,11,0.4)]'
+                            ? 'bg-amber-500 border-amber-400 shadow-[0_0_18px_rgba(245,158,11,0.45)]'
                             : count > 0
                               ? 'bg-white/8 border-white/20 group-hover:bg-white/12 group-hover:border-white/30'
                               : 'bg-white/4 border-white/8 group-hover:bg-white/8'
                         )}>
                           <Icon className={cn(
-                            'w-5 h-5 transition-colors',
+                            'w-6 h-6 transition-colors',
                             isActive ? 'text-white' : count > 0 ? 'text-white/55 group-hover:text-white/75' : 'text-white/20'
                           )} />
                         </div>
                         {/* Count badge — visible on every step that has orders */}
                         {count > 0 && (
                           <span className={cn(
-                            'absolute -top-1 -right-1 min-w-[18px] h-[18px] px-[3px] rounded-full text-[9px] font-bold flex items-center justify-center leading-none',
+                            'absolute -top-1 -right-1 min-w-[20px] h-[20px] px-[4px] rounded-full text-[10px] font-bold flex items-center justify-center leading-none',
                             isActive ? 'bg-white text-amber-600' : 'bg-amber-500 text-white'
                           )}>
                             {count}
@@ -652,16 +660,17 @@ export default function DeliveryOrdersPage() {
                       </div>
                       {/* Label */}
                       <span className={cn(
-                        'text-[10px] font-semibold leading-tight text-center transition-colors max-w-[56px]',
+                        'text-[11px] font-semibold leading-tight text-center transition-colors max-w-[64px]',
                         isActive ? 'text-amber-400' : count > 0 ? 'text-white/45 group-hover:text-white/65' : 'text-white/18'
                       )}>
                         {s === 'out_for_delivery' ? <>On the<br/>Way</> : cfg.label}
                       </span>
                     </button>
 
-                    {/* Connecting line */}
+                    {/* Connecting line — h-14 matches the circle so the line
+                        crosses through its vertical center, not its top edge */}
                     {!isLast && (
-                      <div className="flex-1 flex items-center pb-[22px] px-1">
+                      <div className="flex-1 flex items-center h-14 px-1">
                         <div className={cn(
                           'w-full h-[2px] rounded-full transition-colors',
                           filter === s || STATUS_FLOW.indexOf(filter as DeliveryStatus) > idx
@@ -677,11 +686,11 @@ export default function DeliveryOrdersPage() {
           </div>
 
           {/* Secondary pills: All + Cancelled */}
-          <div className="flex gap-2 mt-2.5">
+          <div className="flex gap-2 mt-3">
             <button
               onClick={() => setFilter('all')}
               className={cn(
-                'flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold border transition-all active:scale-95',
+                'flex items-center gap-1.5 px-4 h-10 rounded-full text-xs font-bold border transition-all active:scale-95',
                 filter === 'all'
                   ? 'bg-white/15 border-white/25 text-white'
                   : 'bg-white/5 border-white/8 text-white/35 hover:text-white/55 hover:bg-white/8'
@@ -690,7 +699,7 @@ export default function DeliveryOrdersPage() {
               All
               {(counts.all ?? 0) > 0 && (
                 <span className={cn(
-                  'text-[9px] font-bold px-1.5 py-0.5 rounded-full',
+                  'text-[10px] font-bold px-1.5 py-0.5 rounded-full',
                   filter === 'all' ? 'bg-white/20' : 'bg-white/10'
                 )}>{counts.all}</span>
               )}
@@ -699,7 +708,7 @@ export default function DeliveryOrdersPage() {
               <button
                 onClick={() => setFilter('cancelled')}
                 className={cn(
-                  'flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold border transition-all active:scale-95',
+                  'flex items-center gap-1.5 px-4 h-10 rounded-full text-xs font-bold border transition-all active:scale-95',
                   filter === 'cancelled'
                     ? 'bg-rose-500/15 border-rose-500/30 text-rose-400'
                     : 'bg-white/5 border-white/8 text-white/35 hover:text-white/55 hover:bg-white/8'
@@ -708,7 +717,7 @@ export default function DeliveryOrdersPage() {
                 Cancelled
                 {(counts.cancelled ?? 0) > 0 && (
                   <span className={cn(
-                    'text-[9px] font-bold px-1.5 py-0.5 rounded-full',
+                    'text-[10px] font-bold px-1.5 py-0.5 rounded-full',
                     filter === 'cancelled' ? 'bg-rose-500/20' : 'bg-white/10'
                   )}>{counts.cancelled}</span>
                 )}
@@ -719,7 +728,7 @@ export default function DeliveryOrdersPage() {
       </header>
 
       {/* ── Content ── */}
-      <div className="flex-1 px-4 py-4 max-w-2xl mx-auto w-full">
+      <div className="flex-1 px-4 sm:px-6 py-5 max-w-3xl mx-auto w-full">
 
         {error && (
           <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm mb-3">
@@ -735,12 +744,12 @@ export default function DeliveryOrdersPage() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.2, ease: 'easeOut' }}
-              className="flex flex-col items-center justify-center py-20 gap-3"
+              className="flex flex-col items-center justify-center py-24 gap-4"
             >
-              <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center">
-                <Truck className="w-8 h-8 text-white/15" />
+              <div className="w-20 h-20 rounded-3xl bg-white/5 flex items-center justify-center">
+                <Truck className="w-10 h-10 text-white/15" />
               </div>
-              <p className="text-white/30 text-sm">No {filter === 'all' ? '' : filter} delivery orders</p>
+              <p className="text-white/30 text-base">No {filter === 'all' ? '' : filter} delivery orders</p>
             </motion.div>
           ) : (
             <motion.div
@@ -748,7 +757,7 @@ export default function DeliveryOrdersPage() {
               variants={CONTAINER}
               initial="hidden"
               animate="show"
-              className="space-y-3"
+              className="space-y-4"
             >
         {filtered.map(order => {
           const cfg = STATUS_CFG[order.status]
@@ -765,80 +774,127 @@ export default function DeliveryOrdersPage() {
               key={order.delivery_id}
               variants={ITEM}
               className={cn(
-                'rounded-2xl border overflow-hidden transition-all',
-                order.status === 'pending' ? 'border-amber-500/40 bg-amber-500/5' :
-                order.status === 'cancelled' ? 'border-white/8 bg-white/2 opacity-60' :
-                'border-white/10 bg-white/3'
+                'relative rounded-3xl border overflow-hidden transition-all shadow-lg',
+                order.status === 'pending' ? 'border-amber-500/40 bg-amber-500/[0.06] shadow-amber-900/20' :
+                order.status === 'cancelled' ? 'border-white/8 bg-white/[0.02] opacity-60 shadow-none' :
+                'border-white/10 bg-white/[0.035] shadow-black/20'
               )}
             >
+              {/* Pending glow — draws the eye to what still needs action */}
+              {order.status === 'pending' && (
+                <motion.div
+                  className="absolute inset-0 pointer-events-none rounded-3xl"
+                  animate={{ boxShadow: ['inset 0 0 0 1px rgba(245,158,11,0)', 'inset 0 0 24px 2px rgba(245,158,11,0.18)', 'inset 0 0 0 1px rgba(245,158,11,0)'] }}
+                  transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
+                />
+              )}
+
+              {/* Status color strip — quick glance recognition */}
+              <div className={cn('h-1.5 w-full bg-gradient-to-r', cfg.strip)} />
+
               {/* ── Card header ── */}
-              <div className="px-4 pt-4 pb-3">
-                <div className="flex items-start gap-3">
+              <div className="px-5 pt-4 pb-3">
+                {/* dir="ltr" pins this row to the left edge regardless of the
+                    page's RTL locale — status/id/time are numeric/Latin data,
+                    not Kurdish prose, so they read left-to-right. */}
+                <div className="flex items-start gap-3 flex-wrap" dir="ltr">
                   {/* Status icon */}
-                  <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center shrink-0', cfg.bg)}>
-                    <StatusIcon className={cn('w-5 h-5', cfg.color)} />
+                  <div className={cn('w-12 h-12 rounded-2xl flex items-center justify-center shrink-0', cfg.bg)}>
+                    <StatusIcon className={cn('w-6 h-6', cfg.color)} />
                   </div>
 
                   {/* Customer info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-sm font-bold text-white">{order.customer_name}</p>
-                      {order.order_num && (
-                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-white/8 text-white/40">
-                          #{order.order_num}
+                  <div className="min-w-0">
+                    <div className="flex items-start gap-2">
+                      <div className="min-w-0">
+                        <p className="text-base sm:text-lg font-bold text-white truncate leading-tight">{order.customer_name}</p>
+                        <span className="text-sm font-semibold text-white flex items-center gap-1.5 mt-0.5">
+                          <motion.span
+                            className="inline-flex"
+                            animate={{ scale: [1, 1.3, 1] }}
+                            transition={{ duration: 1.1, repeat: Infinity, ease: 'easeInOut' }}
+                          >
+                            <Clock className="w-4 h-4" />
+                          </motion.span>
+                          <TimeAgo dateStr={order.created_at} />
                         </span>
-                      )}
-                      <span className={cn('text-[10px] font-semibold px-2 py-0.5 rounded-full border', cfg.bg, cfg.border, cfg.color)}>
-                        {cfg.label}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3 mt-1 flex-wrap">
-                      <a href={`tel:${order.customer_phone}`} className="flex items-center gap-1 text-xs text-indigo-300 hover:text-indigo-200 transition-colors">
-                        <Phone className="w-3 h-3" />
-                        {order.customer_phone}
-                      </a>
-                      <div className="relative">
-                        <button
-                          onClick={() => {
-                            loadWaTemplates()
-                            setWhatsappDropdown(whatsappDropdown === order.delivery_id ? null : order.delivery_id)
-                          }}
-                          className="flex items-center gap-1 text-xs text-[#25D366] hover:text-[#1fbd5a] transition-colors"
-                        >
-                          <WhatsAppIcon className="w-3.5 h-3.5" />
-                          WhatsApp
-                        </button>
-                        {whatsappDropdown === order.delivery_id && (
-                          <div className="absolute top-full left-0 mt-1.5 z-30 rounded-xl border border-white/10 shadow-2xl overflow-hidden min-w-[190px]" style={{ background: '#0d1630' }}>
-                            {waTemplates.length === 0 ? (
-                              <div className="px-4 py-3 text-xs text-white/40 text-center">
-                                No templates yet.<br />
-                                <span className="text-[#25D366]">Settings → WhatsApp</span>
-                              </div>
-                            ) : waTemplates.map((tpl, i) => (
-                              <a
-                                key={tpl.id}
-                                href={buildWhatsAppUrl(order, resolveTemplate(tpl.message, order, formatPrice))}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                onClick={() => setWhatsappDropdown(null)}
-                                className={cn(
-                                  'flex items-center gap-2.5 px-3 py-2.5 hover:bg-white/8 transition-colors',
-                                  i < waTemplates.length - 1 ? 'border-b border-white/6' : ''
-                                )}
-                              >
-                                <WhatsAppIcon className="w-3.5 h-3.5 text-[#25D366] shrink-0" />
-                                <p className="text-xs font-semibold text-white truncate">{tpl.name}</p>
-                              </a>
-                            ))}
-                          </div>
-                        )}
                       </div>
-                      <span className="text-[11px] text-white/30 flex items-center gap-1">
-                        <Clock className="w-3 h-3" />
-                        <TimeAgo dateStr={order.created_at} />
-                      </span>
+                      <div className="flex flex-col items-start gap-1 shrink-0">
+                        {order.order_num && (
+                          <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-white text-slate-900">
+                            #{order.order_num}
+                          </span>
+                        )}
+                        <span className={cn('text-[11px] font-bold px-2.5 py-1 rounded-full border', cfg.bg, cfg.border, cfg.color)}>
+                          {cfg.label}
+                        </span>
+                      </div>
                     </div>
+                  </div>
+
+                  {/* Contact pills — same row, pushed to the far end when there's room */}
+                  <div className="flex items-center gap-2 flex-wrap ms-auto">
+                    {order.latitude && order.longitude ? (
+                      <a
+                        href={mapsUrl(order.latitude, order.longitude)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title={order.address_text ?? 'Open in Google Maps'}
+                        className="flex items-center gap-1.5 h-11 px-3.5 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/25 transition-all active:scale-95 text-sm font-semibold"
+                      >
+                        <Navigation className="w-4 h-4" />
+                        Map
+                      </a>
+                    ) : (
+                      <span className="flex items-center gap-1.5 h-11 px-3.5 rounded-xl bg-white/5 border border-white/10 text-white/20 text-sm font-semibold">
+                        <MapPin className="w-4 h-4" />
+                        No GPS
+                      </span>
+                    )}
+                    <div className="relative">
+                      <button
+                        onClick={() => {
+                          loadWaTemplates()
+                          setWhatsappDropdown(whatsappDropdown === order.delivery_id ? null : order.delivery_id)
+                        }}
+                        className="flex items-center gap-1.5 h-11 px-3.5 rounded-xl bg-[#25D366]/10 border border-[#25D366]/25 text-[#25D366] hover:bg-[#25D366]/20 active:scale-95 transition-all text-sm font-semibold"
+                      >
+                        <WhatsAppIcon className="w-4 h-4" />
+                        WhatsApp
+                      </button>
+                      {whatsappDropdown === order.delivery_id && (
+                        <div className="absolute top-full right-0 mt-1.5 z-30 rounded-2xl border border-white/10 shadow-2xl overflow-hidden min-w-[220px]" style={{ background: '#0d1630' }}>
+                          {waTemplates.length === 0 ? (
+                            <div className="px-4 py-4 text-xs text-white/40 text-center">
+                              No templates yet.<br />
+                              <span className="text-[#25D366]">Settings → WhatsApp</span>
+                            </div>
+                          ) : waTemplates.map((tpl, i) => (
+                            <a
+                              key={tpl.id}
+                              href={buildWhatsAppUrl(order, resolveTemplate(tpl.message, order, formatPrice))}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={() => setWhatsappDropdown(null)}
+                              className={cn(
+                                'flex items-center gap-2.5 px-4 py-3.5 hover:bg-white/8 active:bg-white/12 transition-colors',
+                                i < waTemplates.length - 1 ? 'border-b border-white/6' : ''
+                              )}
+                            >
+                              <WhatsAppIcon className="w-4 h-4 text-[#25D366] shrink-0" />
+                              <p className="text-sm font-semibold text-white truncate">{tpl.name}</p>
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <a
+                      href={`tel:${order.customer_phone}`}
+                      className="flex items-center gap-1.5 h-11 px-3.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 hover:bg-indigo-500/20 hover:text-indigo-200 active:scale-95 transition-all text-sm font-semibold"
+                    >
+                      <Phone className="w-4 h-4" />
+                      {order.customer_phone}
+                    </a>
                   </div>
 
                   {/* Selfie thumbnail (clickable) */}
@@ -846,90 +902,82 @@ export default function DeliveryOrdersPage() {
                     <button
                       onClick={() => setSelfiePreview(order.selfie_url)}
                       title="View customer selfie"
-                      className="shrink-0 relative overflow-hidden rounded-xl border-2 border-emerald-500/50 hover:border-emerald-400 transition-all active:scale-95 group"
-                      style={{ width: 40, height: 54 }}
+                      className="shrink-0 relative overflow-hidden rounded-2xl border-2 border-emerald-500/50 hover:border-emerald-400 transition-all active:scale-95 group"
+                      style={{ width: 48, height: 64 }}
                     >
                       <NextImage
                         src={order.selfie_url}
                         alt="Customer selfie"
                         fill
                         className="object-cover"
-                        sizes="40px"
+                        sizes="48px"
                       />
                       <div className="absolute inset-0 bg-emerald-500/0 group-hover:bg-emerald-500/15 transition-colors flex items-end justify-center pb-0.5 pointer-events-none">
                         <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Camera className="w-3 h-3 text-white drop-shadow" />
+                          <Camera className="w-3.5 h-3.5 text-white drop-shadow" />
                         </div>
                       </div>
                     </button>
                   )}
+                </div>
 
-                  {/* Total + location button */}
-                  <div className="flex flex-col items-end gap-1 shrink-0">
-                    <p className="text-sm font-extrabold text-white">{formatPrice(grandTotal)}</p>
+                {/* Total */}
+                <div className="mt-3.5 pt-3.5 border-t border-white/6">
+                  <p className="text-xl sm:text-2xl font-extrabold text-white leading-none">{formatPrice(grandTotal)}</p>
+                  <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                     {order.delivery_fee > 0 && (
-                      <p className="text-[10px] text-white/30">+{formatPrice(order.delivery_fee)} fee</p>
+                      <p className="text-[11px] text-white/30">+{formatPrice(order.delivery_fee)} fee</p>
                     )}
                     {(() => {
                       const sub = order.items.reduce((s, i) => s + i.item_price * i.qty, 0)
                       const disc = sub + order.delivery_fee - order.order_total
                       return disc > 0 ? (
-                        <p className="text-[10px] text-emerald-400">−{formatPrice(disc)} discount</p>
+                        <p className="text-[11px] text-emerald-400">−{formatPrice(disc)} discount</p>
                       ) : null
                     })()}
-                    {order.latitude && order.longitude ? (
-                      <a
-                        href={mapsUrl(order.latitude, order.longitude)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        title={order.address_text ?? 'Open in Google Maps'}
-                        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/25 transition-all active:scale-95 text-sm font-semibold"
-                      >
-                        <Navigation className="w-5 h-5" />
-                        Map
-                      </a>
-                    ) : (
-                      <span className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white/20 text-sm">
-                        <MapPin className="w-5 h-5" />
-                        No GPS
-                      </span>
-                    )}
                   </div>
                 </div>
 
-                {/* Address text (compact) */}
-                {order.address_text && (
-                  <p className="mt-2 text-[11px] text-white/35 leading-relaxed line-clamp-2 pl-12">
-                    {order.address_text}
-                  </p>
-                )}
               </div>
 
               {/* ── Items — always visible ── */}
               <div className="border-t border-white/6 divide-y divide-white/5">
                 {order.items.length === 0 ? (
-                  <div className="flex items-center gap-2 px-4 py-3 text-xs text-white/25">
-                    <UtensilsCrossed className="w-3.5 h-3.5" />
+                  <div className="flex items-center gap-2 px-5 py-3.5 text-sm text-white/25">
+                    <UtensilsCrossed className="w-4 h-4" />
                     No items
                   </div>
                 ) : order.items.map(item => (
-                  <div key={item.id} className="flex items-center gap-3 px-4 py-2.5">
-                    {/* Item image */}
-                    <div className="w-10 h-10 rounded-xl overflow-hidden bg-white/6 border border-white/8 shrink-0 relative">
+                  <div key={item.id} className="flex items-center gap-3 px-5 py-3">
+                    {/* Item image — 3:2, tap to view full details */}
+                    <button
+                      onClick={() => setViewItem(item)}
+                      title="View item details"
+                      className="w-16 aspect-[3/2] rounded-xl overflow-hidden bg-white/6 border border-white/8 shrink-0 relative active:scale-95 transition-transform"
+                    >
                       {item.image_url
                         ? <NextImage src={item.image_url} alt={item.item_name} fill className="object-cover" />
-                        : <div className="w-full h-full flex items-center justify-center"><UtensilsCrossed className="w-4 h-4 text-white/20" /></div>
+                        : <div className="w-full h-full flex items-center justify-center"><UtensilsCrossed className="w-5 h-5 text-white/20" /></div>
                       }
-                    </div>
+                      <span className="absolute bottom-0.5 right-0.5 w-4 h-4 rounded-full bg-black/60 flex items-center justify-center">
+                        <Eye className="w-2.5 h-2.5 text-white" />
+                      </span>
+                    </button>
                     {/* Name + note */}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-white/90 truncate">{item.item_name}</p>
-                      {item.note && <p className="text-[10px] text-white/30 truncate mt-0.5">{item.note}</p>}
+                    <div className="min-w-0">
+                      <p className="text-sm sm:text-base font-semibold text-white/90 truncate">{item.item_name}</p>
+                      {item.note && <p className="text-xs text-white truncate mt-0.5">{item.note}</p>}
                     </div>
-                    {/* Qty × price */}
+                    {/* Qty — centered in the space between name and price */}
+                    <div className="flex-1 flex items-center justify-center">
+                      <span className="text-xs font-bold text-white/50 bg-white/6 border border-white/10 rounded-full px-2.5 py-1">
+                        ×{item.qty}
+                      </span>
+                    </div>
+                    {/* Price */}
                     <div className="text-right shrink-0">
-                      <p className="text-xs font-bold text-white/80">{formatPrice(item.item_price * item.qty)}</p>
-                      <p className="text-[10px] text-white/30 mt-0.5">×{item.qty} · {formatPrice(item.item_price)}</p>
+                      <p className="text-sm font-bold text-white/80">{formatPrice(item.item_price * item.qty)}</p>
+                      <p className="text-xs text-white/30 mt-0.5">{formatPrice(item.item_price)}</p>
                     </div>
                   </div>
                 ))}
@@ -939,24 +987,24 @@ export default function DeliveryOrdersPage() {
                   const computed      = itemsSubtotal + order.delivery_fee
                   const discount      = order.order_total > 0 && computed > order.order_total ? computed - order.order_total : 0
                   return (
-                    <div className="px-4 pt-2 pb-3 space-y-1.5">
-                      <div className="flex justify-between text-[11px] text-white/30">
+                    <div className="px-5 pt-2.5 pb-4 space-y-1.5">
+                      <div className="flex justify-between text-xs text-white/30">
                         <span>Subtotal</span>
                         <span>{formatPrice(itemsSubtotal)}</span>
                       </div>
                       {order.delivery_fee > 0 && (
-                        <div className="flex justify-between text-[11px] text-white/30">
+                        <div className="flex justify-between text-xs text-white/30">
                           <span>Delivery Fee</span>
                           <span>{formatPrice(order.delivery_fee)}</span>
                         </div>
                       )}
                       {discount > 0 && (
-                        <div className="flex justify-between text-[11px] text-emerald-400">
+                        <div className="flex justify-between text-xs text-emerald-400">
                           <span>Discount</span>
                           <span>−{formatPrice(discount)}</span>
                         </div>
                       )}
-                      <div className="flex justify-between text-sm font-extrabold pt-1 border-t border-white/8">
+                      <div className="flex justify-between text-base font-extrabold pt-1.5 border-t border-white/8">
                         <span className="text-white/60">Total</span>
                         <span className="text-white">{formatPrice(grandTotal)}</span>
                       </div>
@@ -967,13 +1015,13 @@ export default function DeliveryOrdersPage() {
 
               {/* ── Driver picker (preparing only) ── */}
               {order.status === 'preparing' && (
-                <div className="border-t border-white/6 px-4 py-3">
-                  <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                    <UserRound className="w-3 h-3" />
+                <div className="border-t border-white/6 px-5 py-3.5">
+                  <p className="text-xs font-semibold text-white/40 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+                    <UserRound className="w-3.5 h-3.5" />
                     Assign Driver
                   </p>
                   {drivers.length === 0 ? (
-                    <p className="text-xs text-amber-400/70 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">No active staff found — add staff in Settings → Users</p>
+                    <p className="text-sm text-amber-400/70 bg-amber-500/10 border border-amber-500/20 rounded-xl px-3.5 py-2.5">No active staff found — add staff in Settings → Users</p>
                   ) : (
                     <div className="flex flex-wrap gap-2">
                       {drivers.map(d => (
@@ -981,13 +1029,13 @@ export default function DeliveryOrdersPage() {
                           key={d.id}
                           onClick={() => setDriverPick(p => ({ ...p, [order.delivery_id]: d.id }))}
                           className={cn(
-                            'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all active:scale-95',
+                            'flex items-center gap-2 px-4 h-12 rounded-xl text-sm font-bold border transition-all active:scale-95',
                             driverPick[order.delivery_id] === d.id
                               ? 'bg-amber-500/20 border-amber-500/40 text-amber-300'
                               : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10 hover:text-white/80'
                           )}
                         >
-                          <Truck className="w-3.5 h-3.5" />
+                          <Truck className="w-4 h-4" />
                           {d.name}
                         </button>
                       ))}
@@ -998,50 +1046,60 @@ export default function DeliveryOrdersPage() {
 
               {/* Driver badge (out_for_delivery / delivered) */}
               {(order.status === 'out_for_delivery' || order.status === 'delivered') && order.driver_name && (
-                <div className="border-t border-white/6 px-4 py-2 flex items-center gap-1.5 text-xs text-indigo-300">
-                  <Truck className="w-3.5 h-3.5 shrink-0" />
+                <div className="border-t border-white/6 px-5 py-2.5 flex items-center gap-1.5 text-sm text-indigo-300">
+                  <Truck className="w-4 h-4 shrink-0" />
                   <span>Driver: <strong>{order.driver_name}</strong></span>
                 </div>
               )}
 
-              {/* ── Actions ── */}
+              {/* ── Actions — big touch targets, primary CTA gets the most weight ── */}
               {(canAdvance || canCancel) && order.status !== 'cancelled' && (
-                <div className="flex gap-2 px-4 pb-4 pt-2">
-                  {order.status === 'out_for_delivery' && (
-                    <button
-                      onClick={() => openInvoice(order)}
-                      disabled={viewLoading === order.order_id}
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border border-white/12 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white/80 transition-all active:scale-95 disabled:opacity-50"
-                    >
-                      {viewLoading === order.order_id
-                        ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        : <FileText className="w-3.5 h-3.5" />}
-                      Invoice
-                    </button>
-                  )}
-                  {canCancel && (
-                    <button
-                      onClick={() => setCancelTarget({ deliveryId: order.delivery_id, orderId: order.order_id, name: order.customer_name })}
-                      disabled={processing.has(`${order.delivery_id}-cancelled`)}
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border border-rose-500/25 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition-all active:scale-95 disabled:opacity-50"
-                    >
-                      {processing.has(`${order.delivery_id}-cancelled`)
-                        ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        : <X className="w-3.5 h-3.5" />}
-                      Cancel
-                    </button>
-                  )}
+                <div className="flex flex-col-reverse sm:flex-row gap-2.5 px-5 pb-5 pt-3">
+                  <div className="flex gap-2.5 shrink-0">
+                    {order.status === 'out_for_delivery' && (
+                      <button
+                        onClick={() => openInvoice(order)}
+                        disabled={viewLoading === order.order_id}
+                        className="flex items-center justify-center gap-1.5 px-4 h-14 rounded-2xl text-sm font-bold border border-white/12 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white/80 transition-all active:scale-95 disabled:opacity-50"
+                      >
+                        {viewLoading === order.order_id
+                          ? <Loader2 className="w-4 h-4 animate-spin" />
+                          : <FileText className="w-4 h-4" />}
+                        Invoice
+                      </button>
+                    )}
+                    {canCancel && (
+                      <button
+                        onClick={() => setCancelTarget({ deliveryId: order.delivery_id, orderId: order.order_id, name: order.customer_name })}
+                        disabled={processing.has(`${order.delivery_id}-cancelled`)}
+                        className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-5 h-14 rounded-2xl text-sm font-bold border border-rose-500/25 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition-all active:scale-95 disabled:opacity-50"
+                      >
+                        {processing.has(`${order.delivery_id}-cancelled`)
+                          ? <Loader2 className="w-4 h-4 animate-spin" />
+                          : <X className="w-4 h-4" />}
+                        Cancel
+                      </button>
+                    )}
+                  </div>
 
                   {canAdvance && nextStatus && (
                     <button
                       onClick={() => {
+                        const label = order.status === 'pending' ? 'Confirm & Approve'
+                          : order.status === 'confirmed' ? 'Mark Preparing'
+                          : order.status === 'preparing' ? 'Out for Delivery'
+                          : order.status === 'out_for_delivery' ? 'Mark Delivered'
+                          : STATUS_CFG[nextStatus].label
                         if (order.status === 'preparing') {
                           const selId = driverPick[order.delivery_id]
                           const driver = drivers.find(d => d.id === selId)
-                          updateStatus(order.delivery_id, order.order_id, nextStatus,
-                            driver ? { driver_id: driver.id, driver_name: driver.name } : undefined)
+                          setAdvanceTarget({
+                            deliveryId: order.delivery_id, orderId: order.order_id, nextStatus, label,
+                            name: order.customer_name,
+                            driver: driver ? { driver_id: driver.id, driver_name: driver.name } : undefined,
+                          })
                         } else {
-                          updateStatus(order.delivery_id, order.order_id, nextStatus)
+                          setAdvanceTarget({ deliveryId: order.delivery_id, orderId: order.order_id, nextStatus, label, name: order.customer_name })
                         }
                       }}
                       disabled={
@@ -1049,19 +1107,19 @@ export default function DeliveryOrdersPage() {
                         (order.status === 'preparing' && drivers.length > 0 && !driverPick[order.delivery_id])
                       }
                       className={cn(
-                        'flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 disabled:opacity-50',
+                        'flex-1 flex items-center justify-center gap-2 px-4 h-14 rounded-2xl text-sm sm:text-base font-extrabold transition-all active:scale-95 disabled:opacity-50 disabled:active:scale-100 shadow-lg',
                         order.status === 'pending'
-                          ? 'bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/30'
-                          : 'bg-indigo-500/20 border border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/30'
+                          ? 'bg-gradient-to-b from-emerald-400 to-emerald-600 text-white shadow-emerald-900/40 hover:brightness-110'
+                          : 'bg-gradient-to-b from-indigo-400 to-indigo-600 text-white shadow-indigo-900/40 hover:brightness-110'
                       )}
                     >
                       {processing.has(`${order.delivery_id}-${nextStatus}`)
-                        ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        : order.status === 'pending' ? <Check className="w-3.5 h-3.5" /> : <Truck className="w-3.5 h-3.5" />}
-                      {order.status === 'pending' ? '✓ Confirm & Approve Items'
-                        : order.status === 'confirmed' ? '→ Mark Preparing'
-                        : order.status === 'preparing' ? '→ Out for Delivery'
-                        : order.status === 'out_for_delivery' ? '✓ Mark Delivered'
+                        ? <Loader2 className="w-5 h-5 animate-spin" />
+                        : order.status === 'pending' ? <Check className="w-5 h-5" /> : <Truck className="w-5 h-5" />}
+                      {order.status === 'pending' ? 'Confirm & Approve'
+                        : order.status === 'confirmed' ? 'Mark Preparing'
+                        : order.status === 'preparing' ? 'Out for Delivery'
+                        : order.status === 'out_for_delivery' ? 'Mark Delivered'
                         : STATUS_CFG[nextStatus].label}
                     </button>
                   )}
@@ -1069,19 +1127,19 @@ export default function DeliveryOrdersPage() {
               )}
 
               {order.status === 'delivered' && (
-                <div className="px-4 pb-4 pt-2 flex items-center gap-2">
-                  <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-500/8 border border-emerald-500/15">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                    <p className="text-xs text-emerald-400 font-semibold">Order delivered successfully</p>
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 px-5 pb-5 pt-3">
+                  <div className="flex-1 flex items-center gap-2 px-4 h-14 rounded-2xl bg-emerald-500/8 border border-emerald-500/15">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                    <p className="text-sm text-emerald-400 font-semibold">Order delivered successfully</p>
                   </div>
                   <button
                     onClick={() => openInvoice(order)}
                     disabled={viewLoading === order.order_id}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border border-white/12 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white/80 transition-all active:scale-95 disabled:opacity-50 shrink-0"
+                    className="flex items-center justify-center gap-1.5 px-5 h-14 rounded-2xl text-sm font-bold border border-white/12 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white/80 transition-all active:scale-95 disabled:opacity-50 shrink-0"
                   >
                     {viewLoading === order.order_id
-                      ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      : <FileText className="w-3.5 h-3.5" />}
+                      ? <Loader2 className="w-4 h-4 animate-spin" />
+                      : <FileText className="w-4 h-4" />}
                     Invoice
                   </button>
                 </div>
@@ -1148,6 +1206,80 @@ export default function DeliveryOrdersPage() {
         )}
       </AnimatePresence>
 
+      {/* ── Item Detail Modal ── */}
+      <AnimatePresence>
+        {viewItem && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-md px-4"
+            onClick={() => setViewItem(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.92, opacity: 0, y: 12 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.92, opacity: 0, y: 12 }}
+              transition={{ type: 'spring', stiffness: 340, damping: 28 }}
+              className="relative w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl border border-white/10"
+              style={{ background: '#0e1120' }}
+              onClick={e => e.stopPropagation()}
+              dir="ltr"
+            >
+              {/* Image */}
+              <div className="relative w-full aspect-[3/2] bg-white/6">
+                {viewItem.image_url
+                  ? <NextImage src={viewItem.image_url} alt={viewItem.item_name} fill className="object-cover" sizes="384px" />
+                  : <div className="w-full h-full flex items-center justify-center"><UtensilsCrossed className="w-10 h-10 text-white/15" /></div>
+                }
+                <button
+                  onClick={() => setViewItem(null)}
+                  className="absolute top-3 right-3 w-9 h-9 rounded-full bg-black/60 flex items-center justify-center text-white/80 hover:text-white hover:bg-black/80 transition-all active:scale-90 backdrop-blur-sm"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Details */}
+              <div className="p-5 space-y-4">
+                <div>
+                  <p className="text-lg font-bold text-white leading-snug">{viewItem.item_name}</p>
+                  {viewItem.note && (
+                    <div className="mt-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 px-3.5 py-2.5">
+                      <p className="text-[11px] font-bold uppercase tracking-wider text-amber-400/80 mb-1">Note</p>
+                      <p className="text-sm text-white leading-relaxed">{viewItem.note}</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="rounded-2xl bg-white/5 border border-white/8 p-4 space-y-2">
+                  <div className="flex justify-between text-sm text-white/50">
+                    <span>Quantity</span>
+                    <span className="font-semibold text-white/80">×{viewItem.qty}</span>
+                  </div>
+                  <div className="flex justify-between text-sm text-white/50">
+                    <span>Unit Price</span>
+                    <span className="font-semibold text-white/80">{formatPrice(viewItem.item_price)}</span>
+                  </div>
+                  <div className="flex justify-between text-base font-extrabold pt-2 border-t border-white/8">
+                    <span className="text-white/60">Total</span>
+                    <span className="text-white">{formatPrice(viewItem.item_price * viewItem.qty)}</span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setViewItem(null)}
+                  className="w-full h-12 rounded-2xl text-sm font-bold text-white/60 border border-white/10 hover:bg-white/5 hover:text-white/80 active:scale-95 transition-all"
+                >
+                  Close
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* ── Cancel Confirm Modal ── */}
       {cancelTarget && (
         <div
@@ -1155,17 +1287,18 @@ export default function DeliveryOrdersPage() {
           onClick={() => setCancelTarget(null)}
         >
           <div
-            className="w-full max-w-sm rounded-2xl border border-white/10 bg-[#0e1120] shadow-2xl p-6 space-y-5"
+            className="w-full max-w-sm rounded-3xl border border-white/10 bg-[#0e1120] shadow-2xl p-6 space-y-5"
             onClick={e => e.stopPropagation()}
+            dir="ltr"
           >
             {/* Icon + text */}
             <div className="flex flex-col items-center gap-3 text-center">
-              <div className="w-14 h-14 rounded-2xl bg-rose-500/15 flex items-center justify-center">
-                <XCircle className="w-7 h-7 text-rose-400" />
+              <div className="w-16 h-16 rounded-2xl bg-rose-500/15 flex items-center justify-center">
+                <XCircle className="w-8 h-8 text-rose-400" />
               </div>
               <div>
-                <p className="text-base font-bold text-white">Cancel this order?</p>
-                <p className="text-sm text-white/40 mt-1">
+                <p className="text-lg font-bold text-white">Cancel this order?</p>
+                <p className="text-sm text-white/40 mt-1.5">
                   Order for <span className="text-white/70 font-semibold">{cancelTarget.name}</span> will be cancelled and all pending items will be voided.
                 </p>
                 <p className="text-xs text-rose-400/70 mt-2">This action cannot be undone.</p>
@@ -1173,10 +1306,10 @@ export default function DeliveryOrdersPage() {
             </div>
 
             {/* Buttons */}
-            <div className="flex gap-2">
+            <div className="flex gap-2.5">
               <button
                 onClick={() => setCancelTarget(null)}
-                className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white/50 border border-white/8 hover:bg-white/5 hover:text-white/70 transition-all"
+                className="flex-1 h-14 rounded-2xl text-sm font-bold text-white/50 border border-white/8 hover:bg-white/5 hover:text-white/70 active:scale-95 transition-all"
               >
                 Keep Order
               </button>
@@ -1186,12 +1319,64 @@ export default function DeliveryOrdersPage() {
                   setCancelTarget(null)
                 }}
                 disabled={processing.has(`${cancelTarget.deliveryId}-cancelled`)}
-                className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-rose-500/20 text-rose-400 border border-rose-500/30 hover:bg-rose-500/30 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                className="flex-1 h-14 rounded-2xl text-sm font-bold bg-rose-500/20 text-rose-400 border border-rose-500/30 hover:bg-rose-500/30 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 {processing.has(`${cancelTarget.deliveryId}-cancelled`)
                   ? <Loader2 className="w-4 h-4 animate-spin" />
                   : <XCircle className="w-4 h-4" />}
                 Yes, Cancel Order
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Advance Confirm Modal ── */}
+      {advanceTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4"
+          onClick={() => setAdvanceTarget(null)}
+        >
+          <div
+            className="w-full max-w-sm rounded-3xl border border-white/10 bg-[#0e1120] shadow-2xl p-6 space-y-5"
+            onClick={e => e.stopPropagation()}
+            dir="ltr"
+          >
+            {/* Icon + text */}
+            <div className="flex flex-col items-center gap-3 text-center">
+              <div className="w-16 h-16 rounded-2xl bg-emerald-500/15 flex items-center justify-center">
+                <CheckCircle2 className="w-8 h-8 text-emerald-400" />
+              </div>
+              <div>
+                <p className="text-lg font-bold text-white">{advanceTarget.label}?</p>
+                <p className="text-sm text-white/40 mt-1.5">
+                  Order for <span className="text-white/70 font-semibold">{advanceTarget.name}</span> will move to{' '}
+                  <span className="text-white/70 font-semibold">{STATUS_CFG[advanceTarget.nextStatus].label}</span>.
+                  {advanceTarget.driver && <> Driver: <span className="text-white/70 font-semibold">{advanceTarget.driver.driver_name}</span>.</>}
+                </p>
+              </div>
+            </div>
+
+            {/* Buttons */}
+            <div className="flex gap-2.5">
+              <button
+                onClick={() => setAdvanceTarget(null)}
+                className="flex-1 h-14 rounded-2xl text-sm font-bold text-white/50 border border-white/8 hover:bg-white/5 hover:text-white/70 active:scale-95 transition-all"
+              >
+                Go Back
+              </button>
+              <button
+                onClick={() => {
+                  updateStatus(advanceTarget.deliveryId, advanceTarget.orderId, advanceTarget.nextStatus, advanceTarget.driver)
+                  setAdvanceTarget(null)
+                }}
+                disabled={processing.has(`${advanceTarget.deliveryId}-${advanceTarget.nextStatus}`)}
+                className="flex-1 h-14 rounded-2xl text-sm font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {processing.has(`${advanceTarget.deliveryId}-${advanceTarget.nextStatus}`)
+                  ? <Loader2 className="w-4 h-4 animate-spin" />
+                  : <Check className="w-4 h-4" />}
+                Yes, {advanceTarget.label}
               </button>
             </div>
           </div>
@@ -1224,19 +1409,19 @@ export default function DeliveryOrdersPage() {
 
       {/* ── Auto-generated WhatsApp status update toast ── */}
       {autoWhatsAppUrl && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] flex items-center gap-3 rounded-2xl bg-emerald-600 text-white px-4 py-3 shadow-2xl">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] flex items-center gap-3 rounded-2xl bg-emerald-600 text-white pl-4 pr-2 py-2 shadow-2xl max-w-[92vw]">
           <WhatsAppIcon className="w-5 h-5 shrink-0" />
-          <span className="text-sm">Status update ready to send</span>
+          <span className="text-sm hidden sm:inline">Status update ready to send</span>
           <a
             href={autoWhatsAppUrl}
             target="_blank"
             rel="noopener noreferrer"
             onClick={() => setAutoWhatsAppUrl(null)}
-            className="text-sm font-bold underline underline-offset-2"
+            className="flex items-center h-11 px-4 rounded-xl bg-white/15 hover:bg-white/25 active:scale-95 transition-all text-sm font-bold whitespace-nowrap"
           >
             Send on WhatsApp
           </a>
-          <button onClick={() => setAutoWhatsAppUrl(null)} className="ml-1 opacity-70 hover:opacity-100">
+          <button onClick={() => setAutoWhatsAppUrl(null)} className="w-11 h-11 flex items-center justify-center opacity-70 hover:opacity-100 active:scale-90 transition-all shrink-0">
             <X className="w-4 h-4" />
           </button>
         </div>

@@ -38,6 +38,14 @@ const nextConfig: NextConfig = {
         hostname: 'nymzbuhphoflufxgpaxq.supabase.co',
         pathname: '/storage/v1/object/public/**',
       },
+      {
+        // Customer face-scan selfies live in a private bucket and are served
+        // via signed URL (see src/app/api/upload/selfie/route.ts), not the
+        // public object path above.
+        protocol: 'https',
+        hostname: 'nymzbuhphoflufxgpaxq.supabase.co',
+        pathname: '/storage/v1/object/sign/customer-selfies/**',
+      },
     ],
     formats: ['image/webp', 'image/avif'],
   },
