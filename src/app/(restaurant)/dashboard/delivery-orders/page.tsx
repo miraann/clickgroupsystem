@@ -536,8 +536,17 @@ export default function DeliveryOrdersPage() {
   const counts: Partial<Record<FilterStatus, number>> = { all: orders.length }
   for (const o of orders) counts[o.status] = (counts[o.status] ?? 0) + 1
 
-  const mapsUrl = (lat: number, lng: number) =>
-    `https://www.google.com/maps?q=${lat},${lng}`
+  // Turn-by-turn directions FROM the restaurant TO the customer, not just a
+  // pin — origin is the restaurant's own street address (Settings →
+  // Restaurant Info), which Google geocodes on its end. No address on file
+  // yet? Omit origin and Google Maps falls back to the viewer's current
+  // location as the starting point.
+  const directionsUrl = (lat: number, lng: number) => {
+    const params = new URLSearchParams({ api: '1', destination: `${lat},${lng}`, travelmode: 'driving' })
+    const origin = restaurant?.address?.trim()
+    if (origin) params.set('origin', origin)
+    return `https://www.google.com/maps/dir/?${params.toString()}`
+  }
 
   if (loading) return (
     <ModuleGate moduleKey="delivery">
@@ -836,14 +845,14 @@ export default function DeliveryOrdersPage() {
                   <div className="flex items-center gap-2 flex-wrap ms-auto">
                     {order.latitude && order.longitude ? (
                       <a
-                        href={mapsUrl(order.latitude, order.longitude)}
+                        href={directionsUrl(order.latitude, order.longitude)}
                         target="_blank"
                         rel="noopener noreferrer"
-                        title={order.address_text ?? 'Open in Google Maps'}
+                        title={restaurant?.address ? `Directions from ${restaurant.address}` : (order.address_text ?? 'Get directions')}
                         className="flex items-center gap-1.5 h-11 px-3.5 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/25 transition-all active:scale-95 text-sm font-semibold"
                       >
                         <Navigation className="w-4 h-4" />
-                        Map
+                        Directions
                       </a>
                     ) : (
                       <span className="flex items-center gap-1.5 h-11 px-3.5 rounded-xl bg-white/5 border border-white/10 text-white/20 text-sm font-semibold">

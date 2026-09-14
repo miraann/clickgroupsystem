@@ -9,6 +9,7 @@ export interface RestaurantRow {
   settings:  Record<string, unknown>
   menu_slug: string | null
   owner_id:  string | null
+  address:   string | null
 }
 
 export const RESTAURANT_KEY = (id: string) => `restaurant-v1-${id}`
@@ -21,7 +22,7 @@ async function fetchRestaurant(id: string): Promise<RestaurantRow | null> {
   const supabase = createClient()
   const { data } = await supabase
     .from('restaurants')
-    .select('id, name, logo_url, settings, menu_slug, owner_id')
+    .select('id, name, logo_url, settings, menu_slug, owner_id, address')
     .eq('id', id)
     .maybeSingle()
   if (!data) return null
@@ -34,6 +35,7 @@ async function fetchRestaurant(id: string): Promise<RestaurantRow | null> {
     settings:  (row.settings as Record<string, unknown>) ?? {},
     menu_slug: row.menu_slug ?? null,
     owner_id:  row.owner_id ?? null,
+    address:   row.address ?? null,
   }
 }
 
