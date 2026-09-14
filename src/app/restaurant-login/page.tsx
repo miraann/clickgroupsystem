@@ -64,12 +64,15 @@ export default function RestaurantLoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a1533] flex items-center justify-center px-4 relative overflow-hidden">
-      {/* Brand background glows — ClickGroup navy + gold */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute -top-24 left-1/4 w-[28rem] h-[28rem] bg-[#f5c518]/10 rounded-full blur-[120px]" />
-        <div className="absolute -bottom-24 right-1/4 w-[28rem] h-[28rem] bg-[#2544b8]/25 rounded-full blur-[120px]" />
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.018)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.018)_1px,transparent_1px)] bg-[size:64px_64px]" />
+    <div className="min-h-screen bg-[#022658] flex items-center justify-center px-4 relative overflow-hidden">
+      {/* Ambient background — matches the POS PIN login page */}
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute top-[-10%] left-[-5%] w-[500px] h-[500px] bg-amber-600/8 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '5s' }} />
+        <div className="absolute bottom-[-10%] right-[-5%] w-[600px] h-[600px] bg-indigo-600/8 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '7s' }} />
+        <div className="absolute inset-0 opacity-[0.025]" style={{
+          backgroundImage: 'linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)',
+          backgroundSize: '60px 60px',
+        }} />
       </div>
 
       <div className="relative w-full max-w-sm">

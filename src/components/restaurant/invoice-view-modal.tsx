@@ -48,10 +48,19 @@ interface Props {
   printCount?: number
   /** Who printed it and when, one entry per click. */
   printTimes?: { at: string; by: string }[]
+  /**
+   * 'payment' (default 'receipt') matches the post-payment receipt printed
+   * from the order screen — no feedback write-in lines, no QR/thank-you
+   * footer. Use it for a receipt that's already paid (e.g. delivery
+   * "Out for Delivery"), where there's no counter customer to fill those in.
+   */
+  mode?: 'receipt' | 'payment'
+  /** Fire the ESC/POS print immediately once settings have loaded, same as InvoiceModal. */
+  autoPrint?: boolean
   onClose: () => void
 }
 
-export default function InvoiceViewModal({ invoice, restaurantId, printCount = 0, printTimes = [], onClose }: Props) {
+export default function InvoiceViewModal({ invoice, restaurantId, printCount = 0, printTimes = [], mode = 'receipt', autoPrint = false, onClose }: Props) {
   const supabase = createClient()
   const { formatPrice } = useDefaultCurrency()
   const [loading, setLoading] = useState(true)
@@ -105,7 +114,7 @@ export default function InvoiceViewModal({ invoice, restaurantId, printCount = 0
       kind:   'receipt',
       title:  invoice.table_num ? `Receipt · Table ${invoice.table_num}` : 'Receipt',
       detail: invoice.invoice_num ? `#${invoice.invoice_num}` : undefined,
-      run: () => printReceiptBytes(reprintBodyFromInvoice(invoice, restaurantId)),
+      run: () => printReceiptBytes({ ...reprintBodyFromInvoice(invoice, restaurantId), mode }),
     })
 
     const ok = await done
@@ -123,6 +132,11 @@ export default function InvoiceViewModal({ invoice, restaurantId, printCount = 0
     const ok = await handleHardwarePrint()
     if (!ok) handleBrowserPrint()
   }
+
+  // Auto-print once settings have loaded — silent ESC/POS only, no browser dialog fallback.
+  useEffect(() => {
+    if (!loading && autoPrint) handleHardwarePrint()
+  }, [loading]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleBrowserPrint = () => {
     const marginMm  = 2

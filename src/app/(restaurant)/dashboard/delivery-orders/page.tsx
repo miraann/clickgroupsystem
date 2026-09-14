@@ -17,6 +17,8 @@ import {
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { logAudit, type AuditAction } from '@/lib/logAudit'
+import { printKitchenTicket } from '@/lib/printKitchenTicket'
+import { enqueuePrint } from '@/lib/printQueue'
 import { motion, AnimatePresence, type Variants } from 'framer-motion'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import { notifyDriver, buildStatusWhatsAppMessage, buildWhatsAppDeepLink } from '@/lib/delivery/notify'
@@ -137,12 +139,25 @@ export default function DeliveryOrdersPage() {
   const supabase = createClient()
   const { formatPrice } = useDefaultCurrency()
   const router = useRouter()
-  const { can, isOwner, permissions, loading: permsLoading } = usePermissions()
+  const { can, isOwner, isPinStaff, staffName, permissions, loading: permsLoading } = usePermissions()
 
   useEffect(() => {
     if (permsLoading || isOwner) return
     if (!can('delivery')) router.replace(getStaffHome(permissions))
   }, [permsLoading, isOwner, permissions, can, router])
+
+  // Staff identity for "who sent this" on the kitchen ticket — same rule as
+  // the dine-in order screen's cashier/ticket resolution (never a login email).
+  const [authFullName, setAuthFullName] = useState<string | null>(null)
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setAuthFullName((user?.user_metadata?.full_name as string) ?? null)
+    })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  const staffLabel =
+    isOwner                     ? 'SuperAdmin'
+    : (isPinStaff && staffName) ? staffName
+    : (authFullName || staffName || 'Staff')
 
   // Delivery APK kiosk: no way out to Home / Driver — this is the only screen.
   const [kiosk, setKiosk] = useState(false)
@@ -360,6 +375,31 @@ export default function DeliveryOrdersPage() {
         .update({ status: 'sent', sent_at: new Date().toISOString() })
         .eq('order_id', orderId)
         .eq('status', 'pending')
+    }
+
+    // If preparing → send items to the kitchen printer, same as the dine-in
+    // "Send to Kitchen" button (order/[table] → handleSend → printKitchenTicket).
+    if (newStatus === 'preparing' && restaurantId) {
+      const ord = orders.find(o => o.order_id === orderId)
+      if (ord && ord.items.length > 0) {
+        const ticketItems = ord.items.map(i => ({ name: i.item_name, qty: i.qty, note: i.note }))
+        enqueuePrint({
+          kind:   'kitchen',
+          title:  `Kitchen ticket · Delivery${ord.order_num ? ` #${ord.order_num}` : ''}`,
+          detail: ticketItems.map(i => `${i.qty}× ${i.name}`).join(', '),
+          run:    () => printKitchenTicket({
+            restaurantId,
+            tableNum: 'Delivery',
+            orderNum: ord.order_num,
+            items:    ticketItems,
+            sentBy:   staffLabel,
+          }),
+        })
+        logAudit(restaurantId, 'send_to_kitchen', {
+          order_id: orderId, delivery: true, item_count: ticketItems.length,
+          items: ticketItems.map(i => `${i.qty}× ${i.name}`).join(', '),
+        })
+      }
     }
 
     // If out_for_delivery → create invoice, mark order paid, show print modal
@@ -1158,11 +1198,17 @@ export default function DeliveryOrdersPage() {
         </div>
       )}
 
-      {/* ── Delivery invoice print modal (Out for Delivery) ── */}
+      {/* ── Delivery invoice print modal (Out for Delivery) ──
+          mode="payment" + autoPrint: fires the ESC/POS print immediately,
+          same receipt as the order screen's post-payment print — no
+          feedback write-in lines, since there's no counter customer to
+          fill them in on a delivery order. ── */}
       {printInvoice && restaurantId && (
         <InvoiceViewModal
           invoice={printInvoice}
           restaurantId={restaurantId}
+          mode="payment"
+          autoPrint
           onClose={() => setPrintInvoice(null)}
         />
       )}
