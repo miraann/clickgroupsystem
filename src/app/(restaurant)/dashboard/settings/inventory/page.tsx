@@ -270,7 +270,7 @@ export default function InventoryPage() {
   const okCount   = items.filter(i => i.current_stock > i.min_stock).length
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div>
 
       {/* Page header */}
       <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}
@@ -294,7 +294,7 @@ export default function InventoryPage() {
       {/* Tab bar */}
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.42, ease: 'circOut', delay: 0.12 }}
-        className="flex gap-2 mb-6">
+        className="flex gap-2 mb-6 overflow-x-auto scrollbar-touch">
         {([
           { key: 'settings',   label: t.inv_tab_settings,   icon: <Settings className="w-4 h-4" />, base: 'bg-emerald-500/70', active: 'bg-emerald-500 shadow-lg shadow-emerald-500/30' },
           { key: 'items',      label: t.inv_tab_items,       icon: <Archive  className="w-4 h-4" />, base: 'bg-violet-500/70',  active: 'bg-violet-500 shadow-lg shadow-violet-500/30'  },
@@ -302,7 +302,7 @@ export default function InventoryPage() {
           { key: 'units',      label: t.inv_tab_units,       icon: <Ruler    className="w-4 h-4" />, base: 'bg-blue-500/70',    active: 'bg-blue-500 shadow-lg shadow-blue-500/30'    },
         ] as const).map(({ key, label, icon, base, active }) => (
           <button key={key} onClick={() => switchTab(key)}
-            className={cn('flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95 text-white',
+            className={cn('flex shrink-0 items-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl text-sm font-semibold whitespace-nowrap transition-all active:scale-95 text-white',
               tab === key ? active : base)}>
             {icon}{label}
             {key === 'items' && items.length > 0 && (
@@ -329,7 +329,7 @@ export default function InventoryPage() {
 
             {/* ══ SETTINGS TAB ══ */}
             {tab === 'settings' && (
-              <motion.div variants={CONTAINER} initial="hidden" animate="show" className="space-y-5">
+              <motion.div variants={CONTAINER} initial="hidden" animate="show" className="max-w-4xl mx-auto space-y-5">
 
                 {/* Master toggle card */}
                 <motion.div variants={ITEM} className={cn('p-5 rounded-2xl border transition-all', enabled
@@ -439,11 +439,12 @@ export default function InventoryPage() {
                     transition={{ duration: 0.38, ease: 'circOut', delay: 0.07 }}>
                     <input value={itemSearch} onChange={e => setItemSearch(e.target.value)}
                       placeholder={t.inv_search_ph}
-                      className="w-full mb-4 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-emerald-500/50 transition-colors" />
+                      className="w-full sm:max-w-md mb-4 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-emerald-500/50 transition-colors" />
                   </motion.div>
                 )}
 
-                <motion.div variants={CONTAINER} initial="hidden" animate="show" className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                {/* Fluid columns: 2 on phones, as many ~200px cards as fit on wider screens */}
+                <motion.div variants={CONTAINER} initial="hidden" animate="show" className="grid grid-cols-2 sm:grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3">
                   <button onClick={openItemAdd}
                     className="min-h-[170px] rounded-2xl border-2 border-dashed border-white/15 hover:border-emerald-500/40 hover:bg-emerald-500/[0.04] flex flex-col items-center justify-center gap-2 text-white/40 hover:text-emerald-400 transition-all active:scale-95">
                     <span className="w-11 h-11 rounded-full bg-white/5 flex items-center justify-center"><Plus className="w-4 h-4" /></span>
@@ -524,7 +525,7 @@ export default function InventoryPage() {
                   <span className="px-2 py-0.5 rounded-full bg-white/8 text-xs text-white/50">{categories.length}</span>
                 </motion.div>
 
-                <motion.div variants={CONTAINER} initial="hidden" animate="show" className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5">
+                <motion.div variants={CONTAINER} initial="hidden" animate="show" className="grid grid-cols-2 sm:grid-cols-[repeat(auto-fill,minmax(170px,1fr))] gap-2.5">
                   <button onClick={openCatAdd}
                     className="min-h-[150px] rounded-xl border-2 border-dashed border-white/15 hover:border-emerald-500/40 hover:bg-emerald-500/[0.04] flex flex-col items-center justify-center gap-2 text-white/40 hover:text-emerald-400 transition-all active:scale-95">
                     <span className="w-9 h-9 rounded-full bg-white/5 flex items-center justify-center"><Plus className="w-4 h-4" /></span>
@@ -594,7 +595,7 @@ export default function InventoryPage() {
                 </motion.div>
 
                 <motion.div variants={CONTAINER} initial="hidden" animate="show"
-                  className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5">
+                  className="grid grid-cols-2 sm:grid-cols-[repeat(auto-fill,minmax(170px,1fr))] gap-2.5">
                   <button onClick={openUnitAdd}
                     className="min-h-[130px] rounded-xl border-2 border-dashed border-white/15 hover:border-emerald-500/40 hover:bg-emerald-500/[0.04] flex flex-col items-center justify-center gap-2 text-white/40 hover:text-emerald-400 transition-all active:scale-95">
                     <span className="w-9 h-9 rounded-full bg-white/5 flex items-center justify-center"><Plus className="w-4 h-4" /></span>

@@ -99,7 +99,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
   const { restaurant } = useRestaurant()
 
   const isHome      = pathname === '/dashboard/settings'
-  const isWidePage  = pathname === '/dashboard/settings/whatsapp' || pathname === '/dashboard/settings/appearance' || pathname === '/dashboard/settings/audit-log' || pathname === '/dashboard/settings/delivery' || pathname === '/dashboard/settings/receipt' || pathname === '/dashboard/settings/users'
+  const isWidePage  = pathname === '/dashboard/settings/whatsapp' || pathname === '/dashboard/settings/appearance' || pathname === '/dashboard/settings/audit-log' || pathname === '/dashboard/settings/delivery' || pathname === '/dashboard/settings/receipt' || pathname === '/dashboard/settings/users' || pathname === '/dashboard/settings/device' || pathname === '/dashboard/settings/inventory'
   const currentItem = NAV_GROUPS.flatMap(g => g.items).find(i => i.href === pathname || pathname.startsWith(i.href + '/'))
   const extraKey = Object.entries(EXTRA_PERM_MAP)
     .find(([base]) => pathname === base || pathname.startsWith(base + '/'))?.[1]

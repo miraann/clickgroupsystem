@@ -294,9 +294,9 @@ function MiniNavPreview({ style, primary }: { style: string; primary: string }) 
 // ── Live mini-dashboard preview ─────────────────────────────────
 function ColorPickerRow({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex items-center gap-3 min-w-0">
       <div className="w-5 h-5 rounded-md border border-white/20 shrink-0" style={{ background: value }} />
-      <span className="text-sm text-white/60 w-28 shrink-0">{label}</span>
+      <span className="text-sm text-white/60 w-24 sm:w-28 shrink-0">{label}</span>
       <input
         type="color"
         value={value}
@@ -307,7 +307,7 @@ function ColorPickerRow({ label, value, onChange }: { label: string; value: stri
         type="text"
         value={value.toUpperCase()}
         onChange={e => { const v = e.target.value; if (/^#[0-9a-fA-F]{0,6}$/.test(v)) onChange(v) }}
-        className="flex-1 px-3 py-2 rounded-xl bg-white/6 border border-white/10 text-sm text-white font-mono focus:outline-none focus:border-white/30 transition-colors"
+        className="flex-1 min-w-0 px-3 py-2 rounded-xl bg-white/6 border border-white/10 text-sm text-white font-mono focus:outline-none focus:border-white/30 transition-colors"
         placeholder="#ffffff"
         maxLength={7}
       />
@@ -517,10 +517,10 @@ export default function AppearancePage() {
 
   return (
     <motion.div variants={PAGE} initial="hidden" animate="show"
-      className="flex flex-col xl:flex-row gap-8 items-start w-full">
+      className="flex flex-col xl:flex-row gap-8 items-start w-full max-w-[2400px] mx-auto">
 
       {/* ── Left: settings form ── */}
-      <div className="flex-1 min-w-0 space-y-5">
+      <div className="flex-1 min-w-0 w-full space-y-5">
 
         {/* Header */}
         <div className="flex items-center justify-between gap-4">
@@ -537,6 +537,9 @@ export default function AppearancePage() {
             ? <div className="h-10 w-32 rounded-xl bg-white/8 animate-pulse" />
             : <SaveButton state={saveState} onClick={save} />}
         </div>
+
+        {/* Sections pair up side by side on very wide screens so none stretches edge to edge */}
+        <div className="grid grid-cols-1 min-[1800px]:grid-cols-2 gap-5 items-start">
 
         {/* ── Background Style ── */}
         <SettingsSection title={t.app_sidebar} icon={<Monitor className="w-4 h-4 text-white/80" />} color="bg-indigo-500/70">
@@ -699,7 +702,7 @@ export default function AppearancePage() {
             </div>
 
             {/* Color pickers */}
-            <div className="space-y-3">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
               <ColorPickerRow
                 label="Primary Text"
                 value={cfg.text_color}
@@ -788,10 +791,11 @@ export default function AppearancePage() {
           </div>
         </SettingsSection>
 
+        </div>
       </div>
 
       {/* ── Right: live preview ── */}
-      <div className="w-full xl:w-[360px] xl:sticky xl:top-24 shrink-0 space-y-3">
+      <div className="w-full xl:w-[360px] min-[1800px]:w-[420px] xl:sticky xl:top-24 shrink-0 space-y-3">
         <div className="flex items-center justify-between">
           <p className="text-xs font-semibold text-white/40 uppercase tracking-wider">{t.app_preview}</p>
           <span className="flex items-center gap-1.5 text-[10px] text-white/25">
