@@ -95,9 +95,12 @@ native app:
   samples the colour at the top of each screen and calls
   `ClickGroupNative.setSystemBarColor()` so the bars match it.
 - **WebView** — text zoom pinned to 100 %, no page overscroll glow, renderer
-  crashes recover by recreating the activity. Never turn on
-  `setOffscreenPreRaster`: it rasters the entire page into GPU memory and
-  crashed 1.5 on the dashboard (fixed in 1.5.1).
+  crashes recover by recreating the activity. `setOffscreenPreRaster` stays
+  off (it rasters the entire page into GPU memory).
+- **No R8** — `minifyEnabled` is off for release. R8 stripped the annotations
+  Capacitor reads by reflection, and 1.5 crashed right after login (NPE in
+  `PushNotificationsPlugin.checkPermissions`); fixed in 1.5.2. Test any release
+  build on the `CG_POS_Tablet` emulator before shipping.
 - **Web side** — every flavor's user-agent carries a `ClickGroup…` marker, and
   `src/lib/nativeShell.ts` tags `<html class="cg-app">` before first paint. The
   `html.cg-app` rules in `globals.css` remove tap highlight, long-press text

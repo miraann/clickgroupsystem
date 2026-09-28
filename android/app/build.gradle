@@ -19,8 +19,8 @@ android {
         applicationId "com.clickgroup.pos"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 8
-        versionName "1.5.1"
+        versionCode 9
+        versionName "1.5.2"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -49,12 +49,14 @@ android {
     buildTypes {
         release {
             signingConfig hasReleaseKeystore ? signingConfigs.release : signingConfigs.debug
-            // capacitor-android's own consumerProguardFiles (node_modules/@capacitor/android/
-            // capacitor/proguard-rules.pro) already keeps every class extending
-            // com.getcapacitor.Plugin in full, so our custom TcpPlugin/UpdaterPlugin
-            // (reflectively invoked by the JS bridge) survive R8 untouched.
-            minifyEnabled true
-            shrinkResources true
+            // R8 stays OFF. Capacitor finds plugin names, methods and permissions
+            // through reflection on annotations; R8 (full mode) stripped them and
+            // 1.5 crashed with an NPE in PushNotificationsPlugin.checkPermissions
+            // right after login. This is a thin WebView shell, so shrinking buys
+            // almost nothing — APK size is kept down by the `apps` asset exclusion
+            // above instead.
+            minifyEnabled false
+            shrinkResources false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }

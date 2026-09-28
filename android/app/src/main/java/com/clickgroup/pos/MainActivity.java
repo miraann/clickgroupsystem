@@ -235,9 +235,9 @@ public class MainActivity extends BridgeActivity {
         // POS screens are laid out at 100%; don't let the system font-size
         // setting reflow them.
         s.setTextZoom(100);
-        // Do NOT enable setOffscreenPreRaster: it rasters every tile of the
-        // whole page (up to ~20 screens of GPU memory), which crashed the
-        // cashier app on the heavy dashboard in 1.5.
+        // setOffscreenPreRaster is deliberately left off: it rasters every tile
+        // of the whole page (up to ~20 screens of GPU memory), too heavy for
+        // budget POS tablets on the dashboard.
         // No edge glow / stretch on the page itself — screens scroll inside
         // their own containers, like a native layout.
         wv.setOverScrollMode(View.OVER_SCROLL_NEVER);
