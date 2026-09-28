@@ -954,6 +954,16 @@ const ku: Record<keyof typeof en, string> = {
   // ── Settings home ─────────────────────────────────
   sh_subtitle:          'ڕێستۆرانتەکەت ڕێکبخە. کرتە لەسەر هەر کاشێک بکە.',
   sh_search:            'گەڕان لە ڕێکخستنەکان…',
+  sh_icon_style:        'شێوازی ئایکۆن',
+  sh_icon_style_d:      'دیاری بکە ئایکۆنەکانی ڕێکخستن چۆن دەربکەون. لەسەر هەموو ئامێرەکانی ڕێستۆرانتەکە دەگۆڕێت.',
+  sh_icon_orb:          'گۆی درەوشاوە',
+  sh_icon_glass:        'شووشە',
+  sh_icon_vibrant:      'ڕەنگاوڕەنگ',
+  sh_icon_neon:         'نیۆن',
+  sh_icon_soft:         'نەرم',
+  sh_icon_clay:         'بڵقی سێ ڕەهەندی',
+  sh_icon_line:         'هێڵکاری',
+  sh_icon_mono:         'یەک ڕەنگ',
 
   // ── Language picker ───────────────────────────────
   language:             'زمان',

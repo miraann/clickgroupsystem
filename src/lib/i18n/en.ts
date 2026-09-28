@@ -110,6 +110,16 @@ const en = {
   // ── Settings home ─────────────────────────────────────────────
   sh_subtitle:          'Configure your restaurant. Tap a tile to begin.',
   sh_search:            'Search settings…',
+  sh_icon_style:        'Icon style',
+  sh_icon_style_d:      'Choose how the settings icons look. Applies on every device in this restaurant.',
+  sh_icon_orb:          'Orb',
+  sh_icon_glass:        'Glass',
+  sh_icon_vibrant:      'Vibrant',
+  sh_icon_neon:         'Neon',
+  sh_icon_soft:         'Soft',
+  sh_icon_clay:         '3D Bubble',
+  sh_icon_line:         'Line',
+  sh_icon_mono:         'Mono',
 
   // ── Language picker ───────────────────────────────────────────
   language:             'Language',

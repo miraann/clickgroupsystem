@@ -1,14 +1,17 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { motion } from 'framer-motion'
-import { Search } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Search, Palette, Check } from 'lucide-react'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { cn } from '@/lib/utils'
-import { SettingsBadge } from '@/components/settings/SettingsBadge'
-import { SettingsIcons } from '@/components/settings/SettingsIcons'
+import {
+  SettingsBadge, SETTINGS_ICON_STYLES, toIconStyle, type SettingsIconStyle,
+} from '@/components/settings/SettingsBadge'
+import { SettingsIcons, SettingsIconMeta } from '@/components/settings/SettingsIcons'
 import type { TranslationKey } from '@/lib/i18n/translations'
 import { usePermissions } from '@/lib/permissions/PermissionsContext'
+import { useRestaurantSettings } from '@/hooks/useRestaurantSettings'
 
 // ── Tile data ──────────────────────────────────────────────────────────────────
 // subtitles keyed by lang; 'en' is used as fallback for unsupported langs
@@ -116,6 +119,25 @@ const SECTIONS: Section[] = [
   },
 ]
 
+// ── Icon style ─────────────────────────────────────────────────────────────────
+// Saved on the restaurant (settings.settings_icon_style) so every device shows
+// the same look; changing it needs the Appearance permission.
+const ICON_STYLE_DEFAULTS: { settings_icon_style: SettingsIconStyle } = { settings_icon_style: 'orb' }
+const PREVIEW_ICONS: IconKey[] = ['utensils', 'truck', 'bars']
+
+function Badge({ icon, variant, size }: { icon: IconKey; variant: SettingsIconStyle; size: number }) {
+  const meta = SettingsIconMeta[icon]
+  return (
+    <SettingsBadge
+      icon={SettingsIcons[icon]}
+      lineIcon={meta?.line}
+      accent={meta?.accent}
+      variant={variant}
+      size={size}
+    />
+  )
+}
+
 // ── Orb backdrop ───────────────────────────────────────────────────────────────
 function Backdrop() {
   return (
@@ -161,10 +183,11 @@ interface TileProps {
   item:    TileItem
   label:   string
   sub:     string
+  variant: SettingsIconStyle
   onClick: () => void
 }
 
-function Tile({ item, label, sub, onClick }: TileProps) {
+function Tile({ item, label, sub, variant, onClick }: TileProps) {
   const tileWidth = item.span === 2 ? 372 : 180
 
   return (
@@ -185,10 +208,7 @@ function Tile({ item, label, sub, onClick }: TileProps) {
       {/* Sheen overlay */}
       <span className="absolute inset-0 pointer-events-none bg-[radial-gradient(140%_90%_at_50%_-10%,rgba(255,255,255,0.05),transparent_60%)]" />
 
-      <SettingsBadge
-        icon={SettingsIcons[item.icon]}
-        size={item.span === 2 ? 84 : 72}
-      />
+      <Badge icon={item.icon} variant={variant} size={item.span === 2 ? 84 : 72} />
       <div className="relative text-center px-1">
         <div className="text-[13px] font-semibold text-white leading-tight">{label}</div>
         <div className="text-[11px] text-white/40 mt-0.5 leading-tight line-clamp-2">{sub}</div>
@@ -204,11 +224,15 @@ export default function SettingsHomePage() {
   const [query, setQuery] = useState('')
   const q = query.trim().toLowerCase()
   const { isOwner, canAny, loading: permsLoading } = usePermissions()
+  const { settings: iconCfg, autoSave } = useRestaurantSettings(ICON_STYLE_DEFAULTS, 'settings.appearance')
+  const iconStyle = toIconStyle(iconCfg.settings_icon_style)
+  const [pickerOpen, setPickerOpen] = useState(false)
 
   // Wait for permissions to resolve before deciding what to show — otherwise
   // a staff member briefly sees (and can click into) tiles their role can't
   // actually open.
   if (permsLoading) return null
+  const canEditStyle = isOwner || canAny('settings.appearance')
 
   return (
     <div className="relative min-h-full">
@@ -216,23 +240,86 @@ export default function SettingsHomePage() {
 
       <div className="relative z-10 px-5 md:px-10 py-8 max-w-[1400px] mx-auto">
 
-        {/* Search */}
+        {/* Search + icon-style toggle */}
         <motion.div
           className="flex justify-center mb-10"
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.2, ease: 'easeOut' }}
         >
-          <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/10 w-full max-w-md focus-within:border-amber-500/40 transition-colors">
-            <Search className="w-4 h-4 text-white/40 shrink-0" />
-            <input
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              placeholder={t.sh_search}
-              className="bg-transparent flex-1 outline-none text-sm text-white placeholder-white/30"
-            />
+          <div className="flex gap-2 w-full max-w-lg">
+            <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/10 flex-1 min-w-0 focus-within:border-amber-500/40 transition-colors">
+              <Search className="w-4 h-4 text-white/40 shrink-0" />
+              <input
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                placeholder={t.sh_search}
+                className="bg-transparent flex-1 min-w-0 outline-none text-sm text-white placeholder-white/30"
+              />
+            </div>
+            {canEditStyle && (
+              <button
+                onClick={() => setPickerOpen(o => !o)}
+                aria-expanded={pickerOpen}
+                title={t.sh_icon_style}
+                className={cn(
+                  'flex items-center gap-2 px-3.5 rounded-xl border text-sm font-medium shrink-0 transition-colors active:scale-95',
+                  pickerOpen
+                    ? 'bg-amber-500/15 border-amber-500/40 text-amber-300'
+                    : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10',
+                )}
+              >
+                <Palette className="w-4 h-4" />
+                <span className="hidden sm:inline">{t.sh_icon_style}</span>
+              </button>
+            )}
           </div>
         </motion.div>
+
+        {/* Icon-style picker — applies instantly and saves to the restaurant */}
+        <AnimatePresence initial={false}>
+          {pickerOpen && canEditStyle && (
+            <motion.div
+              key="icon-style-picker"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.22, ease: 'easeInOut' }}
+              className="overflow-hidden"
+            >
+              <div className="mx-auto max-w-3xl mb-10 rounded-2xl border border-white/10 bg-white/[0.035] backdrop-blur-xl p-4">
+                <p className="text-xs text-white/45 text-center mb-4">{t.sh_icon_style_d}</p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                  {SETTINGS_ICON_STYLES.map(style => {
+                    const active = style === iconStyle
+                    return (
+                      <button
+                        key={style}
+                        onClick={() => { if (!active) autoSave({ settings_icon_style: style }) }}
+                        className={cn(
+                          'relative flex flex-col items-center gap-3 pt-5 pb-3 px-2 rounded-xl border transition-all active:scale-[0.97]',
+                          active ? 'border-amber-500/50 bg-amber-500/10' : 'border-white/8 bg-white/[0.03] hover:bg-white/[0.07]',
+                        )}
+                      >
+                        <div className="flex items-center justify-center gap-2.5 h-10">
+                          {PREVIEW_ICONS.map(k => <Badge key={k} icon={k} variant={style} size={34} />)}
+                        </div>
+                        <span className={cn('text-xs font-semibold', active ? 'text-amber-300' : 'text-white/70')}>
+                          {t[`sh_icon_${style}` as TranslationKey]}
+                        </span>
+                        {active && (
+                          <span className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-amber-500 flex items-center justify-center">
+                            <Check className="w-2.5 h-2.5 text-white" />
+                          </span>
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Section grid — flat tile counter for top-to-bottom stagger */}
         {(() => {
@@ -272,6 +359,7 @@ export default function SettingsHomePage() {
                               item={item}
                               label={t[item.labelKey] || item.id}
                               sub={item.subtitles[lang as keyof Subtitles] ?? item.subtitles.en}
+                              variant={iconStyle}
                               onClick={() => router.push(item.href)}
                             />
                           </motion.div>

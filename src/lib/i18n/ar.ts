@@ -954,6 +954,16 @@ const ar: Record<keyof typeof en, string> = {
   // ── Settings home ─────────────────────────────────
   sh_subtitle:          'قم بتهيئة مطعمك. اضغط على أي لوح للبدء.',
   sh_search:            'بحث في الإعدادات…',
+  sh_icon_style:        'نمط الأيقونات',
+  sh_icon_style_d:      'اختر شكل أيقونات الإعدادات. يُطبَّق على جميع أجهزة المطعم.',
+  sh_icon_orb:          'كرة متوهجة',
+  sh_icon_glass:        'زجاجي',
+  sh_icon_vibrant:      'نابض',
+  sh_icon_neon:         'نيون',
+  sh_icon_soft:         'ناعم',
+  sh_icon_clay:         'فقاعة ثلاثية الأبعاد',
+  sh_icon_line:         'خطي',
+  sh_icon_mono:         'أحادي اللون',
 
   // ── Language picker ───────────────────────────────
   language:             'اللغة',

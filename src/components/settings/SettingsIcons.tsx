@@ -1,6 +1,13 @@
 // Colorful illustrative icon glyphs for the settings tile grid.
 // Each is a self-contained colored SVG sized to fill its container.
 import type { ReactNode } from 'react'
+import {
+  Store, Palette, SlidersHorizontal, Monitor, UtensilsCrossed, Coffee, Truck,
+  ShoppingBag, Wine, CalendarDays, Activity, Package, ChartColumnIncreasing,
+  Wallet, CreditCard, Receipt, Ban, Users, Star, CircleUser, Settings2,
+  Database, MessageCircle, ClipboardList, Smartphone,
+  type LucideIcon,
+} from 'lucide-react'
 
 export const SettingsIcons: Record<string, ReactNode> = {
   home: (
@@ -248,4 +255,35 @@ export const SettingsIcons: Record<string, ReactNode> = {
       <path d="M32 33 V42 M27 38 L32 43 L37 38" stroke="#0b1220" strokeWidth="2.6" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
     </svg>
   ),
+}
+
+// Accent colour + outline glyph per icon, for the badge styles that draw a
+// single-colour glyph (vibrant, neon, soft, line, mono) instead of the
+// illustrated one above. Keys must match SettingsIcons.
+export const SettingsIconMeta: Record<string, { accent: string; line: LucideIcon }> = {
+  home:     { accent: '#f97316', line: Store },
+  palette:  { accent: '#a855f7', line: Palette },
+  sliders:  { accent: '#6366f1', line: SlidersHorizontal },
+  monitor:  { accent: '#0ea5e9', line: Monitor },
+  utensils: { accent: '#f97316', line: UtensilsCrossed },
+  coffee:   { accent: '#f59e0b', line: Coffee },
+  truck:    { accent: '#06b6d4', line: Truck },
+  bag:      { accent: '#f43f5e', line: ShoppingBag },
+  wine:     { accent: '#d946ef', line: Wine },
+  cal:      { accent: '#10b981', line: CalendarDays },
+  pulse:    { accent: '#3b82f6', line: Activity },
+  box:      { accent: '#8b5cf6', line: Package },
+  bars:     { accent: '#10b981', line: ChartColumnIncreasing },
+  dollar:   { accent: '#eab308', line: Wallet },
+  card:     { accent: '#6366f1', line: CreditCard },
+  receipt:  { accent: '#0ea5e9', line: Receipt },
+  ban:      { accent: '#ef4444', line: Ban },
+  users:    { accent: '#06b6d4', line: Users },
+  star:     { accent: '#eab308', line: Star },
+  user:     { accent: '#14b8a6', line: CircleUser },
+  cog:      { accent: '#8b5cf6', line: Settings2 },
+  db:       { accent: '#10b981', line: Database },
+  whatsapp: { accent: '#25d366', line: MessageCircle },
+  audit:    { accent: '#0ea5e9', line: ClipboardList },
+  android:  { accent: '#3ddc84', line: Smartphone },
 }
