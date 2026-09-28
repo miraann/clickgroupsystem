@@ -94,8 +94,10 @@ native app:
 - **System bars** — navy with light icons from the theme; `NativeShell.tsx`
   samples the colour at the top of each screen and calls
   `ClickGroupNative.setSystemBarColor()` so the bars match it.
-- **WebView** — text zoom pinned to 100 %, off-screen pre-raster on, no page
-  overscroll glow, renderer crashes recover by recreating the activity.
+- **WebView** — text zoom pinned to 100 %, no page overscroll glow, renderer
+  crashes recover by recreating the activity. Never turn on
+  `setOffscreenPreRaster`: it rasters the entire page into GPU memory and
+  crashed 1.5 on the dashboard (fixed in 1.5.1).
 - **Web side** — every flavor's user-agent carries a `ClickGroup…` marker, and
   `src/lib/nativeShell.ts` tags `<html class="cg-app">` before first paint. The
   `html.cg-app` rules in `globals.css` remove tap highlight, long-press text
