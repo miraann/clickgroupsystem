@@ -2183,7 +2183,7 @@ export default function TablesPage() {
 
         {/* Mobile-only icon strip — all nav actions in one scrollable row */}
         <div
-          className="lg:hidden flex items-center justify-center gap-1.5 sm:gap-3 md:gap-4 px-2 sm:px-4 md:px-6 py-1 sm:py-2 md:py-2.5 border-t border-white/5 overflow-x-auto [&::-webkit-scrollbar]:hidden"
+          className="lg:hidden flex items-center justify-center-safe gap-1.5 sm:gap-3 md:gap-4 px-2 sm:px-4 md:px-6 py-1 sm:py-2 md:py-2.5 border-t border-white/5 overflow-x-auto [&::-webkit-scrollbar]:hidden"
           style={{ scrollbarWidth: 'none' }}
         >
           <SystemCheckButton
