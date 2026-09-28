@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   ChefHat, Clock, Users, ShoppingBag,
   Plus, RefreshCw, LayoutGrid,
-  LogOut, Bell, Settings, DollarSign,
+  LogOut, QrCode, Settings, DollarSign,
   Utensils, Coffee, ChevronRight, Delete,
   CalendarDays, Phone, Check, AlertCircle, Loader2,
   ArrowRightLeft, Merge, X as XIcon, Truck, BellRing, Globe, Monitor, Shield, BarChart2,
@@ -2496,8 +2496,8 @@ export default function TablesPage() {
                   : 'bg-amber-500/70 text-white hover:bg-amber-500 shadow-amber-500/20'
               )}
             >
-              <Bell className="w-4 h-4" />
-              QR Orders
+              <QrCode className="w-4 h-4" />
+              {tr.qr_orders}
               {pendingCount > 0 && (
                 <span className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 rounded-full bg-white text-amber-600 text-[10px] font-bold flex items-center justify-center px-1 shadow-lg">
                   {pendingCount > 99 ? '99+' : pendingCount}

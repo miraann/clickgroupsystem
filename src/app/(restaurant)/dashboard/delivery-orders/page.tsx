@@ -25,6 +25,8 @@ import { notifyDriver, buildStatusWhatsAppMessage, buildWhatsAppDeepLink } from 
 import { isDeliveryKiosk } from '@/lib/kioskMode'
 import { useWebPush } from '@/hooks/useWebPush'
 import DeliveryOrderAlert from '@/components/delivery/DeliveryOrderAlert'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
+import type { TranslationKey } from '@/lib/i18n/translations'
 
 const CONTAINER: Variants = {
   hidden: {},
@@ -76,13 +78,13 @@ interface Driver {
   phone: string | null
 }
 
-const STATUS_CFG: Record<DeliveryStatus, { label: string; color: string; bg: string; border: string; icon: React.ElementType; strip: string }> = {
-  pending:          { label: 'Pending',          color: 'text-amber-400',   bg: 'bg-amber-500/15',   border: 'border-amber-500/30',   icon: Clock,        strip: 'from-amber-400 to-orange-500'   },
-  confirmed:        { label: 'Confirmed',         color: 'text-blue-400',    bg: 'bg-blue-500/15',    border: 'border-blue-500/30',    icon: CheckCircle2, strip: 'from-blue-400 to-sky-500'       },
-  preparing:        { label: 'Preparing',         color: 'text-violet-400',  bg: 'bg-violet-500/15',  border: 'border-violet-500/30',  icon: Package,      strip: 'from-violet-400 to-purple-500'  },
-  out_for_delivery: { label: 'Out for Delivery',  color: 'text-indigo-400',  bg: 'bg-indigo-500/15',  border: 'border-indigo-500/30',  icon: Truck,        strip: 'from-indigo-400 to-blue-500'    },
-  delivered:        { label: 'Delivered',         color: 'text-emerald-400', bg: 'bg-emerald-500/15', border: 'border-emerald-500/30', icon: CheckCircle2, strip: 'from-emerald-400 to-teal-500'   },
-  cancelled:        { label: 'Cancelled',         color: 'text-rose-400',    bg: 'bg-rose-500/15',    border: 'border-rose-500/30',    icon: XCircle,      strip: 'from-rose-400 to-red-500'       },
+const STATUS_CFG: Record<DeliveryStatus, { labelKey: TranslationKey; color: string; bg: string; border: string; icon: React.ElementType; strip: string }> = {
+  pending:          { labelKey: 'do_pending',          color: 'text-amber-400',   bg: 'bg-amber-500/15',   border: 'border-amber-500/30',   icon: Clock,        strip: 'from-amber-400 to-orange-500'   },
+  confirmed:        { labelKey: 'do_confirmed',        color: 'text-blue-400',    bg: 'bg-blue-500/15',    border: 'border-blue-500/30',    icon: CheckCircle2, strip: 'from-blue-400 to-sky-500'       },
+  preparing:        { labelKey: 'do_preparing',        color: 'text-violet-400',  bg: 'bg-violet-500/15',  border: 'border-violet-500/30',  icon: Package,      strip: 'from-violet-400 to-purple-500'  },
+  out_for_delivery: { labelKey: 'do_out_for_delivery', color: 'text-indigo-400',  bg: 'bg-indigo-500/15',  border: 'border-indigo-500/30',  icon: Truck,        strip: 'from-indigo-400 to-blue-500'    },
+  delivered:        { labelKey: 'do_delivered',        color: 'text-emerald-400', bg: 'bg-emerald-500/15', border: 'border-emerald-500/30', icon: CheckCircle2, strip: 'from-emerald-400 to-teal-500'   },
+  cancelled:        { labelKey: 'do_cancelled',        color: 'text-rose-400',    bg: 'bg-rose-500/15',    border: 'border-rose-500/30',    icon: XCircle,      strip: 'from-rose-400 to-red-500'       },
 }
 
 const STATUS_FLOW: DeliveryStatus[] = ['pending', 'confirmed', 'preparing', 'out_for_delivery', 'delivered']
@@ -117,19 +119,29 @@ function buildWhatsAppUrl(order: DeliveryOrder, resolvedMsg: string): string {
   return `https://wa.me/${phone}?text=${encodeURIComponent(resolvedMsg)}`
 }
 
+// Fills {placeholders} in a translated string — values may be JSX so names
+// and statuses keep their emphasis inside the sentence.
+function fill(tpl: string, vars: Record<string, React.ReactNode>): React.ReactNode[] {
+  return tpl.split(/(\{\w+\})/).map((part, i) => {
+    const key = part.match(/^\{(\w+)\}$/)?.[1]
+    return key && key in vars ? <span key={i}>{vars[key]}</span> : part
+  })
+}
+
 function TimeAgo({ dateStr }: { dateStr: string }) {
+  const { t } = useLanguage()
   const [label, setLabel] = useState('')
   useEffect(() => {
     const calc = () => {
       const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000)
-      if (diff < 60) setLabel(`${diff}s ago`)
-      else if (diff < 3600) setLabel(`${Math.floor(diff / 60)}m ago`)
-      else setLabel(`${Math.floor(diff / 3600)}h ago`)
+      if (diff < 60) setLabel(t.po_sec_ago.replace('{n}', String(diff)))
+      else if (diff < 3600) setLabel(t.po_min_ago.replace('{n}', String(Math.floor(diff / 60))))
+      else setLabel(t.po_hour_ago.replace('{n}', String(Math.floor(diff / 3600))))
     }
     calc()
-    const t = setInterval(calc, 5000)
-    return () => clearInterval(t)
-  }, [dateStr])
+    const timer = setInterval(calc, 5000)
+    return () => clearInterval(timer)
+  }, [dateStr, t])
   return <span>{label}</span>
 }
 
@@ -139,6 +151,7 @@ export default function DeliveryOrdersPage() {
   const supabase = createClient()
   const { formatPrice } = useDefaultCurrency()
   const router = useRouter()
+  const { t, isRTL } = useLanguage()
   const { can, isOwner, isPinStaff, staffName, permissions, loading: permsLoading } = usePermissions()
 
   useEffect(() => {
@@ -221,11 +234,11 @@ export default function DeliveryOrdersPage() {
   }, [swrOrders, swrLoading])
 
   const load = useCallback(async () => {
-    if (!restaurantId) { setError('Restaurant not found'); setLoading(false); return }
+    if (!restaurantId) { setError(t.do_restaurant_not_found); setLoading(false); return }
     // Trigger SWR revalidation — it re-runs the fetcher and updates state via the effect above
     await reloadOrders()
     setLastRefresh(new Date())
-  }, [restaurantId, reloadOrders])
+  }, [restaurantId, reloadOrders, t])
 
   useEffect(() => { loadRef.current = load }, [load])
 
@@ -531,6 +544,13 @@ export default function DeliveryOrdersPage() {
   }
 
 
+  const advanceLabel = (status: DeliveryStatus, next: DeliveryStatus) =>
+    status === 'pending'            ? t.do_confirm_approve
+    : status === 'confirmed'        ? t.do_mark_preparing
+    : status === 'preparing'        ? t.do_send_out
+    : status === 'out_for_delivery' ? t.do_mark_delivered
+    : t[STATUS_CFG[next].labelKey]
+
   const filtered = filter === 'all' ? orders : orders.filter(o => o.status === filter)
 
   const counts: Partial<Record<FilterStatus, number>> = { all: orders.length }
@@ -571,9 +591,9 @@ export default function DeliveryOrdersPage() {
               <Truck className="w-5 h-5 text-indigo-400" />
             </div>
             <div className="min-w-0">
-              <h1 className="text-lg font-extrabold text-white tracking-tight truncate">Delivery Orders</h1>
+              <h1 className="text-lg font-extrabold text-white tracking-tight truncate">{t.do_title}</h1>
               <p className="text-xs text-white/40">
-                Refreshed {lastRefresh.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                {t.do_refreshed.replace('{time}', lastRefresh.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }))}
               </p>
             </div>
           </div>
@@ -584,7 +604,7 @@ export default function DeliveryOrdersPage() {
                 className="flex items-center gap-2 px-5 h-14 rounded-2xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/25 transition-all active:scale-95 text-sm font-bold"
               >
                 <MonitorSmartphone className="w-5 h-5" />
-                <span className="hidden sm:inline">Driver</span>
+                <span className="hidden sm:inline">{t.do_driver}</span>
               </button>
             )}
             {!kiosk && (
@@ -672,7 +692,7 @@ export default function DeliveryOrdersPage() {
                         'text-[11px] font-semibold leading-tight text-center transition-colors max-w-[64px]',
                         isActive ? 'text-amber-400' : count > 0 ? 'text-white/45 group-hover:text-white/65' : 'text-white/18'
                       )}>
-                        {s === 'out_for_delivery' ? <>On the<br/>Way</> : cfg.label}
+                        {s === 'out_for_delivery' ? t.do_on_the_way : t[cfg.labelKey]}
                       </span>
                     </button>
 
@@ -705,7 +725,7 @@ export default function DeliveryOrdersPage() {
                   : 'bg-white/5 border-white/8 text-white/35 hover:text-white/55 hover:bg-white/8'
               )}
             >
-              All
+              {t.do_all}
               {(counts.all ?? 0) > 0 && (
                 <span className={cn(
                   'text-[10px] font-bold px-1.5 py-0.5 rounded-full',
@@ -723,7 +743,7 @@ export default function DeliveryOrdersPage() {
                     : 'bg-white/5 border-white/8 text-white/35 hover:text-white/55 hover:bg-white/8'
                 )}
               >
-                Cancelled
+                {t.do_cancelled}
                 {(counts.cancelled ?? 0) > 0 && (
                   <span className={cn(
                     'text-[10px] font-bold px-1.5 py-0.5 rounded-full',
@@ -758,7 +778,7 @@ export default function DeliveryOrdersPage() {
               <div className="w-20 h-20 rounded-3xl bg-white/5 flex items-center justify-center">
                 <Truck className="w-10 h-10 text-white/15" />
               </div>
-              <p className="text-white/30 text-base">No {filter === 'all' ? '' : filter} delivery orders</p>
+              <p className="text-white/30 text-base">{filter === 'all' ? t.do_no_orders : t.do_empty_status.replace('{status}', t[STATUS_CFG[filter].labelKey])}</p>
             </motion.div>
           ) : (
             <motion.div
@@ -835,7 +855,7 @@ export default function DeliveryOrdersPage() {
                           </span>
                         )}
                         <span className={cn('text-[11px] font-bold px-2.5 py-1 rounded-full border', cfg.bg, cfg.border, cfg.color)}>
-                          {cfg.label}
+                          {t[cfg.labelKey]}
                         </span>
                       </div>
                     </div>
@@ -848,16 +868,16 @@ export default function DeliveryOrdersPage() {
                         href={directionsUrl(order.latitude, order.longitude)}
                         target="_blank"
                         rel="noopener noreferrer"
-                        title={restaurant?.address ? `Directions from ${restaurant.address}` : (order.address_text ?? 'Get directions')}
+                        title={restaurant?.address ? t.do_directions_from.replace('{address}', restaurant.address) : (order.address_text ?? t.do_directions)}
                         className="flex items-center gap-1.5 h-11 px-3.5 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/25 transition-all active:scale-95 text-sm font-semibold"
                       >
                         <Navigation className="w-4 h-4" />
-                        Directions
+                        {t.do_directions}
                       </a>
                     ) : (
                       <span className="flex items-center gap-1.5 h-11 px-3.5 rounded-xl bg-white/5 border border-white/10 text-white/20 text-sm font-semibold">
                         <MapPin className="w-4 h-4" />
-                        No GPS
+                        {t.do_no_gps}
                       </span>
                     )}
                     <div className="relative">
@@ -869,14 +889,14 @@ export default function DeliveryOrdersPage() {
                         className="flex items-center gap-1.5 h-11 px-3.5 rounded-xl bg-[#25D366]/10 border border-[#25D366]/25 text-[#25D366] hover:bg-[#25D366]/20 active:scale-95 transition-all text-sm font-semibold"
                       >
                         <WhatsAppIcon className="w-4 h-4" />
-                        WhatsApp
+                        {t.do_whatsapp}
                       </button>
                       {whatsappDropdown === order.delivery_id && (
                         <div className="absolute top-full right-0 mt-1.5 z-30 rounded-2xl border border-white/10 shadow-2xl overflow-hidden min-w-[220px]" style={{ background: '#0d1630' }}>
                           {waTemplates.length === 0 ? (
                             <div className="px-4 py-4 text-xs text-white/40 text-center">
-                              No templates yet.<br />
-                              <span className="text-[#25D366]">Settings → WhatsApp</span>
+                              {t.do_no_templates}<br />
+                              <span className="text-[#25D366]">{t.do_wa_settings_hint}</span>
                             </div>
                           ) : waTemplates.map((tpl, i) => (
                             <a
@@ -910,13 +930,13 @@ export default function DeliveryOrdersPage() {
                   {order.selfie_url && (
                     <button
                       onClick={() => setSelfiePreview(order.selfie_url)}
-                      title="View customer selfie"
+                      title={t.do_view_selfie}
                       className="shrink-0 relative overflow-hidden rounded-2xl border-2 border-emerald-500/50 hover:border-emerald-400 transition-all active:scale-95 group"
                       style={{ width: 48, height: 64 }}
                     >
                       <NextImage
                         src={order.selfie_url}
-                        alt="Customer selfie"
+                        alt={t.do_customer_selfie}
                         fill
                         className="object-cover"
                         sizes="48px"
@@ -935,13 +955,13 @@ export default function DeliveryOrdersPage() {
                   <p className="text-xl sm:text-2xl font-extrabold text-white leading-none">{formatPrice(grandTotal)}</p>
                   <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                     {order.delivery_fee > 0 && (
-                      <p className="text-[11px] text-white/30">+{formatPrice(order.delivery_fee)} fee</p>
+                      <p className="text-[11px] text-white/30">{t.do_fee.replace('{amount}', formatPrice(order.delivery_fee))}</p>
                     )}
                     {(() => {
                       const sub = order.items.reduce((s, i) => s + i.item_price * i.qty, 0)
                       const disc = sub + order.delivery_fee - order.order_total
                       return disc > 0 ? (
-                        <p className="text-[11px] text-emerald-400">−{formatPrice(disc)} discount</p>
+                        <p className="text-[11px] text-emerald-400">{t.do_discount_line.replace('{amount}', formatPrice(disc))}</p>
                       ) : null
                     })()}
                   </div>
@@ -954,14 +974,14 @@ export default function DeliveryOrdersPage() {
                 {order.items.length === 0 ? (
                   <div className="flex items-center gap-2 px-5 py-3.5 text-sm text-white/25">
                     <UtensilsCrossed className="w-4 h-4" />
-                    No items
+                    {t.do_no_items}
                   </div>
                 ) : order.items.map(item => (
                   <div key={item.id} className="flex items-center gap-3 px-5 py-3">
                     {/* Item image — 3:2, tap to view full details */}
                     <button
                       onClick={() => setViewItem(item)}
-                      title="View item details"
+                      title={t.do_view_item}
                       className="w-16 aspect-[3/2] rounded-xl overflow-hidden bg-white/6 border border-white/8 shrink-0 relative active:scale-95 transition-transform"
                     >
                       {item.image_url
@@ -998,23 +1018,23 @@ export default function DeliveryOrdersPage() {
                   return (
                     <div className="px-5 pt-2.5 pb-4 space-y-1.5">
                       <div className="flex justify-between text-xs text-white/30">
-                        <span>Subtotal</span>
+                        <span>{t.do_subtotal}</span>
                         <span>{formatPrice(itemsSubtotal)}</span>
                       </div>
                       {order.delivery_fee > 0 && (
                         <div className="flex justify-between text-xs text-white/30">
-                          <span>Delivery Fee</span>
+                          <span>{t.do_delivery_fee}</span>
                           <span>{formatPrice(order.delivery_fee)}</span>
                         </div>
                       )}
                       {discount > 0 && (
                         <div className="flex justify-between text-xs text-emerald-400">
-                          <span>Discount</span>
+                          <span>{t.do_discount}</span>
                           <span>−{formatPrice(discount)}</span>
                         </div>
                       )}
                       <div className="flex justify-between text-base font-extrabold pt-1.5 border-t border-white/8">
-                        <span className="text-white/60">Total</span>
+                        <span className="text-white/60">{t.do_total}</span>
                         <span className="text-white">{formatPrice(grandTotal)}</span>
                       </div>
                     </div>
@@ -1027,10 +1047,10 @@ export default function DeliveryOrdersPage() {
                 <div className="border-t border-white/6 px-5 py-3.5">
                   <p className="text-xs font-semibold text-white/40 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
                     <UserRound className="w-3.5 h-3.5" />
-                    Assign Driver
+                    {t.do_assign_driver}
                   </p>
                   {drivers.length === 0 ? (
-                    <p className="text-sm text-amber-400/70 bg-amber-500/10 border border-amber-500/20 rounded-xl px-3.5 py-2.5">No active staff found — add staff in Settings → Users</p>
+                    <p className="text-sm text-amber-400/70 bg-amber-500/10 border border-amber-500/20 rounded-xl px-3.5 py-2.5">{t.do_no_staff}</p>
                   ) : (
                     <div className="flex flex-wrap gap-2">
                       {drivers.map(d => (
@@ -1057,7 +1077,7 @@ export default function DeliveryOrdersPage() {
               {(order.status === 'out_for_delivery' || order.status === 'delivered') && order.driver_name && (
                 <div className="border-t border-white/6 px-5 py-2.5 flex items-center gap-1.5 text-sm text-indigo-300">
                   <Truck className="w-4 h-4 shrink-0" />
-                  <span>Driver: <strong>{order.driver_name}</strong></span>
+                  <span>{t.do_driver}: <strong>{order.driver_name}</strong></span>
                 </div>
               )}
 
@@ -1074,7 +1094,7 @@ export default function DeliveryOrdersPage() {
                         {viewLoading === order.order_id
                           ? <Loader2 className="w-4 h-4 animate-spin" />
                           : <FileText className="w-4 h-4" />}
-                        Invoice
+                        {t.do_invoice}
                       </button>
                     )}
                     {canCancel && (
@@ -1086,7 +1106,7 @@ export default function DeliveryOrdersPage() {
                         {processing.has(`${order.delivery_id}-cancelled`)
                           ? <Loader2 className="w-4 h-4 animate-spin" />
                           : <X className="w-4 h-4" />}
-                        Cancel
+                        {t.do_cancel_btn}
                       </button>
                     )}
                   </div>
@@ -1094,11 +1114,7 @@ export default function DeliveryOrdersPage() {
                   {canAdvance && nextStatus && (
                     <button
                       onClick={() => {
-                        const label = order.status === 'pending' ? 'Confirm & Approve'
-                          : order.status === 'confirmed' ? 'Mark Preparing'
-                          : order.status === 'preparing' ? 'Out for Delivery'
-                          : order.status === 'out_for_delivery' ? 'Mark Delivered'
-                          : STATUS_CFG[nextStatus].label
+                        const label = advanceLabel(order.status, nextStatus)
                         if (order.status === 'preparing') {
                           const selId = driverPick[order.delivery_id]
                           const driver = drivers.find(d => d.id === selId)
@@ -1125,11 +1141,7 @@ export default function DeliveryOrdersPage() {
                       {processing.has(`${order.delivery_id}-${nextStatus}`)
                         ? <Loader2 className="w-5 h-5 animate-spin" />
                         : order.status === 'pending' ? <Check className="w-5 h-5" /> : <Truck className="w-5 h-5" />}
-                      {order.status === 'pending' ? 'Confirm & Approve'
-                        : order.status === 'confirmed' ? 'Mark Preparing'
-                        : order.status === 'preparing' ? 'Out for Delivery'
-                        : order.status === 'out_for_delivery' ? 'Mark Delivered'
-                        : STATUS_CFG[nextStatus].label}
+                      {advanceLabel(order.status, nextStatus)}
                     </button>
                   )}
                 </div>
@@ -1139,7 +1151,7 @@ export default function DeliveryOrdersPage() {
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 px-5 pb-5 pt-3">
                   <div className="flex-1 flex items-center gap-2 px-4 h-14 rounded-2xl bg-emerald-500/8 border border-emerald-500/15">
                     <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-                    <p className="text-sm text-emerald-400 font-semibold">Order delivered successfully</p>
+                    <p className="text-sm text-emerald-400 font-semibold">{t.do_delivered_ok}</p>
                   </div>
                   <button
                     onClick={() => openInvoice(order)}
@@ -1149,7 +1161,7 @@ export default function DeliveryOrdersPage() {
                     {viewLoading === order.order_id
                       ? <Loader2 className="w-4 h-4 animate-spin" />
                       : <FileText className="w-4 h-4" />}
-                    Invoice
+                    {t.do_invoice}
                   </button>
                 </div>
               )}
@@ -1188,7 +1200,7 @@ export default function DeliveryOrdersPage() {
             >
               <NextImage
                 src={selfiePreview}
-                alt="Customer selfie"
+                alt={t.do_customer_selfie}
                 fill
                 className="object-cover"
                 sizes="320px"
@@ -1207,7 +1219,7 @@ export default function DeliveryOrdersPage() {
                   style={{ background: 'rgba(52,211,153,0.18)', border: '1px solid rgba(52,211,153,0.45)', color: '#34d399', backdropFilter: 'blur(8px)' }}
                 >
                   <CheckCircle2 className="w-3.5 h-3.5" />
-                  Liveness Verified
+                  {t.do_liveness_verified}
                 </div>
               </div>
             </motion.div>
@@ -1234,7 +1246,6 @@ export default function DeliveryOrdersPage() {
               className="relative w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl border border-white/10"
               style={{ background: '#0e1120' }}
               onClick={e => e.stopPropagation()}
-              dir="ltr"
             >
               {/* Image */}
               <div className="relative w-full aspect-[3/2] bg-white/6">
@@ -1256,7 +1267,7 @@ export default function DeliveryOrdersPage() {
                   <p className="text-lg font-bold text-white leading-snug">{viewItem.item_name}</p>
                   {viewItem.note && (
                     <div className="mt-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 px-3.5 py-2.5">
-                      <p className="text-[11px] font-bold uppercase tracking-wider text-amber-400/80 mb-1">Note</p>
+                      <p className="text-[11px] font-bold uppercase tracking-wider text-amber-400/80 mb-1">{t.do_note}</p>
                       <p className="text-sm text-white leading-relaxed">{viewItem.note}</p>
                     </div>
                   )}
@@ -1264,15 +1275,15 @@ export default function DeliveryOrdersPage() {
 
                 <div className="rounded-2xl bg-white/5 border border-white/8 p-4 space-y-2">
                   <div className="flex justify-between text-sm text-white/50">
-                    <span>Quantity</span>
+                    <span>{t.do_quantity}</span>
                     <span className="font-semibold text-white/80">×{viewItem.qty}</span>
                   </div>
                   <div className="flex justify-between text-sm text-white/50">
-                    <span>Unit Price</span>
+                    <span>{t.do_unit_price}</span>
                     <span className="font-semibold text-white/80">{formatPrice(viewItem.item_price)}</span>
                   </div>
                   <div className="flex justify-between text-base font-extrabold pt-2 border-t border-white/8">
-                    <span className="text-white/60">Total</span>
+                    <span className="text-white/60">{t.do_total}</span>
                     <span className="text-white">{formatPrice(viewItem.item_price * viewItem.qty)}</span>
                   </div>
                 </div>
@@ -1281,7 +1292,7 @@ export default function DeliveryOrdersPage() {
                   onClick={() => setViewItem(null)}
                   className="w-full h-12 rounded-2xl text-sm font-bold text-white/60 border border-white/10 hover:bg-white/5 hover:text-white/80 active:scale-95 transition-all"
                 >
-                  Close
+                  {t.do_close}
                 </button>
               </div>
             </motion.div>
@@ -1298,7 +1309,6 @@ export default function DeliveryOrdersPage() {
           <div
             className="w-full max-w-sm rounded-3xl border border-white/10 bg-[#0e1120] shadow-2xl p-6 space-y-5"
             onClick={e => e.stopPropagation()}
-            dir="ltr"
           >
             {/* Icon + text */}
             <div className="flex flex-col items-center gap-3 text-center">
@@ -1306,11 +1316,11 @@ export default function DeliveryOrdersPage() {
                 <XCircle className="w-8 h-8 text-rose-400" />
               </div>
               <div>
-                <p className="text-lg font-bold text-white">Cancel this order?</p>
+                <p className="text-lg font-bold text-white">{t.do_cancel_title}</p>
                 <p className="text-sm text-white/40 mt-1.5">
-                  Order for <span className="text-white/70 font-semibold">{cancelTarget.name}</span> will be cancelled and all pending items will be voided.
+                  {fill(t.do_cancel_body, { name: <span className="text-white/70 font-semibold">{cancelTarget.name}</span> })}
                 </p>
-                <p className="text-xs text-rose-400/70 mt-2">This action cannot be undone.</p>
+                <p className="text-xs text-rose-400/70 mt-2">{t.do_cancel_warning}</p>
               </div>
             </div>
 
@@ -1320,7 +1330,7 @@ export default function DeliveryOrdersPage() {
                 onClick={() => setCancelTarget(null)}
                 className="flex-1 h-14 rounded-2xl text-sm font-bold text-white/50 border border-white/8 hover:bg-white/5 hover:text-white/70 active:scale-95 transition-all"
               >
-                Keep Order
+                {t.do_keep_order}
               </button>
               <button
                 onClick={() => {
@@ -1333,7 +1343,7 @@ export default function DeliveryOrdersPage() {
                 {processing.has(`${cancelTarget.deliveryId}-cancelled`)
                   ? <Loader2 className="w-4 h-4 animate-spin" />
                   : <XCircle className="w-4 h-4" />}
-                Yes, Cancel Order
+                {t.do_yes_cancel}
               </button>
             </div>
           </div>
@@ -1349,7 +1359,6 @@ export default function DeliveryOrdersPage() {
           <div
             className="w-full max-w-sm rounded-3xl border border-white/10 bg-[#0e1120] shadow-2xl p-6 space-y-5"
             onClick={e => e.stopPropagation()}
-            dir="ltr"
           >
             {/* Icon + text */}
             <div className="flex flex-col items-center gap-3 text-center">
@@ -1357,11 +1366,13 @@ export default function DeliveryOrdersPage() {
                 <CheckCircle2 className="w-8 h-8 text-emerald-400" />
               </div>
               <div>
-                <p className="text-lg font-bold text-white">{advanceTarget.label}?</p>
+                <p className="text-lg font-bold text-white">{advanceTarget.label}{isRTL ? '؟' : '?'}</p>
                 <p className="text-sm text-white/40 mt-1.5">
-                  Order for <span className="text-white/70 font-semibold">{advanceTarget.name}</span> will move to{' '}
-                  <span className="text-white/70 font-semibold">{STATUS_CFG[advanceTarget.nextStatus].label}</span>.
-                  {advanceTarget.driver && <> Driver: <span className="text-white/70 font-semibold">{advanceTarget.driver.driver_name}</span>.</>}
+                  {fill(t.do_advance_body, {
+                    name:   <span className="text-white/70 font-semibold">{advanceTarget.name}</span>,
+                    status: <span className="text-white/70 font-semibold">{t[STATUS_CFG[advanceTarget.nextStatus].labelKey]}</span>,
+                  })}
+                  {advanceTarget.driver && <> {t.do_driver}: <span className="text-white/70 font-semibold">{advanceTarget.driver.driver_name}</span>.</>}
                 </p>
               </div>
             </div>
@@ -1372,7 +1383,7 @@ export default function DeliveryOrdersPage() {
                 onClick={() => setAdvanceTarget(null)}
                 className="flex-1 h-14 rounded-2xl text-sm font-bold text-white/50 border border-white/8 hover:bg-white/5 hover:text-white/70 active:scale-95 transition-all"
               >
-                Go Back
+                {t.do_go_back}
               </button>
               <button
                 onClick={() => {
@@ -1385,7 +1396,7 @@ export default function DeliveryOrdersPage() {
                 {processing.has(`${advanceTarget.deliveryId}-${advanceTarget.nextStatus}`)
                   ? <Loader2 className="w-4 h-4 animate-spin" />
                   : <Check className="w-4 h-4" />}
-                Yes, {advanceTarget.label}
+                {t.do_yes_action.replace('{action}', advanceTarget.label)}
               </button>
             </div>
           </div>
@@ -1420,7 +1431,7 @@ export default function DeliveryOrdersPage() {
       {autoWhatsAppUrl && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] flex items-center gap-3 rounded-2xl bg-emerald-600 text-white pl-4 pr-2 py-2 shadow-2xl max-w-[92vw]">
           <WhatsAppIcon className="w-5 h-5 shrink-0" />
-          <span className="text-sm hidden sm:inline">Status update ready to send</span>
+          <span className="text-sm hidden sm:inline">{t.do_status_ready}</span>
           <a
             href={autoWhatsAppUrl}
             target="_blank"
@@ -1428,7 +1439,7 @@ export default function DeliveryOrdersPage() {
             onClick={() => setAutoWhatsAppUrl(null)}
             className="flex items-center h-11 px-4 rounded-xl bg-white/15 hover:bg-white/25 active:scale-95 transition-all text-sm font-bold whitespace-nowrap"
           >
-            Send on WhatsApp
+            {t.do_send_whatsapp}
           </a>
           <button onClick={() => setAutoWhatsAppUrl(null)} className="w-11 h-11 flex items-center justify-center opacity-70 hover:opacity-100 active:scale-90 transition-all shrink-0">
             <X className="w-4 h-4" />
