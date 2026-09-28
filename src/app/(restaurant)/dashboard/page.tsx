@@ -1,5 +1,5 @@
 'use client'
-import React, { useState, useEffect, useCallback, useRef, memo } from 'react'
+import React, { useState, useEffect, useLayoutEffect, useCallback, useRef, memo } from 'react'
 import { mutate as swrMutate } from 'swr'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -9,8 +9,10 @@ import {
   Utensils, Coffee, ChevronRight, Delete,
   CalendarDays, Phone, Check, AlertCircle, Loader2,
   ArrowRightLeft, Merge, X as XIcon, Truck, BellRing, Globe, Monitor, Shield, BarChart2,
-  Database, Wifi, KeyRound,
+  Database, Wifi, KeyRound, Move, RotateCcw, Square as SquareIcon, Circle as CircleIcon, RectangleHorizontal,
+  RotateCw, Trash2,
 } from 'lucide-react'
+import { DndContext, PointerSensor, TouchSensor, useSensor, useSensors, useDraggable, type DragEndEvent } from '@dnd-kit/core'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -19,11 +21,12 @@ import { createClient } from '@/lib/supabase/client'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { Lang, LANG_META } from '@/lib/i18n/translations'
-import { useDashboardTables, SWR_KEY, type DashboardFullData } from '@/hooks/useDashboardTables'
+import { useDashboardTables, SWR_KEY, type DashboardFullData, type FloorElement } from '@/hooks/useDashboardTables'
 import { useRestaurant } from '@/hooks/useRestaurant'
 import { usePermissions } from '@/lib/permissions/PermissionsContext'
 import { getStaffHome } from '@/lib/permissions/staffHome'
 import InvoiceModal from '@/components/restaurant/invoice-modal'
+import { FLOOR_ELEMENT_META, FLOOR_ELEMENT_KINDS, FloorElementArt, isFloorKind, type FloorElementKind } from '@/components/restaurant/FloorDecor'
 import InventoryNotificationBell from '@/components/restaurant/InventoryNotificationBell'
 import PrintQueueButton from '@/components/restaurant/PrintQueueButton'
 import { DailySalesModal } from '@/components/restaurant/daily-sales-modal'
@@ -47,6 +50,8 @@ interface Table {
   orderId?: string
   shape: 'square' | 'round' | 'rect'
   group_id?: string | null
+  posX?: number | null
+  posY?: number | null
 }
 
 interface WaiterCall {
@@ -382,6 +387,317 @@ function MergeTablesModal({ sourceTable, allTables, onClose, onMerged }: {
   )
 }
 
+// ── Floor Plan ────────────────────────────────────────────────
+type FloorPos = { x: number; y: number }
+
+const FLOOR_PAD       = 16    // breathing room past the outermost table
+const FLOOR_SNAP      = 10    // drops snap to a 10px grid so rows line up
+const FLOOR_MIN_SCALE = 0.6   // below this, scroll sideways instead of shrinking cards further
+const FLOOR_DROP_ROOM = 160   // extra canvas height while arranging, to drag tables lower
+const FLOOR_BLEED     = 8     // scroller overhang so badges/shadows at the edge aren't clipped
+
+const snapFloor = (n: number) => Math.max(0, Math.round(n / FLOOR_SNAP) * FLOOR_SNAP)
+
+// Tables with no saved spot (added after the plan was drawn) go in rows under it.
+function placeUnpositioned(tables: Table[], positions: Record<string, FloorPos>, width: number): Record<string, FloorPos> {
+  const out = { ...positions }
+  const placed = tables.filter(t => out[t.id])
+  let x = FLOOR_PAD
+  let y = placed.length ? Math.max(...placed.map(t => out[t.id].y)) + 180 : FLOOR_PAD
+  for (const t of tables) {
+    if (out[t.id]) continue
+    const w = t.shape === 'rect' ? 210 : 130
+    if (x + w > width && x > FLOOR_PAD) { x = FLOOR_PAD; y += 180 }
+    out[t.id] = { x, y }
+    x += w
+  }
+  return out
+}
+
+type TableShape = Table['shape']
+
+// DB stores the display names the table settings page uses.
+const SHAPE_DB: Record<TableShape, 'Square' | 'Round' | 'Rectangle'> = { square: 'Square', round: 'Round', rect: 'Rectangle' }
+
+function ShapePicker({ value, onChange }: { value: TableShape; onChange: (s: TableShape) => void }) {
+  const { t: tr } = useLanguage()
+  const options = [
+    { id: 'square', icon: SquareIcon,          label: tr.tbl_square },
+    { id: 'round',  icon: CircleIcon,          label: tr.tbl_round },
+    { id: 'rect',   icon: RectangleHorizontal, label: tr.tbl_rect },
+  ] as const
+  return (
+    <div className="flex gap-1 p-1 rounded-xl bg-[#0d1220]/95 border border-white/15 shadow-2xl backdrop-blur-xl">
+      {options.map(o => (
+        <button
+          key={o.id}
+          type="button"
+          title={o.label}
+          aria-label={o.label}
+          onClick={() => onChange(o.id)}
+          className={cn(
+            'w-9 h-9 rounded-lg flex items-center justify-center transition-all active:scale-90',
+            value === o.id ? 'bg-amber-500 text-white' : 'text-white/60 hover:bg-white/10 hover:text-white',
+          )}
+        >
+          <o.icon className="w-4 h-4" />
+        </button>
+      ))}
+    </div>
+  )
+}
+
+// Floating toolbar for the selected item: above it, or below it for items near
+// the top so it isn't clipped. Events stop here so using it never starts a drag.
+function FloorToolbarSlot({ y, children }: { y: number; children: React.ReactNode }) {
+  return (
+    <div
+      className={cn('absolute left-1/2 -translate-x-1/2 z-30 cursor-default', y >= 56 ? 'bottom-full mb-3' : 'top-full mt-3')}
+      onPointerDown={e => e.stopPropagation()}
+      onClick={e => e.stopPropagation()}
+    >
+      {children}
+    </div>
+  )
+}
+
+function ElementTools({ onRotate, onDelete }: { onRotate: () => void; onDelete: () => void }) {
+  const { t: tr } = useLanguage()
+  return (
+    <div className="flex gap-1 p-1 rounded-xl bg-[#0d1220]/95 border border-white/15 shadow-2xl backdrop-blur-xl">
+      <button type="button" title={tr.floor_rotate} aria-label={tr.floor_rotate} onClick={onRotate}
+        className="w-9 h-9 rounded-lg flex items-center justify-center text-white/60 hover:bg-white/10 hover:text-white transition-all active:scale-90">
+        <RotateCw className="w-4 h-4" />
+      </button>
+      <button type="button" title={tr.floor_delete} aria-label={tr.floor_delete} onClick={onDelete}
+        className="w-9 h-9 rounded-lg flex items-center justify-center text-rose-400 hover:bg-rose-500/15 transition-all active:scale-90">
+        <Trash2 className="w-4 h-4" />
+      </button>
+    </div>
+  )
+}
+
+function FloorElementItem({ el, scale, arranging, selected, onSelect, onChange, onDelete }: {
+  el: FloorElement & { kind: FloorElementKind }
+  scale: number; arranging: boolean; selected: boolean
+  onSelect: () => void
+  onChange: (patch: Partial<FloorElement>) => void
+  onDelete: () => void
+}) {
+  const { t: tr } = useLanguage()
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: `el:${el.id}`, disabled: !arranging })
+  const resizeFrom = useRef<{ x: number; y: number; w: number; h: number } | null>(null)
+  const nodeRef    = useRef<HTMLDivElement | null>(null)
+  const label = tr[FLOOR_ELEMENT_META[el.kind].label]
+
+  // A just-added item lands under the plan — bring it on screen.
+  useEffect(() => {
+    if (selected) nodeRef.current?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' })
+  }, [selected])
+
+  return (
+    <div
+      ref={node => { setNodeRef(node); nodeRef.current = node }}
+      title={label}
+      {...(arranging ? { ...attributes, ...listeners, onClick: onSelect } : {})}
+      className={cn(
+        'absolute',
+        // Decor never takes taps outside arranging, so the tables stay clickable.
+        arranging ? 'touch-none cursor-grab' : 'pointer-events-none',
+        isDragging && 'z-10 cursor-grabbing',
+        selected && 'z-20 outline-2 outline-offset-2 outline-amber-400',
+      )}
+      style={{
+        left: el.x, top: el.y, width: el.w, height: el.h,
+        transform: transform ? `translate3d(${transform.x / scale}px, ${transform.y / scale}px, 0)` : undefined,
+      }}
+    >
+      <FloorElementArt kind={el.kind} w={el.w} h={el.h} rot={el.rot} label={label} />
+      {selected && (
+        <>
+          <FloorToolbarSlot y={el.y}>
+            <ElementTools onRotate={() => onChange({ w: el.h, h: el.w, rot: (el.rot + 90) % 360 })} onDelete={onDelete} />
+          </FloorToolbarSlot>
+          {/* Resize handle: plain pointer capture, kept out of dnd-kit's drag. */}
+          <div
+            className="absolute -right-2.5 -bottom-2.5 w-5 h-5 rounded-full bg-amber-400 border-2 border-[#0d1220] cursor-nwse-resize touch-none"
+            onPointerDown={e => {
+              e.stopPropagation()
+              e.currentTarget.setPointerCapture(e.pointerId)
+              resizeFrom.current = { x: e.clientX, y: e.clientY, w: el.w, h: el.h }
+            }}
+            onPointerMove={e => {
+              const from = resizeFrom.current
+              if (!from) return
+              onChange({
+                w: Math.max(FLOOR_SNAP, snapFloor(from.w + (e.clientX - from.x) / scale)),
+                h: Math.max(FLOOR_SNAP, snapFloor(from.h + (e.clientY - from.y) / scale)),
+              })
+            }}
+            onPointerUp={() => { resizeFrom.current = null }}
+            onClick={e => e.stopPropagation()}
+          />
+        </>
+      )}
+    </div>
+  )
+}
+
+function FloorItem({ id, pos, scale, arranging, selected, onSelect, toolbar, children }: {
+  id: string; pos: FloorPos; scale: number; arranging: boolean
+  selected: boolean; onSelect: () => void; toolbar: React.ReactNode
+  children: React.ReactNode
+}) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id, disabled: !arranging })
+  return (
+    <div
+      ref={setNodeRef}
+      data-floor-card={id}
+      {...(arranging ? { ...attributes, ...listeners, onClick: onSelect } : {})}
+      className={cn(
+        'absolute',
+        arranging && 'touch-none cursor-grab rounded-2xl outline-2 outline-dashed outline-white/25 outline-offset-2',
+        isDragging && 'z-10 cursor-grabbing outline-white/60',
+        selected && 'z-20 outline-amber-400',
+      )}
+      style={{
+        left: pos.x, top: pos.y,
+        // dnd-kit reports screen px; the canvas is scaled, so undo it here.
+        transform: transform ? `translate3d(${transform.x / scale}px, ${transform.y / scale}px, 0)` : undefined,
+      }}
+    >
+      {selected && <FloorToolbarSlot y={pos.y}>{toolbar}</FloorToolbarSlot>}
+      {/* While arranging, the card itself must not see taps (no open-order / long-press). */}
+      <div className={cn(arranging && 'pointer-events-none')}>{children}</div>
+    </div>
+  )
+}
+
+function FloorPlan({ tables, positions, elements, arranging, selectedId, onSelect, onMove, onShape, onElementChange, onElementDelete, renderCard }: {
+  tables: Table[]
+  positions: Record<string, FloorPos>
+  elements: FloorElement[]
+  arranging: boolean
+  selectedId: string | null   // a table id, or `el:<id>` for decor
+  onSelect: (id: string | null) => void
+  onMove: (id: string, pos: FloorPos) => void
+  onShape: (id: string, shape: TableShape) => void
+  onElementChange: (id: string, patch: Partial<FloorElement>) => void
+  onElementDelete: (id: string) => void
+  renderCard: (t: Table) => React.ReactNode
+}) {
+  const outerRef  = useRef<HTMLDivElement>(null)
+  const canvasRef = useRef<HTMLDivElement>(null)
+  const [avail, setAvail] = useState(0)
+  const [sizes, setSizes] = useState<Record<string, { w: number; h: number }>>({})
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor,   { activationConstraint: { delay: 150, tolerance: 5 } }),
+  )
+
+  useLayoutEffect(() => {
+    const el = outerRef.current
+    if (!el) return
+    const ro = new ResizeObserver(() => setAvail(el.clientWidth - FLOOR_BLEED * 2))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
+  // Card sizes depend on status and design, so measure the real cards.
+  // offsetWidth/Height ignore the canvas scale transform.
+  const tableIds = tables.map(t => t.id).join(',')
+  useLayoutEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ro = new ResizeObserver(entries => setSizes(prev => {
+      let next = prev
+      for (const e of entries) {
+        const el = e.target as HTMLElement
+        const id = el.dataset.floorCard!
+        if (prev[id]?.w === el.offsetWidth && prev[id]?.h === el.offsetHeight) continue
+        if (next === prev) next = { ...prev }
+        next[id] = { w: el.offsetWidth, h: el.offsetHeight }
+      }
+      return next
+    }))
+    canvas.querySelectorAll<HTMLElement>('[data-floor-card]').forEach(c => ro.observe(c))
+    return () => ro.disconnect()
+  }, [tableIds])
+
+  // Known kinds only, drawn bottom-up by layer: zones, walls, doors/windows, decor.
+  const decor = elements
+    .filter((e): e is FloorElement & { kind: FloorElementKind } => isFloorKind(e.kind))
+    .sort((a, b) => FLOOR_ELEMENT_META[a.kind].layer - FLOOR_ELEMENT_META[b.kind].layer)
+
+  const placed = placeUnpositioned(tables, positions, avail || 800)
+  let extentW = 0, extentH = 0
+  for (const t of tables) {
+    const p = placed[t.id], sz = sizes[t.id] ?? { w: 120, h: 120 }
+    extentW = Math.max(extentW, p.x + sz.w)
+    extentH = Math.max(extentH, p.y + sz.h)
+  }
+  for (const e of decor) {
+    extentW = Math.max(extentW, e.x + e.w)
+    extentH = Math.max(extentH, e.y + e.h)
+  }
+  const width  = Math.max(extentW + FLOOR_PAD, avail)
+  const height = extentH + FLOOR_PAD + (arranging ? FLOOR_DROP_ROOM : 0)
+  const scale  = avail ? Math.max(FLOOR_MIN_SCALE, Math.min(1, avail / width)) : 1
+
+  const handleDragEnd = ({ active, delta }: DragEndEvent) => {
+    const id = String(active.id)
+    if (id.startsWith('el:')) {
+      const e = decor.find(d => `el:${d.id}` === id)
+      if (e) onElementChange(e.id, { x: snapFloor(e.x + delta.x / scale), y: snapFloor(e.y + delta.y / scale) })
+      return
+    }
+    const p = placed[id]
+    if (!p) return
+    onMove(id, { x: snapFloor(p.x + delta.x / scale), y: snapFloor(p.y + delta.y / scale) })
+  }
+
+  return (
+    <div ref={outerRef} className="overflow-x-auto" style={{ scrollbarWidth: 'none', margin: -FLOOR_BLEED, padding: FLOOR_BLEED }}>
+      <div className="relative" style={{ width: width * scale, height: height * scale }}>
+        <div
+          ref={canvasRef}
+          className={cn('absolute left-0 top-0 rounded-2xl transition-colors', arranging && 'bg-white/[0.03]')}
+          onClick={e => { if (arranging && e.target === e.currentTarget) onSelect(null) }}
+          style={{
+            width, height,
+            transform: `scale(${scale})`, transformOrigin: 'top left',
+            // faint dot grid while arranging so there is something to line tables up against
+            backgroundImage: arranging ? 'radial-gradient(rgba(255,255,255,0.12) 1px, transparent 1px)' : undefined,
+            backgroundSize: `${FLOOR_SNAP * 2}px ${FLOOR_SNAP * 2}px`,
+          }}
+        >
+          <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+            {decor.map(e => (
+              <FloorElementItem
+                key={e.id} el={e} scale={scale} arranging={arranging}
+                selected={arranging && selectedId === `el:${e.id}`}
+                onSelect={() => onSelect(`el:${e.id}`)}
+                onChange={patch => onElementChange(e.id, patch)}
+                onDelete={() => onElementDelete(e.id)}
+              />
+            ))}
+            {tables.map(t => (
+              <FloorItem
+                key={t.id} id={t.id} pos={placed[t.id]} scale={scale} arranging={arranging}
+                selected={arranging && selectedId === t.id}
+                onSelect={() => onSelect(t.id)}
+                toolbar={<ShapePicker value={t.shape} onChange={shape => onShape(t.id, shape)} />}
+              >
+                {renderCard(t)}
+              </FloorItem>
+            ))}
+          </DndContext>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Glow Design: Top-Down Table SVG Illustration ──────────────
 function GlowTableSvg({ shape, color }: { shape: 'round' | 'square' | 'rect', color: string }) {
   const seat:  React.CSSProperties = { fill: color, opacity: 0.55 }
@@ -526,7 +842,7 @@ const CYBER_COLOR: Record<TableStatus, string> = {
   bill_requested: '#fca5a5',
 }
 
-const TableCard = memo(function TableCard({ table, onSelect, onLongPress, formatPrice, hasWaiterCall, design = 'glass' }: {
+const TableCard = memo(function TableCard({ table, onSelect, onLongPress, formatPrice, hasWaiterCall, design = 'glass', fixedSize = false }: {
   table: Table
   onSelect: (t: Table) => void
   onLongPress: (t: Table) => void
@@ -534,6 +850,7 @@ const TableCard = memo(function TableCard({ table, onSelect, onLongPress, format
   formatPrice: (n: number) => string
   hasWaiterCall?: boolean
   design?: TableDesign
+  fixedSize?: boolean   // floor plan: plain px so saved positions line up on every screen
 }) {
   const { t: tr } = useLanguage()
   const STATUS_LABELS: Record<TableStatus, string> = {
@@ -561,51 +878,54 @@ const TableCard = memo(function TableCard({ table, onSelect, onLongPress, format
   const isRect  = table.shape === 'rect'
   const shapeRadius = isRound ? '50%' : '16px'
 
+  // Grid cards shrink with the viewport on phones; floor-plan cards keep their px size.
+  const sz = (px: number, vw: number) => fixedSize ? `${px}px` : `min(${px}px, ${vw}vw)`
+
   let cardW: string, cardH: string
   if (design === 'glass') {
     const w = isRound ? (isOccupied ? 110 : 90) : isRect ? (isOccupied ? 190 : 175) : (isOccupied ? 110 : 90)
     const h = isOccupied ? 110 : 90
-    cardW   = isRound ? `min(${w}px, 26vw)` : `min(${w}px, 44vw)`
-    cardH   = isRound ? `min(${h}px, 26vw)` : `min(${h}px, 25vw)`
+    cardW   = isRound ? sz(w, 26) : sz(w, 44)
+    cardH   = isRound ? sz(h, 26) : sz(h, 25)
   } else if (design === 'vibrant') {
     if (isRect) {
-      cardW = isOccupied ? 'min(190px, 46vw)' : 'min(175px, 42vw)'
-      cardH = isOccupied ? 'min(120px, 28vw)' : 'min(105px, 26vw)'
+      cardW = isOccupied ? sz(190, 46) : sz(175, 42)
+      cardH = isOccupied ? sz(120, 28) : sz(105, 26)
     } else {
-      cardW = isOccupied ? 'min(120px, 28vw)' : 'min(105px, 26vw)'
+      cardW = isOccupied ? sz(120, 28) : sz(105, 26)
       cardH = cardW
     }
   } else if (design === 'glow') {
     if (isRect) {
-      cardW = 'min(200px, 48vw)'
-      cardH = isOccupied ? 'min(165px, 40vw)' : 'min(148px, 36vw)'
+      cardW = sz(200, 48)
+      cardH = isOccupied ? sz(165, 40) : sz(148, 36)
     } else {
       // round & square: portrait to fit SVG illustration + info strip
-      cardW = 'min(120px, 29vw)'
-      cardH = isOccupied ? 'min(165px, 40vw)' : 'min(148px, 36vw)'
+      cardW = sz(120, 29)
+      cardH = isOccupied ? sz(165, 40) : sz(148, 36)
     }
   } else if (design === 'neon') {
     if (isRect) {
-      cardW = isOccupied ? 'min(190px, 46vw)' : 'min(175px, 42vw)'
-      cardH = isOccupied ? 'min(110px, 27vw)' : 'min(92px, 23vw)'
+      cardW = isOccupied ? sz(190, 46) : sz(175, 42)
+      cardH = isOccupied ? sz(110, 27) : sz(92, 23)
     } else {
-      cardW = isOccupied ? 'min(110px, 27vw)' : 'min(92px, 23vw)'
+      cardW = isOccupied ? sz(110, 27) : sz(92, 23)
       cardH = cardW
     }
   } else if (design === 'minimal') {
     if (isRect) {
-      cardW = isOccupied ? 'min(190px, 46vw)' : 'min(170px, 41vw)'
-      cardH = isOccupied ? 'min(108px, 26vw)' : 'min(88px, 22vw)'
+      cardW = isOccupied ? sz(190, 46) : sz(170, 41)
+      cardH = isOccupied ? sz(108, 26) : sz(88, 22)
     } else {
-      cardW = isOccupied ? 'min(108px, 26vw)' : 'min(88px, 22vw)'
+      cardW = isOccupied ? sz(108, 26) : sz(88, 22)
       cardH = cardW
     }
   } else { // cyberpunk
     if (isRect) {
-      cardW = isOccupied ? 'min(190px, 46vw)' : 'min(175px, 42vw)'
-      cardH = isOccupied ? 'min(115px, 28vw)' : 'min(96px, 24vw)'
+      cardW = isOccupied ? sz(190, 46) : sz(175, 42)
+      cardH = isOccupied ? sz(115, 28) : sz(96, 24)
     } else {
-      cardW = isOccupied ? 'min(115px, 28vw)' : 'min(96px, 24vw)'
+      cardW = isOccupied ? sz(115, 28) : sz(96, 24)
       cardH = cardW
     }
   }
@@ -1212,6 +1532,15 @@ export default function TablesPage() {
   const [reservationDetail, setReservationDetail] = useState<{ id: string; guest_name: string; guest_phone: string | null; party_size: number; date: string; time: string; note: string | null; status: string } | null>(null)
   const [moveTableSource, setMoveTableSource]   = useState<Table | null>(null)
   const [mergeTableSource, setMergeTableSource] = useState<Table | null>(null)
+  const [arranging, setArranging]       = useState(false)
+  const [layoutDraft, setLayoutDraft]   = useState<Record<string, FloorPos>>({})
+  const [shapeDraft, setShapeDraft]     = useState<Record<string, TableShape>>({})
+  const [elementsDraft, setElementsDraft] = useState<FloorElement[]>([])
+  const [floorSelected, setFloorSelected] = useState<string | null>(null)
+  const [savingLayout, setSavingLayout] = useState(false)
+  const [layoutError, setLayoutError]   = useState<string | null>(null)
+  const [confirmReset, setConfirmReset] = useState(false)
+  const tablesAreaRef = useRef<HTMLDivElement>(null)
   const [printBillTable, setPrintBillTable] = useState<Table | null>(null)
   const [time, setTime] = useState(new Date())
   const [pendingCount, setPendingCount]           = useState(0)
@@ -1564,6 +1893,108 @@ export default function TablesPage() {
     else handleSelect(t)
   }, [handleSelect])
 
+  // ── Floor plan ──
+  // A plan belongs to one area, so it applies when there are no groups or one
+  // group is shown; "all groups" keeps the grid so separate plans don't overlap.
+  const canArrange  = isOwner || can('dashboard.btn_settings')
+  const floorScope  = groups.length === 0 || groupFilter !== 'all'
+  const scopeTables = tables.filter(t => groupFilter === 'all' || t.group_id === groupFilter)
+  const savedPositions: Record<string, FloorPos> = {}
+  for (const t of scopeTables) if (t.posX != null && t.posY != null) savedPositions[t.id] = { x: t.posX, y: t.posY }
+  const scopeGroupId  = groupFilter === 'all' ? null : groupFilter
+  const scopeElements = ((swrData?.floorElements ?? []) as FloorElement[]).filter(e => (e.group_id ?? null) === scopeGroupId)
+  const floorActive = floorScope && (arranging || Object.keys(savedPositions).length > 0 || scopeElements.length > 0)
+
+  const startArranging = () => {
+    // Seed the draft from what is on screen — saved spots, or else the grid as
+    // it is laid out right now — so nothing jumps when arranging starts.
+    let draft: Record<string, FloorPos> = { ...savedPositions }
+    const area = tablesAreaRef.current
+    if (area && Object.keys(draft).length === 0) {
+      area.querySelectorAll<HTMLElement>('[data-table-id]').forEach(el => {
+        draft[el.dataset.tableId!] = { x: snapFloor(el.offsetLeft), y: snapFloor(el.offsetTop) }
+      })
+    }
+    draft = placeUnpositioned(scopeTables, draft, area?.clientWidth || 800)
+    setFilter('all')
+    setLayoutDraft(draft)
+    setShapeDraft({})
+    setElementsDraft(scopeElements)
+    setFloorSelected(null)
+    setLayoutError(null)
+    setConfirmReset(false)
+    setArranging(true)
+  }
+
+  const cancelArranging = () => { setArranging(false); setFloorSelected(null); setConfirmReset(false); setLayoutError(null) }
+
+  // New decor goes below everything already on the plan, then gets selected.
+  const addFloorElement = (kind: FloorElementKind) => {
+    const meta = FLOOR_ELEMENT_META[kind]
+    const bottom = Math.max(0,
+      ...Object.values(layoutDraft).map(p => p.y + 170),   // 170 ≈ tallest table card
+      ...elementsDraft.map(e => e.y + e.h))
+    const el: FloorElement = { id: crypto.randomUUID(), group_id: scopeGroupId, kind, x: FLOOR_PAD, y: snapFloor(bottom + 20), w: meta.w, h: meta.h, rot: 0 }
+    setElementsDraft(d => [...d, el])
+    setFloorSelected(`el:${el.id}`)
+  }
+
+  // While arranging, cards show the drafted shape so the change is visible before saving.
+  const floorTables = arranging
+    ? filtered.map(t => shapeDraft[t.id] && shapeDraft[t.id] !== t.shape ? { ...t, shape: shapeDraft[t.id] } : t)
+    : filtered
+
+  const saveLayout = async () => {
+    setSavingLayout(true)
+    setLayoutError(null)
+    const supabase = createClient()
+    const changed = scopeTables.filter(t => {
+      const p = layoutDraft[t.id], shape = shapeDraft[t.id]
+      return (p && (p.x !== t.posX || p.y !== t.posY)) || (shape && shape !== t.shape)
+    })
+    const savedDecor = new Map(scopeElements.map(e => [e.id, e]))
+    const decorUpserts = elementsDraft.filter(d => {
+      const saved = savedDecor.get(d.id)
+      return !saved || saved.x !== d.x || saved.y !== d.y || saved.w !== d.w || saved.h !== d.h || saved.rot !== d.rot
+    })
+    const decorRemoved = scopeElements.filter(e => !elementsDraft.some(d => d.id === e.id))
+    const results = await Promise.all([
+      ...changed.map(t => {
+        const p = layoutDraft[t.id], shape = shapeDraft[t.id]
+        return supabase.from('tables').update({
+          ...(p ? { pos_x: p.x, pos_y: p.y } : {}),
+          ...(shape && shape !== t.shape ? { shape: SHAPE_DB[shape] } : {}),
+        }).eq('id', t.id)
+      }),
+      ...(decorUpserts.length ? [supabase.from('floor_elements').upsert(decorUpserts.map(e => ({ ...e, restaurant_id: cachedRestaurantId })))] : []),
+      ...(decorRemoved.length ? [supabase.from('floor_elements').delete().in('id', decorRemoved.map(e => e.id))] : []),
+    ])
+    if (results.some(r => r.error)) { setSavingLayout(false); setLayoutError(tr.dash_arrange_error); return }
+    await swrMutate(SWR_KEY(cachedRestaurantId!))
+    setSavingLayout(false)
+    setFloorSelected(null)
+    setArranging(false)
+  }
+
+  // Two taps: the first arms the button, the second wipes this area's plan.
+  const resetLayout = async () => {
+    if (!confirmReset) { setConfirmReset(true); return }
+    setSavingLayout(true)
+    setLayoutError(null)
+    const supabase = createClient()
+    const { error } = await supabase.from('tables')
+      .update({ pos_x: null, pos_y: null }).in('id', scopeTables.map(t => t.id))
+    const { error: decorError } = scopeElements.length
+      ? await supabase.from('floor_elements').delete().in('id', scopeElements.map(e => e.id))
+      : { error: null }
+    setConfirmReset(false)
+    if (error || decorError) { setSavingLayout(false); setLayoutError(tr.dash_arrange_error); return }
+    await swrMutate(SWR_KEY(cachedRestaurantId!))
+    setSavingLayout(false)
+    setFloorSelected(null)
+    setArranging(false)
+  }
+
   return (
     <div className="min-h-screen flex flex-col" style={{ background: 'var(--app-bg, #022658)' }}>
 
@@ -1884,7 +2315,7 @@ export default function TablesPage() {
       <div className="flex-1 p-3 sm:p-4">
         {/* Group tabs */}
         {groups.length > 0 && (
-          <div className="flex gap-2 mb-3 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+          <div className={cn('flex gap-2 mb-3 overflow-x-auto pb-1', arranging && 'pointer-events-none opacity-40')} style={{ scrollbarWidth: 'none' }}>
             <button
               onClick={() => setGroupFilter('all')}
               className={cn(
@@ -1921,19 +2352,87 @@ export default function TablesPage() {
                 : `${filtered.length}`}
             </span>
           </div>
-          <button
-            onClick={() => { setFilter('all'); setGroupFilter('all') }}
-            className={cn(
-              'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-all active:scale-95',
-              filter !== 'all' || groupFilter !== 'all' ? 'bg-white/10 text-white/70 border border-white/15' : 'text-white/25'
-            )}
-          >
-            <RefreshCw className="w-3 h-3" />
-            {filter !== 'all' || groupFilter !== 'all' ? tr.show_all : tr.all_shown}
-          </button>
+          {arranging ? (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={resetLayout}
+                disabled={savingLayout}
+                className={cn(
+                  'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border transition-all active:scale-95 disabled:opacity-50',
+                  confirmReset ? 'bg-rose-500/20 border-rose-500/40 text-rose-300' : 'bg-white/5 border-white/10 text-white/50 hover:text-white/80'
+                )}
+              >
+                <RotateCcw className="w-3 h-3" />
+                {confirmReset ? tr.dash_arrange_confirm : tr.dash_arrange_reset}
+              </button>
+              <button
+                onClick={cancelArranging}
+                disabled={savingLayout}
+                className="px-3 py-1.5 rounded-lg text-xs bg-white/5 border border-white/10 text-white/50 hover:text-white/80 transition-all active:scale-95 disabled:opacity-50"
+              >
+                {tr.cancel}
+              </button>
+              <button
+                onClick={saveLayout}
+                disabled={savingLayout}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 text-white hover:bg-amber-600 transition-all active:scale-95 disabled:opacity-50"
+              >
+                {savingLayout ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                {tr.dash_arrange_save}
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              {canArrange && floorScope && swrData && (
+                <button
+                  onClick={startArranging}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-white/5 border border-white/10 text-white/50 hover:text-white/80 transition-all active:scale-95"
+                >
+                  <Move className="w-3 h-3" />
+                  {tr.dash_arrange}
+                </button>
+              )}
+              <button
+                onClick={() => { setFilter('all'); setGroupFilter('all') }}
+                className={cn(
+                  'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-all active:scale-95',
+                  filter !== 'all' || groupFilter !== 'all' ? 'bg-white/10 text-white/70 border border-white/15' : 'text-white/25'
+                )}
+              >
+                <RefreshCw className="w-3 h-3" />
+                {filter !== 'all' || groupFilter !== 'all' ? tr.show_all : tr.all_shown}
+              </button>
+            </div>
+          )}
         </div>
 
-        {/* Tables grid — shimmer skeleton on first load, staggered cards once data arrives */}
+        {arranging && (
+          <>
+            <p className={cn('text-xs mb-3', layoutError ? 'text-red-400' : 'text-white/40')}>
+              {layoutError ?? tr.dash_arrange_hint}
+            </p>
+            <div className="flex items-center gap-2 mb-3 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+              <span className="shrink-0 text-xs text-white/40">{tr.floor_add}</span>
+              {FLOOR_ELEMENT_KINDS.map(kind => {
+                const meta = FLOOR_ELEMENT_META[kind]
+                return (
+                  <button
+                    key={kind}
+                    onClick={() => addFloorElement(kind)}
+                    className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-white/5 border border-white/10 text-white/60 hover:text-white hover:bg-white/10 transition-all active:scale-95"
+                  >
+                    <meta.icon className="w-3.5 h-3.5" />
+                    {tr[meta.label]}
+                  </button>
+                )
+              })}
+            </div>
+          </>
+        )}
+
+        {/* Tables grid — shimmer skeleton on first load, staggered cards once data arrives.
+            An area with a saved floor plan shows the plan instead. */}
+        <div ref={tablesAreaRef} className="relative">
         {!swrData ? (
           <div className="flex flex-wrap gap-2">
             {Array.from({ length: 12 }).map((_, i) => (
@@ -1943,6 +2442,22 @@ export default function TablesPage() {
               />
             ))}
           </div>
+        ) : floorActive ? (
+          <FloorPlan
+            tables={floorTables}
+            positions={arranging ? layoutDraft : savedPositions}
+            arranging={arranging}
+            selectedId={floorSelected}
+            onSelect={setFloorSelected}
+            onMove={(id, pos) => setLayoutDraft(d => ({ ...d, [id]: pos }))}
+            onShape={(id, shape) => setShapeDraft(d => ({ ...d, [id]: shape }))}
+            elements={arranging ? elementsDraft : scopeElements}
+            onElementChange={(id, patch) => setElementsDraft(d => d.map(e => e.id === id ? { ...e, ...patch } : e))}
+            onElementDelete={id => { setElementsDraft(d => d.filter(e => e.id !== id)); setFloorSelected(null) }}
+            renderCard={table => (
+              <TableCard table={table} hasWaiterCall={waiterCalls.some(c => c.table_number === table.label)} onSelect={handleSelect} onLongPress={handleLongPress} cur={cur} formatPrice={formatPrice} design={tableDesign} fixedSize />
+            )}
+          />
         ) : (
           <motion.div
             key={`${filter}-${groupFilter}`}
@@ -1954,6 +2469,7 @@ export default function TablesPage() {
             {filtered.map(table => (
               <motion.div
                 key={table.id}
+                data-table-id={table.id}
                 variants={{ hidden: { opacity: 0, y: 4 }, visible: { opacity: 1, y: 0, transition: { duration: 0.14, ease: 'easeOut' } } }}
               >
                 <TableCard table={table} hasWaiterCall={waiterCalls.some(c => c.table_number === table.label)} onSelect={handleSelect} onLongPress={handleLongPress} cur={cur} formatPrice={formatPrice} design={tableDesign} />
@@ -1961,6 +2477,7 @@ export default function TablesPage() {
             ))}
           </motion.div>
         )}
+        </div>
       </div>
 
       {/* Bottom action bar */}

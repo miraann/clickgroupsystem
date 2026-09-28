@@ -10,6 +10,8 @@ export interface TableWithStatus {
   capacity: number
   shape: 'square' | 'round' | 'rect'
   group_id: string | null
+  posX: number | null   // floor-plan position (px); null = not placed
+  posY: number | null
   status: TableStatus
   guests?: number
   orderTotal?: number
@@ -17,12 +19,39 @@ export interface TableWithStatus {
   orderId?: string
 }
 
+// Walls, doors, planters… drawn on the floor plan (migration 20260928_05).
+export interface FloorElement {
+  id: string
+  group_id: string | null
+  kind: string
+  x: number
+  y: number
+  w: number
+  h: number
+  rot: number   // clockwise degrees: 0/90/180/270 (migration 20260928_06)
+}
+
 export interface DashboardFullData {
   tables: TableWithStatus[]
   groups: { id: string; name: string; color: string }[]
+  floorElements: FloorElement[]
 }
 
 export const SWR_KEY = (restaurantId: string) => `dashboard-tables-v1-${restaurantId}`
+
+const TABLE_COLS = 'id, seq, table_number, capacity, shape, group_id, status'
+
+// pos_x/pos_y arrive with migration 20260928_04. Until it runs, PostgREST
+// rejects the whole select (42703) — retry without them so the grid still loads.
+async function fetchTables(supabase: ReturnType<typeof createClient>, restaurantId: string) {
+  const res = await supabase.from('tables')
+    .select(`${TABLE_COLS}, pos_x, pos_y`)
+    .eq('restaurant_id', restaurantId).eq('active', true).order('table_number')
+  if (res.error?.code !== '42703') return res
+  return supabase.from('tables')
+    .select(TABLE_COLS)
+    .eq('restaurant_id', restaurantId).eq('active', true).order('table_number')
+}
 
 async function fetchDashboardData(restaurantId: string): Promise<DashboardFullData> {
   const supabase = createClient()
@@ -35,10 +64,9 @@ async function fetchDashboardData(restaurantId: string): Promise<DashboardFullDa
     { data: orders },
     { data: grps },
     { data: todayRes },
+    { data: floorElements },
   ] = await Promise.all([
-    supabase.from('tables')
-      .select('id, seq, table_number, capacity, shape, group_id, status')
-      .eq('restaurant_id', restaurantId).eq('active', true).order('table_number'),
+    fetchTables(supabase, restaurantId),
     supabase.from('orders')
       .select('id, table_number, guests, total, created_at')
       .eq('restaurant_id', restaurantId).eq('status', 'active'),
@@ -50,6 +78,11 @@ async function fetchDashboardData(restaurantId: string): Promise<DashboardFullDa
       .eq('restaurant_id', restaurantId)
       .eq('date', today)
       .in('status', ['pending', 'confirmed']),
+    // Errors (e.g. table not migrated yet) just mean no decor — data is null.
+    // `*` so rows still load before `rot` exists (20260928_06).
+    supabase.from('floor_elements')
+      .select('*')
+      .eq('restaurant_id', restaurantId),
   ])
 
   // Verify each active order still has non-void items; auto-close ones whose
@@ -102,6 +135,8 @@ async function fetchDashboardData(restaurantId: string): Promise<DashboardFullDa
       capacity: t.capacity ?? 4,
       shape:    (t.shape === 'Rectangle' ? 'rect' : (t.shape ?? 'Square').toLowerCase()) as TableWithStatus['shape'],
       group_id: t.group_id ?? null,
+      posX:     (t as { pos_x?: number | null }).pos_x ?? null,
+      posY:     (t as { pos_y?: number | null }).pos_y ?? null,
     }
     const order = orderMap.get(base.number)
     if (order) return { ...base, status: 'occupied' as const, guests: order.guests, orderTotal: order.total, openedAt: order.openedAt, orderId: order.orderId }
@@ -113,6 +148,10 @@ async function fetchDashboardData(restaurantId: string): Promise<DashboardFullDa
   return {
     tables,
     groups: (grps ?? []) as { id: string; name: string; color: string }[],
+    floorElements: (floorElements ?? []).map((e): FloorElement => ({
+      id: e.id, group_id: e.group_id ?? null, kind: e.kind,
+      x: e.x, y: e.y, w: e.w, h: e.h, rot: e.rot ?? 0,
+    })),
   }
 }
 

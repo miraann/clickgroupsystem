@@ -349,7 +349,7 @@ export default function PaymentScreen({ orderId, restaurantId, orderNum: orderNu
             ...prev,
             tables: prev.tables.map(t =>
               t.number === tableSeq
-                ? { id: t.id, number: t.number, label: t.label, capacity: t.capacity, shape: t.shape, group_id: t.group_id, status: 'dirty' as const }
+                ? { id: t.id, number: t.number, label: t.label, capacity: t.capacity, shape: t.shape, group_id: t.group_id, posX: t.posX, posY: t.posY, status: 'dirty' as const }
                 : t
             ),
           }
