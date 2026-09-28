@@ -92,6 +92,11 @@ const NAV_GROUPS: NavGroup[] = [
   },
 ]
 
+// Icon-over-label nav buttons; width grows with the label so longer
+// translations (e.g. نوێکردنەوە) don't clip
+const NAV_BTN   = 'min-w-16 h-[54px] px-1.5 shrink-0 rounded-2xl border flex flex-col items-center justify-center gap-1 active:scale-95 transition-all'
+const NAV_LABEL = 'text-xs font-semibold leading-none whitespace-nowrap'
+
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router   = useRouter()
@@ -133,30 +138,35 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
 
       {/* Top bar */}
       <header className="sticky top-0 z-30 border-b border-white/8 backdrop-blur-2xl" style={{ background: 'var(--app-anchor-80, rgba(2,38,88,0.8))' }}>
-        <div className="flex items-center gap-3 px-5 py-4">
+        {/* Nav buttons sit on the physical left in both LTR and RTL (row-reverse
+            in RTL), breadcrumb right after them — matches the order screen */}
+        <div className={cn('flex items-center gap-3 px-5 py-4', isRTL && 'flex-row-reverse')}>
           {/* Back: home → dashboard, sub-page → settings home */}
           <button
             onClick={() => router.push(isHome ? '/dashboard' : '/dashboard/settings')}
-            className="w-[54px] h-[54px] rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
+            className={cn(NAV_BTN, 'bg-red-700 border-red-700 text-white hover:bg-red-600')}
           >
-            <ArrowLeft className={cn('w-6 h-6', isRTL && 'rotate-180')} />
+            <ArrowLeft className="w-6 h-6" />
+            <span className={NAV_LABEL}>{t.back}</span>
           </button>
 
           <button
             onClick={() => router.push('/dashboard')}
-            className="w-[54px] h-[54px] rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
+            className={cn(NAV_BTN, 'bg-orange-500 border-orange-500 text-white hover:bg-orange-400')}
           >
             <Home className="w-6 h-6" />
+            <span className={NAV_LABEL}>{t.ord_home}</span>
           </button>
 
           <button
             onClick={() => window.location.reload()}
-            className="w-[54px] h-[54px] rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
+            className={cn(NAV_BTN, 'bg-blue-600 border-blue-600 text-white hover:bg-blue-500')}
           >
-            <RefreshCw className="w-5 h-5" />
+            <RefreshCw className="w-6 h-6" />
+            <span className={NAV_LABEL}>{t.ord_refresh}</span>
           </button>
 
-          <div className="flex-1 min-w-0">
+          <div className="min-w-0">
             <div className="flex items-center gap-1.5 text-xs">
               {isHome ? (
                 <span className="text-white/60 font-medium">{t.nav_settings}</span>

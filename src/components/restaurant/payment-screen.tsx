@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { ArrowLeft, Users, Printer, Loader2, Check, X, CreditCard, Star, MessageCircle, Pencil } from 'lucide-react'
+import { ArrowLeft, Users, Printer, Loader2, Check, X, CreditCard, Star, MessageCircle, Pencil, Home, RefreshCw } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import InvoiceModal from './invoice-modal'
@@ -48,7 +49,12 @@ const ACTION_TABS: { id: ActionTab; labelKey: 'pay_tab_surcharge' | 'pay_tab_gra
   { id: 'paylater',  labelKey: 'pay_tab_paylater',  inactive: 'text-rose-400/80    bg-rose-500/15    hover:bg-rose-500/25',   active: 'text-white bg-rose-500'   },
 ]
 
+// Square, edge-to-edge back / home / refresh tiles in the summary row
+const NAV_TILE  = 'w-20 py-3 flex flex-col items-center justify-center gap-1 text-white active:scale-95 transition-all touch-manipulation'
+const NAV_LABEL = 'text-xs font-semibold leading-none whitespace-nowrap'
+
 export default function PaymentScreen({ orderId, restaurantId, orderNum: orderNumProp, tableNum, cfdTableKey, guests, items, total, onClose, onPaid }: Props) {
+  const router = useRouter()
   const { can, isOwner, isPinStaff, staffName, roleName } = usePermissions()
   const { t, isRTL } = useLanguage()
   const p = (key: string) => isOwner || can(key)
@@ -528,16 +534,27 @@ export default function PaymentScreen({ orderId, restaurantId, orderNum: orderNu
             </div>
           </div>
 
-          {/* Summary row — led by the back button on tablet/desktop, so there's
-              no separate full-width bar just for it */}
-          <div className="shrink-0 flex items-stretch border-b border-white/8">
-            <button
-              onClick={onClose}
-              className="hidden md:flex w-20 shrink-0 items-center justify-center border-e border-white/8 bg-black/20 text-white/50 hover:text-white hover:bg-white/5 active:scale-95 transition-all touch-manipulation"
-            >
-              <ArrowLeft className={cn('w-7 h-7', isRTL && 'rotate-180')} />
-            </button>
-            <div className="flex-1 min-w-0 grid grid-cols-4 divide-x divide-white/8">
+          {/* Summary row — led by the back / home / refresh tiles on
+              tablet/desktop, so there's no separate full-width bar just for
+              them. Tiles sit on the physical left in both LTR and RTL
+              (row-reverse in RTL). Below xl there isn't room for tiles + four
+              totals on one line, so the totals wrap underneath. */}
+          <div className={cn('shrink-0 flex flex-wrap items-stretch border-b border-white/8', isRTL && 'flex-row-reverse')}>
+            <div className={cn('hidden md:flex shrink-0', isRTL && 'flex-row-reverse')}>
+              <button onClick={onClose} className={cn(NAV_TILE, 'bg-red-700 hover:bg-red-600')}>
+                <ArrowLeft className="w-6 h-6" />
+                <span className={NAV_LABEL}>{t.back}</span>
+              </button>
+              <button onClick={() => router.push('/dashboard')} className={cn(NAV_TILE, 'bg-orange-500 hover:bg-orange-400')}>
+                <Home className="w-6 h-6" />
+                <span className={NAV_LABEL}>{t.ord_home}</span>
+              </button>
+              <button onClick={() => window.location.reload()} className={cn(NAV_TILE, 'bg-blue-600 hover:bg-blue-500')}>
+                <RefreshCw className="w-6 h-6" />
+                <span className={NAV_LABEL}>{t.ord_refresh}</span>
+              </button>
+            </div>
+            <div className="flex-1 min-w-0 md:min-w-[32rem] grid grid-cols-4 divide-x divide-white/8">
               {[
                 { label: t.pay_total,  value: formatPrice(finalTotal),                                              color: 'text-white' },
                 { label: t.pay_pay,    value: formatPrice(payAmount),                                                color: 'text-amber-400' },

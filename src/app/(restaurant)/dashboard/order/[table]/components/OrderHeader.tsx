@@ -8,7 +8,6 @@ interface Props {
   isTakeout:    boolean
   takeoutName:  string | null
   takeoutPhone: string | null
-  orderId:      string | null
   guestCount:   number
   grandTotal:    number
   formatPrice:   (n: number) => string
@@ -16,37 +15,46 @@ interface Props {
   onGuestEdit:   () => void
 }
 
+// Icon-over-label nav buttons; width grows with the label so longer
+// translations (e.g. نوێکردنەوە) don't clip
+const NAV_BTN   = 'min-w-12 h-11 sm:min-w-16 sm:h-14 px-1.5 rounded-xl sm:rounded-2xl border flex flex-col items-center justify-center gap-0.5 sm:gap-1 active:scale-95 transition-all touch-manipulation'
+const NAV_LABEL = 'text-[10px] sm:text-xs font-semibold leading-none whitespace-nowrap'
+
 export function OrderHeader({
   table, isTakeout, takeoutName, takeoutPhone,
-  orderId, guestCount, grandTotal, formatPrice, canGuestEdit, onGuestEdit,
+  guestCount, grandTotal, formatPrice, canGuestEdit, onGuestEdit,
 }: Props) {
   const router = useRouter()
-  const { t: tr } = useLanguage()
+  const { t: tr, isRTL } = useLanguage()
 
+  // The nav buttons sit on the physical left in both LTR and RTL:
+  // row-reverse in RTL keeps the same left-to-right layout as LTR
   return (
-    <header className="shrink-0 flex items-center justify-between px-4 py-3 sm:px-5 sm:py-4 border-b border-white/8 backdrop-blur-2xl" style={{ background: 'var(--app-anchor-80, rgba(2,38,88,0.8))' }}>
-      <div className="flex items-center gap-3 sm:gap-4">
+    <header className={`shrink-0 flex ${isRTL ? 'flex-row-reverse' : ''} items-center justify-between px-4 py-3 sm:px-5 sm:py-4 border-b border-white/8 backdrop-blur-2xl`} style={{ background: 'var(--app-anchor-80, rgba(2,38,88,0.8))' }}>
+      <div className={`flex ${isRTL ? 'flex-row-reverse' : ''} items-center gap-3 sm:gap-4`}>
         <div className="flex items-center gap-1.5 sm:gap-2">
+          {/* Back is the leftmost of the group (order-last flips it in RTL)
+              — matches the payment screen */}
           <button
             onClick={() => router.back()}
-            aria-label={tr.back}
-            className="w-11 h-11 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 active:scale-95 transition-all touch-manipulation"
+            className={`${isRTL ? 'order-last' : ''} ${NAV_BTN} bg-red-700 border-red-700 text-white hover:bg-red-600`}
           >
-            <ArrowLeft className="w-5 h-5 sm:w-7 sm:h-7 scale-x-[-1]" />
+            <ArrowLeft className="w-5 h-5 sm:w-6 sm:h-6" />
+            <span className={NAV_LABEL}>{tr.back}</span>
           </button>
           <button
             onClick={() => window.location.reload()}
-            aria-label={tr.ord_refresh}
-            className="w-11 h-11 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 active:scale-95 transition-all touch-manipulation"
+            className={`${NAV_BTN} bg-blue-600 border-blue-600 text-white hover:bg-blue-500`}
           >
             <RefreshCw className="w-5 h-5 sm:w-6 sm:h-6" />
+            <span className={NAV_LABEL}>{tr.ord_refresh}</span>
           </button>
           <button
             onClick={() => router.push('/dashboard')}
-            aria-label={tr.ord_home}
-            className="w-11 h-11 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 active:scale-95 transition-all touch-manipulation"
+            className={`${NAV_BTN} bg-orange-500 border-orange-500 text-white hover:bg-orange-400`}
           >
             <Home className="w-5 h-5 sm:w-6 sm:h-6" />
+            <span className={NAV_LABEL}>{tr.ord_home}</span>
           </button>
         </div>
         <div>
@@ -73,9 +81,6 @@ export function OrderHeader({
               </>
             )}
           </div>
-          <p className="text-xs sm:text-[13px] text-white/25 mt-0.5">
-            {isTakeout ? tr.ord_takeout : tr.ord_dine_in} · #{orderId?.slice(-6).toUpperCase()}
-          </p>
         </div>
       </div>
       {grandTotal > 0 && (

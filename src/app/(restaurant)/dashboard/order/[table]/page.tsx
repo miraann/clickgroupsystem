@@ -154,7 +154,6 @@ function OrderPage() {
         isTakeout={isTakeout}
         takeoutName={takeoutName}
         takeoutPhone={takeoutPhone}
-        orderId={order.orderId}
         guestCount={guestCount}
         grandTotal={order.grandTotal}
         formatPrice={formatPrice}
