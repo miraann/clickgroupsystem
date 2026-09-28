@@ -17,6 +17,7 @@ import { sendPush } from '@/lib/push'
 import { logAudit } from '@/lib/logAudit'
 import { useRestaurantMenu } from '@/hooks/useRestaurantMenu'
 import MenuLanguageSwitcher from '@/components/menu/MenuLanguageSwitcher'
+import HorizontalItemRail from '@/components/menu/HorizontalItemRail'
 
 const DeliveryCheckout = dynamic(
   () => import('@/components/delivery/DeliveryCheckout'),
@@ -705,7 +706,7 @@ export default function DeliveryOrderPage() {
   const [tpl, setTpl]               = useState<TplCfg>(TEMPLATE_CONFIGS.classic)
   const [primaryColor, setPrimaryColor] = useState('#f59e0b')
   const [categoryStyle, setCategoryStyle] = useState<TplCfg['catLayout']>('circles')
-  const [itemStyle, setItemStyle]   = useState<'grid' | 'list' | 'compact'>('grid')
+  const [itemStyle, setItemStyle]   = useState<'grid' | 'list' | 'compact' | 'carousel'>('grid')
   const [socialStyle, setSocialStyle] = useState<'pills' | 'grid' | 'icons'>('pills')
   const [eventStyle, setEventStyle] = useState<'cards' | 'story' | 'banner'>('cards')
   const [showPrices, setShowPrices] = useState(true)
@@ -1266,8 +1267,11 @@ export default function DeliveryOrderPage() {
       {orderingOpen && showItems && activeId && (() => {
         const activeCat = categories.find(c => c.id === activeId)
         const catItems  = menuItems.filter(i => i.category_id === activeId)
+        const catIdx    = categories.findIndex(c => c.id === activeId)
+        const prevCat   = catIdx > 0 ? categories[catIdx - 1] : null
+        const nextCat   = categories[catIdx + 1] ?? null
         return (
-          <div className="w-full max-w-lg mx-auto mt-4 px-4 pb-10 text-start">
+          <div className={`w-full mx-auto mt-4 px-4 pb-10 text-start ${itemStyle === 'carousel' ? '' : 'max-w-lg'}`}>
             <button onClick={() => setShowItems(false)}
               className={`mb-4 ml-2 flex items-center gap-1.5 text-sm font-semibold transition-colors ${tpl.backBtn}`}>
               ← {t.gm_back}
@@ -1284,6 +1288,58 @@ export default function DeliveryOrderPage() {
                 <UtensilsCrossed className="w-10 h-10 text-gray-200" />
                 <p className="text-gray-400 text-sm">{t.gm_no_items}</p>
               </div>
+            ) : itemStyle === 'carousel' ? (
+              // Horizontal slider — swiping past either end opens the prev / next category
+              <HorizontalItemRail
+                key={activeId}
+                items={catItems}
+                prev={prevCat}
+                next={nextCat}
+                onPrev={() => { if (prevCat) setActiveId(prevCat.id) }}
+                onNext={() => { if (nextCat) setActiveId(nextCat.id) }}
+                accent={primaryColor}
+                isDark={tpl.isDark}
+                renderItem={item => {
+                  const qty = getQty(item.id)
+                  return (
+                    <div className={`flex-1 rounded-2xl border shadow-sm overflow-hidden flex flex-col ${tpl.itemCardBg} ${tpl.itemCardBorder}`}
+                      style={{ boxShadow: qty > 0 ? `0 0 0 2px ${primaryColor}` : undefined }}>
+                      <div className="relative w-full aspect-[4/3] bg-gray-50">
+                        {item.image_url
+                          ? <NextImage src={item.image_url} alt={item.name} fill sizes="(min-width: 1024px) 288px, (min-width: 640px) 256px, 72vw" className="object-cover" />
+                          : <div className="absolute inset-0 flex items-center justify-center"><UtensilsCrossed className="w-6 h-6 text-gray-200" /></div>}
+                        {qty > 0 && (
+                          <div className="absolute top-2 start-2 w-6 h-6 rounded-full flex items-center justify-center shadow"
+                            style={{ background: primaryColor }}>
+                            <span className="text-white text-xs font-bold">{qty}</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="p-3 flex-1 flex flex-col gap-1">
+                        <p className={`text-sm font-bold line-clamp-2 leading-snug ${tpl.itemNameColor}`}>{item.name}</p>
+                        {showDescs && item.description && (
+                          <p className="text-xs line-clamp-2 leading-snug" style={{ color: tpl.isDark ? 'rgba(255,255,255,0.35)' : '#9ca3af' }}>{item.description}</p>
+                        )}
+                        {showPrices && <p className={`text-sm font-extrabold mt-auto pt-1 ${tpl.priceColor}`}>{formatPrice(deliveryPrice(item))}</p>}
+                      </div>
+                      <div className="px-3 pb-3">
+                        {qty === 0 ? (
+                          <button onClick={() => addOne(item.id)}
+                            className={`w-full flex items-center justify-center gap-1 py-2 rounded-xl text-sm font-bold active:scale-95 ${tpl.addBtnBg} ${tpl.addBtnText}`}>
+                            <Plus className="w-4 h-4" /> {t.gm_add}
+                          </button>
+                        ) : (
+                          <div className={`flex items-center justify-between rounded-xl border ${tpl.qtyBg} ${tpl.qtyBorder}`}>
+                            <button onClick={() => removeOne(item.id)} className={`w-9 h-9 flex items-center justify-center active:scale-90 ${tpl.qtyText}`}><Minus className="w-4 h-4" /></button>
+                            <span className={`text-sm font-bold tabular-nums flex-1 text-center ${tpl.qtyText}`}>{qty}</span>
+                            <button onClick={() => addOne(item.id)} className={`w-9 h-9 flex items-center justify-center active:scale-90 ${tpl.qtyText}`}><Plus className="w-4 h-4" /></button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )
+                }}
+              />
             ) : itemStyle === 'list' ? (
               <div className="space-y-3">
                 {catItems.map(item => {

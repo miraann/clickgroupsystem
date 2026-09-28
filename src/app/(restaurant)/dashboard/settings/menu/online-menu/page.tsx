@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import { cn } from '@/lib/utils'
-import { Globe, Copy, Check, Loader2, Save, ExternalLink, UtensilsCrossed, Plus, Palette, LayoutGrid, Link2, Ticket, ScanFace, Clock, Eye, X } from 'lucide-react'
+import { Globe, Copy, Check, Loader2, Save, ExternalLink, UtensilsCrossed, Plus, Palette, LayoutGrid, Link2, Ticket, ScanFace, Clock, Eye, X, ChevronRight } from 'lucide-react'
 import DiscountCodePage from '../discount-code/page'
 import { motion, AnimatePresence, type Variants } from 'framer-motion'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
@@ -27,7 +27,7 @@ function FadeSwitch({ id, children }: { id: string; children: React.ReactNode })
 type TemplateId    = 'classic' | 'dark' | 'warm' | 'bold' | 'elegant' | 'neon'
 type SurfaceStyle  = 'solid' | 'glass' | 'card'
 type CategoryStyle = 'circles' | 'pills' | 'square' | 'horizontal'
-type ItemStyle     = 'grid' | 'list' | 'compact'
+type ItemStyle     = 'grid' | 'list' | 'compact' | 'carousel'
 type EventStyle    = 'cards' | 'banner' | 'story'
 type SocialStyle   = 'pills' | 'grid' | 'icons'
 
@@ -267,6 +267,41 @@ function PhonePreview({ s, data }: { s: MenuSettings; data: PreviewData | null }
                 ))}
               </div>
             )}
+            {s.item_style === 'carousel' && (() => {
+              const nextCat = cats[1] ?? { id: 'n', name: 'Drinks', color: SAMPLE_COLORS[2], icon: null }
+              return (
+                <div className="flex gap-2 overflow-x-auto pb-1 text-left" style={{ scrollbarWidth: 'none' }}>
+                  {(items.length > 0 ? items : [
+                    { id:'1', name:'Margherita', price:12, image_url:null, description:'Classic tomato' },
+                    { id:'2', name:'Pepperoni',  price:14, image_url:null, description:'Spicy pepperoni' },
+                    { id:'3', name:'Calzone',    price:13, image_url:null, description:'Folded & baked' },
+                  ]).map(item => (
+                    <div key={item.id} className="shrink-0 w-[72%] rounded-xl overflow-hidden flex flex-col" style={{ background: cardBg, border: `1px solid ${cardBorder}` }}>
+                      <div className="relative w-full h-20 flex items-center justify-center" style={{ background: isDark ? 'rgba(255,255,255,0.05)' : '#f9fafb' }}>
+                        {item.image_url
+                          ? <Image src={item.image_url} alt={item.name} fill sizes="180px" className="object-cover" />
+                          : <UtensilsCrossed className="w-4 h-4" style={{ color: mutedColor }} />}
+                      </div>
+                      <div className="p-1.5 flex-1 flex flex-col">
+                        <p className="text-[9px] font-bold line-clamp-1" style={{ color: nameColor }}>{item.name}</p>
+                        {s.show_descriptions && <p className="text-[8px] line-clamp-1" style={{ color: mutedColor }}>{item.description}</p>}
+                        {s.show_prices && <p className="text-[9px] font-extrabold mt-auto" style={{ color: p }}>${item.price}</p>}
+                        <button className="mt-1 w-full flex items-center justify-center gap-0.5 py-0.5 rounded-lg text-[8px] font-bold" style={{ background: p, color: isDark && s.template === 'neon' ? '#000' : '#fff' }}>
+                          <Plus className="w-2 h-2" /> Add
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  <div className="shrink-0 w-16 rounded-xl flex flex-col items-center justify-center gap-1 px-1" style={{ border: `1.5px dashed ${p}66`, background: p + '0d' }}>
+                    <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: nextCat.color || SAMPLE_COLORS[2] }}>
+                      {nextCat.icon ? <span style={{ fontSize: '0.9rem' }}>{nextCat.icon}</span> : <span className="text-white text-[9px] font-bold">{nextCat.name.charAt(0)}</span>}
+                    </div>
+                    <span className="text-[7px] font-bold text-center line-clamp-1 w-full" style={{ color: p }}>{nextCat.name}</span>
+                    <ChevronRight className="w-3 h-3" style={{ color: p }} />
+                  </div>
+                </div>
+              )
+            })()}
           </div>
 
           {/* Events & Offers */}
@@ -483,6 +518,26 @@ const ITEM_PREVIEWS: { id: ItemStyle; labelKey: string; descKey: string; preview
             </div>
           </div>
         ))}
+      </div>
+    ),
+  },
+  {
+    id: 'carousel', labelKey: 'om_item_carousel', descKey: 'om_item_carousel_desc',
+    preview: (
+      <div className="flex gap-1.5 p-1 overflow-hidden">
+        {[0,1].map(i => (
+          <div key={i} className="shrink-0 w-[40%] rounded-lg overflow-hidden bg-white/5 border border-white/8">
+            <div className="w-full h-14 bg-white/8" />
+            <div className="p-1 space-y-0.5">
+              <div className="h-1 rounded-full bg-white/20 w-3/4" />
+              <div className="h-1 rounded-full w-1/2" style={{ background: '#f59e0b60' }} />
+            </div>
+          </div>
+        ))}
+        <div className="flex-1 min-w-0 rounded-lg flex flex-col items-center justify-center gap-1" style={{ border: '1px dashed rgba(245,158,11,0.45)' }}>
+          <div className="w-4 h-4 rounded-full" style={{ background: '#f59e0b40' }} />
+          <ChevronRight className="w-3 h-3 text-amber-400/70" />
+        </div>
       </div>
     ),
   },
@@ -986,7 +1041,7 @@ export default function OnlineMenuTemplatePage({ linksSlot }: { linksSlot?: Reac
             <div className="rounded-2xl bg-white/4 border border-white/10 p-4">
               <p className="text-sm font-semibold text-white mb-1">{t.om_item_style}</p>
               <p className="text-xs text-white/30 mb-3">{t.om_item_style_desc}</p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
                 {ITEM_PREVIEWS.map(c => (
                   <StyleCard key={c.id} label={t[c.labelKey as keyof typeof t] as string} desc={t[c.descKey as keyof typeof t] as string}
                     active={settings.item_style === c.id}
