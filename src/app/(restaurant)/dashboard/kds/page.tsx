@@ -599,10 +599,13 @@ function KdsPage() {
   useEffect(() => {
     let pollId: ReturnType<typeof setInterval> | null = null
     let channel: ReturnType<typeof supabase.channel> | null = null
+    // Cleanup can run while init() is still awaiting (StrictMode double-mount,
+    // deps change) — bail out so a stale run never subscribes a channel.
+    let cancelled = false
 
     const init = async () => {
       const { data: rest } = await supabase.from('restaurants').select('id').eq('id', typeof window !== 'undefined' ? (localStorage.getItem('restaurant_id') ?? '') : '').maybeSingle()
-      if (!rest) return
+      if (cancelled || !rest) return
       setRestaurantId(rest.id)
       restIdRef.current = rest.id
 
@@ -611,6 +614,7 @@ function KdsPage() {
         supabase.from('kds_stations').select('id,name,color,active,sort_order').eq('restaurant_id', rest.id).eq('active', true).order('sort_order'),
         supabase.from('kds_station_categories').select('station_id,category_id'),
       ])
+      if (cancelled) return
       const assignMap = new Map<string, string[]>()
       for (const a of (assignData ?? [])) {
         const arr = assignMap.get(a.station_id) ?? []
@@ -625,6 +629,7 @@ function KdsPage() {
       swrMutate(`kds-stations-${rest.id}`, mappedStations, false)
 
       await fetchOrders(rest.id)
+      if (cancelled) return
 
       // ── Polling fallback (4 s) — works even when Supabase Realtime WAL replication
       //    is not enabled for these tables. Also detects voids between polls.
@@ -706,7 +711,9 @@ function KdsPage() {
 
       // ── Realtime subscription — instant updates when WAL replication is enabled
       channel = supabase
-        .channel('kds-order-items')
+        // Unique topic per mount: removeChannel() is async, so a fixed name can
+        // hand back the previous (already subscribed) channel.
+        .channel(`kds-order-items-${rest.id}-${Date.now()}`)
         .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'order_items' },
           (payload) => {
             const updated = payload.new as { id: string; status: string; item_name: string; qty: number; station_id: string | null }
@@ -761,6 +768,7 @@ function KdsPage() {
     init()
 
     return () => {
+      cancelled = true
       if (pollId) clearInterval(pollId)
       if (channel) supabase.removeChannel(channel)
     }
