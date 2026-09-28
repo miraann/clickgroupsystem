@@ -62,7 +62,7 @@ function makeQrBitmap(url: string, paperWidthMm: number): Uint8Array | null {
 }
 
 export async function POST(req: NextRequest) {
-  if (!rateLimit(req, 'print/table-qr', 20)) {
+  if (!(await rateLimit(req, 'print/table-qr', 20))) {
     return NextResponse.json({ ok: false, error: 'Too many requests' }, { status: 429 })
   }
   try {

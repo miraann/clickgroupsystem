@@ -116,7 +116,7 @@ const clampText = (s: string) => s.replace(/[\r\n\t]+/g, ' ').trim().slice(0, 14
 // ── Route handler ─────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
   // Rate-limit: max 30 push sends per minute per IP
-  if (!rateLimit(req, 'push/send', 30, 60_000)) {
+  if (!(await rateLimit(req, 'push/send', 30, 60_000))) {
     return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
   }
 
@@ -161,7 +161,7 @@ export async function POST(req: NextRequest) {
 
     if (!trusted) {
       // Per-restaurant throttle for the public path.
-      if (!rateLimit(req, `push/send:rid:${restaurant_id}`, 12, 60_000)) {
+      if (!(await rateLimit(req, `push/send:rid:${restaurant_id}`, 12, 60_000))) {
         return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
       }
       // Tie the notification to a real, recent event so it can't be used as a

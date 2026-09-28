@@ -6,7 +6,7 @@ import { rateLimit } from '@/lib/rate-limit'
 export const runtime = 'nodejs'
 
 export async function POST(req: NextRequest) {
-  if (!rateLimit(req, 'printer/test-escpos', 20)) {
+  if (!(await rateLimit(req, 'printer/test-escpos', 20))) {
     return NextResponse.json({ ok: false, error: 'Too many requests' }, { status: 429 })
   }
 

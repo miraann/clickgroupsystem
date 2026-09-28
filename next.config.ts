@@ -52,20 +52,25 @@ const nextConfig: NextConfig = {
   async headers() {
     // Content-Security-Policy is shipped in Report-Only mode first so it cannot
     // break WebUSB / Web Bluetooth printing, Supabase realtime, or face-api.
-    // Watch the browser console / a report endpoint, then rename the header to
+    // Violations are POSTed to /api/csp-report and logged as "[csp]" lines in
+    // the server logs. Once a few days of real traffic (printing, face scan,
+    // delivery map, table QR) log none, rename the header below to
     // `Content-Security-Policy` to enforce.
     const csp = [
       "default-src 'self'",
       "script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval'",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' data: https://fonts.gstatic.com",
-      "img-src 'self' data: blob: https://*.supabase.co",
-      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://oauth2.googleapis.com https://fcm.googleapis.com",
+      // Leaflet tiles + marker icons (delivery map), table-QR preview images.
+      "img-src 'self' data: blob: https://*.supabase.co https://*.tile.openstreetmap.org https://unpkg.com https://api.qrserver.com",
+      // Nominatim reverse geocoding + face-api model weights (delivery checkout).
+      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://oauth2.googleapis.com https://fcm.googleapis.com https://nominatim.openstreetmap.org https://cdn.jsdelivr.net",
       "worker-src 'self' blob:",
       "frame-ancestors 'self'",
       "base-uri 'self'",
       "form-action 'self'",
       "object-src 'none'",
+      "report-uri /api/csp-report",
     ].join('; ')
 
     const securityHeaders = [

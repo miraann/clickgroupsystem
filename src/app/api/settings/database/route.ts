@@ -121,14 +121,8 @@ export async function POST(req: NextRequest) {
 
 async function verifyOwnerPin(session: RestaurantSession, pin: string | undefined): Promise<boolean> {
   if (!pin || !/^\d{4,8}$/.test(pin)) return false
-  const sb = serviceClient()
-  const [{ data: secret }, { data: rest }] = await Promise.all([
-    sb.from('restaurant_secrets').select('owner_pin_hash').eq('restaurant_id', session.rid).maybeSingle(),
-    sb.from('restaurants').select('settings').eq('id', session.rid).maybeSingle(),
-  ])
+  const { data: secret } = await serviceClient()
+    .from('restaurant_secrets').select('owner_pin_hash').eq('restaurant_id', session.rid).maybeSingle()
   const hash = secret?.owner_pin_hash as string | undefined
-  const legacy = (rest?.settings as Record<string, unknown> | null)?.owner_pin as string | undefined
-  if (hash) return verifySecret(pin, hash)
-  if (legacy) return pin === legacy
-  return false
+  return !!hash && verifySecret(pin, hash)
 }

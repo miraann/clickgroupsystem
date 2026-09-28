@@ -855,7 +855,7 @@ function KdsPage() {
   // KDS has no Home / nav — this is the only way off the screen, whether it's
   // running in the native single-screen kiosk shell or the regular dashboard.
   const logout = async () => {
-    await supabase.auth.signOut().catch(() => {})
+    await supabase.auth.signOut({ scope: 'local' }).catch(() => {})
     const slug = localStorage.getItem('restaurant_slug')
     const keys = ['restaurant_id', 'restaurant_slug', 'restaurant_name', 'owner_session', 'pos_staff_id', 'pos_staff_name', 'pos_staff_role', 'pos_staff_color', 'pos_role_permissions', 'pos_role_name']
     keys.forEach(k => localStorage.removeItem(k))

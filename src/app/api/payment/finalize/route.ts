@@ -6,7 +6,7 @@ import { requireRestaurant, serverError } from '@/lib/api-auth'
 export const runtime = 'nodejs'
 
 export async function POST(req: NextRequest) {
-  if (!rateLimit(req, 'payment/finalize', 10)) {
+  if (!(await rateLimit(req, 'payment/finalize', 10))) {
     return NextResponse.json({ ok: false, error: 'Too many requests' }, { status: 429 })
   }
   try {

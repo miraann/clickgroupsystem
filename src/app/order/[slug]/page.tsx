@@ -388,41 +388,33 @@ function TrackOrderSection({
     return found ? t[found.labelKey] : s.replace(/_/g, ' ')
   }
 
-  // ── Realtime tracking ──────────────────────────────────────
-  // Replaces manual re-search with push-based updates: any status change on
-  // a tracked delivery_order (or its notification fan-out row, see
-  // supabase-delivery-notifications.sql) flips the UI instantly instead of
-  // requiring the customer to re-submit their phone number.
+  // ── Live tracking ──────────────────────────────────────────
+  // Re-runs the same phone lookup on a timer so a status change shows up
+  // without the customer re-submitting. (Realtime can't be used: anon has no
+  // SELECT on delivery_orders / delivery_notifications, so it never gets
+  // their change events.)
   const trackedIds = orders?.map(o => o.id) ?? []
   const trackedIdsKey = trackedIds.join(',')
+  const ordersRef = useRef(orders)
+  ordersRef.current = orders
 
   useEffect(() => {
     if (trackedIds.length === 0) return
-    const idSet = new Set(trackedIds)
-
-    const channel = supabase
-      .channel(`customer-track-${trackedIdsKey}`)
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'delivery_orders' },
-        (payload) => {
-          const row = payload.new as { id: string; status: string }
-          if (!idSet.has(row.id)) return
-          setOrders(prev => prev?.map(o => o.id === row.id ? { ...o, status: row.status } : o) ?? prev)
-        },
-      )
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'delivery_notifications' },
-        (payload) => {
-          const row = payload.new as { delivery_order_id: string; recipient_type: string; message: string }
-          if (row.recipient_type !== 'customer' || !idSet.has(row.delivery_order_id)) return
-          setLiveToast(row.message)
-        },
-      )
-      .subscribe()
-
-    return () => { supabase.removeChannel(channel) }
+    const raw = phone.trim()
+    const poll = async () => {
+      const current = ordersRef.current ?? []
+      if (current.every(o => o.status === 'delivered' || o.status === 'cancelled')) return
+      const { data } = await supabase
+        .rpc('guest_track_delivery_orders', { p_restaurant_id: restaurantId, p_phone: raw })
+      if (!Array.isArray(data)) return
+      const statusById = new Map((data as { id: string; status: string }[]).map(d => [d.id, d.status]))
+      const changed = current.find(o => statusById.has(o.id) && statusById.get(o.id) !== o.status)
+      if (!changed) return
+      setOrders(prev => prev?.map(o => statusById.has(o.id) ? { ...o, status: statusById.get(o.id)! } : o) ?? prev)
+      setLiveToast(statusLabel(statusById.get(changed.id)!))
+    }
+    const timer = setInterval(poll, 15000)
+    return () => clearInterval(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trackedIdsKey])
 
@@ -895,20 +887,21 @@ export default function DeliveryOrderPage() {
     // the restaurant-wide default computed before the customer picked a location.
     const finalFee = resolvedFee ?? effectiveDeliveryFee
 
-    // Create order
-    const { data: newOrder, error: orderErr } = await supabase
+    // Create order. The id is generated here because anon may INSERT orders but
+    // not SELECT them back (insert…select would fail the RLS read check).
+    const newOrder = { id: crypto.randomUUID() }
+    const { error: orderErr } = await supabase
       .from('orders')
       .insert({
+        id:            newOrder.id,
         restaurant_id: restaurant.id,
         table_number:  0,
         status:        'active',
         source:        'delivery',
         total:         cartTotal + finalFee - discountAmount,
       })
-      .select('id')
-      .single()
 
-    if (orderErr || !newOrder) {
+    if (orderErr) {
       setPlaceError(t.gm_err_create)
       setPlacing(false); return
     }

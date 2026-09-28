@@ -4,7 +4,7 @@ import { requireAuth } from '@/lib/supabase/api-guard'
 import { rateLimit } from '@/lib/rate-limit'
 
 export async function POST(req: NextRequest) {
-  if (!rateLimit(req, 'printer/test', 15)) {
+  if (!(await rateLimit(req, 'printer/test', 15))) {
     return NextResponse.json({ ok: false, error: 'Too many requests' }, { status: 429 })
   }
   const { error: authError } = await requireAuth()

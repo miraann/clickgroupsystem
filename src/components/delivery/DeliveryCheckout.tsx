@@ -1073,14 +1073,11 @@ export default function DeliveryCheckout({
   const applyCoupon = async () => {
     if (!couponCode.trim()) return
     setCouponLoading(true); setCouponErr(null)
+    // Looked up server-side (security definer) — customers are anon and must
+    // not be able to list a restaurant's discount codes.
     const sb = createClient()
     const { data } = await sb
-      .from('discount_codes')
-      .select('*')
-      .eq('restaurant_id', restaurantId)
-      .ilike('code', couponCode.trim())
-      .eq('active', true)
-      .single()
+      .rpc('guest_validate_discount_code', { p_restaurant_id: restaurantId, p_code: couponCode.trim() })
 
     if (!data) { setCouponErr(t.dck_err_coupon_invalid); setCouponLoading(false); return }
     if (data.expires_at && new Date(data.expires_at) < new Date()) { setCouponErr(t.dck_err_coupon_expired); setCouponLoading(false); return }

@@ -4,7 +4,7 @@ import { createSellerToken, SELLER_COOKIE } from '@/lib/session'
 import { timingSafeEqualStr } from '@/lib/crypto'
 
 export async function POST(req: NextRequest) {
-  if (!rateLimit(req, 'seller/login', 1, 60_000)) {
+  if (!(await rateLimit(req, 'seller/login', 1, 60_000))) {
     return NextResponse.json({ error: 'Too many requests. Try again later.' }, { status: 429 })
   }
 

@@ -11,7 +11,6 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
-import { assignOrderNumber } from '@/lib/orderNumber'
 import { sendToKitchenAtomic, type SendResult } from '@/lib/orderSend'
 import { sendPush } from '@/lib/push'
 import { logAudit } from '@/lib/logAudit'
@@ -378,27 +377,26 @@ export default function GuestPage() {
     setLoading(false)
   }, [menuData, menuLoading]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Realtime: track order item status changes for the current order
+  // Track order item status for the current order. Guests are anon and may not
+  // read order_items directly (nor get its realtime changes), so poll the
+  // guest_order_items RPC, which returns just this order's items by id.
   useEffect(() => {
     if (!currentOrderId) return
-    const channel = supabase
-      .channel(`guest-order-${currentOrderId}`)
-      .on('postgres_changes', {
-        event: 'UPDATE', schema: 'public', table: 'order_items',
-        filter: `order_id=eq.${currentOrderId}`,
-      }, (payload) => {
-        const u = payload.new as TrackedItem
-        setTrackedItems(prev => prev.map(i => i.id === u.id ? { ...i, status: u.status } : i))
+    let cancelled = false
+    const poll = async () => {
+      const { data } = await supabase.rpc('guest_order_items', { p_order_id: currentOrderId })
+      if (cancelled || !Array.isArray(data)) return
+      const rows = data as TrackedItem[]
+      setTrackedItems(prev => {
+        const byId = new Map(rows.map(r => [r.id, r]))
+        const updated = prev.map(i => byId.has(i.id) ? { ...i, status: byId.get(i.id)!.status } : i)
+        const known = new Set(prev.map(i => i.id))
+        return [...updated, ...rows.filter(r => !known.has(r.id))]
       })
-      .on('postgres_changes', {
-        event: 'INSERT', schema: 'public', table: 'order_items',
-        filter: `order_id=eq.${currentOrderId}`,
-      }, (payload) => {
-        const n = payload.new as TrackedItem
-        setTrackedItems(prev => prev.find(i => i.id === n.id) ? prev : [...prev, n])
-      })
-      .subscribe()
-    return () => { supabase.removeChannel(channel) }
+    }
+    poll()
+    const timer = setInterval(poll, 5000)
+    return () => { cancelled = true; clearInterval(timer) }
   }, [currentOrderId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const getQty = (itemId: string) => cart.get(itemId)?.qty ?? 0
@@ -477,40 +475,11 @@ export default function GuestPage() {
       return
     }
 
+    // No client-side fallback: guests can't read orders / order_items, so the
+    // old multi-step path can't work anymore — the RPC is the only way in.
     if (atomic) {
       orderId = atomic.order_id
       insertedItems = atomic.items.map(i => ({ id: i.id, item_name: i.item_name, qty: i.qty, status: i.status }))
-    } else {
-      // ── Fallback: legacy multi-step path (pre-migration only) ──────────────
-      const { data: existing } = await supabase
-        .from('orders').select('id')
-        .eq('restaurant_id', restaurant.id).eq('table_number', table.seq).eq('status', 'active')
-        .order('created_at', { ascending: false }).limit(1).maybeSingle()
-
-      let oid = existing?.id as string | undefined
-      if (!oid) {
-        const { data: newOrder, error: createErr } = await supabase
-          .from('orders')
-          .insert({ restaurant_id: restaurant.id, table_number: table.seq, status: 'active', source: 'guest', total: 0 })
-          .select('id').single()
-        if (createErr || !newOrder) { setPlaceError(t.gm_err_create); setPlacing(false); return }
-        oid = newOrder.id as string
-        await assignOrderNumber(supabase, restaurant.id, oid)
-      }
-      orderId = oid
-
-      const rows = itemInputs.map(i => ({ ...i, order_id: oid, status: 'pending' }))
-      const { data: ins, error: insertErr } = await supabase
-        .from('order_items').insert(rows).select('id, item_name, qty, status')
-      if (insertErr) { setPlaceError(insertErr.message); setPlacing(false); return }
-      insertedItems = (ins ?? []) as { id: string; item_name: string; qty: number; status: string }[]
-
-      // Recompute the WHOLE order total (items the waiter already rung in + these),
-      // not just the guest's addition.
-      const { data: allItems } = await supabase
-        .from('order_items').select('item_price, qty').eq('order_id', oid).neq('status', 'void')
-      const total = (allItems ?? []).reduce((s, r) => s + r.item_price * r.qty, 0)
-      await supabase.from('orders').update({ total, updated_at: new Date().toISOString() }).eq('id', oid)
     }
 
     if (!orderId) { setPlaceError(t.gm_err_create); setPlacing(false); return }

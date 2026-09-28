@@ -26,6 +26,8 @@ signing certs and cannot be applied from code alone.
 | Full-project audit follow-up (2026-09-13) | `printer/print-test` had **no auth check at all** and let any caller open a raw TCP connection to an attacker-chosen `ip:port` (SSRF) or, via a `/dev/../..` path, write outside `/dev/` (arbitrary file write) — now gated by `requireAuth()` + a device-path allow-list regex. `devices/scan` (unauthenticated LAN port-scan on self-hosted deploys) now also requires `requireAuth()`. `src/lib/supabase/api-guard.ts`'s `requireRestaurantId()` only checked that a restaurant UUID *existed* (service-role lookup), not that the caller belonged to it — a cross-tenant IDOR letting anyone who knew/guessed another restaurant's UUID pull its printer IP/name/language via `print/kitchen`, `print/receipt`, `print/daily-sales`, `print/table-qr`, `printer/test-escpos`; all five now use the session-bound `requireRestaurant()` from `src/lib/api-auth.ts` (same helper `payment/finalize` already used) and the weak helper was deleted. `next` (16.2.1 → 16.3.5) and `sharp` (^0.34.5 → ^0.35.4) were upgraded — the old `next` had several unauthenticated-RCE and middleware/proxy-bypass CVEs that could have let an attacker route around `src/proxy.ts`'s cookie check entirely. |
 | Settings role gate (follow-up to `7d1cf46`) | **Layout gate**: `settings/layout.tsx` now default-**denies** any `/dashboard/settings/*` route with no `NAV_GROUPS`/`EXTRA_PERM_MAP` entry for non-owners (was: unmapped routes rendered to anyone who could open Settings). **Server enforcement**: post-C1 every staff of a restaurant shares one Supabase auth user, so RLS can't tell roles apart — role permissions are now checked server-side by `requirePermission()` (`src/lib/permissions/server.ts`), keyed off `sid`/`rlid` added to the signed `__pos_restaurant` token at PIN login (`src/lib/session.ts`, `api/pos/login`). Guarded routes: `api/settings/roles` + `api/settings/staff` (`settings.users`), `api/settings/restaurant` (the `restaurants.settings` blob — caller passes its `permKey`, backs `useRestaurantSettings`), `api/settings/database` (owner-only + owner-PIN re-verify for restore / GDPR-delete). `hasPermission()` (`src/lib/permissions/check.ts`) is shared with the client `canAny`. |
 
+| 2026-09-28 follow-up | **Owner PIN / password only from `restaurant_secrets`**: `restaurant/login`, `verify-pin`, `pos/login`, `settings/database` no longer fall back to `settings.password` / `settings.owner_pin` — `restaurants.settings` is tenant-writable, so any staff could have planted an owner PIN. Password check shared in `src/lib/restaurant-password.ts`. **`signOut({ scope: 'local' })`** everywhere — every device of a restaurant signs in as the same auth user, and the default global sign-out revoked every other POS/KDS/CFD session. **CFD pairing** (`/api/cfd/pair`) now mints a real Supabase session; `src/app/cfd/[slug]/layout.tsx` sends an unpaired display back to `/cfd?switch=1`. **Guest surfaces off direct reads**: QR guest tracking polls `guest_order_items()`, delivery checkout creates the order with a client-generated id (no insert…select), delivery tracking polls `guest_track_delivery_orders()` (its realtime had silently stopped when migration 04 closed `delivery_orders`), coupons go through `guest_validate_discount_code()`. **`push/subscribe`** writes with the service role after `requireRestaurant()`. **Rate limiter** is shared through Upstash Redis when configured (see infra table). **CSP** gained the tile / geocoding / QR / face-model origins the code actually uses plus a `/api/csp-report` collector. `scripts/security-probe.mjs` checks all of it against the live project. |
+
 **Still client-side + tenant-RLS only (follow-up, not privilege-escalation):** the
 other ~28 settings pages write directly to Supabase — menu management, devices/
 printers, delivery zones, expenses, inventory, members, customers, currencies,
@@ -154,7 +156,7 @@ await anon.from('menu_items').select('*')       // -> rows (public menu, intende
 Then smoke-test the guest menu (`/r/<slug>`), CFD, a guest order, a waiter call,
 and the POS PIN login.
 
-**Known residual (follow-up, not blocking):** `orders` / `order_items` are
+**Known residual — closed by `20260928_03` (see 5b):** `orders` / `order_items` were
 still anon-readable with no scoping (`using(true)`) so the dine-in QR-order
 flow (`src/app/guest/[tableId]`) can look up "is there an active order at this
 table" and re-read items it just inserted. Neither table carries direct
@@ -208,8 +210,43 @@ still render, KDS station routing still works from Settings, and the
 "track my delivery order" search on `/order/<slug>` still finds an order by
 phone.
 
-### 6. Strip secrets from `settings`
-Uncomment and run the final `update` in migration 01.
+### 5b. Close the remaining anon reads (2026-09-28)
+
+A probe with only the anon key (`scripts/security-probe.mjs`) found far more
+still open than the repo's SQL accounts for — policies made in the Supabase
+dashboard or by the root `supabase-*.sql` dev files that migration 02 never
+named: `delivery_orders` (customer name/phone/address/GPS — still readable
+after migration 04), `customers`, `members`, `profiles`, `audit_logs`,
+`delivery_notifications`, `push_subscriptions`, `role_messages`, plus the
+known `orders` / `order_items`. It also found `restaurant_users`' policies
+recursing into themselves: every query touching `restaurant_users`,
+`delivery_zones` or `whatsapp_logs` failed with `42P17`.
+
+1. Run **`20260928_01_strip_settings_secrets.sql`** (strips `password` /
+   `owner_pin` from `settings` and adds a trigger so they can't come back —
+   step 6 below, done).
+2. Run **`20260928_02_guest_rpcs_and_fixes.sql`** — additive, safe before
+   the deploy: report functions, non-recursive `restaurant_users` /
+   `profiles` policies, `SECURITY DEFINER` on the triggers guest inserts fire
+   (without it a delivery order would fail once anon can't write
+   `delivery_notifications`, and guest `order_items` would lose their
+   `restaurant_id`), the guest RPCs, anon read on `kds_stations` /
+   `kds_station_categories` (guest-order KDS routing).
+3. Deploy the matching build.
+4. Run **`20260928_03_close_anon_reads.sql`** — drops anon read on
+   `orders` / `order_items`, narrows the anon INSERTs, and sweeps the live
+   catalog for every policy open to anon / public / authenticated without an
+   identity check, replacing each with a tenant policy. Every change prints a
+   `NOTICE`; lines starting `REVIEW:` are tables it left alone on purpose.
+5. `node --env-file=.env.local scripts/security-probe.mjs` → expect
+   "No unexpected anon reads". Smoke-test: guest QR order + its status
+   updates, a delivery order (with coupon + zone fee) and its tracking, a
+   waiter call, the CFD (re-pair once — displays paired before this have no
+   session), POS PIN login, dashboard delivery zones.
+
+### 6. Strip secrets from `settings`  ✅ DONE
+`20260928_01_strip_settings_secrets.sql` (production had none left; the
+trigger keeps it that way).
 
 ### 7. Repoint dashboard/POS data reads
 Client pages currently `select('settings')` / `select('*')` on `restaurants`.
@@ -223,10 +260,10 @@ working, but audit any place that reads another tenant's row or the raw
 
 | Item | What to do |
 |---|---|
-| **M1** shared rate limiter | `src/lib/rate-limit.ts` is per-instance in memory (ineffective on Vercel). Add Upstash Redis or Vercel KV, make `rateLimit` async, back it with `INCR`/`PEXPIRE`, keep in-memory as the no-env fallback. ~16 call sites gain `await`. |
-| **L1** `SESSION_SECRET` | `openssl rand -base64 48`, set in Vercel env for all environments, redeploy. Confirm it isn't the `.env.local` placeholder. |
-| **Windows installer signing** | `electron-app/package.json` has `sign: null`. Get an OV/EV code-signing cert (or Azure Trusted Signing), set `win.certificateFile` + password, remove `sign: null`. Without it users get SmartScreen warnings. |
-| **Android release** | Add a release `signingConfig` + `minifyEnabled true` in `android/app/build.gradle`; publish a privacy policy (camera + customer PII); handle the `POST_NOTIFICATIONS` runtime prompt on Android 13+. |
-| **CSP enforce** | After watching Report-Only for a few days with real printing / face-scan / realtime traffic, rename the header in `next.config.ts` to `Content-Security-Policy`. |
-| **CI secrets** | Add `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` as GitHub Actions repo secrets so the build step runs. |
+| **M1** shared rate limiter | Code done (`src/lib/rate-limit.ts` is async and shared via Redis). **To activate:** create a free Upstash Redis database (or add Upstash from the Vercel Marketplace, which sets `KV_REST_API_URL` / `KV_REST_API_TOKEN` itself) and set `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` in Vercel, then redeploy. Without them it stays per-instance in memory. |
+| **L1** `SESSION_SECRET` | `openssl rand -base64 48`, set in Vercel env for all environments, redeploy. Signs everyone out once (all `__pos_restaurant` / seller cookies become invalid). The local `.env.local` value is not a placeholder (62 chars) — make sure production's is a different, fresh one. |
+| **Windows installer signing** | `electron-app/package.json` has `signAndEditExecutable: false` + `sign: null`. Needs an OV/EV code-signing cert (or Azure Trusted Signing): remove both keys and build with `CSC_LINK` / `CSC_KEY_PASSWORD` set. Without it users get SmartScreen warnings. |
+| **Android release** | Release `signingConfig` + `minifyEnabled true` are in place. Still: publish a privacy policy (camera + customer PII); handle the `POST_NOTIFICATIONS` runtime prompt on Android 13+. |
+| **CSP enforce** | Origins now match what the code loads; violations log as `[csp]` lines (Vercel → Logs). After a few days with none from real printing / face-scan / delivery-map / table-QR traffic, rename the header in `next.config.ts` to `Content-Security-Policy`. |
+| **CI secrets** | `gh secret set NEXT_PUBLIC_SUPABASE_URL` and `gh secret set NEXT_PUBLIC_SUPABASE_ANON_KEY` (paste the values from `.env.local`; both are public anyway) so CI's build step runs. |
 | **GDPR delete / backup-restore** | Currently client-side against the DB. After C1 they must be server routes behind `requireRestaurant` + a server-side `verifySecret(pin, owner_pin_hash)` check, using the service client. |

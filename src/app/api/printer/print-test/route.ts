@@ -191,7 +191,7 @@ function printNetwork(ip: string, port: number, data: Buffer): Promise<void> {
 
 // ── Route ─────────────────────────────────────────────────────
 export async function POST(req: Request) {
-  if (!rateLimit(req, 'printer/print-test', 5)) {
+  if (!(await rateLimit(req, 'printer/print-test', 5))) {
     return NextResponse.json({ ok: false, error: 'Too many requests' }, { status: 429 })
   }
   const { error: authError } = await requireAuth()

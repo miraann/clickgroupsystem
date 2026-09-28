@@ -46,7 +46,9 @@ export default function CFDPairing() {
     setError(null)
 
     try {
-      const res = await fetch('/api/restaurant/login', {
+      // Pairing mints a Supabase session for the display — it reads the
+      // table's live order under tenant RLS, not as anon.
+      const res = await fetch('/api/cfd/pair', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim(), password: password.trim() }),

@@ -12,7 +12,7 @@ export interface UsbPathEntry {
 }
 
 export async function GET(req: Request) {
-  if (!rateLimit(req, 'devices/usb-paths', 20)) {
+  if (!(await rateLimit(req, 'devices/usb-paths', 20))) {
     return NextResponse.json({ entries: [], error: 'Too many requests' }, { status: 429 })
   }
   const { error: authError } = await requireAuth()

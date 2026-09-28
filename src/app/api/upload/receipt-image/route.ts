@@ -20,7 +20,7 @@ function sniff(buf: Buffer): string | null {
 }
 
 export async function POST(req: NextRequest) {
-  if (!rateLimit(req, 'upload/receipt-image', 5)) {
+  if (!(await rateLimit(req, 'upload/receipt-image', 5))) {
     return NextResponse.json({ ok: false, error: 'Too many requests' }, { status: 429 })
   }
   try {

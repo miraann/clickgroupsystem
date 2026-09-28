@@ -17,7 +17,7 @@ const supabase = createClient(
 )
 
 export async function POST(req: NextRequest) {
-  if (!rateLimit(req, 'print/kitchen', 30)) {
+  if (!(await rateLimit(req, 'print/kitchen', 30))) {
     return NextResponse.json({ ok: false, error: 'Too many requests' }, { status: 429 })
   }
   try {

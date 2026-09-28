@@ -48,7 +48,7 @@ async function grantSession(
 }
 
 export async function POST(req: NextRequest) {
-  if (!rateLimit(req, 'pos/login', 10, 60_000)) {
+  if (!(await rateLimit(req, 'pos/login', 10, 60_000))) {
     return NextResponse.json({ error: 'Too many requests. Try again later.' }, { status: 429 })
   }
 
@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
 
     const { data: restaurant } = await supabase
       .from('restaurants')
-      .select('id, name, menu_slug, settings')
+      .select('id, name, menu_slug')
       .eq('menu_slug', slug.trim())
       .maybeSingle()
 
@@ -78,12 +78,11 @@ export async function POST(req: NextRequest) {
       .eq('restaurant_id', restaurant.id)
       .maybeSingle()
 
-    const settings = (restaurant.settings ?? {}) as Record<string, unknown>
+    // Owner PIN only from restaurant_secrets — see verify-pin for why the
+    // settings.owner_pin fallback was removed.
     const pinHash = secretRow?.owner_pin_hash as string | undefined
-    const legacyOwnerPin = settings.owner_pin as string | undefined
-    const ownerPinConfigured = !!pinHash || !!legacyOwnerPin
-    const checkOwnerPin = async (candidate: string) =>
-      pinHash ? verifySecret(candidate, pinHash) : (!!legacyOwnerPin && candidate === legacyOwnerPin)
+    const ownerPinConfigured = !!pinHash
+    const checkOwnerPin = async (candidate: string) => !!pinHash && verifySecret(candidate, pinHash)
 
     const ownerBody = {
       ok: true,

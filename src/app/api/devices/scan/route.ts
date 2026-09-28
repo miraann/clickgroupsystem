@@ -44,7 +44,7 @@ function probePort(ip: string, port: number): Promise<boolean> {
 }
 
 export async function POST(req: Request) {
-  if (!rateLimit(req, 'devices/scan', 3)) {
+  if (!(await rateLimit(req, 'devices/scan', 3))) {
     return NextResponse.json({ devices: [], error: 'Too many requests' }, { status: 429 })
   }
   const { error: authError } = await requireAuth()

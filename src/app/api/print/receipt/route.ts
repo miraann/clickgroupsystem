@@ -93,7 +93,7 @@ async function makeQrBitmap(url: string, paperWidthMm: number): Promise<Uint8Arr
 }
 
 export async function POST(req: NextRequest) {
-  if (!rateLimit(req, 'print/receipt', 20)) {
+  if (!(await rateLimit(req, 'print/receipt', 20))) {
     return NextResponse.json({ ok: false, error: 'Too many requests' }, { status: 429 })
   }
   try {

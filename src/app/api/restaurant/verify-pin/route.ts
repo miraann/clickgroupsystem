@@ -17,7 +17,7 @@ function serviceClient() {
 }
 
 export async function POST(req: NextRequest) {
-  if (!rateLimit(req, 'restaurant/verify-pin', 5, 60_000)) {
+  if (!(await rateLimit(req, 'restaurant/verify-pin', 5, 60_000))) {
     return NextResponse.json({ error: 'Too many attempts. Try again later.' }, { status: 429 })
   }
 
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
 
     const supabase = serviceClient()
     const [{ data: restaurant }, { data: secretRow }] = await Promise.all([
-      supabase.from('restaurants').select('id, name, menu_slug, settings').eq('id', rid).maybeSingle(),
+      supabase.from('restaurants').select('id, name, menu_slug').eq('id', rid).maybeSingle(),
       supabase.from('restaurant_secrets').select('owner_pin_hash').eq('restaurant_id', rid).maybeSingle(),
     ])
 
@@ -47,16 +47,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Restaurant not found.' }, { status: 404 })
     }
 
-    const settings = (restaurant.settings ?? {}) as Record<string, unknown>
+    // The owner PIN lives only in restaurant_secrets (service-role only). The
+    // old settings.owner_pin fallback is gone: restaurants.settings is
+    // tenant-writable, so honouring it would let any staff set the owner PIN.
     const pinHash = secretRow?.owner_pin_hash as string | undefined
-    const legacyPin = settings.owner_pin as string | undefined
-
-    if (!pinHash && !legacyPin) {
+    if (!pinHash) {
       return NextResponse.json({ error: 'No PIN configured. Ask your seller administrator to set an owner PIN.' }, { status: 403 })
     }
 
-    const pinOk = pinHash ? await verifySecret(pin, pinHash) : pin === legacyPin
-    if (!pinOk) {
+    if (!(await verifySecret(pin, pinHash))) {
       return NextResponse.json({ error: 'Incorrect PIN.' }, { status: 401 })
     }
 

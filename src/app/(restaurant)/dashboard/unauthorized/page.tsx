@@ -8,7 +8,7 @@ export default function UnauthorizedPage() {
 
   const handleLogout = async () => {
     const supabase = createClient()
-    await supabase.auth.signOut().catch(() => {})
+    await supabase.auth.signOut({ scope: 'local' }).catch(() => {})
     const slug = localStorage.getItem('restaurant_slug')
     const keys = [
       'restaurant_id', 'restaurant_slug', 'restaurant_name', 'owner_session',

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { serviceClient } from '@/lib/supabase/service'
 import { requireRestaurant, getRestaurantSession, serverError } from '@/lib/api-auth'
 
 export async function POST(req: Request) {
@@ -13,7 +13,11 @@ export async function POST(req: Request) {
     const { error: authErr } = await requireRestaurant(restaurant_id)
     if (authErr) return authErr
 
-    const supabase = await createClient()
+    // Authorized above, so write with the service role: a device whose Supabase
+    // session lapsed (only the signed __pos_restaurant cookie left) can still
+    // register, and re-registering an endpoint last used by another restaurant
+    // moves it instead of failing the tenant RLS check.
+    const supabase = serviceClient()
 
     if (body.fcm_token) {
       const { error } = await supabase
@@ -50,7 +54,7 @@ export async function DELETE(req: Request) {
     const session = await getRestaurantSession()
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const supabase = await createClient()
+    const supabase = serviceClient()
     // Scope the delete to the caller's restaurant so one tenant can't drop
     // another tenant's device registrations by guessing endpoints.
     await supabase
