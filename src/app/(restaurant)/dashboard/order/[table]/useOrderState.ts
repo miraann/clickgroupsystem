@@ -40,7 +40,12 @@ export function useOrderState(table: string, guestCount: number) {
 
   // ── Menu data (shared SWR cache, reused between table opens) ──
   const { menu, loading: menuLoading } = useOrderMenu(restaurantId)
-  const { categories, menuItems, kitchenNotes } = menu
+  const { menuItems, kitchenNotes } = menu
+  // Hide categories with no available items so staff never land on an empty tab.
+  const categories = useMemo(() => {
+    const used = new Set(menuItems.map(m => m.category_id))
+    return menu.categories.filter(c => used.has(c.id))
+  }, [menu.categories, menuItems])
   const catStationMap = useMemo(
     () => new Map<string, string>(menu.catStationMap),
     [menu.catStationMap],
