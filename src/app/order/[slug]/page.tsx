@@ -18,6 +18,7 @@ import { logAudit } from '@/lib/logAudit'
 import { useRestaurantMenu } from '@/hooks/useRestaurantMenu'
 import MenuLanguageSwitcher from '@/components/menu/MenuLanguageSwitcher'
 import HorizontalItemRail from '@/components/menu/HorizontalItemRail'
+import { textOnAccent } from '@/lib/menuAccent'
 
 const DeliveryCheckout = dynamic(
   () => import('@/components/delivery/DeliveryCheckout'),
@@ -45,10 +46,7 @@ interface TplCfg {
   catLayout: 'circles' | 'pills' | 'square' | 'horizontal'
   sectionTitle: string
   itemCardBg: string; itemCardBorder: string
-  itemNameColor: string; priceColor: string
-  addBtnBg: string; addBtnText: string
-  qtyBg: string; qtyBorder: string; qtyText: string
-  backBtn: string
+  itemNameColor: string
   isDark: boolean
 }
 
@@ -57,55 +55,37 @@ const TEMPLATE_CONFIGS: Record<TemplateId, TplCfg> = {
     pageBg: 'bg-white', nameColor: 'text-gray-900', welcomeColor: 'text-gray-400',
     catLayout: 'circles', sectionTitle: 'text-gray-900',
     itemCardBg: 'bg-white', itemCardBorder: 'border-gray-100',
-    itemNameColor: 'text-gray-800', priceColor: 'text-amber-500',
-    addBtnBg: 'bg-amber-500 active:bg-amber-600', addBtnText: 'text-white',
-    qtyBg: 'bg-amber-50', qtyBorder: 'border-amber-200', qtyText: 'text-amber-700',
-    backBtn: 'text-gray-500 hover:text-gray-800', isDark: false,
+    itemNameColor: 'text-gray-800', isDark: false,
   },
   dark: {
     pageBg: 'bg-[#080c14]', nameColor: 'text-white', welcomeColor: 'text-white/40',
     catLayout: 'circles', sectionTitle: 'text-white',
     itemCardBg: 'bg-white/5', itemCardBorder: 'border-white/10',
-    itemNameColor: 'text-white/90', priceColor: 'text-amber-400',
-    addBtnBg: 'bg-amber-500 active:bg-amber-600', addBtnText: 'text-white',
-    qtyBg: 'bg-amber-500/10', qtyBorder: 'border-amber-500/20', qtyText: 'text-amber-400',
-    backBtn: 'text-white/50 hover:text-white', isDark: true,
+    itemNameColor: 'text-white/90', isDark: true,
   },
   warm: {
     pageBg: 'bg-[#fdf6ec]', nameColor: 'text-[#451a03]', welcomeColor: 'text-amber-700/60',
     catLayout: 'circles', sectionTitle: 'text-[#451a03]',
     itemCardBg: 'bg-white', itemCardBorder: 'border-amber-100',
-    itemNameColor: 'text-[#451a03]', priceColor: 'text-amber-600',
-    addBtnBg: 'bg-amber-700 active:bg-amber-800', addBtnText: 'text-white',
-    qtyBg: 'bg-amber-50', qtyBorder: 'border-amber-200', qtyText: 'text-amber-800',
-    backBtn: 'text-amber-700/60 hover:text-amber-900', isDark: false,
+    itemNameColor: 'text-[#451a03]', isDark: false,
   },
   bold: {
     pageBg: 'bg-white', nameColor: 'text-gray-900', welcomeColor: 'text-gray-500',
     catLayout: 'pills', sectionTitle: 'text-gray-900',
     itemCardBg: 'bg-white', itemCardBorder: 'border-gray-100',
-    itemNameColor: 'text-gray-900', priceColor: 'text-violet-600',
-    addBtnBg: 'bg-violet-600 active:bg-violet-700', addBtnText: 'text-white',
-    qtyBg: 'bg-violet-50', qtyBorder: 'border-violet-200', qtyText: 'text-violet-700',
-    backBtn: 'text-gray-500 hover:text-gray-800', isDark: false,
+    itemNameColor: 'text-gray-900', isDark: false,
   },
   elegant: {
     pageBg: 'bg-[#f7f4f0]', nameColor: 'text-[#1c1917]', welcomeColor: 'text-stone-400',
     catLayout: 'horizontal', sectionTitle: 'text-[#1c1917]',
     itemCardBg: 'bg-white', itemCardBorder: 'border-stone-200',
-    itemNameColor: 'text-stone-900', priceColor: 'text-stone-600',
-    addBtnBg: 'bg-stone-800 active:bg-stone-900', addBtnText: 'text-white',
-    qtyBg: 'bg-stone-100', qtyBorder: 'border-stone-300', qtyText: 'text-stone-700',
-    backBtn: 'text-stone-500 hover:text-stone-800', isDark: false,
+    itemNameColor: 'text-stone-900', isDark: false,
   },
   neon: {
     pageBg: 'bg-[#0a0a0f]', nameColor: 'text-white', welcomeColor: 'text-white/40',
     catLayout: 'square', sectionTitle: 'text-white',
     itemCardBg: 'bg-white/5', itemCardBorder: 'border-white/8',
-    itemNameColor: 'text-white/90', priceColor: 'text-[#39ff14]',
-    addBtnBg: 'bg-[#39ff14] active:opacity-80', addBtnText: 'text-black',
-    qtyBg: 'bg-[#39ff14]/10', qtyBorder: 'border-[#39ff14]/30', qtyText: 'text-[#39ff14]',
-    backBtn: 'text-white/40 hover:text-white', isDark: true,
+    itemNameColor: 'text-white/90', isDark: true,
   },
 }
 
@@ -1000,6 +980,12 @@ export default function DeliveryOrderPage() {
     </div>
   )
 
+  // Menu colour drives buttons, prices and qty steppers (not the template's fixed palette).
+  const onAccent   = textOnAccent(primaryColor)
+  const accentBtn  = { background: primaryColor, color: onAccent }
+  const accentText = { color: primaryColor }
+  const qtyBox     = { background: `${primaryColor}14`, borderColor: `${primaryColor}40` }
+
   const rst = (restaurant.settings ?? {}) as Record<string, string>
   const socialLinks = [
     { key: 'facebook',  value: rst.facebook  ?? '', label: 'Facebook',  icon: <FacebookIcon  className="w-5 h-5" />, iconBg: '#1877f2', textColor: '#1877f2', borderColor: '#bfdbfe' },
@@ -1192,19 +1178,20 @@ export default function DeliveryOrderPage() {
                 return (
                   <button key={cat.id}
                     onClick={() => { setActiveId(cat.id); setShowItems(true) }}
-                    className="flex flex-col items-center gap-3 shrink-0 focus:outline-none">
+                    className="flex flex-col items-center gap-2 shrink-0 focus:outline-none">
                     <div className="w-20 h-20 rounded-2xl flex items-center justify-center shadow-md transition-all duration-200"
                       style={{
                         background: cat.color,
                         outline: isActive ? `3px solid ${primaryColor}` : 'none',
                         outlineOffset: '3px',
+                        boxShadow: isActive ? `0 6px 20px ${primaryColor}55` : '0 3px 10px rgba(0,0,0,0.12)',
                         transform: isActive ? 'scale(1.08)' : 'scale(1)',
                       }}>
                       {cat.icon
                         ? <span style={{ fontSize: '2.8rem', lineHeight: 1 }}>{cat.icon}</span>
                         : <span className="text-white text-2xl font-bold">{cat.name.charAt(0).toUpperCase()}</span>}
                     </div>
-                    <span className="relative z-[1] text-xs font-semibold w-14 text-center leading-tight line-clamp-1"
+                    <span className="relative z-[1] text-xs font-semibold w-14 text-center leading-tight line-clamp-1 transition-colors"
                       style={{ color: isActive ? primaryColor : (tpl.isDark ? '#9ca3af' : '#6b7280') }}>
                       {cat.name}
                     </span>
@@ -1273,8 +1260,8 @@ export default function DeliveryOrderPage() {
         return (
           <div className={`w-full mx-auto mt-4 px-4 pb-10 text-start ${itemStyle === 'carousel' ? '' : 'max-w-lg'}`}>
             <button onClick={() => setShowItems(false)}
-              className={`mb-4 ml-2 flex items-center gap-1.5 text-sm font-semibold transition-colors ${tpl.backBtn}`}>
-              ← {t.gm_back}
+              className={`mb-4 ms-2 inline-flex items-center gap-2 ps-3 pe-5 py-2.5 rounded-xl text-base font-bold shadow-md transition-all active:scale-95 active:brightness-90`} style={accentBtn}>
+              {isRTL ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />} {t.gm_back}
             </button>
             {activeCat && (
               <div className="flex items-center gap-2 mb-4 px-2">
@@ -1320,19 +1307,19 @@ export default function DeliveryOrderPage() {
                         {showDescs && item.description && (
                           <p className="text-xs line-clamp-2 leading-snug" style={{ color: tpl.isDark ? 'rgba(255,255,255,0.35)' : '#9ca3af' }}>{item.description}</p>
                         )}
-                        {showPrices && <p className={`text-sm font-extrabold mt-auto pt-1 ${tpl.priceColor}`}>{formatPrice(deliveryPrice(item))}</p>}
+                        {showPrices && <p className={`text-sm font-extrabold mt-auto pt-1`} style={accentText}>{formatPrice(deliveryPrice(item))}</p>}
                       </div>
                       <div className="px-3 pb-3">
                         {qty === 0 ? (
                           <button onClick={() => addOne(item.id)}
-                            className={`w-full flex items-center justify-center gap-1 py-2 rounded-xl text-sm font-bold active:scale-95 ${tpl.addBtnBg} ${tpl.addBtnText}`}>
+                            className={`w-full flex items-center justify-center gap-1 py-2 rounded-xl text-sm font-bold transition-all active:scale-95 active:brightness-90`} style={accentBtn}>
                             <Plus className="w-4 h-4" /> {t.gm_add}
                           </button>
                         ) : (
-                          <div className={`flex items-center justify-between rounded-xl border ${tpl.qtyBg} ${tpl.qtyBorder}`}>
-                            <button onClick={() => removeOne(item.id)} className={`w-9 h-9 flex items-center justify-center active:scale-90 ${tpl.qtyText}`}><Minus className="w-4 h-4" /></button>
-                            <span className={`text-sm font-bold tabular-nums flex-1 text-center ${tpl.qtyText}`}>{qty}</span>
-                            <button onClick={() => addOne(item.id)} className={`w-9 h-9 flex items-center justify-center active:scale-90 ${tpl.qtyText}`}><Plus className="w-4 h-4" /></button>
+                          <div className={`flex items-center justify-between rounded-xl border`} style={qtyBox}>
+                            <button onClick={() => removeOne(item.id)} className={`w-9 h-9 flex items-center justify-center active:scale-90 transition-all`} style={accentText}><Minus className="w-4 h-4" /></button>
+                            <span className={`text-sm font-bold tabular-nums flex-1 text-center`} style={accentText}>{qty}</span>
+                            <button onClick={() => addOne(item.id)} className={`w-9 h-9 flex items-center justify-center active:scale-90 transition-all`} style={accentText}><Plus className="w-4 h-4" /></button>
                           </div>
                         )}
                       </div>
@@ -1359,17 +1346,17 @@ export default function DeliveryOrderPage() {
                           <p className="text-xs line-clamp-1" style={{ color: tpl.isDark ? 'rgba(255,255,255,0.4)' : '#9ca3af' }}>{item.description}</p>
                         )}
                         <div className="flex items-center justify-between mt-0.5 mb-1">
-                          {showPrices && <p className={`text-sm font-extrabold ${tpl.priceColor}`}>{formatPrice(deliveryPrice(item))}</p>}
+                          {showPrices && <p className={`text-sm font-extrabold`} style={accentText}>{formatPrice(deliveryPrice(item))}</p>}
                           {qty === 0 ? (
                             <button onClick={() => addOne(item.id)}
-                              className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold active:scale-95 ${tpl.addBtnBg} ${tpl.addBtnText}`}>
+                              className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all active:scale-95 active:brightness-90`} style={accentBtn}>
                               <Plus className="w-3.5 h-3.5" /> {t.gm_add}
                             </button>
                           ) : (
-                            <div className={`flex items-center rounded-xl border ${tpl.qtyBg} ${tpl.qtyBorder}`}>
-                              <button onClick={() => removeOne(item.id)} className={`w-8 h-8 flex items-center justify-center active:scale-90 ${tpl.qtyText}`}><Minus className="w-3.5 h-3.5" /></button>
-                              <span className={`text-xs font-bold w-5 text-center tabular-nums ${tpl.qtyText}`}>{qty}</span>
-                              <button onClick={() => addOne(item.id)} className={`w-8 h-8 flex items-center justify-center active:scale-90 ${tpl.qtyText}`}><Plus className="w-3.5 h-3.5" /></button>
+                            <div className={`flex items-center rounded-xl border`} style={qtyBox}>
+                              <button onClick={() => removeOne(item.id)} className={`w-8 h-8 flex items-center justify-center active:scale-90`} style={accentText}><Minus className="w-3.5 h-3.5" /></button>
+                              <span className={`text-xs font-bold w-5 text-center tabular-nums`} style={accentText}>{qty}</span>
+                              <button onClick={() => addOne(item.id)} className={`w-8 h-8 flex items-center justify-center active:scale-90`} style={accentText}><Plus className="w-3.5 h-3.5" /></button>
                             </div>
                           )}
                         </div>
@@ -1390,19 +1377,19 @@ export default function DeliveryOrderPage() {
                         {showDescs && item.description && (
                           <p className="text-xs mt-0.5 line-clamp-1" style={{ color: tpl.isDark ? 'rgba(255,255,255,0.35)' : '#9ca3af' }}>{item.description}</p>
                         )}
-                        {showPrices && <p className={`text-xs font-bold mt-1 ${tpl.priceColor}`}>{formatPrice(deliveryPrice(item))}</p>}
+                        {showPrices && <p className={`text-xs font-bold mt-1`} style={accentText}>{formatPrice(deliveryPrice(item))}</p>}
                       </div>
                       {qty === 0 ? (
                         <button onClick={() => addOne(item.id)}
-                          className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 active:scale-90"
+                          className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 active:scale-90 transition-all"
                           style={{ background: primaryColor }}>
                           <Plus className="w-4 h-4 text-white" />
                         </button>
                       ) : (
-                        <div className={`flex items-center rounded-xl border ${tpl.qtyBg} ${tpl.qtyBorder} shrink-0`}>
-                          <button onClick={() => removeOne(item.id)} className={`w-8 h-8 flex items-center justify-center active:scale-90 ${tpl.qtyText}`}><Minus className="w-3.5 h-3.5" /></button>
-                          <span className={`text-xs font-bold w-5 text-center tabular-nums ${tpl.qtyText}`}>{qty}</span>
-                          <button onClick={() => addOne(item.id)} className={`w-8 h-8 flex items-center justify-center active:scale-90 ${tpl.qtyText}`}><Plus className="w-3.5 h-3.5" /></button>
+                        <div className={`flex items-center rounded-xl border shrink-0`} style={qtyBox}>
+                          <button onClick={() => removeOne(item.id)} className={`w-8 h-8 flex items-center justify-center active:scale-90`} style={accentText}><Minus className="w-3.5 h-3.5" /></button>
+                          <span className={`text-xs font-bold w-5 text-center tabular-nums`} style={accentText}>{qty}</span>
+                          <button onClick={() => addOne(item.id)} className={`w-8 h-8 flex items-center justify-center active:scale-90`} style={accentText}><Plus className="w-3.5 h-3.5" /></button>
                         </div>
                       )}
                     </div>
@@ -1415,7 +1402,7 @@ export default function DeliveryOrderPage() {
                   const qty = getQty(item.id)
                   return (
                     <div key={item.id}
-                      className={`rounded-2xl border shadow-sm overflow-hidden flex flex-col ${tpl.itemCardBg} ${tpl.itemCardBorder}`}
+                      className={`rounded-2xl border shadow-sm overflow-hidden flex flex-col relative ${tpl.itemCardBg} ${tpl.itemCardBorder}`}
                       style={{ boxShadow: qty > 0 ? `0 0 0 2px ${primaryColor}` : undefined }}>
                       <div className="relative w-full aspect-[3/2] bg-gray-50">
                         {item.image_url
@@ -1433,19 +1420,19 @@ export default function DeliveryOrderPage() {
                         {showDescs && item.description && (
                           <p className="text-[10px] line-clamp-2 leading-snug" style={{ color: tpl.isDark ? 'rgba(255,255,255,0.35)' : '#9ca3af' }}>{item.description}</p>
                         )}
-                        {showPrices && <p className={`text-xs font-extrabold mt-auto ${tpl.priceColor}`}>{formatPrice(deliveryPrice(item))}</p>}
+                        {showPrices && <p className={`text-xs font-extrabold mt-auto`} style={accentText}>{formatPrice(deliveryPrice(item))}</p>}
                       </div>
                       <div className="px-2 pb-2">
                         {qty === 0 ? (
                           <button onClick={() => addOne(item.id)}
-                            className={`w-full flex items-center justify-center gap-1 py-1.5 rounded-xl text-xs font-bold active:scale-95 ${tpl.addBtnBg} ${tpl.addBtnText}`}>
+                            className={`w-full flex items-center justify-center gap-1 py-1.5 rounded-xl text-xs font-bold transition-all active:scale-95 active:brightness-90`} style={accentBtn}>
                             <Plus className="w-3.5 h-3.5" /> {t.gm_add}
                           </button>
                         ) : (
-                          <div className={`flex items-center justify-between rounded-xl border ${tpl.qtyBg} ${tpl.qtyBorder}`}>
-                            <button onClick={() => removeOne(item.id)} className={`w-8 h-8 flex items-center justify-center active:scale-90 ${tpl.qtyText}`}><Minus className="w-3.5 h-3.5" /></button>
-                            <span className={`text-xs font-bold tabular-nums flex-1 text-center ${tpl.qtyText}`}>{qty}</span>
-                            <button onClick={() => addOne(item.id)} className={`w-8 h-8 flex items-center justify-center active:scale-90 ${tpl.qtyText}`}><Plus className="w-3.5 h-3.5" /></button>
+                          <div className={`flex items-center justify-between rounded-xl border`} style={qtyBox}>
+                            <button onClick={() => removeOne(item.id)} className={`w-8 h-8 flex items-center justify-center active:scale-90 transition-all`} style={accentText}><Minus className="w-3.5 h-3.5" /></button>
+                            <span className={`text-xs font-bold tabular-nums flex-1 text-center`} style={accentText}>{qty}</span>
+                            <button onClick={() => addOne(item.id)} className={`w-8 h-8 flex items-center justify-center active:scale-90 transition-all`} style={accentText}><Plus className="w-3.5 h-3.5" /></button>
                           </div>
                         )}
                       </div>
@@ -1607,17 +1594,17 @@ export default function DeliveryOrderPage() {
           <button
             onClick={() => setShowCart(true)}
             className="w-full flex items-center justify-between px-5 py-4 rounded-2xl shadow-xl active:scale-95 transition-all"
-            style={{ background: primaryColor, boxShadow: `0 8px 32px ${primaryColor}50` }}>
+            style={{ background: primaryColor, boxShadow: `0 8px 32px ${primaryColor}50`, color: onAccent }}>
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center">
-                <ShoppingCart className="w-4 h-4 text-white" />
+                <ShoppingCart className="w-4 h-4" />
               </div>
               <div className="text-left">
-                <p className="text-white text-xs font-semibold opacity-80">{cartCount} {cartCount !== 1 ? t.gm_items : t.gm_item}</p>
-                <p className="text-white text-sm font-extrabold">{formatPrice(cartTotal)}</p>
+                <p className="text-xs font-semibold opacity-80">{cartCount} {cartCount !== 1 ? t.gm_items : t.gm_item}</p>
+                <p className="text-sm font-extrabold">{formatPrice(cartTotal)}</p>
               </div>
             </div>
-            <div className="flex items-center gap-1 text-white font-bold text-sm">
+            <div className="flex items-center gap-1 font-bold text-sm">
               {t.gm_view_order} {isRTL ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
             </div>
           </button>
@@ -1675,7 +1662,7 @@ export default function DeliveryOrderPage() {
                     <div className="flex items-center gap-2 px-3 pb-3 pt-2">
                       <button
                         onClick={() => setItemModalId(item.id)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-600 text-xs font-semibold active:scale-95 transition-all shrink-0"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold active:scale-95 transition-all shrink-0" style={{ ...qtyBox, color: primaryColor }}
                       >
                         {isRTL ? <ChevronLeft className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
                         {allNotes.length > 0 ? t.gm_edit : t.gm_add_notes}
@@ -1735,7 +1722,7 @@ export default function DeliveryOrderPage() {
                 onClick={() => { setShowCart(false); setShowModal(true) }}
                 disabled={minOrder > 0 && cartTotal < minOrder}
                 className="w-full py-4 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-40"
-                style={{ background: primaryColor, color: primaryColor === '#39ff14' ? '#000' : '#fff', boxShadow: `0 6px 24px ${primaryColor}40` }}>
+                style={{ background: primaryColor, color: onAccent, boxShadow: `0 6px 24px ${primaryColor}40` }}>
                 <Truck className="w-4 h-4" /> {t.gm_place_order} · {formatPrice(cartTotal + effectiveDeliveryFee)}
               </button>
             </div>
@@ -1755,6 +1742,7 @@ export default function DeliveryOrderPage() {
             kitchenNotes={kitchenNotes}
             supabase={supabase}
             formatPrice={formatPrice}
+            accent={primaryColor}
             onConfirm={entry => confirmItem(itemModalId, entry)}
             onClose={() => setItemModalId(null)}
           />
@@ -1835,8 +1823,8 @@ export default function DeliveryOrderPage() {
               <div className="absolute bottom-0 left-0 right-0 px-6 pb-10 z-10 space-y-3">
                 {ev.date_label && (
                   <div key={`badge-${storyKey}`}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-400 text-black text-sm font-bold shadow-lg shadow-amber-400/30"
-                    style={{ animation: 'story-badge 0.55s cubic-bezier(0.34,1.56,0.64,1) 0.1s both' }}>
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold shadow-lg"
+                    style={{ ...accentBtn, animation: 'story-badge 0.55s cubic-bezier(0.34,1.56,0.64,1) 0.1s both' }}>
                     {ev.date_label}
                   </div>
                 )}
@@ -1873,16 +1861,18 @@ export default function DeliveryOrderPage() {
 }
 
 // ── Delivery Item Modal ───────────────────────────────────────
-function DeliveryItemModal({ item, initial, kitchenNotes, supabase, formatPrice, onConfirm, onClose }: {
+function DeliveryItemModal({ item, initial, kitchenNotes, supabase, formatPrice, accent, onConfirm, onClose }: {
   item: MenuItem
   initial: CartEntry
   kitchenNotes: KitchenNote[]
   supabase: ReturnType<typeof import('@/lib/supabase/client').createClient>
   formatPrice: (n: number) => string
+  accent: string
   onConfirm: (entry: CartEntry) => void
   onClose: () => void
 }) {
   const { t } = useLanguage()
+  const onAccent = textOnAccent(accent)
   const [local, setLocal] = useState<CartEntry>({ ...initial, selectedOptions: [...initial.selectedOptions], noteIds: [...initial.noteIds] })
   const [modGroups, setModGroups] = useState<ModGroup[]>([])
   const [loadingMods, setLoadingMods] = useState(true)
@@ -1943,14 +1933,14 @@ function DeliveryItemModal({ item, initial, kitchenNotes, supabase, formatPrice,
             </button>
             <div className="absolute bottom-3 left-4 right-14">
               <p className="text-base font-extrabold text-white leading-tight">{item.name}</p>
-              <p className="text-sm font-bold text-amber-400 mt-0.5">{formatPrice(basePrice + modPrice)}</p>
+              <p className="text-sm font-bold mt-0.5" style={{ color: accent }}>{formatPrice(basePrice + modPrice)}</p>
             </div>
           </div>
         ) : (
           <div className="shrink-0 flex items-center justify-between px-4 py-4 border-b border-gray-100">
             <div>
               <p className="text-base font-extrabold text-gray-900">{item.name}</p>
-              <p className="text-sm font-bold text-amber-500 mt-0.5">{formatPrice(basePrice + modPrice)}</p>
+              <p className="text-sm font-bold mt-0.5" style={{ color: accent }}>{formatPrice(basePrice + modPrice)}</p>
             </div>
             <button onClick={onClose} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 active:scale-95">
               <X className="w-4 h-4" />
@@ -1960,12 +1950,12 @@ function DeliveryItemModal({ item, initial, kitchenNotes, supabase, formatPrice,
 
         <div className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-gray-100">
           <span className="text-sm font-semibold text-gray-600">{t.gm_quantity}</span>
-          <div className="flex items-center rounded-xl border-2 border-amber-400 overflow-hidden">
-            <button onClick={() => setLocal(e => ({ ...e, qty: Math.max(1, e.qty - 1) }))} className="w-9 h-9 flex items-center justify-center text-amber-600 bg-amber-50 active:bg-amber-100 transition-all">
+          <div className="flex items-center rounded-xl border-2 overflow-hidden" style={{ borderColor: accent }}>
+            <button onClick={() => setLocal(e => ({ ...e, qty: Math.max(1, e.qty - 1) }))} className="w-9 h-9 flex items-center justify-center active:brightness-95 transition-all" style={{ color: accent, background: `${accent}14` }}>
               <Minus className="w-3.5 h-3.5" />
             </button>
             <span className="w-9 text-center text-sm font-extrabold text-gray-900 tabular-nums">{local.qty}</span>
-            <button onClick={() => setLocal(e => ({ ...e, qty: e.qty + 1 }))} className="w-9 h-9 flex items-center justify-center text-white bg-amber-500 active:bg-amber-600 transition-all">
+            <button onClick={() => setLocal(e => ({ ...e, qty: e.qty + 1 }))} className="w-9 h-9 flex items-center justify-center active:brightness-90 transition-all" style={{ background: accent, color: onAccent }}>
               <Plus className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -1973,7 +1963,7 @@ function DeliveryItemModal({ item, initial, kitchenNotes, supabase, formatPrice,
 
         <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
           {loadingMods ? (
-            <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 text-amber-400 animate-spin" /></div>
+            <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin" style={{ color: accent }} /></div>
           ) : modGroups.map(group => (
             <div key={group.id} className="px-4 py-3">
               <div className="flex items-center justify-between mb-2">
@@ -1988,12 +1978,14 @@ function DeliveryItemModal({ item, initial, kitchenNotes, supabase, formatPrice,
                   const selected = local.selectedOptions.some(o => o.option_id === opt.id)
                   return (
                     <button key={opt.id} onClick={() => toggleOption(group, opt)}
-                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border-2 transition-all active:scale-[0.98] ${selected ? 'border-amber-400 bg-amber-50' : 'border-gray-100 bg-gray-50'}`}>
-                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${selected ? 'border-amber-500 bg-amber-500' : 'border-gray-300'}`}>
-                        {selected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border-2 transition-all active:scale-[0.98] ${selected ? '' : 'border-gray-100 bg-gray-50'}`}
+                      style={selected ? { borderColor: accent, background: `${accent}14` } : undefined}>
+                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${selected ? '' : 'border-gray-300'}`}
+                        style={selected ? { borderColor: accent, background: accent } : undefined}>
+                        {selected && <div className="w-1.5 h-1.5 rounded-full" style={{ background: onAccent }} />}
                       </div>
-                      <span className={`flex-1 text-sm font-medium text-left ${selected ? 'text-amber-800' : 'text-gray-700'}`}>{opt.name}</span>
-                      {opt.price > 0 && <span className={`text-xs font-bold tabular-nums ${selected ? 'text-amber-600' : 'text-gray-400'}`}>+{formatPrice(opt.price)}</span>}
+                      <span className={`flex-1 text-sm font-medium text-left ${selected ? 'text-gray-900' : 'text-gray-700'}`}>{opt.name}</span>
+                      {opt.price > 0 && <span className={`text-xs font-bold tabular-nums ${selected ? '' : 'text-gray-400'}`} style={selected ? { color: accent } : undefined}>+{formatPrice(opt.price)}</span>}
                     </button>
                   )
                 })}
@@ -2009,7 +2001,8 @@ function DeliveryItemModal({ item, initial, kitchenNotes, supabase, formatPrice,
                   const active = local.noteIds.includes(note.id)
                   return (
                     <button key={note.id} onClick={() => toggleNote(note.id)}
-                      className={`px-3 py-1.5 rounded-full border-2 text-xs font-semibold transition-all active:scale-95 ${active ? 'border-orange-400 bg-orange-500 text-white' : 'border-gray-200 bg-white text-gray-600'}`}>
+                      className={`px-3 py-1.5 rounded-full border-2 text-xs font-semibold transition-all active:scale-95 ${active ? '' : 'border-gray-200 bg-white text-gray-600'}`}
+                      style={active ? { borderColor: accent, background: accent, color: onAccent } : undefined}>
                       {note.text}
                     </button>
                   )
@@ -2024,7 +2017,7 @@ function DeliveryItemModal({ item, initial, kitchenNotes, supabase, formatPrice,
               value={local.customNote}
               onChange={e => setLocal(en => ({ ...en, customNote: e.target.value }))}
               placeholder={t.gm_note_ph}
-              className="w-full border-2 border-gray-100 rounded-xl px-3 py-2.5 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-amber-300 bg-gray-50"
+              className="w-full border-2 border-gray-100 rounded-xl px-3 py-2.5 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-gray-300 bg-gray-50"
             />
           </div>
         </div>
@@ -2032,7 +2025,8 @@ function DeliveryItemModal({ item, initial, kitchenNotes, supabase, formatPrice,
         <div className="shrink-0 px-4 pb-4 pt-3 border-t border-gray-100">
           <button
             onClick={() => onConfirm(local)}
-            className="w-full py-3.5 rounded-2xl bg-amber-500 text-white text-sm font-extrabold shadow-lg shadow-amber-400/30 active:scale-[0.98] transition-all flex items-center justify-between px-4"
+            className="w-full py-3.5 rounded-2xl text-sm font-extrabold shadow-lg active:scale-[0.98] transition-all flex items-center justify-between px-4"
+            style={{ background: accent, color: onAccent, boxShadow: `0 10px 15px -3px ${accent}4d` }}
           >
             <span>{isEditing ? t.gm_update : t.gm_add_to_order}</span>
             <span className="bg-white/25 px-3 py-1 rounded-xl text-sm font-bold">{formatPrice(lineTotal)}</span>

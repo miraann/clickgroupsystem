@@ -17,6 +17,7 @@ import { logAudit } from '@/lib/logAudit'
 import { useRestaurantMenu } from '@/hooks/useRestaurantMenu'
 import MenuLanguageSwitcher from '@/components/menu/MenuLanguageSwitcher'
 import HorizontalItemRail from '@/components/menu/HorizontalItemRail'
+import { textOnAccent } from '@/lib/menuAccent'
 
 interface Restaurant { id: string; name: string; logo_url: string | null; settings: Record<string, string> }
 interface TableInfo  { id: string; restaurant_id: string; seq: number; table_number: string; name: string | null; group_id: string | null }
@@ -70,8 +71,6 @@ interface TplCfg {
   pageText: string
   logoRing: string          // CSS color
   nameColor: string
-  tableChipBg: string
-  tableChipText: string
   welcomeColor: string
   catLayout: 'circles' | 'pills'
   catActiveOutline: string  // CSS color for circle outline
@@ -80,13 +79,6 @@ interface TplCfg {
   itemCardBg: string
   itemCardBorder: string
   itemNameColor: string
-  priceColor: string
-  addBtnBg: string
-  addBtnText: string
-  qtyBg: string
-  qtyBorder: string
-  qtyText: string
-  backBtn: string
   dividerColor: string
 }
 
@@ -95,96 +87,72 @@ const TEMPLATE_CONFIGS: Record<TemplateId, TplCfg> = {
     pageBg: 'bg-white', pageText: 'text-gray-900',
     logoRing: '#f59e0b',
     nameColor: 'text-gray-900',
-    tableChipBg: 'bg-amber-100', tableChipText: 'text-amber-700',
     welcomeColor: 'text-gray-400',
     catLayout: 'circles', catActiveOutline: '#f59e0b',
     sectionTitleColor: 'text-gray-900',
     itemLayout: 'grid',
     itemCardBg: 'bg-white', itemCardBorder: 'border-gray-100',
-    itemNameColor: 'text-gray-800', priceColor: 'text-amber-500',
-    addBtnBg: 'bg-amber-500 active:bg-amber-600', addBtnText: 'text-white',
-    qtyBg: 'bg-amber-50', qtyBorder: 'border-amber-200', qtyText: 'text-amber-700',
-    backBtn: 'text-gray-500 hover:text-gray-800',
+    itemNameColor: 'text-gray-800',
     dividerColor: 'border-gray-100',
   },
   dark: {
     pageBg: 'bg-[#080c14]', pageText: 'text-white',
     logoRing: '#f59e0b',
     nameColor: 'text-white',
-    tableChipBg: 'bg-amber-500/15', tableChipText: 'text-amber-400',
     welcomeColor: 'text-white/40',
     catLayout: 'circles', catActiveOutline: '#f59e0b',
     sectionTitleColor: 'text-white',
     itemLayout: 'grid',
     itemCardBg: 'bg-white/5', itemCardBorder: 'border-white/10',
-    itemNameColor: 'text-white/90', priceColor: 'text-amber-400',
-    addBtnBg: 'bg-amber-500 active:bg-amber-600', addBtnText: 'text-white',
-    qtyBg: 'bg-amber-500/10', qtyBorder: 'border-amber-500/20', qtyText: 'text-amber-400',
-    backBtn: 'text-white/50 hover:text-white',
+    itemNameColor: 'text-white/90',
     dividerColor: 'border-white/8',
   },
   warm: {
     pageBg: 'bg-[#fdf6ec]', pageText: 'text-[#451a03]',
     logoRing: '#d97706',
     nameColor: 'text-[#451a03]',
-    tableChipBg: 'bg-amber-100', tableChipText: 'text-amber-800',
     welcomeColor: 'text-amber-700/60',
     catLayout: 'circles', catActiveOutline: '#b45309',
     sectionTitleColor: 'text-[#451a03]',
     itemLayout: 'grid',
     itemCardBg: 'bg-white', itemCardBorder: 'border-amber-100',
-    itemNameColor: 'text-[#451a03]', priceColor: 'text-amber-600',
-    addBtnBg: 'bg-amber-700 active:bg-amber-800', addBtnText: 'text-white',
-    qtyBg: 'bg-amber-50', qtyBorder: 'border-amber-200', qtyText: 'text-amber-800',
-    backBtn: 'text-amber-700/60 hover:text-amber-900',
+    itemNameColor: 'text-[#451a03]',
     dividerColor: 'border-amber-100',
   },
   bold: {
     pageBg: 'bg-white', pageText: 'text-gray-900',
     logoRing: '#7c3aed',
     nameColor: 'text-gray-900',
-    tableChipBg: 'bg-violet-100', tableChipText: 'text-violet-700',
     welcomeColor: 'text-gray-500',
     catLayout: 'pills', catActiveOutline: '#7c3aed',
     sectionTitleColor: 'text-gray-900',
     itemLayout: 'list',
     itemCardBg: 'bg-white', itemCardBorder: 'border-gray-100',
-    itemNameColor: 'text-gray-900', priceColor: 'text-violet-600',
-    addBtnBg: 'bg-violet-600 active:bg-violet-700', addBtnText: 'text-white',
-    qtyBg: 'bg-violet-50', qtyBorder: 'border-violet-200', qtyText: 'text-violet-700',
-    backBtn: 'text-gray-500 hover:text-gray-800',
+    itemNameColor: 'text-gray-900',
     dividerColor: 'border-gray-100',
   },
   elegant: {
     pageBg: 'bg-[#f7f4f0]', pageText: 'text-[#1c1917]',
     logoRing: '#a8896c',
     nameColor: 'text-[#1c1917]',
-    tableChipBg: 'bg-stone-200', tableChipText: 'text-stone-700',
     welcomeColor: 'text-stone-400',
     catLayout: 'pills', catActiveOutline: '#a8896c',
     sectionTitleColor: 'text-[#1c1917]',
     itemLayout: 'list',
     itemCardBg: 'bg-white', itemCardBorder: 'border-stone-200',
-    itemNameColor: 'text-stone-900', priceColor: 'text-stone-600',
-    addBtnBg: 'bg-stone-800 active:bg-stone-900', addBtnText: 'text-white',
-    qtyBg: 'bg-stone-100', qtyBorder: 'border-stone-300', qtyText: 'text-stone-700',
-    backBtn: 'text-stone-500 hover:text-stone-800',
+    itemNameColor: 'text-stone-900',
     dividerColor: 'border-stone-200',
   },
   neon: {
     pageBg: 'bg-[#0a0a0f]', pageText: 'text-white',
     logoRing: '#39ff14',
     nameColor: 'text-white',
-    tableChipBg: 'bg-[#39ff14]/10', tableChipText: 'text-[#39ff14]',
     welcomeColor: 'text-white/40',
     catLayout: 'circles', catActiveOutline: '#39ff14',
     sectionTitleColor: 'text-white',
     itemLayout: 'grid',
     itemCardBg: 'bg-white/5', itemCardBorder: 'border-white/8',
-    itemNameColor: 'text-white/90', priceColor: 'text-[#39ff14]',
-    addBtnBg: 'bg-[#39ff14] active:opacity-80', addBtnText: 'text-black',
-    qtyBg: 'bg-[#39ff14]/10', qtyBorder: 'border-[#39ff14]/30', qtyText: 'text-[#39ff14]',
-    backBtn: 'text-white/40 hover:text-white',
+    itemNameColor: 'text-white/90',
     dividerColor: 'border-white/8',
   },
 }
@@ -527,6 +495,12 @@ export default function GuestPage() {
     ? `${table.table_number} · ${table.name}`
     : table?.table_number ?? ''
 
+  // Menu colour drives buttons, prices and qty steppers (not the template's fixed palette).
+  const onAccent   = textOnAccent(primaryColor)
+  const accentBtn  = { background: primaryColor, color: onAccent }
+  const accentText = { color: primaryColor }
+  const qtyBox     = { background: `${primaryColor}14`, borderColor: `${primaryColor}40` }
+
   const settings = (restaurant.settings ?? {}) as Record<string, string>
 
   const socialLinks = [
@@ -563,7 +537,8 @@ export default function GuestPage() {
       {/* Table number */}
       {tableLabel && (
         <motion.span initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1], delay: 0.24 }}
-          className={`mt-1 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-semibold ${tpl.tableChipBg} ${tpl.tableChipText}`}>
+          className="mt-1 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-semibold"
+          style={{ background: `${primaryColor}18`, color: primaryColor }}>
           {t.gm_table} {tableLabel}
         </motion.span>
       )}
@@ -699,7 +674,7 @@ export default function GuestPage() {
                       }
                     </div>
                     <span
-                      className="text-xs font-semibold w-14 text-center leading-tight line-clamp-1 transition-colors"
+                      className="relative z-[1] text-xs font-semibold w-14 text-center leading-tight line-clamp-1 transition-colors"
                       style={{ color: isActive ? primaryColor : (isDark ? '#9ca3af' : '#6b7280') }}
                     >
                       {cat.name}
@@ -787,9 +762,9 @@ export default function GuestPage() {
             {/* Back button */}
             <button
               onClick={() => setShowItems(false)}
-              className={`mb-4 ml-2 flex items-center gap-1.5 text-sm font-semibold transition-colors ${tpl.backBtn}`}
+              className={`mb-4 ms-2 inline-flex items-center gap-2 ps-3 pe-5 py-2.5 rounded-xl text-base font-bold shadow-md transition-all active:scale-95 active:brightness-90`} style={accentBtn}
             >
-              ← {t.gm_back}
+              {isRTL ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />} {t.gm_back}
             </button>
             {/* Category title */}
             {activeCat && (
@@ -839,23 +814,23 @@ export default function GuestPage() {
                         {showDescs && item.description && (
                           <p className="text-xs line-clamp-2 leading-snug" style={{ color: isDark ? 'rgba(255,255,255,0.35)' : '#9ca3af' }}>{item.description}</p>
                         )}
-                        {showPrices && <p className={`text-sm font-extrabold mt-auto pt-1 ${tpl.priceColor}`}>{formatPrice(item.price)}</p>}
+                        {showPrices && <p className={`text-sm font-extrabold mt-auto pt-1`} style={accentText}>{formatPrice(item.price)}</p>}
                       </div>
                       <div className="px-3 pb-3">
                         {qty === 0 ? (
                           <button
                             onClick={() => addOne(item.id)}
-                            className={`w-full flex items-center justify-center gap-1 py-2 rounded-xl text-sm font-bold transition-all active:scale-95 ${tpl.addBtnBg} ${tpl.addBtnText}`}
+                            className={`w-full flex items-center justify-center gap-1 py-2 rounded-xl text-sm font-bold transition-all active:scale-95 active:brightness-90`} style={accentBtn}
                           >
                             <Plus className="w-4 h-4" /> {t.gm_add}
                           </button>
                         ) : (
-                          <div className={`flex items-center justify-between rounded-xl border ${tpl.qtyBg} ${tpl.qtyBorder}`}>
-                            <button onClick={() => removeOne(item.id)} className={`w-9 h-9 flex items-center justify-center active:scale-90 transition-all ${tpl.qtyText}`}>
+                          <div className={`flex items-center justify-between rounded-xl border`} style={qtyBox}>
+                            <button onClick={() => removeOne(item.id)} className={`w-9 h-9 flex items-center justify-center active:scale-90 transition-all`} style={accentText}>
                               <Minus className="w-4 h-4" />
                             </button>
-                            <span className={`text-sm font-bold tabular-nums flex-1 text-center ${tpl.qtyText}`}>{qty}</span>
-                            <button onClick={() => addOne(item.id)} className={`w-9 h-9 flex items-center justify-center active:scale-90 transition-all ${tpl.qtyText}`}>
+                            <span className={`text-sm font-bold tabular-nums flex-1 text-center`} style={accentText}>{qty}</span>
+                            <button onClick={() => addOne(item.id)} className={`w-9 h-9 flex items-center justify-center active:scale-90 transition-all`} style={accentText}>
                               <Plus className="w-4 h-4" />
                             </button>
                           </div>
@@ -889,21 +864,21 @@ export default function GuestPage() {
                           <p className="text-xs line-clamp-1" style={{ color: isDark ? 'rgba(255,255,255,0.4)' : '#9ca3af' }}>{item.description}</p>
                         )}
                         <div className="flex items-center justify-between mt-0.5 mb-1">
-                          {showPrices && <p className={`text-sm font-extrabold ${tpl.priceColor}`}>{formatPrice(item.price)}</p>}
+                          {showPrices && <p className={`text-sm font-extrabold`} style={accentText}>{formatPrice(item.price)}</p>}
                           {qty === 0 ? (
                             <button
                               onClick={() => addOne(item.id)}
-                              className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all active:scale-95 ${tpl.addBtnBg} ${tpl.addBtnText}`}
+                              className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all active:scale-95 active:brightness-90`} style={accentBtn}
                             >
                               <Plus className="w-3.5 h-3.5" /> {t.gm_add}
                             </button>
                           ) : (
-                            <div className={`flex items-center rounded-xl border ${tpl.qtyBg} ${tpl.qtyBorder}`}>
-                              <button onClick={() => removeOne(item.id)} className={`w-8 h-8 flex items-center justify-center active:scale-90 ${tpl.qtyText}`}>
+                            <div className={`flex items-center rounded-xl border`} style={qtyBox}>
+                              <button onClick={() => removeOne(item.id)} className={`w-8 h-8 flex items-center justify-center active:scale-90`} style={accentText}>
                                 <Minus className="w-3.5 h-3.5" />
                               </button>
-                              <span className={`text-xs font-bold w-5 text-center tabular-nums ${tpl.qtyText}`}>{qty}</span>
-                              <button onClick={() => addOne(item.id)} className={`w-8 h-8 flex items-center justify-center active:scale-90 ${tpl.qtyText}`}>
+                              <span className={`text-xs font-bold w-5 text-center tabular-nums`} style={accentText}>{qty}</span>
+                              <button onClick={() => addOne(item.id)} className={`w-8 h-8 flex items-center justify-center active:scale-90`} style={accentText}>
                                 <Plus className="w-3.5 h-3.5" />
                               </button>
                             </div>
@@ -931,7 +906,7 @@ export default function GuestPage() {
                         {showDescs && item.description && (
                           <p className="text-xs mt-0.5 line-clamp-1" style={{ color: isDark ? 'rgba(255,255,255,0.35)' : '#9ca3af' }}>{item.description}</p>
                         )}
-                        {showPrices && <p className={`text-xs font-bold mt-1 ${tpl.priceColor}`}>{formatPrice(item.price)}</p>}
+                        {showPrices && <p className={`text-xs font-bold mt-1`} style={accentText}>{formatPrice(item.price)}</p>}
                       </div>
                       {qty === 0 ? (
                         <button
@@ -942,12 +917,12 @@ export default function GuestPage() {
                           <Plus className="w-4 h-4 text-white" />
                         </button>
                       ) : (
-                        <div className={`flex items-center rounded-xl border ${tpl.qtyBg} ${tpl.qtyBorder} shrink-0`}>
-                          <button onClick={() => removeOne(item.id)} className={`w-8 h-8 flex items-center justify-center active:scale-90 ${tpl.qtyText}`}>
+                        <div className={`flex items-center rounded-xl border shrink-0`} style={qtyBox}>
+                          <button onClick={() => removeOne(item.id)} className={`w-8 h-8 flex items-center justify-center active:scale-90`} style={accentText}>
                             <Minus className="w-3.5 h-3.5" />
                           </button>
-                          <span className={`text-xs font-bold w-5 text-center tabular-nums ${tpl.qtyText}`}>{qty}</span>
-                          <button onClick={() => addOne(item.id)} className={`w-8 h-8 flex items-center justify-center active:scale-90 ${tpl.qtyText}`}>
+                          <span className={`text-xs font-bold w-5 text-center tabular-nums`} style={accentText}>{qty}</span>
+                          <button onClick={() => addOne(item.id)} className={`w-8 h-8 flex items-center justify-center active:scale-90`} style={accentText}>
                             <Plus className="w-3.5 h-3.5" />
                           </button>
                         </div>
@@ -986,24 +961,24 @@ export default function GuestPage() {
                         {showDescs && item.description && (
                           <p className="text-[10px] line-clamp-2 leading-snug" style={{ color: isDark ? 'rgba(255,255,255,0.35)' : '#9ca3af' }}>{item.description}</p>
                         )}
-                        {showPrices && <p className={`text-xs font-extrabold mt-auto ${tpl.priceColor}`}>{formatPrice(item.price)}</p>}
+                        {showPrices && <p className={`text-xs font-extrabold mt-auto`} style={accentText}>{formatPrice(item.price)}</p>}
                       </div>
                       {/* Add / qty controls */}
                       <div className="px-2 pb-2">
                         {qty === 0 ? (
                           <button
                             onClick={() => addOne(item.id)}
-                            className={`w-full flex items-center justify-center gap-1 py-1.5 rounded-xl text-xs font-bold transition-all active:scale-95 ${tpl.addBtnBg} ${tpl.addBtnText}`}
+                            className={`w-full flex items-center justify-center gap-1 py-1.5 rounded-xl text-xs font-bold transition-all active:scale-95 active:brightness-90`} style={accentBtn}
                           >
                             <Plus className="w-3.5 h-3.5" /> {t.gm_add}
                           </button>
                         ) : (
-                          <div className={`flex items-center justify-between rounded-xl border ${tpl.qtyBg} ${tpl.qtyBorder}`}>
-                            <button onClick={() => removeOne(item.id)} className={`w-8 h-8 flex items-center justify-center active:scale-90 transition-all ${tpl.qtyText}`}>
+                          <div className={`flex items-center justify-between rounded-xl border`} style={qtyBox}>
+                            <button onClick={() => removeOne(item.id)} className={`w-8 h-8 flex items-center justify-center active:scale-90 transition-all`} style={accentText}>
                               <Minus className="w-3.5 h-3.5" />
                             </button>
-                            <span className={`text-xs font-bold tabular-nums flex-1 text-center ${tpl.qtyText}`}>{qty}</span>
-                            <button onClick={() => addOne(item.id)} className={`w-8 h-8 flex items-center justify-center active:scale-90 transition-all ${tpl.qtyText}`}>
+                            <span className={`text-xs font-bold tabular-nums flex-1 text-center`} style={accentText}>{qty}</span>
+                            <button onClick={() => addOne(item.id)} className={`w-8 h-8 flex items-center justify-center active:scale-90 transition-all`} style={accentText}>
                               <Plus className="w-3.5 h-3.5" />
                             </button>
                           </div>
@@ -1171,8 +1146,9 @@ export default function GuestPage() {
                 ? 'bg-emerald-500 shadow-emerald-500/40 text-white'
                 : waiterCooldown
                   ? 'bg-gray-400/80 text-white/70 cursor-not-allowed'
-                  : 'bg-white border-2 border-amber-400 text-amber-600 shadow-amber-200'
+                  : 'bg-white border-2'
               }`}
+            style={!waiterCalled && !waiterCooldown ? { borderColor: primaryColor, color: primaryColor, boxShadow: `0 20px 25px -5px ${primaryColor}33` } : undefined}
           >
             {waiterLoading
               ? <Loader2 className="w-4 h-4 animate-spin" />
@@ -1193,18 +1169,19 @@ export default function GuestPage() {
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-full max-w-sm px-4">
           <button
             onClick={() => setShowCart(true)}
-            className="w-full flex items-center justify-between px-5 py-4 rounded-2xl bg-amber-500 shadow-xl shadow-amber-500/40 active:scale-95 transition-all"
+            className="w-full flex items-center justify-between px-5 py-4 rounded-2xl shadow-xl active:scale-95 transition-all"
+            style={{ background: primaryColor, boxShadow: `0 8px 32px ${primaryColor}50`, color: onAccent }}
           >
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center">
-                <ShoppingCart className="w-4 h-4 text-white" />
+                <ShoppingCart className="w-4 h-4" />
               </div>
               <div className="text-left">
-                <p className="text-white text-xs font-semibold opacity-80">{cartCount} {cartCount !== 1 ? t.gm_items : t.gm_item}</p>
-                <p className="text-white text-sm font-extrabold">{formatPrice(cartTotal)}</p>
+                <p className="text-xs font-semibold opacity-80">{cartCount} {cartCount !== 1 ? t.gm_items : t.gm_item}</p>
+                <p className="text-sm font-extrabold">{formatPrice(cartTotal)}</p>
               </div>
             </div>
-            <div className="flex items-center gap-1 text-white font-bold text-sm">
+            <div className="flex items-center gap-1 font-bold text-sm">
               {t.gm_view_order} {isRTL ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
             </div>
           </button>
@@ -1255,7 +1232,7 @@ export default function GuestPage() {
                       {/* Name + price */}
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-bold text-gray-900 line-clamp-1">{item.name}</p>
-                        <p className="text-xs text-amber-500 font-bold mt-0.5">{formatPrice(lineTotal)}</p>
+                        <p className="text-xs font-bold mt-0.5" style={{ color: primaryColor }}>{formatPrice(lineTotal)}</p>
                       </div>
                       {/* Qty controls */}
                       <div className="flex items-center gap-1 rounded-xl border border-gray-200 bg-white shrink-0">
@@ -1272,9 +1249,9 @@ export default function GuestPage() {
                     <div className="flex items-center gap-2 px-3 pb-3">
                       <button
                         onClick={() => setItemModalId(item.id)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-600 text-xs font-semibold active:scale-95 transition-all shrink-0"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold active:scale-95 transition-all shrink-0" style={{ ...qtyBox, color: primaryColor }}
                       >
-                        <ChevronRight className="w-3 h-3" />
+                        {isRTL ? <ChevronLeft className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
                         {allNotes.length > 0 ? t.gm_edit : t.gm_add_notes}
                       </button>
                       {allNotes.length > 0 && (
@@ -1290,7 +1267,7 @@ export default function GuestPage() {
             <div className="px-5 pt-3 pb-6 border-t border-gray-100 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-500 font-medium">{t.gm_total}</span>
-                <span className="text-base font-extrabold text-gray-900">{formatPrice(cartTotal)}</span>
+                <span className="text-base font-extrabold" style={{ color: primaryColor }}>{formatPrice(cartTotal)}</span>
               </div>
               {placeError && (
                 <p className="text-xs text-rose-500 text-center">{placeError}</p>
@@ -1304,7 +1281,8 @@ export default function GuestPage() {
                 <button
                   onClick={placeOrder}
                   disabled={placing}
-                  className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl bg-amber-500 text-white text-sm font-bold shadow-lg shadow-amber-500/30 active:scale-95 transition-all disabled:opacity-60"
+                  className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl text-sm font-bold active:scale-95 transition-all disabled:opacity-60"
+                  style={{ background: primaryColor, color: onAccent, boxShadow: `0 6px 24px ${primaryColor}40` }}
                 >
                   {placing ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShoppingCart className="w-4 h-4" />}
                   {placing ? t.gm_placing : t.gm_place_order}
@@ -1370,8 +1348,8 @@ export default function GuestPage() {
               <div className="absolute bottom-0 left-0 right-0 px-6 pb-10 z-10 space-y-3">
                 {ev.date_label && (
                   <div key={`badge-${storyKey}`}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-400 text-black text-sm font-bold shadow-lg shadow-amber-400/30"
-                    style={{ animation: 'story-badge 0.55s cubic-bezier(0.34,1.56,0.64,1) 0.1s both' }}>
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold shadow-lg"
+                    style={{ ...accentBtn, animation: 'story-badge 0.55s cubic-bezier(0.34,1.56,0.64,1) 0.1s both' }}>
                     {ev.date_label}
                   </div>
                 )}
@@ -1416,6 +1394,7 @@ export default function GuestPage() {
             kitchenNotes={kitchenNotes}
             supabase={supabase}
             formatPrice={formatPrice}
+            accent={primaryColor}
             onConfirm={entry => confirmItem(itemModalId, entry)}
             onClose={() => setItemModalId(null)}
           />
@@ -1426,16 +1405,18 @@ export default function GuestPage() {
 }
 
 // ── Guest Item Modal ──────────────────────────────────────────
-function GuestItemModal({ item, initial, kitchenNotes, supabase, formatPrice, onConfirm, onClose }: {
+function GuestItemModal({ item, initial, kitchenNotes, supabase, formatPrice, accent, onConfirm, onClose }: {
   item: MenuItem
   initial: CartEntry
   kitchenNotes: KitchenNote[]
   supabase: ReturnType<typeof import('@/lib/supabase/client').createClient>
   formatPrice: (n: number) => string
+  accent: string
   onConfirm: (entry: CartEntry) => void
   onClose: () => void
 }) {
   const { t } = useLanguage()
+  const onAccent = textOnAccent(accent)
   const [local, setLocal] = useState<CartEntry>({ ...initial, selectedOptions: [...initial.selectedOptions], noteIds: [...initial.noteIds] })
   const [modGroups, setModGroups] = useState<ModGroup[]>([])
   const [loadingMods, setLoadingMods] = useState(true)
@@ -1499,14 +1480,14 @@ function GuestItemModal({ item, initial, kitchenNotes, supabase, formatPrice, on
             </button>
             <div className="absolute bottom-3 left-4 right-14">
               <p className="text-base font-extrabold text-white leading-tight">{item.name}</p>
-              <p className="text-sm font-bold text-amber-400 mt-0.5">{formatPrice(item.price + modPrice)}</p>
+              <p className="text-sm font-bold mt-0.5" style={{ color: accent }}>{formatPrice(item.price + modPrice)}</p>
             </div>
           </div>
         ) : (
           <div className="shrink-0 flex items-center justify-between px-4 py-4 border-b border-gray-100">
             <div>
               <p className="text-base font-extrabold text-gray-900">{item.name}</p>
-              <p className="text-sm font-bold text-amber-500 mt-0.5">{formatPrice(item.price + modPrice)}</p>
+              <p className="text-sm font-bold mt-0.5" style={{ color: accent }}>{formatPrice(item.price + modPrice)}</p>
             </div>
             <button onClick={onClose} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 active:scale-95">
               <X className="w-4 h-4" />
@@ -1517,12 +1498,12 @@ function GuestItemModal({ item, initial, kitchenNotes, supabase, formatPrice, on
         {/* ── Qty row ── */}
         <div className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-gray-100">
           <span className="text-sm font-semibold text-gray-600">{t.gm_quantity}</span>
-          <div className="flex items-center rounded-xl border-2 border-amber-400 overflow-hidden">
-            <button onClick={() => setLocal(e => ({ ...e, qty: Math.max(1, e.qty - 1) }))} className="w-9 h-9 flex items-center justify-center text-amber-600 bg-amber-50 active:bg-amber-100 transition-all">
+          <div className="flex items-center rounded-xl border-2 overflow-hidden" style={{ borderColor: accent }}>
+            <button onClick={() => setLocal(e => ({ ...e, qty: Math.max(1, e.qty - 1) }))} className="w-9 h-9 flex items-center justify-center active:brightness-95 transition-all" style={{ color: accent, background: `${accent}14` }}>
               <Minus className="w-3.5 h-3.5" />
             </button>
             <span className="w-9 text-center text-sm font-extrabold text-gray-900 tabular-nums">{local.qty}</span>
-            <button onClick={() => setLocal(e => ({ ...e, qty: e.qty + 1 }))} className="w-9 h-9 flex items-center justify-center text-white bg-amber-500 active:bg-amber-600 transition-all">
+            <button onClick={() => setLocal(e => ({ ...e, qty: e.qty + 1 }))} className="w-9 h-9 flex items-center justify-center active:brightness-90 transition-all" style={{ background: accent, color: onAccent }}>
               <Plus className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -1533,7 +1514,7 @@ function GuestItemModal({ item, initial, kitchenNotes, supabase, formatPrice, on
 
           {/* Modifiers */}
           {loadingMods ? (
-            <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 text-amber-400 animate-spin" /></div>
+            <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin" style={{ color: accent }} /></div>
           ) : modGroups.map(group => (
             <div key={group.id} className="px-4 py-3">
               <div className="flex items-center justify-between mb-2">
@@ -1548,12 +1529,14 @@ function GuestItemModal({ item, initial, kitchenNotes, supabase, formatPrice, on
                   const selected = local.selectedOptions.some(o => o.option_id === opt.id)
                   return (
                     <button key={opt.id} onClick={() => toggleOption(group, opt)}
-                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border-2 transition-all active:scale-[0.98] ${selected ? 'border-amber-400 bg-amber-50' : 'border-gray-100 bg-gray-50'}`}>
-                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${selected ? 'border-amber-500 bg-amber-500' : 'border-gray-300'}`}>
-                        {selected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border-2 transition-all active:scale-[0.98] ${selected ? '' : 'border-gray-100 bg-gray-50'}`}
+                      style={selected ? { borderColor: accent, background: `${accent}14` } : undefined}>
+                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${selected ? '' : 'border-gray-300'}`}
+                        style={selected ? { borderColor: accent, background: accent } : undefined}>
+                        {selected && <div className="w-1.5 h-1.5 rounded-full" style={{ background: onAccent }} />}
                       </div>
-                      <span className={`flex-1 text-sm font-medium text-left ${selected ? 'text-amber-800' : 'text-gray-700'}`}>{opt.name}</span>
-                      {opt.price > 0 && <span className={`text-xs font-bold tabular-nums ${selected ? 'text-amber-600' : 'text-gray-400'}`}>+{formatPrice(opt.price)}</span>}
+                      <span className={`flex-1 text-sm font-medium text-left ${selected ? 'text-gray-900' : 'text-gray-700'}`}>{opt.name}</span>
+                      {opt.price > 0 && <span className={`text-xs font-bold tabular-nums ${selected ? '' : 'text-gray-400'}`} style={selected ? { color: accent } : undefined}>+{formatPrice(opt.price)}</span>}
                     </button>
                   )
                 })}
@@ -1570,7 +1553,8 @@ function GuestItemModal({ item, initial, kitchenNotes, supabase, formatPrice, on
                   const active = local.noteIds.includes(note.id)
                   return (
                     <button key={note.id} onClick={() => toggleNote(note.id)}
-                      className={`px-3 py-1.5 rounded-full border-2 text-xs font-semibold transition-all active:scale-95 ${active ? 'border-orange-400 bg-orange-500 text-white' : 'border-gray-200 bg-white text-gray-600'}`}>
+                      className={`px-3 py-1.5 rounded-full border-2 text-xs font-semibold transition-all active:scale-95 ${active ? '' : 'border-gray-200 bg-white text-gray-600'}`}
+                      style={active ? { borderColor: accent, background: accent, color: onAccent } : undefined}>
                       {note.text}
                     </button>
                   )
@@ -1586,7 +1570,7 @@ function GuestItemModal({ item, initial, kitchenNotes, supabase, formatPrice, on
               value={local.customNote}
               onChange={e => setLocal(en => ({ ...en, customNote: e.target.value }))}
               placeholder={t.gm_note_ph}
-              className="w-full border-2 border-gray-100 rounded-xl px-3 py-2.5 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-amber-300 bg-gray-50"
+              className="w-full border-2 border-gray-100 rounded-xl px-3 py-2.5 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-gray-300 bg-gray-50"
             />
           </div>
         </div>
@@ -1595,7 +1579,8 @@ function GuestItemModal({ item, initial, kitchenNotes, supabase, formatPrice, on
         <div className="shrink-0 px-4 pb-4 pt-3 border-t border-gray-100">
           <button
             onClick={() => onConfirm(local)}
-            className="w-full py-3.5 rounded-2xl bg-amber-500 text-white text-sm font-extrabold shadow-lg shadow-amber-400/30 active:scale-[0.98] transition-all flex items-center justify-between px-4"
+            className="w-full py-3.5 rounded-2xl text-sm font-extrabold shadow-lg active:scale-[0.98] transition-all flex items-center justify-between px-4"
+            style={{ background: accent, color: onAccent, boxShadow: `0 10px 15px -3px ${accent}4d` }}
           >
             <span>{isEditing ? t.gm_update : t.gm_add_to_order}</span>
             <span className="bg-white/25 px-3 py-1 rounded-xl text-sm font-bold">{formatPrice(lineTotal)}</span>
