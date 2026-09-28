@@ -70,6 +70,39 @@ launcher name/icon colour, and the `server.url` each one boots to.
   The native CFD shell also holds `FLAG_KEEP_SCREEN_ON` and polls that same flag
   in `MainActivity`, so the screen stays on even on WebViews without Wake Lock.
 
+## Native shell layer (all flavors)
+
+`MainActivity.java` + a small web counterpart make the WebView feel like a
+native app:
+
+- **Splash** — Android 12 SplashScreen API (`AppTheme.NoActionBarLaunch`):
+  `@color/cg_app_bg` + the flavor's launcher tile (`drawable/splash_icon.xml`).
+  It stays up until the web app calls `ClickGroupNative.appReady()` (from
+  `src/components/NativeShell.tsx`, after hydration) or the page finishes
+  loading, capped at 8 s, then fades out.
+- **Fast boot** — slug-bound flavors (cashier / delivery / kds) swap the saved
+  PIN URL into the bridge config *before* the WebView starts, so launch is one
+  page load instead of boot URL → redirect.
+- **Hardware Back** — dispatches a cancelable `cg:backbutton` event (a page can
+  `preventDefault()` it, e.g. to close a modal); otherwise steps back through
+  web history, and on a main screen (flavor home, login, PIN) moves the app to
+  the background instead of destroying it, so reopening is instant.
+- **Offline screen** — a main-frame network failure loads
+  `android/app/src/main/assets/cg_offline.html` (ku/ar/en, follows
+  `localStorage.user_language`) instead of Chromium's error page; it probes the
+  server and returns to the failed URL by itself.
+- **System bars** — navy with light icons from the theme; `NativeShell.tsx`
+  samples the colour at the top of each screen and calls
+  `ClickGroupNative.setSystemBarColor()` so the bars match it.
+- **WebView** — text zoom pinned to 100 %, off-screen pre-raster on, no page
+  overscroll glow, renderer crashes recover by recreating the activity.
+- **Web side** — every flavor's user-agent carries a `ClickGroup…` marker, and
+  `src/lib/nativeShell.ts` tags `<html class="cg-app">` before first paint. The
+  `html.cg-app` rules in `globals.css` remove tap highlight, long-press text
+  selection (fields stay selectable; `.cg-selectable` opts a block back in),
+  page rubber-banding, and `backdrop-filter` blur (the heaviest effect on
+  budget tablets).
+
 ## Signing
 
 Release APKs are signed from `android/keystore.properties` +

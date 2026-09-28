@@ -17,6 +17,9 @@
 				"sound",
 				"alert"
 			]
+		},
+		"SystemBars": {
+			"style": "DARK"
 		}
 	}
 }

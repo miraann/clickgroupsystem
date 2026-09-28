@@ -50,7 +50,7 @@ const ACTION_TABS: { id: ActionTab; labelKey: 'pay_tab_surcharge' | 'pay_tab_gra
 
 export default function PaymentScreen({ orderId, restaurantId, orderNum: orderNumProp, tableNum, cfdTableKey, guests, items, total, onClose, onPaid }: Props) {
   const { can, isOwner, isPinStaff, staffName, roleName } = usePermissions()
-  const { t } = useLanguage()
+  const { t, isRTL } = useLanguage()
   const p = (key: string) => isOwner || can(key)
   const { checkout } = useCheckoutData(restaurantId)
   const [method, setMethod]               = useState<string>('')
@@ -415,16 +415,6 @@ export default function PaymentScreen({ orderId, restaurantId, orderNum: orderNu
     <>
     <div className="fixed inset-0 z-50 flex flex-col overflow-hidden" style={{ background: 'var(--app-bg, #022658)' }}>
 
-      {/* ── Top action bar ── */}
-      <div className="shrink-0 flex items-center border-b border-white/8 bg-[#080b14]">
-        <button
-          onClick={onClose}
-          className="w-14 md:w-16 h-14 md:h-16 flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/5 transition-all active:scale-95 touch-manipulation"
-        >
-          <ArrowLeft className="w-6 h-6" />
-        </button>
-      </div>
-
       {/* ── Body ── */}
       <div className="flex flex-1 overflow-hidden">
 
@@ -516,8 +506,14 @@ export default function PaymentScreen({ orderId, restaurantId, orderNum: orderNu
         <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
 
           {/* Mobile-only: compact order info (receipt panel is hidden on mobile) */}
-          <div className="md:hidden shrink-0 flex items-center justify-between px-4 py-2.5 border-b border-white/8 bg-black/20">
-            <div className="flex items-center gap-2.5">
+          <div className="md:hidden shrink-0 flex items-center justify-between gap-3 ps-2 pe-4 py-2 border-b border-white/8 bg-black/20">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <button
+                onClick={onClose}
+                className="w-11 h-11 shrink-0 rounded-xl flex items-center justify-center text-white/50 hover:text-white hover:bg-white/5 active:scale-95 transition-all touch-manipulation"
+              >
+                <ArrowLeft className={cn('w-6 h-6', isRTL && 'rotate-180')} />
+              </button>
               <div className="w-8 h-8 rounded-xl bg-amber-500/15 border border-amber-500/25 flex items-center justify-center shrink-0">
                 <Users className="w-4 h-4 text-amber-400" />
               </div>
@@ -532,19 +528,28 @@ export default function PaymentScreen({ orderId, restaurantId, orderNum: orderNu
             </div>
           </div>
 
-          {/* Summary row */}
-          <div className="shrink-0 grid grid-cols-4 divide-x divide-white/8 border-b border-white/8">
-            {[
-              { label: t.pay_total,  value: formatPrice(finalTotal),                                              color: 'text-white' },
-              { label: t.pay_pay,    value: formatPrice(payAmount),                                                color: 'text-amber-400' },
-              { label: t.pay_paid,   value: enteredNum > 0 ? formatPrice(enteredNum) : formatPrice(0),            color: enteredNum > 0 ? 'text-white/70' : 'text-white/25' },
-              { label: t.pay_change, value: formatPrice(change),                                                   color: change > 0 ? 'text-emerald-400' : 'text-white/25' },
-            ].map(s => (
-              <div key={s.label} className="flex flex-col items-center justify-center py-2 md:py-4 gap-0.5 md:gap-1">
-                <span className="text-[10px] md:text-xs text-white/30 uppercase tracking-wider">{s.label}</span>
-                <span className={cn('text-sm md:text-lg font-bold tabular-nums', s.color)}>{s.value}</span>
-              </div>
-            ))}
+          {/* Summary row — led by the back button on tablet/desktop, so there's
+              no separate full-width bar just for it */}
+          <div className="shrink-0 flex items-stretch border-b border-white/8">
+            <button
+              onClick={onClose}
+              className="hidden md:flex w-20 shrink-0 items-center justify-center border-e border-white/8 bg-black/20 text-white/50 hover:text-white hover:bg-white/5 active:scale-95 transition-all touch-manipulation"
+            >
+              <ArrowLeft className={cn('w-7 h-7', isRTL && 'rotate-180')} />
+            </button>
+            <div className="flex-1 min-w-0 grid grid-cols-4 divide-x divide-white/8">
+              {[
+                { label: t.pay_total,  value: formatPrice(finalTotal),                                              color: 'text-white' },
+                { label: t.pay_pay,    value: formatPrice(payAmount),                                                color: 'text-amber-400' },
+                { label: t.pay_paid,   value: enteredNum > 0 ? formatPrice(enteredNum) : formatPrice(0),            color: enteredNum > 0 ? 'text-white/70' : 'text-white/25' },
+                { label: t.pay_change, value: formatPrice(change),                                                   color: change > 0 ? 'text-emerald-400' : 'text-white/25' },
+              ].map(s => (
+                <div key={s.label} className="flex flex-col items-center justify-center py-2 md:py-4 gap-0.5 md:gap-1">
+                  <span className="text-[10px] md:text-xs text-white/30 uppercase tracking-wider">{s.label}</span>
+                  <span className={cn('text-sm md:text-lg font-bold tabular-nums', s.color)}>{s.value}</span>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Payment methods */}

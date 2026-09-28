@@ -1,17 +1,22 @@
 'use client'
-import { motion } from 'framer-motion'
+import { useEffect, useRef } from 'react'
 import { usePathname } from 'next/navigation'
 
+// Soft fade on route change. It animates the same wrapper instead of re-keying
+// it by pathname, so nested layouts (settings, menu) keep their state and are
+// not torn down and rebuilt on every navigation.
 export function PageTransition({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  return (
-    <motion.div
-      key={pathname}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.12, ease: 'easeOut' }}
-    >
-      {children}
-    </motion.div>
-  )
+  const ref = useRef<HTMLDivElement>(null)
+  const firstRender = useRef(true)
+
+  useEffect(() => {
+    if (firstRender.current) {
+      firstRender.current = false
+      return
+    }
+    ref.current?.animate?.([{ opacity: 0.35 }, { opacity: 1 }], { duration: 160, easing: 'ease-out' })
+  }, [pathname])
+
+  return <div ref={ref}>{children}</div>
 }

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Base application theme. -->
     <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
@@ -9,14 +9,37 @@
         <item name="colorAccent">@color/colorAccent</item>
     </style>
 
+    <!-- Runtime theme (BridgeActivity switches to it after the splash). The
+         window, status bar and navigation bar all paint the app's own navy so
+         there is never a white flash before the WebView's first frame, and the
+         bars read as part of the app instead of a stock indigo strip. On
+         Android 15+ (edge-to-edge) the bar colours are ignored and the decor
+         view's windowBackground shows through instead — same colour. -->
     <style name="AppTheme.NoActionBar" parent="Theme.AppCompat.DayNight.NoActionBar">
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
         <item name="android:background">@null</item>
+        <item name="android:windowBackground">@color/cg_app_bg</item>
+        <item name="colorPrimary">@color/cg_app_bg</item>
+        <item name="colorPrimaryDark">@color/cg_app_bg</item>
+        <item name="colorAccent">@color/cg_accent</item>
+        <item name="android:statusBarColor">@color/cg_app_bg</item>
+        <item name="android:navigationBarColor">@color/cg_app_bg</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="27">false</item>
+        <item name="android:enforceStatusBarContrast" tools:targetApi="29">false</item>
+        <item name="android:enforceNavigationBarContrast" tools:targetApi="29">false</item>
     </style>
 
-
+    <!-- Launch theme: Android 12 SplashScreen API (core-splashscreen backports
+         it to every supported version). Navy background + this flavor's own
+         launcher tile; MainActivity holds it until the web app has painted. -->
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
-        <item name="android:background">@drawable/splash</item>
+        <item name="windowSplashScreenBackground">@color/cg_app_bg</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_icon</item>
+        <item name="postSplashScreenTheme">@style/AppTheme.NoActionBar</item>
+        <item name="android:statusBarColor">@color/cg_app_bg</item>
+        <item name="android:navigationBarColor">@color/cg_app_bg</item>
+        <item name="android:windowLightStatusBar">false</item>
     </style>
 </resources>

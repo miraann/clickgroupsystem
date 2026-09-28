@@ -1,4 +1,8 @@
 import type { Metadata, Viewport } from "next";
+import { preconnect } from "react-dom";
+import NativeShell from "@/components/NativeShell";
+import NavProgress from "@/components/NavProgress";
+import { NATIVE_SHELL_SCRIPT } from "@/lib/nativeShell";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -48,9 +52,24 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Open the TLS connection to Supabase while the JS bundle is still loading,
+  // so the first data request doesn't pay for the handshake.
+  if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    preconnect(process.env.NEXT_PUBLIC_SUPABASE_URL, { crossOrigin: "anonymous" });
+  }
+
   return (
-    <html lang="en" className="h-full">
-      <body className="min-h-full bg-[#080b14] text-white antialiased">{children}</body>
+    // suppressHydrationWarning: NATIVE_SHELL_SCRIPT adds `cg-app` to <html>
+    // inside the Android app before React hydrates.
+    <html lang="en" className="h-full" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: NATIVE_SHELL_SCRIPT }} />
+      </head>
+      <body className="min-h-full bg-[#080b14] text-white antialiased">
+        {children}
+        <NavProgress />
+        <NativeShell />
+      </body>
     </html>
   );
 }

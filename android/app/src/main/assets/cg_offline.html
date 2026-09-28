@@ -1,0 +1,129 @@
+<!doctype html>
+<!--
+  Bundled offline screen for every ClickGroup APK flavor. MainActivity loads it
+  (loadDataWithBaseURL on the app origin) when a main-frame load fails for lack
+  of network, replacing Chromium's "Webpage not available" page. It keeps
+  probing the server and jumps back to the page that failed the moment the
+  connection returns. MainActivity fills the __CG_*__ placeholders.
+-->
+<html lang="ku" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>ClickGroup</title>
+<style>
+  :root { --bg: __CG_BG__; --accent: #f59e0b; --text: #ffffff; --muted: #94a3b8; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg);
+    background-image: radial-gradient(ellipse at 50% 30%, rgba(255,255,255,0.07), transparent 60%);
+    color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans Arabic", "Noto Naskh Arabic", sans-serif;
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px; user-select: none; -webkit-user-select: none; overscroll-behavior: none;
+  }
+  main { width: 100%; max-width: 380px; text-align: center; animation: in .35s ease-out both; }
+  @keyframes in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  .badge {
+    width: 104px; height: 104px; margin: 0 auto 28px; border-radius: 32px; position: relative;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10);
+  }
+  .badge::before {
+    content: ""; position: absolute; inset: -14px; border-radius: 44px;
+    border: 2px solid rgba(245,158,11,0.35); animation: ring 2.4s ease-out infinite;
+  }
+  @keyframes ring { 0% { opacity: .9; transform: scale(.86); } 100% { opacity: 0; transform: scale(1.12); } }
+  .badge svg { width: 48px; height: 48px; color: var(--accent); }
+  h1 { font-size: 22px; line-height: 1.35; margin: 0 0 10px; font-weight: 700; }
+  p { font-size: 15px; line-height: 1.7; margin: 0 0 28px; color: var(--muted); }
+  button {
+    width: 100%; height: 56px; border: 0; border-radius: 16px; cursor: pointer;
+    background: var(--accent); color: #111827; font: inherit; font-size: 17px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    transition: transform .12s ease, filter .12s ease;
+  }
+  button:active { transform: scale(.97); filter: brightness(.92); }
+  button[disabled] { filter: saturate(.6) brightness(.9); }
+  .spin { width: 20px; height: 20px; border-radius: 50%; border: 2.5px solid rgba(17,24,39,.25); border-top-color: #111827; animation: rot .7s linear infinite; display: none; }
+  button.busy .spin { display: block; }
+  @keyframes rot { to { transform: rotate(360deg); } }
+  .status { margin-top: 18px; font-size: 13px; color: var(--muted); display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 20px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #ef4444; box-shadow: 0 0 0 4px rgba(239,68,68,.15); }
+  .dot.ok { background: #22c55e; box-shadow: 0 0 0 4px rgba(34,197,94,.15); }
+  .shake { animation: shake .4s ease; }
+  @keyframes shake { 20%, 60% { transform: translateX(-6px); } 40%, 80% { transform: translateX(6px); } }
+</style>
+</head>
+<body>
+<main>
+  <div class="badge" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 20h.01"/><path d="M8.5 16.43a5 5 0 0 1 7 0"/><path d="M5 12.86a10 10 0 0 1 5.17-2.69"/>
+      <path d="M19 12.86a10 10 0 0 0-2.01-1.39"/><path d="M2 8.82a15 15 0 0 1 4.18-2.64"/>
+      <path d="M22 8.82a15 15 0 0 0-11.29-3.76"/><path d="m2 2 20 20"/>
+    </svg>
+  </div>
+  <h1 id="title"></h1>
+  <p id="body"></p>
+  <button id="retry" type="button"><span class="spin"></span><span id="retry-label"></span></button>
+  <div class="status"><span class="dot" id="dot"></span><span id="status"></span></div>
+</main>
+<script>
+(function () {
+  var RETRY_URL = __CG_RETRY_URL__;
+  var TEXT = {
+    ku: { dir: 'rtl', title: 'پەیوەندی ئینتەرنێت نییە', body: 'تکایە ئینتەرنێت یان Wi‑Fi ـەکەت بپشکنە. هەر کە پەیوەندی گەڕایەوە، ئەپەکە خۆکارانە دەکرێتەوە.', retry: 'دووبارە هەوڵبدەرەوە', waiting: 'چاوەڕوانی پەیوەندی…', checking: 'پشکنین…', back: 'پەیوەندی گەڕایەوە' },
+    ar: { dir: 'rtl', title: 'لا يوجد اتصال بالإنترنت', body: 'يرجى التحقق من الإنترنت أو شبكة Wi‑Fi. سيُعاد فتح التطبيق تلقائيًا فور عودة الاتصال.', retry: 'إعادة المحاولة', waiting: 'بانتظار الاتصال…', checking: 'جارٍ التحقق…', back: 'عاد الاتصال' },
+    en: { dir: 'ltr', title: "You're offline", body: "Check your internet or Wi‑Fi connection. The app reopens automatically as soon as you're back online.", retry: 'Try again', waiting: 'Waiting for connection…', checking: 'Checking…', back: 'Back online' }
+  };
+  var lang = 'ku';
+  try { var l = localStorage.getItem('user_language'); if (TEXT[l]) lang = l; } catch (e) {}
+  var t = TEXT[lang];
+  document.documentElement.lang = lang;
+  document.documentElement.dir = t.dir;
+  function $(id) { return document.getElementById(id); }
+  $('title').textContent = t.title;
+  $('body').textContent = t.body;
+  $('retry-label').textContent = t.retry;
+  $('status').textContent = t.waiting;
+
+  var btn = $('retry'), busy = false, timer = null, attempt = 0;
+  var DELAYS = [2000, 3000, 5000, 8000, 10000];
+
+  function reopen() {
+    $('dot').className = 'dot ok';
+    $('status').textContent = t.back;
+    location.replace(RETRY_URL);
+  }
+
+  function schedule() {
+    clearTimeout(timer);
+    timer = setTimeout(function () { probe(false); }, DELAYS[Math.min(attempt++, DELAYS.length - 1)]);
+  }
+
+  function probe(manual) {
+    if (busy) return;
+    busy = true;
+    if (manual) { btn.classList.add('busy'); btn.disabled = true; $('status').textContent = t.checking; }
+    fetch('/manifest.json?cg_probe=' + Date.now(), { cache: 'no-store' })
+      .then(function (r) { if (!r.ok) throw new Error(String(r.status)); reopen(); })
+      .catch(function () {
+        busy = false;
+        btn.classList.remove('busy'); btn.disabled = false;
+        $('status').textContent = t.waiting;
+        if (manual) { var m = document.querySelector('main'); m.classList.remove('shake'); void m.offsetWidth; m.classList.add('shake'); }
+        schedule();
+      });
+  }
+
+  btn.addEventListener('click', function () { attempt = 0; probe(true); });
+  window.addEventListener('online', function () { attempt = 0; probe(false); });
+  schedule();
+
+  try { if (window.ClickGroupNative) window.ClickGroupNative.appReady(); } catch (e) {}
+})();
+</script>
+</body>
+</html>

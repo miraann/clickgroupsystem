@@ -1,6 +1,7 @@
-// ClickGroup POS — Service Worker v5
+// ClickGroup POS — Service Worker v6
 // Caches: Next.js static chunks, Supabase storage images, app shell pages (offline mode)
 // v5: bypass /apps/*.apk + /android-latest.json (self-hosted Android downloads)
+// v6: self-hosted font / logos / app icons served stale-while-revalidate
 //
 // Bumped STATIC_CACHE / SHELL_CACHE to v3 so the `activate` step below purges the
 // old caches — some devices were pinned to a stale JS bundle (and a stale app
@@ -10,7 +11,8 @@
 const STATIC_CACHE = 'cg-static-v3'
 const IMAGE_CACHE  = 'cg-images-v1'
 const SHELL_CACHE  = 'cg-shell-v3'
-const KNOWN_CACHES = [STATIC_CACHE, IMAGE_CACHE, SHELL_CACHE]
+const ASSET_CACHE  = 'cg-assets-v1'
+const KNOWN_CACHES = [STATIC_CACHE, IMAGE_CACHE, SHELL_CACHE, ASSET_CACHE]
 
 // On localhost the dev server rebuilds JS/CSS chunks behind the same /_next/
 // URLs; caching them serves stale module factories and breaks HMR with
@@ -82,6 +84,26 @@ self.addEventListener('fetch', e => {
             return res
           })
         )
+      )
+    )
+    return
+  }
+
+  // 1b. Self-hosted font / logos / app icons — stale-while-revalidate: served
+  //     instantly from cache (no render-blocking round-trip for the Kurdish
+  //     font on every launch), refreshed in the background for next time.
+  if (url.origin === self.location.origin && /^\/(font|logo|app-icons)\//.test(url.pathname)) {
+    e.respondWith(
+      caches.open(ASSET_CACHE).then(cache =>
+        cache.match(e.request).then(hit => {
+          const refresh = fetch(e.request).then(res => {
+            if (res.ok) cache.put(e.request, res.clone())
+            return res
+          })
+          if (!hit) return refresh
+          e.waitUntil(refresh.catch(() => {}))
+          return hit
+        })
       )
     )
     return

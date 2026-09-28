@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Splash icon: the flavor's launcher tile, inset 25% per side so its rounded
+     square sits wholly inside the splash screen's circular icon mask (a circle
+     2/3 the canvas width), whatever canvas size the OS picks. Fractional
+     insets need API 26; drawable/splash_icon.xml is the fixed-dp fallback. -->
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:drawable="@mipmap/ic_launcher_foreground"
+    android:inset="25%" />

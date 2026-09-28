@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Seller console background (bg-[#080b14] in src/app/(seller)/layout.tsx). -->
+    <color name="cg_app_bg">#080B14</color>
+</resources>

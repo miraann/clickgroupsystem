@@ -10,10 +10,17 @@ const config: CapacitorConfig = {
   },
   android: {
     backgroundColor: '#022658',
+    // Marks the native shell for the web app (src/lib/nativeShell.ts). The
+    // delivery / kds flavors carry their own kiosk markers instead.
+    appendUserAgent: 'ClickGroupApp',
   },
   plugins: {
     PushNotifications: {
       presentationOptions: ['badge', 'sound', 'alert'],
+    },
+    // The app is dark: light status / navigation bar icons.
+    SystemBars: {
+      style: 'DARK',
     },
   },
 };

@@ -2,22 +2,22 @@
   "_comment": "Served straight from Vercel at /android-latest.json. The APK's native Updater reads it (via the same-origin fetch in src/lib/appUpdate.ts) and compares versionCode for its own applicationId. APK files live in /public/apps. Keep versionCode in sync with android/app/build.gradle. See docs/APP_UPDATES.md.",
   "flavors": {
     "com.clickgroup.pos": {
-      "versionCode": 4,
-      "versionName": "1.2",
+      "versionCode": 7,
+      "versionName": "1.5",
       "url": "https://clickgroupsystem.vercel.app/apps/Cashier.apk",
-      "notes": "New app icon."
+      "notes": "Faster launch, branded splash screen, native Back button, status bar matches the app, and a proper offline screen that reconnects by itself."
     },
     "com.clickgroup.pos.driver": {
-      "versionCode": 6,
-      "versionName": "1.4-driver",
+      "versionCode": 7,
+      "versionName": "1.5-driver",
       "url": "https://clickgroupsystem.vercel.app/apps/Driver.apk",
-      "notes": "Fixed push notifications (real Firebase registration)."
+      "notes": "Faster launch, branded splash screen, native Back button, status bar matches the app, and a proper offline screen that reconnects by itself."
     },
     "com.clickgroup.pos.delivery": {
-      "versionCode": 6,
-      "versionName": "1.4-delivery",
+      "versionCode": 7,
+      "versionName": "1.5-delivery",
       "url": "https://clickgroupsystem.vercel.app/apps/Delivery.apk",
-      "notes": "Fixed push notifications (real Firebase registration) + new-order sound alert."
+      "notes": "Faster launch, branded splash screen, native Back button, status bar matches the app, and a proper offline screen that reconnects by itself."
     },
     "com.clickgroup.pos.seller": {
       "versionCode": 6,
@@ -26,16 +26,16 @@
       "notes": "Fixed a corrupted APK (failed to install with a parsing error)."
     },
     "com.clickgroup.pos.cfd": {
-      "versionCode": 6,
-      "versionName": "1.4-cfd",
+      "versionCode": 7,
+      "versionName": "1.5-cfd",
       "url": "https://clickgroupsystem.vercel.app/apps/CFD.apk",
-      "notes": "Fixed a corrupted APK (failed to install with a parsing error)."
+      "notes": "Faster launch, branded splash screen, native Back button, status bar matches the app, and a proper offline screen that reconnects by itself."
     },
     "com.clickgroup.pos.kds": {
-      "versionCode": 6,
-      "versionName": "1.4-kds",
+      "versionCode": 7,
+      "versionName": "1.5-kds",
       "url": "https://clickgroupsystem.vercel.app/apps/KDS.apk",
-      "notes": "Initial release."
+      "notes": "Faster launch, branded splash screen, native Back button, status bar matches the app, and a proper offline screen that reconnects by itself."
     }
   }
 }

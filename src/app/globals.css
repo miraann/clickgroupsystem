@@ -179,6 +179,55 @@ input[type="time"]::-webkit-calendar-picker-indicator {
   animation: shimmer 1.8s ease-in-out infinite;
 }
 
+/* ── Route-change progress bar (components/NavProgress.tsx) ───── */
+@keyframes cg-nav-progress {
+  from { width: 8%; }
+  to   { width: 90%; }
+}
+
+/* ── Android app shell ────────────────────────────────────────────
+   html.cg-app is set before first paint inside the ClickGroup APKs
+   (lib/nativeShell.ts); browsers are unaffected.
+
+   Native feel: no blue tap flash, no long-press callout or accidental
+   text selection on buttons and cards (form fields stay selectable;
+   add .cg-selectable to opt a block back in), no rubber-band on the
+   page itself, no double-tap zoom delay.
+
+   Speed: backdrop-filter blur is re-rendered on every scroll and
+   animation frame and is the heaviest effect on budget POS tablets.
+   Every blurred surface here is near-opaque navy already, so it is
+   dropped; the see-through sticky headers get a touch more opacity to
+   make up for it.
+   ---------------------------------------------------------------- */
+html.cg-app {
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+  touch-action: manipulation;
+  --app-anchor-80: var(--app-anchor-95, rgba(2, 38, 88, 0.95)) !important;
+  --app-anchor-90: var(--app-anchor-95, rgba(2, 38, 88, 0.95)) !important;
+}
+html.cg-app body {
+  overscroll-behavior: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+html.cg-app :is(input, textarea, [contenteditable]:not([contenteditable="false"]), .cg-selectable, .cg-selectable *) {
+  -webkit-touch-callout: default;
+  -webkit-user-select: text;
+  user-select: text;
+}
+html.cg-app :is(img, a) {
+  -webkit-user-drag: none;
+}
+html.cg-app *,
+html.cg-app *::before,
+html.cg-app *::after {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
 /* ── text-white → --app-text / --app-text-muted override ─────────
    @layer overrides sits above Tailwind's 'utilities' layer (declared
    after @import "tailwindcss") so these rules win without !important.

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App shell colour: matches the web app's default background (the
+         "background" token in src/app/globals.css) so the splash, window and
+         system bars blend into the first painted frame. The seller flavor
+         overrides it. -->
+    <color name="cg_app_bg">#022658</color>
+    <color name="cg_accent">#F59E0B</color>
+</resources>
