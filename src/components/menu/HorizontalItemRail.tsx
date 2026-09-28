@@ -5,9 +5,15 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 interface RailCategory { id: string; name: string; color: string; icon: string | null }
+type Side = 'prev' | 'next'
 
-// How much of a prev / next category card must be on screen before we jump.
-const EDGE_RATIO = 0.85
+// How far past an end the guest must keep dragging (touch) or scrolling
+// (trackpad / shift+wheel) before we switch category. Merely reaching the
+// end — or a fling that runs into it — never switches.
+const PULL_PX  = 90
+const WHEEL_PX = 300
+// A pause this long between wheel events starts a new wheel gesture.
+const WHEEL_GAP_MS = 300
 
 // Which ends of the row are reached. RTL scrollLeft runs negative, hence abs().
 function scrollEdges(el: HTMLElement) {
@@ -18,13 +24,13 @@ function scrollEdges(el: HTMLElement) {
 /**
  * Sideways-swipe item row for the public guest / delivery menus
  * (item_style = 'carousel'). A "previous category" card sits before the
- * first item and a "next category" card after the last; swiping one of them
- * into view jumps to that category, so the whole menu can be browsed with
- * horizontal swipes alone. When the row already fits the screen (nothing to
- * scroll), a swipe, the arrows or a tap on those cards does the same.
+ * first item and a "next category" card after the last. Pulling hard past
+ * either end — or tapping those cards / the arrows — opens that category,
+ * so the whole menu can be browsed sideways. The card fills up while the
+ * guest pulls so they can see how far to go.
  *
- * Mount it with key={categoryId} so scroll position and the swipe guard
- * reset on every category change.
+ * Mount it with key={categoryId} so scroll position and gesture state reset
+ * on every category change.
  */
 export default function HorizontalItemRail<T extends { id: string }>({
   items, prev, next, onPrev, onNext, accent, isDark, renderItem,
@@ -39,17 +45,12 @@ export default function HorizontalItemRail<T extends { id: string }>({
   renderItem: (item: T) => React.ReactNode
 }) {
   const { t, isRTL } = useLanguage()
-  const railRef   = useRef<HTMLDivElement>(null)
-  const startRef  = useRef<HTMLButtonElement>(null)
-  const endRef    = useRef<HTMLButtonElement>(null)
-  const firstRef  = useRef<HTMLDivElement>(null)
-  // Set by real input only (touch / wheel / pointer / arrows) — the
-  // programmatic scroll on mount must not count as the guest swiping.
-  const swiped    = useRef(false)
-  const touch     = useRef<{ x: number; y: number; atStart: boolean; atEnd: boolean } | null>(null)
-  const onPrevRef = useRef(onPrev)
-  const onNextRef = useRef(onNext)
-  useEffect(() => { onPrevRef.current = onPrev; onNextRef.current = onNext })
+  const railRef  = useRef<HTMLDivElement>(null)
+  const startRef = useRef<HTMLButtonElement>(null)
+  const endRef   = useRef<HTMLButtonElement>(null)
+  const firstRef = useRef<HTMLDivElement>(null)
+  const touch = useRef<{ x: number; y: number; lastX: number; axis: 'x' | 'y' | null; side: Side | null; originX: number; progress: number } | null>(null)
+  const wheel = useRef<{ last: number; sum: number; side: Side | null; timer?: ReturnType<typeof setTimeout> }>({ last: 0, sum: 0, side: null })
   const [edge, setEdge] = useState({ start: true, end: false })
 
   const readEdge = useCallback(() => {
@@ -57,10 +58,8 @@ export default function HorizontalItemRail<T extends { id: string }>({
     const { start, end } = scrollEdges(railRef.current)
     setEdge(e => (e.start === start && e.end === end ? e : { start, end }))
   }, [])
-  const markSwiped = () => { swiped.current = true }
 
-  // Open on the first item with the "previous" card tucked just off-screen,
-  // so it only shows when the guest swipes back past the start.
+  // Open on the first item with the "previous" card tucked just off-screen.
   useLayoutEffect(() => {
     const rail = railRef.current, first = firstRef.current
     if (!rail || !first || !prev) return
@@ -78,47 +77,85 @@ export default function HorizontalItemRail<T extends { id: string }>({
     return () => ro.disconnect()
   }, [readEdge])
 
+  // Treat mount as mid-gesture, so trackpad momentum from the swipe that
+  // switched category can't carry straight on into the one after.
   useEffect(() => {
-    const rail = railRef.current
-    if (!rail) return
-    const targets = new Map<Element, () => void>()
-    if (startRef.current) targets.set(startRef.current, () => onPrevRef.current())
-    if (endRef.current)   targets.set(endRef.current,   () => onNextRef.current())
-    if (targets.size === 0) return
-    const timers = new Map<Element, ReturnType<typeof setTimeout>>()
-    const io = new IntersectionObserver(entries => {
-      for (const e of entries) {
-        clearTimeout(timers.get(e.target))
-        // Only jump after a real swipe — a short category whose edge cards are
-        // visible straight away must not skip on its own. The small delay lets
-        // the guest see where they're going and cancel by swiping back.
-        if (e.intersectionRatio >= EDGE_RATIO && swiped.current) {
-          timers.set(e.target, setTimeout(targets.get(e.target)!, 350))
-        }
-      }
-    }, { root: rail, threshold: [0, EDGE_RATIO, 1] })
-    targets.forEach((_, el) => io.observe(el))
-    return () => { io.disconnect(); timers.forEach(clearTimeout) }
-  }, [prev, next])
+    const w = wheel.current
+    w.last = performance.now()
+    return () => clearTimeout(w.timer)
+  }, [])
+
+  const go = (side: Side) => (side === 'prev' ? onPrev() : onNext())
+
+  // Pull progress (0..1) drives the edge card's fill and bar through a CSS
+  // variable, so dragging doesn't re-render the whole row.
+  const setPull = (side: Side, p: number) => {
+    const el = side === 'prev' ? startRef.current : endRef.current
+    el?.style.setProperty('--pull', String(Math.min(1, Math.max(0, p))))
+  }
+
+  // Scroll delta → how far it moves toward the row's end (RTL flips it).
+  const forwardOf = (d: number) => (isRTL ? -d : d)
 
   const onTouchStart = (e: React.TouchEvent) => {
-    markSwiped()
-    if (!railRef.current) return
-    const { start, end } = scrollEdges(railRef.current)
-    touch.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, atStart: start, atEnd: end }
+    const x = e.touches[0].clientX, y = e.touches[0].clientY
+    touch.current = { x, y, lastX: x, axis: null, side: null, originX: x, progress: 0 }
   }
-  // A swipe that starts with the row already at that end can't scroll, so it
-  // would never reach the observer — treat it as prev / next category.
-  const onTouchEnd = (e: React.TouchEvent) => {
-    const s = touch.current
+  const onTouchMove = (e: React.TouchEvent) => {
+    const g = touch.current, rail = railRef.current
+    if (!g || !rail) return
+    const x = e.touches[0].clientX, y = e.touches[0].clientY
+    if (!g.axis) {
+      if (Math.abs(x - g.x) < 8 && Math.abs(y - g.y) < 8) return
+      g.axis = Math.abs(x - g.x) > Math.abs(y - g.y) ? 'x' : 'y'
+    }
+    if (g.axis !== 'x') return
+    const push = forwardOf(g.lastX - x)   // > 0: finger pushing toward the end
+    g.lastX = x
+    if (!g.side) {
+      // The pull only starts once the row can't scroll any further that way.
+      const { start, end } = scrollEdges(rail)
+      if (push > 0 && end && next) g.side = 'next'
+      else if (push < 0 && start && prev) g.side = 'prev'
+      else return
+      g.originX = x
+      return
+    }
+    const pulled = forwardOf(g.originX - x) * (g.side === 'next' ? 1 : -1)
+    if (pulled < -12) { setPull(g.side, 0); g.side = null; return }   // turned back: plain scrolling again
+    g.progress = pulled / PULL_PX
+    setPull(g.side, g.progress)
+  }
+  const onTouchEnd = () => {
+    const g = touch.current
     touch.current = null
-    if (!s) return
-    const dx = e.changedTouches[0].clientX - s.x
-    const dy = e.changedTouches[0].clientY - s.y
-    if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy)) return
-    const forward = isRTL ? dx > 0 : dx < 0
-    if (forward && s.atEnd && next) onNext()
-    else if (!forward && s.atStart && prev) onPrev()
+    if (!g?.side) return
+    setPull(g.side, 0)
+    if (g.progress >= 1) go(g.side)
+  }
+
+  const onWheel = (e: React.WheelEvent) => {
+    const rail = railRef.current
+    const d = e.deltaX || (e.shiftKey ? e.deltaY : 0)
+    if (!rail || !d) return
+    const w = wheel.current
+    const forward = forwardOf(d) > 0
+    // Only a fresh gesture that starts already at an end and pushes past it
+    // can switch — not the tail of a fling that merely reached the end.
+    if (e.timeStamp - w.last > WHEEL_GAP_MS) {
+      const { start, end } = scrollEdges(rail)
+      w.sum = 0
+      w.side = forward && end && next ? 'next' : !forward && start && prev ? 'prev' : null
+    }
+    w.last = e.timeStamp
+    const side = w.side
+    if (!side) return
+    clearTimeout(w.timer)
+    if (forward !== (side === 'next')) { setPull(side, 0); w.side = null; return }
+    w.sum += Math.abs(d)
+    setPull(side, w.sum / WHEEL_PX)
+    if (w.sum >= WHEEL_PX) { w.side = null; go(side); return }
+    w.timer = setTimeout(() => setPull(side, 0), WHEEL_GAP_MS)
   }
 
   // Mouse users can't swipe sideways — give them arrows. Scrolling forward
@@ -126,7 +163,6 @@ export default function HorizontalItemRail<T extends { id: string }>({
   const step = (dir: 1 | -1) => {
     const rail = railRef.current
     if (!rail) return
-    markSwiped()
     rail.scrollBy({ left: dir * (isRTL ? -1 : 1) * rail.clientWidth * 0.7, behavior: 'smooth' })
   }
   const BackIcon    = isRTL ? ChevronRight : ChevronLeft
@@ -134,7 +170,7 @@ export default function HorizontalItemRail<T extends { id: string }>({
   const arrowCls = 'hidden pointer-fine:flex absolute top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full items-center justify-center shadow-lg active:scale-90 transition-transform'
   const arrowStyle = { background: isDark ? 'rgba(20,24,34,0.85)' : 'rgba(255,255,255,0.95)', color: accent }
 
-  const edgeCard = (cat: RailCategory, side: 'prev' | 'next') => {
+  const edgeCard = (cat: RailCategory, side: Side) => {
     const label = side === 'prev' ? t.gm_prev_category : t.gm_next_category
     const Icon  = side === 'prev' ? BackIcon : ForwardIcon
     return (
@@ -142,19 +178,27 @@ export default function HorizontalItemRail<T extends { id: string }>({
         ref={side === 'prev' ? startRef : endRef}
         onClick={side === 'prev' ? onPrev : onNext}
         aria-label={`${label}: ${cat.name}`}
-        className={`${side === 'prev' ? 'snap-start' : 'snap-end'} shrink-0 w-28 sm:w-36 rounded-2xl flex flex-col items-center justify-center gap-2 px-2 active:scale-95 transition-transform`}
+        className={`${side === 'prev' ? 'snap-start' : 'snap-end'} relative overflow-hidden shrink-0 w-28 sm:w-36 rounded-2xl flex flex-col items-center justify-center gap-2 px-2 active:scale-95 transition-transform`}
         style={{ border: `2px dashed ${accent}66`, background: `${accent}0d` }}
       >
-        <span className="w-12 h-12 rounded-full flex items-center justify-center shadow" style={{ background: cat.color }}>
+        {/* Pull feedback: tint + bar fill as the guest drags past the end */}
+        <span aria-hidden className="absolute inset-0 pointer-events-none transition-opacity duration-100"
+          style={{ background: accent, opacity: 'calc(var(--pull, 0) * 0.22)' }} />
+        <span className="relative w-12 h-12 rounded-full flex items-center justify-center shadow" style={{ background: cat.color }}>
           {cat.icon
             ? <span style={{ fontSize: '1.6rem', lineHeight: 1 }}>{cat.icon}</span>
             : <span className="text-white text-lg font-bold">{cat.name.charAt(0).toUpperCase()}</span>}
         </span>
-        <span className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: isDark ? 'rgba(255,255,255,0.45)' : '#9ca3af' }}>
+        <span className="relative text-[10px] font-semibold uppercase tracking-wide" style={{ color: isDark ? 'rgba(255,255,255,0.45)' : '#9ca3af' }}>
           {label}
         </span>
-        <span className="text-xs font-bold text-center line-clamp-2 leading-tight" style={{ color: accent }}>{cat.name}</span>
-        <Icon className="w-4 h-4 animate-pulse" style={{ color: accent }} />
+        <span className="relative text-xs font-bold text-center line-clamp-2 leading-tight" style={{ color: accent }}>{cat.name}</span>
+        <Icon className="relative w-4 h-4 animate-pulse" style={{ color: accent }} />
+        <span aria-hidden className="absolute bottom-3 inset-x-4 h-1 rounded-full overflow-hidden pointer-events-none"
+          style={{ background: `${accent}26`, opacity: 'min(1, calc(var(--pull, 0) * 8))' }}>
+          <span className="block h-full rounded-full transition-[width] duration-100"
+            style={{ width: 'calc(var(--pull, 0) * 100%)', background: accent }} />
+        </span>
       </button>
     )
   }
@@ -167,10 +211,11 @@ export default function HorizontalItemRail<T extends { id: string }>({
         ref={railRef}
         onScroll={readEdge}
         onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
-        onWheel={markSwiped}
-        onPointerDown={markSwiped}
-        className="scroll-hide flex gap-3 overflow-x-auto snap-x snap-mandatory scroll-px-4 px-4 py-1"
+        onTouchCancel={onTouchEnd}
+        onWheel={onWheel}
+        className="scroll-hide flex gap-3 overflow-x-auto overscroll-x-contain snap-x snap-mandatory scroll-px-4 px-4 py-1"
         style={{ scrollbarWidth: 'none' } as React.CSSProperties}
       >
         {prev && edgeCard(prev, 'prev')}

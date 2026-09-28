@@ -631,7 +631,7 @@ export default function GuestPage() {
           {categoryStyle === 'circles' ? (
             /* ── Circles ── */
             <div
-              className="cat-scroll flex gap-3 sm:gap-5 overflow-x-auto px-4 sm:px-6 py-2 sm:py-4 justify-center"
+              className="cat-scroll flex gap-3 sm:gap-5 overflow-x-auto px-4 sm:px-6 py-2 sm:py-4 justify-center-safe"
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', overflowY: 'visible' } as React.CSSProperties}
             >
               {categories.map(cat => {
@@ -671,7 +671,7 @@ export default function GuestPage() {
           ) : categoryStyle === 'square' ? (
             /* ── Square cards ── */
             <div
-              className="cat-scroll flex gap-3 overflow-x-auto px-6 py-3 justify-center"
+              className="cat-scroll flex gap-3 overflow-x-auto px-6 py-3 justify-center-safe"
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
             >
               {categories.map(cat => {
@@ -749,7 +749,7 @@ export default function GuestPage() {
           ) : (
             /* ── Pills ── */
             <div
-              className="cat-scroll flex gap-2 overflow-x-auto px-6 py-3 justify-center"
+              className="cat-scroll flex gap-2 overflow-x-auto px-6 py-3 justify-center-safe"
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
             >
               {categories.map(cat => {
@@ -1026,7 +1026,7 @@ export default function GuestPage() {
               initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1], delay: 0.62 }}>
               <h2 className={`text-lg font-bold mb-3 px-4 text-center ${tpl.sectionTitleColor}`}>{t.gm_events_offers}</h2>
               {eventStyle === 'story' ? (
-                <div className="scroll-hide flex gap-4 overflow-x-auto pb-4 pt-2 px-4 justify-center"
+                <div className="scroll-hide flex gap-4 overflow-x-auto pb-4 pt-2 px-4 justify-center-safe"
                   style={{ scrollbarWidth: 'none' } as React.CSSProperties}>
                   {events.map((ev, idx) => (
                       <motion.div key={ev.id} onClick={() => openStory(idx)}
@@ -1066,7 +1066,7 @@ export default function GuestPage() {
                   ))}
                 </div>
               ) : (
-                <div className="scroll-hide flex gap-5 overflow-x-auto pb-4 pt-2 px-4 justify-center"
+                <div className="scroll-hide flex gap-5 overflow-x-auto pb-4 pt-2 px-4 justify-center-safe"
                   style={{ scrollbarWidth: 'none' } as React.CSSProperties}>
                   {events.map((ev, idx) => (
                       <motion.div key={ev.id} onClick={() => openStory(idx)}
