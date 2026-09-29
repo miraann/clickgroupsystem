@@ -21,6 +21,14 @@ const nextConfig: NextConfig = {
   // Turbopack nor webpack can bundle; this tells Next to require() it
   // directly from node_modules at runtime instead of trying to bundle it.
   serverExternalPackages: ['@napi-rs/canvas'],
+  experimental: {
+    // Turbopack's persistent build cache (on by default in Next 16.3) kept
+    // serving an old globals.css: new utilities were generated but the file's
+    // own rules (the .paper receipt styles, print CSS) never shipped, locally
+    // and on Vercel, which restores the cache between deploys. Builds are only
+    // a few seconds slower without it.
+    turbopackFileSystemCacheForBuild: false,
+  },
   // Disable Turbopack for dev — avoids the Windows Rust resolver
   // "Next.js package not found" HMR bug in Next.js 15-16 on Windows.
   // Re-enable once the upstream Turbopack path-resolution bug is patched.

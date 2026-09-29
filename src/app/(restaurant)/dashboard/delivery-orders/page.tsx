@@ -12,7 +12,7 @@ import {
   Truck, Phone, MapPin, Clock, Check, X, Loader2,
   RefreshCw, Package,
   CheckCircle2, XCircle, AlertCircle,
-  Navigation, UtensilsCrossed, FileText, Home, MonitorSmartphone, UserRound, Camera, LogOut, Eye,
+  Navigation, UtensilsCrossed, FileText, Home, MonitorSmartphone, UserRound, Camera, LogOut, Eye, Banknote,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
@@ -71,6 +71,7 @@ interface DeliveryOrder {
   driver_id: string | null
   driver_name: string | null
   selfie_url: string | null
+  paid: boolean
 }
 
 interface Driver {
@@ -97,6 +98,7 @@ const PRESS     = 'active:scale-[0.97] active:brightness-90 transition-all touch
 const NAV_BTN   = `min-w-14 h-14 px-2 shrink-0 rounded-2xl flex flex-col items-center justify-center gap-1 text-white ${PRESS}`
 const NAV_LABEL = 'text-[11px] font-semibold leading-none whitespace-nowrap'
 const PILL_BTN  = `flex items-center justify-center gap-2 h-12 px-4 rounded-2xl text-sm font-bold ${PRESS}`
+const PAID_BG   = 'bg-amber-500 hover:bg-amber-400 text-slate-900'
 const BIG_BTN   = `flex items-center justify-center gap-2 h-14 px-5 rounded-2xl font-extrabold disabled:opacity-50 disabled:active:scale-100 disabled:active:brightness-100 ${PRESS}`
 
 // Primary action colour follows the status the order is moving to
@@ -141,11 +143,12 @@ function buildWhatsAppUrl(order: DeliveryOrder, resolvedMsg: string): string {
 }
 
 // Fills {placeholders} in a translated string — values may be JSX so names
-// and statuses keep their emphasis inside the sentence.
+// and statuses keep their emphasis inside the sentence. Each value is a
+// <bdi> so Latin/number runs (IQD 31,000 · 2) keep their order in RTL text.
 function fill(tpl: string, vars: Record<string, React.ReactNode>): React.ReactNode[] {
   return tpl.split(/(\{\w+\})/).map((part, i) => {
     const key = part.match(/^\{(\w+)\}$/)?.[1]
-    return key && key in vars ? <span key={i}>{vars[key]}</span> : part
+    return key && key in vars ? <bdi key={i}>{vars[key]}</bdi> : part
   })
 }
 
@@ -233,6 +236,7 @@ export default function DeliveryOrdersPage() {
     deliveryId: string; orderId: string; nextStatus: DeliveryStatus; label: string; name: string
     driver?: { driver_id: string; driver_name: string }
   } | null>(null)
+  const [paidTarget, setPaidTarget] = useState<DeliveryOrder | null>(null)
   const [selfiePreview, setSelfiePreview] = useState<string | null>(null)
   const [viewItem, setViewItem] = useState<DeliveryItem | null>(null)
   const [drivers, setDrivers]     = useState<Driver[]>([])
@@ -289,6 +293,11 @@ export default function DeliveryOrdersPage() {
   // to its driver. Only needed once an order reaches "preparing", so the
   // query waits until that's true.
   const needDrivers = orders.some(o => o.status === 'preparing')
+  // driver id → orders they're out delivering right now (shown on the picker)
+  const driverLoad = new Map<string, number>()
+  for (const o of orders) {
+    if (o.status === 'out_for_delivery' && o.driver_id) driverLoad.set(o.driver_id, (driverLoad.get(o.driver_id) ?? 0) + 1)
+  }
   useEffect(() => {
     if (!restaurantId || !needDrivers || drivers.length > 0) return
     supabase
@@ -309,7 +318,55 @@ export default function DeliveryOrdersPage() {
   const setProc = (k: string, v: boolean) =>
     setProcessing(p => { const s = new Set(p); v ? s.add(k) : s.delete(k); return s })
 
+  // Invoice lines for a delivery order — the fee rides inside the JSONB items
+  // array so it survives without a DB column change.
+  const invoiceLines = (order: DeliveryOrder) => {
+    const subtotal = order.items.reduce((s, i) => s + i.item_price * i.qty, 0)
+    return {
+      subtotal,
+      discount: Math.max(0, subtotal + order.delivery_fee - order.order_total),
+      items: [
+        ...order.items.map(i => ({ name: i.item_name, price: i.item_price, qty: i.qty })),
+        ...(order.delivery_fee > 0 ? [{ name: 'Delivery Fee', price: order.delivery_fee, qty: 1, isDeliveryFee: true }] : []),
+      ],
+    }
+  }
+
+  // Unsaved receipt for an order that isn't paid yet — printed for the driver
+  // at dispatch and shown by the Invoice button. Nothing is written, so sales
+  // only count the order once Paid records the real invoice.
+  const draftInvoice = (order: DeliveryOrder) => ({
+    ...invoiceLines(order),
+    id:             `draft-${order.order_id}`,
+    invoice_num:    '—',
+    order_num:      order.order_num,
+    table_num:      'Delivery',
+    guests:         0,
+    cashier:        staffLabel,
+    payment_method: 'Delivery',
+    total:          order.order_total,
+    amount_paid:    order.order_total,
+    change_amount:  0,
+    created_at:     new Date().toISOString(),
+    customer_name:  order.customer_name,
+    customer_phone: order.customer_phone,
+  })
+
   const createDeliveryInvoice = useCallback(async (orderId: string, order: DeliveryOrder, restId: string) => {
+    // Never invoice the same order twice (double tap, second device)
+    if (order.order_num) {
+      const { data: existing } = await supabase
+        .from('invoices')
+        .select('*')
+        .eq('restaurant_id', restId)
+        .eq('order_num', order.order_num)
+        .maybeSingle()
+      if (existing) {
+        await supabase.from('orders').update({ status: 'paid', updated_at: new Date().toISOString() }).eq('id', orderId)
+        return existing
+      }
+    }
+
     const { data: { user } } = await supabase.auth.getUser()
     const { data: profile }  = user
       ? await supabase.from('profiles').select('full_name').eq('id', user.id).maybeSingle()
@@ -335,14 +392,7 @@ export default function DeliveryOrdersPage() {
         .eq('restaurant_id', restId)
     }
 
-    const itemsSubtotal = order.items.reduce((s, i) => s + i.item_price * i.qty, 0)
-    const discount      = Math.max(0, itemsSubtotal + order.delivery_fee - order.order_total)
-
-    // Encode delivery fee inside the JSONB items array so it survives without a DB column change
-    const items = [
-      ...order.items.map(i => ({ name: i.item_name, price: i.item_price, qty: i.qty })),
-      ...(order.delivery_fee > 0 ? [{ name: 'Delivery Fee', price: order.delivery_fee, qty: 1, isDeliveryFee: true }] : []),
-    ]
+    const { subtotal: itemsSubtotal, discount, items } = invoiceLines(order)
 
     const payload = {
       restaurant_id:  restId,
@@ -362,9 +412,9 @@ export default function DeliveryOrdersPage() {
       customer_phone: order.customer_phone,
     }
 
-    const { data: saved, error: e1 } = await supabase.from('invoices').insert(payload).select().single()
-    if (e1) {
-      const { data: saved2 } = await supabase.from('invoices').insert({
+    const first = await supabase.from('invoices').insert(payload).select().single()
+    // Retry without the customer columns in case this database predates them
+    const saved = !first.error ? first.data : (await supabase.from('invoices').insert({
         restaurant_id:  restId,
         invoice_num:    invNum,
         order_num:      order.order_num,
@@ -378,29 +428,57 @@ export default function DeliveryOrdersPage() {
         total:          order.order_total,
         amount_paid:    order.order_total,
         change_amount:  0,
-      }).select().single()
-      return saved2 ?? null
-    }
+      }).select().single()).data
+    if (!saved) return null
 
     await supabase
       .from('orders')
       .update({ status: 'paid', total: order.order_total, updated_at: new Date().toISOString() })
       .eq('id', orderId)
 
-    return saved ?? null
+    return saved
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const openInvoice = useCallback(async (order: DeliveryOrder) => {
-    if (!order.order_num) return
-    setViewLoading(order.order_id)
+  // Paid = the money is in hand. This is what writes the invoice (so it
+  // counts in sales / reports) and marks the order paid — dispatching or
+  // delivering no longer does.
+  const markPaid = async (order: DeliveryOrder) => {
+    if (!restaurantId) return
+    const k = `${order.delivery_id}-paid`
+    setProc(k, true)
+    const inv = await createDeliveryInvoice(order.order_id, order, restaurantId)
+    setProc(k, false)
+    if (!inv) { alert(t.do_paid_failed); return }
+
+    setOrders(prev => prev.map(o => o.delivery_id === order.delivery_id ? { ...o, paid: true } : o))
+    swrMutate(`delivery-orders-${restaurantId}`, (prev: DeliveryOrder[] | undefined) =>
+      (prev ?? []).map(o => o.delivery_id === order.delivery_id ? { ...o, paid: true } : o),
+      false
+    )
+    logAudit(restaurantId, 'delivery_paid', {
+      delivery_id: order.delivery_id, order_id: order.order_id, customer: order.customer_name,
+      order_num: order.order_num, amount: formatPrice(order.order_total),
+    })
+  }
+
+  const findInvoice = async (order: DeliveryOrder) => {
+    if (!order.order_num || !restaurantId) return null
     const { data } = await supabase
       .from('invoices')
       .select('*')
+      .eq('restaurant_id', restaurantId)
       .eq('order_num', order.order_num)
       .maybeSingle()
+    return data
+  }
+
+  const openInvoice = async (order: DeliveryOrder) => {
+    if (!order.paid) { setViewInvoice(draftInvoice(order)); return }
+    setViewLoading(order.order_id)
+    const data = await findInvoice(order)
     setViewLoading(null)
     if (data) setViewInvoice(data)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }
 
   const updateStatus = async (
     deliveryId: string,
@@ -455,13 +533,11 @@ export default function DeliveryOrdersPage() {
       }
     }
 
-    // If out_for_delivery → create invoice, mark order paid, show print modal
+    // If out_for_delivery → print the receipt for the driver. It's a draft:
+    // the sale is only recorded when the money comes back (Paid).
     if (newStatus === 'out_for_delivery' && restaurantId) {
       const ord = orders.find(o => o.order_id === orderId)
-      if (ord) {
-        const inv = await createDeliveryInvoice(orderId, ord, restaurantId)
-        if (inv) setPrintInvoice(inv)
-      }
+      if (ord) setPrintInvoice(ord.paid ? await findInvoice(ord) ?? draftInvoice(ord) : draftInvoice(ord))
     }
 
     // If delivered → deduct inventory (mirrors payment-screen auto-deduct logic)
@@ -803,6 +879,22 @@ export default function DeliveryOrdersPage() {
           </div>
         )}
 
+        {/* Money still with drivers / customers — dispatched or delivered but not Paid */}
+        {(() => {
+          const unpaid = filtered.filter(o => !o.paid && (o.status === 'out_for_delivery' || o.status === 'delivered'))
+          if (unpaid.length === 0) return null
+          const sum = unpaid.reduce((s, o) => s + o.order_total, 0)
+          return (
+            <div className="flex items-center gap-2 mb-4 px-4 h-12 rounded-2xl bg-amber-500 text-slate-900 text-sm font-bold">
+              <Banknote className="w-5 h-5 shrink-0" />
+              <span>{fill(t.do_unpaid_total, {
+                amount: <span className="font-mono tabular-nums font-extrabold">{formatPrice(sum)}</span>,
+                count:  unpaid.length,
+              })}</span>
+            </div>
+          )
+        })()}
+
         <AnimatePresence mode="wait">
           {filtered.length === 0 ? (
             <motion.div
@@ -834,7 +926,9 @@ export default function DeliveryOrdersPage() {
 
           const nextStatus = STATUS_FLOW[STATUS_FLOW.indexOf(order.status) + 1]
           const canAdvance = !!nextStatus && order.status !== 'delivered'
-          const canCancel  = order.status !== 'delivered' && order.status !== 'cancelled'
+          // A paid order has an invoice in sales — cancelling it here would leave that behind
+          const canCancel  = order.status !== 'delivered' && order.status !== 'cancelled' && !order.paid
+          const canPay     = !order.paid && (order.status === 'out_for_delivery' || order.status === 'delivered')
           const NextIcon   = nextStatus ? STATUS_CFG[nextStatus].icon : Check
 
           return (
@@ -887,6 +981,12 @@ export default function DeliveryOrdersPage() {
                         >
                           {t[cfg.labelKey]}
                         </motion.span>
+                        {order.paid && (
+                          <span className="inline-flex items-center gap-1 text-[12px] font-black uppercase tracking-wide px-2 py-0.5 rounded-md border-2 border-current rotate-3 opacity-90 text-emerald-700">
+                            <Banknote className="w-3.5 h-3.5" />
+                            {t.do_paid_stamp}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1096,6 +1196,12 @@ export default function DeliveryOrdersPage() {
                         >
                           {driverPick[order.delivery_id] === d.id ? <Check className="w-4 h-4" /> : <Truck className="w-4 h-4" />}
                           {d.name}
+                          {/* Orders this driver is already carrying — a driver can take several at once */}
+                          {(driverLoad.get(d.id) ?? 0) > 0 && (
+                            <span className="min-w-5 h-5 px-1.5 rounded-full bg-stone-800 text-[#fffdf7] text-[11px] font-bold font-mono flex items-center justify-center">
+                              {driverLoad.get(d.id)}
+                            </span>
+                          )}
                         </button>
                       ))}
                     </div>
@@ -1141,6 +1247,19 @@ export default function DeliveryOrdersPage() {
                     )}
                   </div>
 
+                  <div className="flex gap-2.5 flex-1">
+                  {canPay && (
+                    <button
+                      onClick={() => setPaidTarget(order)}
+                      disabled={processing.has(`${order.delivery_id}-paid`)}
+                      className={cn(BIG_BTN, 'flex-1 text-base sm:text-lg', PAID_BG)}
+                    >
+                      {processing.has(`${order.delivery_id}-paid`)
+                        ? <Loader2 className="w-6 h-6 animate-spin" />
+                        : <Banknote className="w-6 h-6" />}
+                      {t.do_paid_btn}
+                    </button>
+                  )}
                   {canAdvance && nextStatus && (
                     <button
                       onClick={() => {
@@ -1169,6 +1288,7 @@ export default function DeliveryOrdersPage() {
                       {advanceLabel(order.status, nextStatus)}
                     </button>
                   )}
+                  </div>
                 </div>
               )}
 
@@ -1178,6 +1298,18 @@ export default function DeliveryOrdersPage() {
                     <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
                     <p className="text-sm text-emerald-800 font-semibold">{t.do_delivered_ok}</p>
                   </div>
+                  {canPay && (
+                    <button
+                      onClick={() => setPaidTarget(order)}
+                      disabled={processing.has(`${order.delivery_id}-paid`)}
+                      className={cn(BIG_BTN, 'shrink-0 text-base', PAID_BG)}
+                    >
+                      {processing.has(`${order.delivery_id}-paid`)
+                        ? <Loader2 className="w-5 h-5 animate-spin" />
+                        : <Banknote className="w-5 h-5" />}
+                      {t.do_paid_btn}
+                    </button>
+                  )}
                   <button
                     onClick={() => openInvoice(order)}
                     disabled={viewLoading === order.order_id}
@@ -1423,6 +1555,53 @@ export default function DeliveryOrdersPage() {
                   ? <Loader2 className="w-4 h-4 animate-spin" />
                   : <Check className="w-4 h-4" />}
                 {t.do_yes_action.replace('{action}', advanceTarget.label)}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Paid Confirm Modal ── */}
+      {paidTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4"
+          onClick={() => setPaidTarget(null)}
+        >
+          <div
+            className="w-full max-w-sm rounded-3xl border border-white/10 bg-[#0e1120] shadow-2xl p-6 space-y-5"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex flex-col items-center gap-3 text-center">
+              <div className="w-16 h-16 rounded-2xl bg-amber-500/15 flex items-center justify-center">
+                <Banknote className="w-8 h-8 text-amber-400" />
+              </div>
+              <div>
+                <p className="text-lg font-bold text-white">{t.do_paid_title}</p>
+                <p className="text-sm text-white/40 mt-1.5">
+                  {fill(t.do_paid_body, {
+                    amount: <span className="text-white/70 font-semibold font-mono tabular-nums">{formatPrice(paidTarget.order_total)}</span>,
+                    name:   <span className="text-white/70 font-semibold">{paidTarget.customer_name}</span>,
+                  })}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-2.5">
+              <button
+                onClick={() => setPaidTarget(null)}
+                className={cn(BIG_BTN, 'flex-1 text-sm font-bold bg-white/10 text-white hover:bg-white/15')}
+              >
+                {t.do_go_back}
+              </button>
+              <button
+                onClick={() => {
+                  markPaid(paidTarget)
+                  setPaidTarget(null)
+                }}
+                className={cn(BIG_BTN, 'flex-1 text-sm font-bold', PAID_BG)}
+              >
+                <Banknote className="w-4 h-4" />
+                {t.do_yes_paid}
               </button>
             </div>
           </div>

@@ -52,6 +52,7 @@ const ACTION_CFG: Record<string, { emoji: string; labelKey: string; color: strin
   delivery_out:       { emoji: '🚚', labelKey: 'al_act_del_out',        color: 'bg-blue-500/20 text-blue-300 border-blue-500/30' },
   delivery_delivered: { emoji: '🎉', labelKey: 'al_act_delivered',      color: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' },
   delivery_cancelled: { emoji: '🚫', labelKey: 'al_act_del_cancelled',  color: 'bg-rose-500/20 text-rose-300 border-rose-500/30' },
+  delivery_paid:      { emoji: '💵', labelKey: 'al_act_del_paid',       color: 'bg-amber-500/20 text-amber-300 border-amber-500/30' },
   pending_approved:   { emoji: '✅', labelKey: 'al_act_approved',       color: 'bg-teal-500/20 text-teal-300 border-teal-500/30' },
   pending_declined:   { emoji: '❌', labelKey: 'al_act_declined',       color: 'bg-rose-500/20 text-rose-300 border-rose-500/30' },
   guest_order:        { emoji: '📱', labelKey: 'al_act_guest_order',    color: 'bg-violet-500/20 text-violet-300 border-violet-500/30' },
@@ -130,6 +131,8 @@ function buildDetail(action: string, meta: Record<string, unknown>, tw: TWords):
       return `${tw.al_table} ${m.table ?? '?'}${m.item_name ? ` — ${m.item_name}` : (m.items_count ? ` — ${m.items_count} ${tw.al_items_count}` : '')}`
     case 'delivery_confirmed': case 'delivery_out': case 'delivery_delivered': case 'delivery_cancelled':
       return `${m.customer ?? tw.al_customer}${m.order_num ? ` #${m.order_num}` : ''}`
+    case 'delivery_paid':
+      return `${m.customer ?? tw.al_customer}${m.order_num ? ` #${m.order_num}` : ''}${m.amount ? ` — ${m.amount}` : ''}`
     case 'pending_approved': case 'pending_declined':
       return `${tw.al_table} ${m.table ?? '?'}${m.item_name ? ` — ${m.item_name}` : (m.items_count ? ` — ${m.items_count} ${tw.al_items_count}` : '')}`
     case 'guest_order':

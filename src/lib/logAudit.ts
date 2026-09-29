@@ -24,6 +24,7 @@ export type AuditAction =
   | 'delivery_confirmed'
   | 'delivery_out'
   | 'delivery_delivered'
+  | 'delivery_paid'
   | 'delivery_cancelled'
   // Pending orders (guest / QR)
   | 'pending_approved'

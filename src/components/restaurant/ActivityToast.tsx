@@ -59,6 +59,7 @@ const ACTION_STYLE: Record<string, { emoji: string; accent: Accent; labelKey: ke
   delivery_out:       { emoji: '🚚', accent: 'blue',    labelKey: 'toast_del_out'          },
   delivery_delivered: { emoji: '🎉', accent: 'emerald', labelKey: 'toast_del_delivered'    },
   delivery_cancelled: { emoji: '🚫', accent: 'rose',    labelKey: 'toast_del_cancelled'    },
+  delivery_paid:      { emoji: '💵', accent: 'amber',   labelKey: 'toast_del_paid'         },
   pending_approved:   { emoji: '✅', accent: 'teal',    labelKey: 'toast_approved'         },
   pending_declined:   { emoji: '❌', accent: 'rose',    labelKey: 'toast_declined'         },
   guest_order:        { emoji: '📱', accent: 'violet',  labelKey: 'toast_guest_order'      },

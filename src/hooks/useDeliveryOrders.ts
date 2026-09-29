@@ -30,6 +30,8 @@ export interface CachedDeliveryOrder {
   driver_id: string | null
   driver_name: string | null
   selfie_url: string | null
+  /** orders.status === 'paid' — set by the Paid button once the money is received */
+  paid: boolean
   items: CachedDeliveryItem[]
 }
 
@@ -40,7 +42,7 @@ async function fetchDeliveryOrders(restaurantId: string): Promise<CachedDelivery
     supabase
       .from('orders')
       .select(`
-        id, total, order_num, created_at,
+        id, total, order_num, status, created_at,
         delivery_orders ( id, customer_name, customer_phone, latitude, longitude, address_text, delivery_fee, status, driver_id, driver_name, selfie_url ),
         order_items ( id, item_name, item_price, qty, note, status )
       `)
@@ -74,6 +76,7 @@ async function fetchDeliveryOrders(restaurantId: string): Promise<CachedDelivery
       driver_id:      di.driver_id ?? null,
       driver_name:    di.driver_name ?? null,
       selfie_url:     di.selfie_url ?? null,
+      paid:           row.status === 'paid',
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       items: (row.order_items ?? [])
         .filter((i: any) => di.status === 'cancelled' ? true : i.status !== 'void')
