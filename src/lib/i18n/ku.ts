@@ -923,6 +923,12 @@ const ku: Record<keyof typeof en, string> = {
   wa_no_templates:      'هیچ قاڵبێک نییە. یەکێکت دروست بکە.',
   wa_use_template:      'بەکارهێنان',
   wa_templates_hint:    'قاڵبەکان پێشنووسی پەیامی دووبارە بەکارهاتنن. کلیک لەسەر "بەکارهێنان" بکە بۆ بارکردنیان.',
+  wa_default_templates: 'قاڵبە ئامادەکان',
+  wa_default_receipt_d: 'لە شاشەی پارەدانەوە دەنێردرێت — کاڵاکان، ژمارەی پسوولە و کۆی گشتی',
+  wa_default_delivery_d: 'لە داواکارییەکانی گەیاندنەوە دەنێردرێت — کاڵاکان، کرێ، کۆی گشتی و ناونیشان',
+  wa_add_template:      'زیادکردن',
+  wa_template_added:    'زیادکرا',
+  wa_customize_template: 'دەستکاریکردن پێش پاشەکەوتکردن',
 
   // ── Appearance page ───────────────────────────────
   si_appearance:        'ڕووکار',

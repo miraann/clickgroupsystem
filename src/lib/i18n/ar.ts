@@ -923,6 +923,12 @@ const ar: Record<keyof typeof en, string> = {
   wa_no_templates:      'لا توجد قوالب بعد. أنشئ واحداً للبدء.',
   wa_use_template:      'استخدام',
   wa_templates_hint:    'القوالب هي مسودات رسائل قابلة لإعادة الاستخدام. انقر على "استخدام" لتحميلها في المحرر.',
+  wa_default_templates: 'قوالب جاهزة',
+  wa_default_receipt_d: 'تُرسل من شاشة الدفع — الأصناف ورقم الفاتورة والمجموع',
+  wa_default_delivery_d: 'تُرسل من طلبات التوصيل — الأصناف والرسوم والمجموع والعنوان',
+  wa_add_template:      'إضافة',
+  wa_template_added:    'تمت الإضافة',
+  wa_customize_template: 'تعديل قبل الحفظ',
 
   // ── Appearance page ───────────────────────────────
   si_appearance:        'المظهر',

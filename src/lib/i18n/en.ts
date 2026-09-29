@@ -1561,6 +1561,12 @@ const en = {
   wa_no_templates:      'No templates yet. Create one to get started.',
   wa_use_template:      'Use',
   wa_templates_hint:    'Templates are reusable message drafts. Click "Use" to load one into the composer.',
+  wa_default_templates: 'Ready-made Templates',
+  wa_default_receipt_d: 'Sent from the payment screen — items, invoice # and total',
+  wa_default_delivery_d: 'Sent from delivery orders — items, fee, total and address',
+  wa_add_template:      'Add',
+  wa_template_added:    'Added',
+  wa_customize_template: 'Customize before saving',
 
   // ── Appearance page ───────────────────────────────────────────
   app_title:            'Appearance',

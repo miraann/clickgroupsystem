@@ -373,8 +373,9 @@ ${qrHtml}
           </div>
         )}
 
-        {/* Receipt */}
-        <div id="invoice-print" className="bg-white rounded-2xl shadow-2xl shadow-black/50 overflow-hidden text-[11px] font-sans">
+        {/* Receipt — styled as a torn thermal-paper slip (.paper in globals.css) */}
+        <div className="paper-lift">
+        <div id="invoice-print" className="paper overflow-hidden text-[11px] font-sans">
 
           {/* Header */}
           <div className="px-5 pt-5 pb-4">
@@ -382,8 +383,8 @@ ${qrHtml}
 
               {/* Left */}
               <div className="space-y-0.5 text-[10px]">
-                <div className="font-extrabold text-black">{dateStr}</div>
-                <div className="font-extrabold text-black">{timeStr}</div>
+                <div className="font-extrabold text-black font-mono tabular-nums">{dateStr}</div>
+                <div className="font-extrabold text-black font-mono tabular-nums">{timeStr}</div>
                 <div className="font-bold text-black mt-2">Cashier</div>
                 <div className="font-extrabold text-black">{invoice.cashier || '—'}</div>
               </div>
@@ -391,11 +392,11 @@ ${qrHtml}
               {/* Center: logo + name */}
               <div className="flex flex-col items-center gap-1.5 px-2 flex-1">
                 {rs.show_logo && rs.logo_url ? (
-                  <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-gray-200 shadow shrink-0">
-                    <img src={rs.logo_url} alt="logo" className="w-full h-full object-cover" />
+                  <div className="w-16 h-16 rounded-full overflow-hidden shrink-0">
+                    <img src={rs.logo_url} alt="logo" className="paper-ink w-full h-full object-cover" />
                   </div>
                 ) : rs.show_logo ? (
-                  <div className="w-16 h-16 rounded-full bg-gray-100 border-2 border-gray-200 flex items-center justify-center shrink-0">
+                  <div className="w-16 h-16 rounded-full border-2 border-dashed border-stone-300 flex items-center justify-center shrink-0">
                     <ImageIcon className="w-7 h-7 text-gray-300" />
                   </div>
                 ) : null}
@@ -413,14 +414,14 @@ ${qrHtml}
               {/* Right */}
               <div className="space-y-0.5 text-[10px] text-right">
                 <div className="font-bold text-black">Invoice No.</div>
-                <div className="font-extrabold text-black">{invoice.invoice_num}</div>
+                <div className="font-extrabold text-black font-mono">{invoice.invoice_num}</div>
                 <div className="font-bold text-black mt-2">Employee</div>
                 <div className="font-extrabold text-black">{invoice.cashier || '—'}</div>
               </div>
             </div>
           </div>
 
-          <div className="border-t border-dashed border-gray-300" />
+          <div className="border-t border-dashed border-stone-400" />
 
           {/* Order info row */}
           <div className="px-5 py-2 flex items-center justify-between text-[10px]">
@@ -438,14 +439,14 @@ ${qrHtml}
               )}
             </div>
             {invoice.order_num && (
-              <div className="font-bold text-black">{invoice.order_num}</div>
+              <div className="font-bold text-black font-mono">{invoice.order_num}</div>
             )}
           </div>
 
           {/* Customer info row (delivery / takeout) */}
           {(invoice.customer_name || invoice.customer_phone) && (
             <>
-              <div className="border-t border-dashed border-gray-300" />
+              <div className="border-t border-dashed border-stone-400" />
               <div className="px-5 py-2 text-[10px] space-y-0.5">
                 {invoice.customer_name && (
                   <div className="flex justify-between">
@@ -463,7 +464,7 @@ ${qrHtml}
             </>
           )}
 
-          <div className="border-t border-dashed border-gray-300" />
+          <div className="border-t border-dashed border-stone-400" />
 
           {/* Payment method */}
           <div className="px-5 py-2 text-center">
@@ -471,13 +472,13 @@ ${qrHtml}
             <p className="font-extrabold text-black text-[13px]">{invoice.payment_method || '—'}</p>
           </div>
 
-          <div className="border-t border-dashed border-gray-300" />
+          <div className="border-t border-dashed border-stone-400" />
 
           {/* Items */}
           <div className="px-5 py-3">
             <table className="w-full text-[10px]">
               <thead>
-                <tr className="border-b border-gray-300">
+                <tr className="border-b border-dashed border-stone-400">
                   <th className="text-left pb-1.5 font-extrabold text-black">Item</th>
                   <th className="text-center pb-1.5 font-extrabold text-black w-8">Qty</th>
                   <th className="text-right pb-1.5 font-extrabold text-black">Price</th>
@@ -485,10 +486,10 @@ ${qrHtml}
               </thead>
               <tbody>
                 {(invoice.items ?? []).filter(it => !it.isDeliveryFee).map((item, i) => (
-                  <tr key={i} className="border-b border-gray-100">
+                  <tr key={i} className="border-b border-dotted border-stone-300">
                     <td className="py-1.5 font-bold text-black">{item.name}</td>
-                    <td className="py-1.5 text-center font-bold text-black">{item.qty}</td>
-                    <td className="py-1.5 text-right font-bold text-black tabular-nums">
+                    <td className="py-1.5 text-center font-bold text-black font-mono">{item.qty}</td>
+                    <td className="py-1.5 text-right font-bold text-black font-mono tabular-nums">
                       {formatPrice(item.price * item.qty)}
                     </td>
                   </tr>
@@ -497,7 +498,7 @@ ${qrHtml}
             </table>
           </div>
 
-          <div className="border-t border-dashed border-gray-300" />
+          <div className="border-t border-dashed border-stone-400" />
 
           {/* Totals */}
           {(() => {
@@ -507,33 +508,33 @@ ${qrHtml}
           <div className="px-5 py-3 space-y-1">
             <div className="flex justify-between font-bold text-black">
               <span>Subtotal</span>
-              <span className="tabular-nums">{formatPrice(Number(invoice.subtotal))}</span>
+              <span className="font-mono tabular-nums">{formatPrice(Number(invoice.subtotal))}</span>
             </div>
             {deliveryFee > 0 && (
               <div className="flex justify-between font-bold text-black">
                 <span>Delivery Fee</span>
-                <span className="tabular-nums">+{formatPrice(deliveryFee)}</span>
+                <span className="font-mono tabular-nums">+{formatPrice(deliveryFee)}</span>
               </div>
             )}
             {Number(invoice.discount) > 0 && (
               <div className="flex justify-between font-bold text-black">
                 <span>Discount</span>
-                <span className="tabular-nums">-{formatPrice(Number(invoice.discount))}</span>
+                <span className="font-mono tabular-nums">-{formatPrice(Number(invoice.discount))}</span>
               </div>
             )}
-            <div className="flex justify-between font-extrabold text-black text-[13px] pt-1 border-t border-gray-200">
+            <div className="flex justify-between font-extrabold text-black text-[13px] pt-1 border-t border-dashed border-stone-400">
               <span>Total</span>
-              <span className="tabular-nums">{formatPrice(Number(invoice.total))}</span>
+              <span className="font-mono tabular-nums">{formatPrice(Number(invoice.total))}</span>
             </div>
             {Number(invoice.amount_paid) > 0 && Number(invoice.amount_paid) > Number(invoice.total) && (
               <>
                 <div className="flex justify-between font-bold text-black">
                   <span>Paid</span>
-                  <span className="tabular-nums">{formatPrice(Number(invoice.amount_paid))}</span>
+                  <span className="font-mono tabular-nums">{formatPrice(Number(invoice.amount_paid))}</span>
                 </div>
                 <div className="flex justify-between font-bold text-black">
                   <span>Change</span>
-                  <span className="tabular-nums">{formatPrice(Number(invoice.change_amount))}</span>
+                  <span className="font-mono tabular-nums">{formatPrice(Number(invoice.change_amount))}</span>
                 </div>
               </>
             )}
@@ -542,9 +543,9 @@ ${qrHtml}
           })()}
 
           {/* Big total box */}
-          <div className="mx-5 mb-3 rounded-xl bg-gray-50 border border-gray-200 py-3 text-center">
-            <p className="text-[10px] font-bold text-black mb-0.5">Total Amount</p>
-            <p className="text-[18px] font-extrabold text-black tabular-nums">
+          <div className="mx-5 mb-3 border-y-[3px] border-double border-black py-3 text-center">
+            <p className="text-[10px] font-bold text-black mb-0.5 uppercase tracking-[0.2em]">Total Amount</p>
+            <p className="text-[20px] font-extrabold text-black font-mono tabular-nums">
               {formatPrice(Number(invoice.total))}
             </p>
           </div>
@@ -552,15 +553,15 @@ ${qrHtml}
           {/* QR */}
           {rs.show_qr && rs.qr_url && (
             <>
-              <div className="border-t border-dashed border-gray-300" />
+              <div className="border-t border-dashed border-stone-400" />
               <div className="flex justify-center py-4">
-                <img src={rs.qr_url} alt="QR" className="w-20 h-20 object-contain" />
+                <img src={rs.qr_url} alt="QR" className="paper-ink w-20 h-20 object-contain" />
               </div>
             </>
           )}
 
           {/* Thank you + footer */}
-          <div className="border-t border-dashed border-gray-300" />
+          <div className="border-t border-dashed border-stone-400" />
           <div className="px-5 py-4 text-center space-y-1">
             {rs.thank_you_msg && (
               <p className="font-extrabold text-black text-[13px]">{rs.thank_you_msg}</p>
@@ -568,6 +569,7 @@ ${qrHtml}
             <p className="text-[9px] font-bold text-black">Powered by ClickGroup · 07701466787</p>
           </div>
 
+        </div>
         </div>
       </div>
     </div>

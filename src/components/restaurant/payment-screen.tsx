@@ -17,6 +17,7 @@ import { mutate as swrMutate } from 'swr'
 import { SWR_KEY } from '@/hooks/useDashboardTables'
 import type { DashboardFullData } from '@/hooks/useDashboardTables'
 import { useCheckoutData } from '@/hooks/useCheckoutData'
+import { getDefaultWaTemplates, fillWaTemplate, formatWaItemLines } from '@/lib/whatsapp/templates'
 
 interface Props {
   orderId:      string
@@ -56,7 +57,7 @@ const NAV_LABEL = 'text-xs font-semibold leading-none whitespace-nowrap'
 export default function PaymentScreen({ orderId, restaurantId, orderNum: orderNumProp, tableNum, cfdTableKey, guests, items, total, onClose, onPaid }: Props) {
   const router = useRouter()
   const { can, isOwner, isPinStaff, staffName, roleName } = usePermissions()
-  const { t, isRTL } = useLanguage()
+  const { t, isRTL, lang } = useLanguage()
   const p = (key: string) => isOwner || can(key)
   const { checkout } = useCheckoutData(restaurantId)
   const [method, setMethod]               = useState<string>('')
@@ -380,7 +381,14 @@ export default function PaymentScreen({ orderId, restaurantId, orderNum: orderNu
       .select('id, name, message')
       .eq('restaurant_id', restaurantId)
       .order('created_at', { ascending: false })
-    const rows = (data ?? []) as {id:string;name:string;message:string}[]
+    let rows = (data ?? []) as {id:string;name:string;message:string}[]
+    // Nothing saved yet — fall back to the built-in receipt template so the
+    // WA button works out of the box.
+    if (rows.length === 0) {
+      rows = getDefaultWaTemplates(lang)
+        .filter(d => d.key === 'receipt')
+        .map(d => ({ id: `default-${d.key}`, name: d.name, message: d.message }))
+    }
     setWaTemplates(rows)
     setWaTemplatesLoaded(true)
     if (rows.length > 0) setSelectedWaTemplateId(rows[0].id)
@@ -391,10 +399,19 @@ export default function PaymentScreen({ orderId, restaurantId, orderNum: orderNu
     const menuLink = typeof window !== 'undefined'
       ? `${window.location.origin}/r/${slug ?? restaurantId}`
       : ''
-    return msg
-      .replace(/\{\{total\}\}/g, formatPrice(finalTotal))
-      .replace(/\{\{table\}\}/g, tableNum)
-      .replace(/\{\{menu_link\}\}/g, menuLink)
+    const ordNum = generatedOrderNum || orderNum
+    return fillWaTemplate(msg, {
+      restaurant_name: (typeof window !== 'undefined' ? localStorage.getItem('restaurant_name') : null) ?? '',
+      total:           formatPrice(finalTotal),
+      subtotal:        formatPrice(total),
+      table:           tableNum,
+      menu_link:       menuLink,
+      items:           formatWaItemLines(items, formatPrice),
+      order_number:    ordNum ? `#${ordNum}` : '',
+      invoice_number:  generatedInvoiceNum || previewInvoiceNum || '',
+      date:            new Date().toLocaleString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }),
+      customer_name:   selectedMember?.name ?? selectedCustomer?.name ?? '',
+    })
   }
 
   const selectedWaTemplate = waTemplates.find(t => t.id === selectedWaTemplateId) ?? null

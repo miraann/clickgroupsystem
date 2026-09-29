@@ -228,6 +228,45 @@ html.cg-app *::after {
   backdrop-filter: none !important;
 }
 
+/* ── Paper (printed-receipt look) ─────────────────────────────────
+   .paper       warm off-white sheet with a faint grain and serrated
+                (torn) top and bottom edges. The teeth are cut with a
+                mask, so whatever is behind the sheet shows through them;
+                content gets padding-block equal to the tooth depth.
+   .paper-lift  wrap a .paper in this for its shadow — the mask clips
+                box-shadow, drop-shadow follows the teeth.
+   In @layer components so utilities on the same element still win.
+   ---------------------------------------------------------------- */
+@layer components {
+  .paper {
+    --paper: #fffdf7;
+    --tooth: 7px;
+    position: relative;
+    padding-block: var(--tooth);
+    color: #1c1917;
+    background-color: var(--paper);
+    background-image:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .45 0 0 0 0 .38 0 0 0 0 .25 .09 0 0 0 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.7), rgba(120, 100, 60, 0.06));
+    -webkit-mask:
+      conic-gradient(from 135deg at top, #000 90deg, #0000 0) top / calc(2 * var(--tooth)) var(--tooth) repeat-x,
+      conic-gradient(from -45deg at bottom, #000 90deg, #0000 0) bottom / calc(2 * var(--tooth)) var(--tooth) repeat-x,
+      linear-gradient(#000 0 0) center / 100% calc(100% - 2 * var(--tooth) + 2px) no-repeat;
+            mask:
+      conic-gradient(from 135deg at top, #000 90deg, #0000 0) top / calc(2 * var(--tooth)) var(--tooth) repeat-x,
+      conic-gradient(from -45deg at bottom, #000 90deg, #0000 0) bottom / calc(2 * var(--tooth)) var(--tooth) repeat-x,
+      linear-gradient(#000 0 0) center / 100% calc(100% - 2 * var(--tooth) + 2px) no-repeat;
+  }
+  .paper-lift {
+    filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.25)) drop-shadow(0 14px 22px rgba(0, 0, 0, 0.35));
+  }
+  /* Printed-ink look for logos / QR codes on the sheet */
+  .paper-ink {
+    filter: grayscale(1) contrast(1.15);
+    mix-blend-mode: multiply;
+  }
+}
+
 /* ── text-white → --app-text / --app-text-muted override ─────────
    @layer overrides sits above Tailwind's 'utilities' layer (declared
    after @import "tailwindcss") so these rules win without !important.
@@ -314,6 +353,11 @@ html.cg-app *::after {
     overflow: visible !important;
     margin: 0 !important;
     background: white !important;
+    padding-block: 0 !important;
+    -webkit-mask: none !important;
+            mask: none !important;
+    filter: none !important;
   }
+  .paper-lift { filter: none !important; }
   /* @page size is injected dynamically by handlePrint using the printer's paper_width */
 }
