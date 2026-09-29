@@ -1,7 +1,7 @@
 import type { Lang } from '@/lib/i18n/translations'
 
 export interface DefaultWaTemplate {
-  key:     'receipt' | 'delivery_receipt'
+  key:     'receipt' | 'delivery_confirm' | 'delivery_receipt'
   name:    string
   message: string
 }
@@ -10,8 +10,9 @@ const SEP = '━━━━━━━━━━━━━━'
 
 // Built-in receipt templates offered on Settings → WhatsApp, and used by the
 // payment screen when the restaurant hasn't saved any templates of its own.
-// `receipt` uses the POS variables (payment screen), `delivery_receipt` the
-// delivery-order ones — see fillWaTemplate callers for what each resolves.
+// `receipt` uses the POS variables (payment screen), `delivery_confirm` and
+// `delivery_receipt` the delivery-order ones — see fillWaTemplate callers for
+// what each resolves.
 const DEFAULTS: Record<Lang, DefaultWaTemplate[]> = {
   ku: [
     {
@@ -31,6 +32,27 @@ const DEFAULTS: Record<Lang, DefaultWaTemplate[]> = {
         '',
         'سوپاس بۆ سەردانتان 🙏',
         'مێنیۆ: {{menu_link}}',
+      ].join('\n'),
+    },
+    {
+      key: 'delivery_confirm',
+      name: 'پشتڕاستکردنەوەی داواکاری',
+      message: [
+        '🛵 *{{restaurant_name}}*',
+        'سڵاو {{customer_name}} 👋',
+        'داواکارییەکەت {{order_number}} وەرگیرا. تکایە وردەکارییەکان بپشکنە و پشتڕاستی بکەرەوە:',
+        SEP,
+        '{{items}}',
+        SEP,
+        'کۆی کاڵاکان: {{subtotal}}',
+        'کرێی گەیاندن: {{delivery_fee}}',
+        '💰 *کۆی گشتی: {{total_price}}*',
+        '📍 ناونیشان: {{address}}',
+        '',
+        '✅ بۆ پشتڕاستکردنەوە بنووسە *بەڵێ*',
+        '❌ بۆ هەڵوەشاندنەوە بنووسە *نەخێر*',
+        '',
+        'سوپاس 🙏',
       ].join('\n'),
     },
     {
@@ -75,6 +97,27 @@ const DEFAULTS: Record<Lang, DefaultWaTemplate[]> = {
       ].join('\n'),
     },
     {
+      key: 'delivery_confirm',
+      name: 'تأكيد الطلب',
+      message: [
+        '🛵 *{{restaurant_name}}*',
+        'مرحباً {{customer_name}} 👋',
+        'استلمنا طلبك {{order_number}}. يرجى مراجعة التفاصيل وتأكيد الطلب:',
+        SEP,
+        '{{items}}',
+        SEP,
+        'المجموع الفرعي: {{subtotal}}',
+        'رسوم التوصيل: {{delivery_fee}}',
+        '💰 *المجموع الكلي: {{total_price}}*',
+        '📍 العنوان: {{address}}',
+        '',
+        '✅ للتأكيد أرسل *نعم*',
+        '❌ للإلغاء أرسل *لا*',
+        '',
+        'شكراً لك 🙏',
+      ].join('\n'),
+    },
+    {
       key: 'delivery_receipt',
       name: 'فاتورة التوصيل',
       message: [
@@ -113,6 +156,27 @@ const DEFAULTS: Record<Lang, DefaultWaTemplate[]> = {
         '',
         'Thank you for visiting 🙏',
         'Menu: {{menu_link}}',
+      ].join('\n'),
+    },
+    {
+      key: 'delivery_confirm',
+      name: 'Confirm Order',
+      message: [
+        '🛵 *{{restaurant_name}}*',
+        'Hi {{customer_name}} 👋',
+        'We received your order {{order_number}}. Please check the details and confirm:',
+        SEP,
+        '{{items}}',
+        SEP,
+        'Subtotal: {{subtotal}}',
+        'Delivery fee: {{delivery_fee}}',
+        '💰 *Total: {{total_price}}*',
+        '📍 Address: {{address}}',
+        '',
+        '✅ Reply *YES* to confirm',
+        '❌ Reply *NO* to cancel',
+        '',
+        'Thank you 🙏',
       ].join('\n'),
     },
     {

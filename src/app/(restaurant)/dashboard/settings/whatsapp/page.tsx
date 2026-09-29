@@ -10,9 +10,16 @@ import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
+import type { TranslationKey } from '@/lib/i18n/translations'
 import { getDefaultWaTemplates, type DefaultWaTemplate } from '@/lib/whatsapp/templates'
 
 const WA_GREEN = '#25D366'
+
+const DEFAULT_TEMPLATE_DESC: Record<DefaultWaTemplate['key'], TranslationKey> = {
+  receipt:          'wa_default_receipt_d',
+  delivery_confirm: 'wa_default_confirm_d',
+  delivery_receipt: 'wa_default_delivery_d',
+}
 
 interface Recipient {
   id: string
@@ -756,7 +763,7 @@ export default function WhatsAppPage() {
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-semibold text-white truncate">{d.name}</p>
                           <p className="text-[11px] text-white/35 mt-0.5">
-                            {d.key === 'receipt' ? t.wa_default_receipt_d : t.wa_default_delivery_d}
+                            {t[DEFAULT_TEMPLATE_DESC[d.key]]}
                           </p>
                           <p className="text-xs text-white/40 mt-2 line-clamp-4 leading-relaxed whitespace-pre-wrap">{d.message}</p>
                         </div>

@@ -281,12 +281,25 @@ export default function DeliveryOrdersPage() {
       .order('created_at', { ascending: false })
       .then(({ data }) => {
         const rows = (data ?? []) as WaTemplate[]
-        // Nothing saved yet — offer the built-in delivery receipt.
+        // Nothing saved yet — offer the built-in delivery templates.
         setWaTemplates(rows.length > 0 ? rows : getDefaultWaTemplates(lang)
-          .filter(d => d.key === 'delivery_receipt')
+          .filter(d => d.key === 'delivery_confirm' || d.key === 'delivery_receipt')
           .map(d => ({ id: `default-${d.key}`, name: d.name, message: d.message })))
       })
   }, [restaurantId, lang]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Close the template dropdown on any press outside it. A full-screen
+  // backdrop can't do this: each order card is its own stacking context
+  // (the paper filter/mask), so a page-level overlay sits above the dropdown
+  // and swallows the click on the template link.
+  useEffect(() => {
+    if (!whatsappDropdown) return
+    const close = (e: PointerEvent) => {
+      if (!(e.target as Element | null)?.closest?.('[data-wa-dropdown]')) setWhatsappDropdown(null)
+    }
+    document.addEventListener('pointerdown', close)
+    return () => document.removeEventListener('pointerdown', close)
+  }, [whatsappDropdown])
 
   // Assignable drivers — active staff whose role can open the driver screen
   // (same gate as /dashboard/driver), so an assigned order is always visible
@@ -1010,7 +1023,7 @@ export default function DeliveryOrdersPage() {
                         {t.do_no_gps}
                       </span>
                     )}
-                    <div className="relative">
+                    <div className="relative" data-wa-dropdown>
                       <button
                         onClick={() => {
                           loadWaTemplates()
@@ -1330,11 +1343,6 @@ export default function DeliveryOrdersPage() {
           )}
         </AnimatePresence>
       </div>
-
-      {/* WhatsApp language dropdown backdrop */}
-      {whatsappDropdown && (
-        <div className="fixed inset-0 z-20" onClick={() => setWhatsappDropdown(null)} />
-      )}
 
       {/* ── Selfie Lightbox ── */}
       <AnimatePresence>

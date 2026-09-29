@@ -1578,6 +1578,7 @@ const en = {
   wa_templates_hint:    'Templates are reusable message drafts. Click "Use" to load one into the composer.',
   wa_default_templates: 'Ready-made Templates',
   wa_default_receipt_d: 'Sent from the payment screen — items, invoice # and total',
+  wa_default_confirm_d: 'Send when a delivery order arrives — asks the customer to reply YES to confirm',
   wa_default_delivery_d: 'Sent from delivery orders — items, fee, total and address',
   wa_add_template:      'Add',
   wa_template_added:    'Added',
