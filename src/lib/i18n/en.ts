@@ -470,6 +470,14 @@ const en = {
   do_paid_failed:       'Could not record the payment — try again',
   do_unpaid_total:      'Not collected yet: {amount} · {count} orders',
 
+  // ── Invoice view modal ────────────────────────────────────────
+  ivm_print:            'Print',
+  ivm_sending:          'Sending…',
+  ivm_sent:             'Sent!',
+  ivm_print_failed:     'Printing failed',
+  ivm_browser_fallback: 'Opened the browser print dialog instead.',
+  ivm_err_ip_browser:   'Network (IP) printers only work in the ClickGroup app (desktop or tablet), not in a web browser.',
+
   // ── Driver Screen ─────────────────────────────────────────────
   drv_title:            'Driver Screen',
   drv_subtitle:         'Your assigned deliveries',

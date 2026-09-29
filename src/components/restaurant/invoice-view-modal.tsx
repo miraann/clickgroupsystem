@@ -7,6 +7,9 @@ import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import { enqueuePrint } from '@/lib/printQueue'
 import { printReceiptBytes, reprintBodyFromInvoice } from '@/lib/printReceipt'
 import { pickPrinter } from '@/lib/printerPurpose'
+import { ERR_IP_NEEDS_APP } from '@/lib/sendToPrinter'
+import { KU } from '@/lib/escpos/kurdish'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 interface StoredInvoice {
   id: string
@@ -27,7 +30,26 @@ interface StoredInvoice {
   customer_phone?: string | null
 }
 
+// The preview follows the printed receipt's language (receipt_settings.language,
+// same rule as /api/print/receipt: anything but 'en' prints Kurdish) and is
+// laid out in that direction, not the page's — Kurdish reuses the thermal labels.
+const RECEIPT_LABELS = {
+  en: {
+    invoiceNo: 'Invoice No.', employee: 'Employee', cashier: 'Cashier', table: 'Table', guests: 'guests',
+    customer: 'Customer', phone: 'Phone', paymentMethod: 'Payment Method', item: 'Item', qty: 'Qty',
+    price: 'Price', subtotal: 'Subtotal', deliveryFee: 'Delivery Fee', discount: 'Discount', total: 'Total',
+    paid: 'Paid', change: 'Change', totalAmount: 'Total Amount', delivery: 'Delivery', takeout: 'Takeout',
+  },
+  ku: {
+    invoiceNo: KU.invoiceNo, employee: KU.employee, cashier: KU.cashier, table: 'مێز', guests: 'کەس',
+    customer: 'کڕیار', phone: 'تەلەفۆن', paymentMethod: KU.paymentMethod, item: KU.item, qty: KU.qty,
+    price: KU.price, subtotal: KU.subtotal, deliveryFee: 'کرێی گەیاندن', discount: KU.discount, total: KU.total,
+    paid: KU.amountTendered, change: KU.change, totalAmount: KU.totalAmount, delivery: 'گەیاندن', takeout: 'بردن',
+  },
+}
+
 interface ReceiptSettings {
+  language: 'en' | 'ku'
   shop_name: string | null
   logo_url: string | null
   phone: string | null
@@ -65,7 +87,9 @@ export default function InvoiceViewModal({ invoice, restaurantId, printCount = 0
   const { formatPrice } = useDefaultCurrency()
   const [loading, setLoading] = useState(true)
   const [paperWidth, setPaperWidth] = useState(80)
+  const { t } = useLanguage()
   const [rs, setRs] = useState<ReceiptSettings>({
+    language: 'ku',
     shop_name: null, logo_url: null, phone: null, address: null,
     thank_you_msg: 'Thank you for your visit!',
     currency_symbol: '$', show_qr: true, qr_url: null,
@@ -74,6 +98,7 @@ export default function InvoiceViewModal({ invoice, restaurantId, printCount = 0
   const [restaurantName, setRestaurantName] = useState('')
   const [printStatus, setPrintStatus] = useState<'idle' | 'sending' | 'ok' | 'error'>('idle')
   const [printError, setPrintError]   = useState('')
+  const [fellBack, setFellBack]       = useState(false)
 
   useEffect(() => {
     const load = async () => {
@@ -87,6 +112,7 @@ export default function InvoiceViewModal({ invoice, restaurantId, printCount = 0
       setRestaurantName(rest?.name ?? '')
       if (rsData) {
         setRs({
+          language:        rsData.language === 'en' ? 'en' : 'ku',
           shop_name:       rsData.shop_name       ?? null,
           logo_url:        rsData.logo_url        ?? null,
           phone:           rsData.phone           ?? null,
@@ -109,12 +135,17 @@ export default function InvoiceViewModal({ invoice, restaurantId, printCount = 0
   const handleHardwarePrint = async (): Promise<boolean> => {
     setPrintStatus('sending')
     setPrintError('')
+    setFellBack(false)
 
+    let failure = ''
     const { done } = enqueuePrint({
       kind:   'receipt',
       title:  invoice.table_num ? `Receipt · Table ${invoice.table_num}` : 'Receipt',
       detail: invoice.invoice_num ? `#${invoice.invoice_num}` : undefined,
-      run: () => printReceiptBytes({ ...reprintBodyFromInvoice(invoice, restaurantId), mode }),
+      run: async () => {
+        try { await printReceiptBytes({ ...reprintBodyFromInvoice(invoice, restaurantId), mode }) }
+        catch (e) { failure = e instanceof Error ? e.message : ''; throw e }
+      },
     })
 
     const ok = await done
@@ -122,7 +153,7 @@ export default function InvoiceViewModal({ invoice, restaurantId, printCount = 0
       setPrintStatus('ok')
       setTimeout(() => setPrintStatus('idle'), 3000)
     } else {
-      setPrintError('Printing failed — see the Print Queue on the dashboard')
+      setPrintError(failure === ERR_IP_NEEDS_APP ? t.ivm_err_ip_browser : failure)
       setPrintStatus('error')
     }
     return ok
@@ -130,7 +161,7 @@ export default function InvoiceViewModal({ invoice, restaurantId, printCount = 0
 
   const handlePrintClick = async () => {
     const ok = await handleHardwarePrint()
-    if (!ok) handleBrowserPrint()
+    if (!ok) { setFellBack(true); handleBrowserPrint() }
   }
 
   // Auto-print once settings have loaded — silent ESC/POS only, no browser dialog fallback.
@@ -307,6 +338,7 @@ ${qrHtml}
   const date = new Date(invoice.created_at)
   const dateStr = date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })
   const timeStr = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
+  const L = RECEIPT_LABELS[rs.language]
 
   if (loading) return (
     <div className="fixed inset-0 z-[70] bg-black/80 backdrop-blur-sm flex items-center justify-center">
@@ -329,14 +361,14 @@ ${qrHtml}
               : printStatus === 'ok'   ? <CheckCircle2 className="w-4 h-4" />
               : printStatus === 'error' ? <AlertCircle className="w-4 h-4" />
               : <Printer className="w-4 h-4" />}
-            {printStatus === 'sending' ? 'Sending…' : printStatus === 'ok' ? 'Sent!' : 'Print'}
+            {printStatus === 'sending' ? t.ivm_sending : printStatus === 'ok' ? t.ivm_sent : t.ivm_print}
           </button>
           <button
             onClick={onClose}
             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold active:scale-95 transition-all shadow-lg shadow-amber-500/30"
           >
             <X className="w-4 h-4" />
-            Close
+            {t.close}
           </button>
         </div>
 
@@ -366,16 +398,22 @@ ${qrHtml}
           </div>
         )}
 
-        {printStatus === 'error' && printError && (
+        {printStatus === 'error' && (
           <div className="mb-3 px-3 py-2 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-300 text-[11px] space-y-0.5">
-            <p>{printError}</p>
-            <p className="text-white/40">Opened the browser print dialog instead.</p>
+            <p className="font-bold">{t.ivm_print_failed}</p>
+            {printError && <p>{printError}</p>}
+            {fellBack && <p className="text-white/40">{t.ivm_browser_fallback}</p>}
           </div>
         )}
 
         {/* Receipt — styled as a torn thermal-paper slip (.paper in globals.css) */}
         <div className="paper-lift">
-        <div id="invoice-print" className="paper overflow-hidden text-[11px] font-sans">
+        <div
+          id="invoice-print"
+          dir={rs.language === 'ku' ? 'rtl' : 'ltr'}
+          className="paper overflow-hidden text-[11px] font-sans"
+          style={rs.language === 'ku' ? { fontFamily: "'KurdishFont', sans-serif" } : undefined}
+        >
 
           {/* Header */}
           <div className="px-5 pt-5 pb-4">
@@ -383,9 +421,9 @@ ${qrHtml}
 
               {/* Left */}
               <div className="space-y-0.5 text-[10px]">
-                <div className="font-extrabold text-black font-mono tabular-nums">{dateStr}</div>
-                <div className="font-extrabold text-black font-mono tabular-nums">{timeStr}</div>
-                <div className="font-bold text-black mt-2">Cashier</div>
+                <div className="font-extrabold text-black font-mono tabular-nums"><bdi>{dateStr}</bdi></div>
+                <div className="font-extrabold text-black font-mono tabular-nums"><bdi>{timeStr}</bdi></div>
+                <div className="font-bold text-black mt-2">{L.cashier}</div>
                 <div className="font-extrabold text-black">{invoice.cashier || '—'}</div>
               </div>
 
@@ -403,7 +441,7 @@ ${qrHtml}
                 <div className="text-center">
                   <p className="font-extrabold text-black text-[14px] leading-tight" style={{ fontFamily: "'KurdishFont', sans-serif" }}>{name}</p>
                   {rs.show_phone && rs.phone && (
-                    <p className="font-bold text-black text-[10px] mt-0.5">{rs.phone}</p>
+                    <p className="font-bold text-black text-[10px] mt-0.5"><bdi>{rs.phone}</bdi></p>
                   )}
                   {rs.show_address && rs.address && (
                     <p className="font-semibold text-black text-[10px]">{rs.address}</p>
@@ -412,10 +450,10 @@ ${qrHtml}
               </div>
 
               {/* Right */}
-              <div className="space-y-0.5 text-[10px] text-right">
-                <div className="font-bold text-black">Invoice No.</div>
-                <div className="font-extrabold text-black font-mono">{invoice.invoice_num}</div>
-                <div className="font-bold text-black mt-2">Employee</div>
+              <div className="space-y-0.5 text-[10px] text-end">
+                <div className="font-bold text-black">{L.invoiceNo}</div>
+                <div className="font-extrabold text-black font-mono"><bdi>{invoice.invoice_num}</bdi></div>
+                <div className="font-bold text-black mt-2">{L.employee}</div>
                 <div className="font-extrabold text-black">{invoice.cashier || '—'}</div>
               </div>
             </div>
@@ -427,19 +465,19 @@ ${qrHtml}
           <div className="px-5 py-2 flex items-center justify-between text-[10px]">
             <div>
               {invoice.table_num === 'Takeout' || invoice.table_num === 'Delivery' ? (
-                <span className="font-extrabold text-black">{invoice.table_num}</span>
+                <span className="font-extrabold text-black">{invoice.table_num === 'Delivery' ? L.delivery : L.takeout}</span>
               ) : (
                 <>
-                  <span className="font-bold text-black">Table </span>
-                  <span className="font-extrabold text-black">{invoice.table_num || '—'}</span>
+                  <span className="font-bold text-black">{L.table} </span>
+                  <span className="font-extrabold text-black"><bdi>{invoice.table_num || '—'}</bdi></span>
                 </>
               )}
               {invoice.guests > 0 && (
-                <span className="font-bold text-black"> · {invoice.guests} guests</span>
+                <span className="font-bold text-black"> · <bdi>{invoice.guests}</bdi> {L.guests}</span>
               )}
             </div>
             {invoice.order_num && (
-              <div className="font-bold text-black font-mono">{invoice.order_num}</div>
+              <div className="font-bold text-black font-mono"><bdi>{invoice.order_num}</bdi></div>
             )}
           </div>
 
@@ -450,14 +488,14 @@ ${qrHtml}
               <div className="px-5 py-2 text-[10px] space-y-0.5">
                 {invoice.customer_name && (
                   <div className="flex justify-between">
-                    <span className="font-bold text-black">Customer</span>
+                    <span className="font-bold text-black">{L.customer}</span>
                     <span className="font-extrabold text-black">{invoice.customer_name}</span>
                   </div>
                 )}
                 {invoice.customer_phone && (
                   <div className="flex justify-between">
-                    <span className="font-bold text-black">Phone</span>
-                    <span className="font-extrabold text-black">{invoice.customer_phone}</span>
+                    <span className="font-bold text-black">{L.phone}</span>
+                    <span className="font-extrabold text-black font-mono"><bdi>{invoice.customer_phone}</bdi></span>
                   </div>
                 )}
               </div>
@@ -468,8 +506,8 @@ ${qrHtml}
 
           {/* Payment method */}
           <div className="px-5 py-2 text-center">
-            <p className="text-[10px] font-bold text-black">Payment Method</p>
-            <p className="font-extrabold text-black text-[13px]">{invoice.payment_method || '—'}</p>
+            <p className="text-[10px] font-bold text-black">{L.paymentMethod}</p>
+            <p className="font-extrabold text-black text-[13px]">{invoice.payment_method === 'Delivery' ? L.delivery : (invoice.payment_method || '—')}</p>
           </div>
 
           <div className="border-t border-dashed border-stone-400" />
@@ -479,9 +517,9 @@ ${qrHtml}
             <table className="w-full text-[10px]">
               <thead>
                 <tr className="border-b border-dashed border-stone-400">
-                  <th className="text-left pb-1.5 font-extrabold text-black">Item</th>
-                  <th className="text-center pb-1.5 font-extrabold text-black w-8">Qty</th>
-                  <th className="text-right pb-1.5 font-extrabold text-black">Price</th>
+                  <th className="text-start pb-1.5 font-extrabold text-black">{L.item}</th>
+                  <th className="text-center pb-1.5 font-extrabold text-black w-8">{L.qty}</th>
+                  <th className="text-end pb-1.5 font-extrabold text-black">{L.price}</th>
                 </tr>
               </thead>
               <tbody>
@@ -489,8 +527,8 @@ ${qrHtml}
                   <tr key={i} className="border-b border-dotted border-stone-300">
                     <td className="py-1.5 font-bold text-black">{item.name}</td>
                     <td className="py-1.5 text-center font-bold text-black font-mono">{item.qty}</td>
-                    <td className="py-1.5 text-right font-bold text-black font-mono tabular-nums">
-                      {formatPrice(item.price * item.qty)}
+                    <td className="py-1.5 text-end font-bold text-black font-mono tabular-nums">
+                      <bdi>{formatPrice(item.price * item.qty)}</bdi>
                     </td>
                   </tr>
                 ))}
@@ -507,34 +545,34 @@ ${qrHtml}
             return (
           <div className="px-5 py-3 space-y-1">
             <div className="flex justify-between font-bold text-black">
-              <span>Subtotal</span>
-              <span className="font-mono tabular-nums">{formatPrice(Number(invoice.subtotal))}</span>
+              <span>{L.subtotal}</span>
+              <bdi className="font-mono tabular-nums">{formatPrice(Number(invoice.subtotal))}</bdi>
             </div>
             {deliveryFee > 0 && (
               <div className="flex justify-between font-bold text-black">
-                <span>Delivery Fee</span>
-                <span className="font-mono tabular-nums">+{formatPrice(deliveryFee)}</span>
+                <span>{L.deliveryFee}</span>
+                <bdi className="font-mono tabular-nums">+{formatPrice(deliveryFee)}</bdi>
               </div>
             )}
             {Number(invoice.discount) > 0 && (
               <div className="flex justify-between font-bold text-black">
-                <span>Discount</span>
-                <span className="font-mono tabular-nums">-{formatPrice(Number(invoice.discount))}</span>
+                <span>{L.discount}</span>
+                <bdi className="font-mono tabular-nums">-{formatPrice(Number(invoice.discount))}</bdi>
               </div>
             )}
             <div className="flex justify-between font-extrabold text-black text-[13px] pt-1 border-t border-dashed border-stone-400">
-              <span>Total</span>
-              <span className="font-mono tabular-nums">{formatPrice(Number(invoice.total))}</span>
+              <span>{L.total}</span>
+              <bdi className="font-mono tabular-nums">{formatPrice(Number(invoice.total))}</bdi>
             </div>
             {Number(invoice.amount_paid) > 0 && Number(invoice.amount_paid) > Number(invoice.total) && (
               <>
                 <div className="flex justify-between font-bold text-black">
-                  <span>Paid</span>
-                  <span className="font-mono tabular-nums">{formatPrice(Number(invoice.amount_paid))}</span>
+                  <span>{L.paid}</span>
+                  <bdi className="font-mono tabular-nums">{formatPrice(Number(invoice.amount_paid))}</bdi>
                 </div>
                 <div className="flex justify-between font-bold text-black">
-                  <span>Change</span>
-                  <span className="font-mono tabular-nums">{formatPrice(Number(invoice.change_amount))}</span>
+                  <span>{L.change}</span>
+                  <bdi className="font-mono tabular-nums">{formatPrice(Number(invoice.change_amount))}</bdi>
                 </div>
               </>
             )}
@@ -544,9 +582,9 @@ ${qrHtml}
 
           {/* Big total box */}
           <div className="mx-5 mb-3 border-y-[3px] border-double border-black py-3 text-center">
-            <p className="text-[10px] font-bold text-black mb-0.5 uppercase tracking-[0.2em]">Total Amount</p>
+            <p className={cn('text-[10px] font-bold text-black mb-0.5', rs.language === 'en' && 'uppercase tracking-[0.2em]')}>{L.totalAmount}</p>
             <p className="text-[20px] font-extrabold text-black font-mono tabular-nums">
-              {formatPrice(Number(invoice.total))}
+              <bdi>{formatPrice(Number(invoice.total))}</bdi>
             </p>
           </div>
 
@@ -566,7 +604,7 @@ ${qrHtml}
             {rs.thank_you_msg && (
               <p className="font-extrabold text-black text-[13px]">{rs.thank_you_msg}</p>
             )}
-            <p className="text-[9px] font-bold text-black">Powered by ClickGroup · 07701466787</p>
+            <p className="text-[9px] font-bold text-black"><bdi>Powered by ClickGroup · 07701466787</bdi></p>
           </div>
 
         </div>

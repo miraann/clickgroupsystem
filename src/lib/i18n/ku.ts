@@ -1275,6 +1275,14 @@ const ku: Record<keyof typeof en, string> = {
   do_paid_failed:       'تۆمارکردنی پارەدان سەرکەوتوو نەبوو — دووبارە هەوڵ بدەرەوە',
   do_unpaid_total:      'پارەی وەرنەگیراو: {amount} · {count} داواکاری',
 
+  // ── Invoice view modal ────────────────────────────────────────
+  ivm_print:            'چاپکردن',
+  ivm_sending:          'دەنێردرێت…',
+  ivm_sent:             'نێردرا!',
+  ivm_print_failed:     'چاپکردن سەرکەوتوو نەبوو',
+  ivm_browser_fallback: 'لە جیاتی ئەوە پەنجەرەی چاپی وێبگەڕ کرایەوە.',
+  ivm_err_ip_browser:   'پرینتەری تۆڕ (IP) تەنها لە ئەپی ClickGroup کار دەکات (کۆمپیوتەر یان تابلێت)، نەک لە وێبگەڕ.',
+
   // ── Driver Screen ─────────────────────────────────────────────
   drv_title:            'شاشەی شۆفێر',
   drv_subtitle:         'گەیاندنەکانت کە داواکراون',

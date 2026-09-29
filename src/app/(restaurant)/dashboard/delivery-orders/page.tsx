@@ -1623,11 +1623,13 @@ export default function DeliveryOrdersPage() {
         />
       )}
 
-      {/* ── Invoice view modal (delivered orders) ── */}
+      {/* ── Invoice view modal (Invoice button) — payment mode too: a delivery
+          customer has no counter to fill the feedback write-in lines at ── */}
       {viewInvoice && restaurantId && (
         <InvoiceViewModal
           invoice={viewInvoice}
           restaurantId={restaurantId}
+          mode="payment"
           onClose={() => setViewInvoice(null)}
         />
       )}

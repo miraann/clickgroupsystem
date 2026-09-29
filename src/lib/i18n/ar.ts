@@ -1275,6 +1275,14 @@ const ar: Record<keyof typeof en, string> = {
   do_paid_failed:       'تعذّر تسجيل الدفع — حاول مرة أخرى',
   do_unpaid_total:      'لم يُحصَّل بعد: {amount} · {count} طلبات',
 
+  // ── Invoice view modal ────────────────────────────────────────
+  ivm_print:            'طباعة',
+  ivm_sending:          'جارٍ الإرسال…',
+  ivm_sent:             'تم الإرسال!',
+  ivm_print_failed:     'فشلت الطباعة',
+  ivm_browser_fallback: 'تم فتح نافذة الطباعة في المتصفح بدلاً من ذلك.',
+  ivm_err_ip_browser:   'طابعات الشبكة (IP) تعمل فقط في تطبيق ClickGroup (الحاسوب أو الجهاز اللوحي)، وليس في المتصفح.',
+
   // ── Driver Screen ─────────────────────────────────────────────
   drv_title:            'شاشة السائق',
   drv_subtitle:         'توصيلاتك المعيّنة',

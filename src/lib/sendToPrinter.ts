@@ -6,6 +6,10 @@ import { getAndroidTcp } from '@/lib/android-tcp'
 // transport for the current runtime (Electron desktop / Android APK / browser)
 // and throws a human-readable error when nothing succeeds.
 
+/** A plain web browser can't open raw TCP sockets — thrown for IP printers
+ *  outside the desktop app / APK (UIs match on it to explain the fix). */
+export const ERR_IP_NEEDS_APP = 'IP printers need the ClickGroup desktop app'
+
 export interface PrinterDispatch {
   /** base64-encoded ESC/POS bytes, exactly as returned by the print API */
   bytes:          string
@@ -52,7 +56,7 @@ export async function sendPrinterBytes(p: PrinterDispatch): Promise<void> {
   const androidTcp = getAndroidTcp()
 
   if (connectionType === 'ip' && p.ipAddress) {
-    if (!androidTcp) throw new Error('IP printers need the ClickGroup desktop app')
+    if (!androidTcp) throw new Error(ERR_IP_NEEDS_APP)
     const r = await androidTcp.printBytes({ host: p.ipAddress, port, data: bytes })
     if (!r?.ok) throw new Error('Network printer did not respond')
     return
