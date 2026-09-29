@@ -89,6 +89,24 @@ const STATUS_CFG: Record<DeliveryStatus, { labelKey: TranslationKey; color: stri
 
 const STATUS_FLOW: DeliveryStatus[] = ['pending', 'confirmed', 'preparing', 'out_for_delivery', 'delivered']
 
+// Solid, native-app style buttons — same press feel as the APK shell
+// (scale .97 + slight darken) and the solid order/settings nav buttons.
+const PRESS     = 'active:scale-[0.97] active:brightness-90 transition-all touch-manipulation select-none'
+const NAV_BTN   = `min-w-14 h-14 px-2 shrink-0 rounded-2xl flex flex-col items-center justify-center gap-1 text-white ${PRESS}`
+const NAV_LABEL = 'text-[11px] font-semibold leading-none whitespace-nowrap'
+const PILL_BTN  = `flex items-center justify-center gap-2 h-12 px-4 rounded-2xl text-sm font-bold ${PRESS}`
+const BIG_BTN   = `flex items-center justify-center gap-2 h-14 px-5 rounded-2xl font-extrabold disabled:opacity-50 disabled:active:scale-100 disabled:active:brightness-100 ${PRESS}`
+
+// Primary action colour follows the status the order is moving to
+const ADVANCE_BG: Record<DeliveryStatus, string> = {
+  pending:          'bg-amber-500 hover:bg-amber-400',
+  confirmed:        'bg-emerald-600 hover:bg-emerald-500',
+  preparing:        'bg-violet-600 hover:bg-violet-500',
+  out_for_delivery: 'bg-blue-600 hover:bg-blue-500',
+  delivered:        'bg-emerald-600 hover:bg-emerald-500',
+  cancelled:        'bg-red-600 hover:bg-red-500',
+}
+
 function WhatsAppIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="currentColor">
@@ -257,18 +275,26 @@ export default function DeliveryOrdersPage() {
       .then(({ data }) => setWaTemplates((data ?? []) as WaTemplate[]))
   }, [restaurantId]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Active staff (assignable drivers) — only needed once an order reaches
-  // "preparing", so the query waits until that's true.
+  // Assignable drivers — active staff whose role can open the driver screen
+  // (same gate as /dashboard/driver), so an assigned order is always visible
+  // to its driver. Only needed once an order reaches "preparing", so the
+  // query waits until that's true.
   const needDrivers = orders.some(o => o.status === 'preparing')
   useEffect(() => {
     if (!restaurantId || !needDrivers || drivers.length > 0) return
     supabase
       .from('staff')
-      .select('id, name, phone')
+      .select('id, name, phone, restaurant_roles(permissions)')
       .eq('restaurant_id', restaurantId)
       .eq('status', 'active')
       .order('name', { ascending: true })
-      .then(({ data }) => setDrivers((data ?? []).map(s => ({ id: s.id, name: s.name, phone: s.phone ?? null }))))
+      .then(({ data }) => setDrivers((data ?? [])
+        .filter(s => {
+          const roleRaw = s.restaurant_roles
+          const perms = ((Array.isArray(roleRaw) ? roleRaw[0] : roleRaw) as { permissions?: Record<string, boolean> } | null)?.permissions ?? {}
+          return perms['manage_delivery.be_driver'] === true || perms['driver_screen'] === true
+        })
+        .map(s => ({ id: s.id, name: s.name, phone: s.phone ?? null }))))
   }, [restaurantId, needDrivers]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const setProc = (k: string, v: boolean) =>
@@ -601,25 +627,27 @@ export default function DeliveryOrdersPage() {
             {!kiosk && (
               <button
                 onClick={() => router.push('/dashboard/driver')}
-                className="flex items-center gap-2 px-5 h-14 rounded-2xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/25 transition-all active:scale-95 text-sm font-bold"
+                className={cn(NAV_BTN, 'bg-indigo-600 hover:bg-indigo-500')}
               >
-                <MonitorSmartphone className="w-5 h-5" />
-                <span className="hidden sm:inline">{t.do_driver}</span>
+                <MonitorSmartphone className="w-6 h-6" />
+                <span className={NAV_LABEL}>{t.do_driver}</span>
               </button>
             )}
             {!kiosk && (
               <button
                 onClick={() => router.push('/dashboard')}
-                className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 transition-all active:scale-95"
+                className={cn(NAV_BTN, 'bg-orange-500 hover:bg-orange-400')}
               >
-                <Home className="w-5 h-5" />
+                <Home className="w-6 h-6" />
+                <span className={NAV_LABEL}>{t.ord_home}</span>
               </button>
             )}
             <button
               onClick={() => { setLoading(true); load() }}
-              className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 transition-all active:scale-95"
+              className={cn(NAV_BTN, 'bg-blue-600 hover:bg-blue-500')}
             >
-              <RefreshCw className="w-5 h-5" />
+              <RefreshCw className="w-6 h-6" />
+              <span className={NAV_LABEL}>{t.ord_refresh}</span>
             </button>
             {kiosk && (
               // The delivery kiosk hides Home / Driver above — this is the only
@@ -633,9 +661,10 @@ export default function DeliveryOrdersPage() {
                   keys.forEach(k => localStorage.removeItem(k))
                   router.replace(slug ? `/pos/${slug}/login` : '/restaurant-login')
                 }}
-                className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-rose-400/60 hover:text-rose-400 hover:bg-rose-500/10 transition-all active:scale-95"
+                className={cn(NAV_BTN, 'bg-red-700 hover:bg-red-600')}
               >
-                <LogOut className="w-5 h-5" />
+                <LogOut className="w-6 h-6" />
+                <span className={NAV_LABEL}>{t.dnav_logout}</span>
               </button>
             )}
           </div>
@@ -719,17 +748,17 @@ export default function DeliveryOrdersPage() {
             <button
               onClick={() => setFilter('all')}
               className={cn(
-                'flex items-center gap-1.5 px-4 h-10 rounded-full text-xs font-bold border transition-all active:scale-95',
+                PILL_BTN, 'h-11 rounded-full',
                 filter === 'all'
-                  ? 'bg-white/15 border-white/25 text-white'
-                  : 'bg-white/5 border-white/8 text-white/35 hover:text-white/55 hover:bg-white/8'
+                  ? 'bg-white text-slate-900'
+                  : 'bg-white/10 text-white/70 hover:bg-white/15 hover:text-white'
               )}
             >
               {t.do_all}
               {(counts.all ?? 0) > 0 && (
                 <span className={cn(
-                  'text-[10px] font-bold px-1.5 py-0.5 rounded-full',
-                  filter === 'all' ? 'bg-white/20' : 'bg-white/10'
+                  'min-w-5 h-5 px-1.5 rounded-full text-[11px] font-bold flex items-center justify-center',
+                  filter === 'all' ? 'bg-slate-900 text-white' : 'bg-white/15 text-white'
                 )}>{counts.all}</span>
               )}
             </button>
@@ -737,17 +766,17 @@ export default function DeliveryOrdersPage() {
               <button
                 onClick={() => setFilter('cancelled')}
                 className={cn(
-                  'flex items-center gap-1.5 px-4 h-10 rounded-full text-xs font-bold border transition-all active:scale-95',
+                  PILL_BTN, 'h-11 rounded-full',
                   filter === 'cancelled'
-                    ? 'bg-rose-500/15 border-rose-500/30 text-rose-400'
-                    : 'bg-white/5 border-white/8 text-white/35 hover:text-white/55 hover:bg-white/8'
+                    ? 'bg-red-600 text-white'
+                    : 'bg-white/10 text-white/70 hover:bg-white/15 hover:text-white'
                 )}
               >
                 {t.do_cancelled}
                 {(counts.cancelled ?? 0) > 0 && (
                   <span className={cn(
-                    'text-[10px] font-bold px-1.5 py-0.5 rounded-full',
-                    filter === 'cancelled' ? 'bg-rose-500/20' : 'bg-white/10'
+                    'min-w-5 h-5 px-1.5 rounded-full text-[11px] font-bold flex items-center justify-center',
+                    filter === 'cancelled' ? 'bg-white text-red-600' : 'bg-white/15 text-white'
                   )}>{counts.cancelled}</span>
                 )}
               </button>
@@ -797,6 +826,7 @@ export default function DeliveryOrdersPage() {
           const nextStatus = STATUS_FLOW[STATUS_FLOW.indexOf(order.status) + 1]
           const canAdvance = !!nextStatus && order.status !== 'delivered'
           const canCancel  = order.status !== 'delivered' && order.status !== 'cancelled'
+          const NextIcon   = nextStatus ? STATUS_CFG[nextStatus].icon : Check
 
           return (
             <motion.div
@@ -869,13 +899,13 @@ export default function DeliveryOrdersPage() {
                         target="_blank"
                         rel="noopener noreferrer"
                         title={restaurant?.address ? t.do_directions_from.replace('{address}', restaurant.address) : (order.address_text ?? t.do_directions)}
-                        className="flex items-center gap-1.5 h-11 px-3.5 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/25 transition-all active:scale-95 text-sm font-semibold"
+                        className={cn(PILL_BTN, 'bg-indigo-600 text-white hover:bg-indigo-500')}
                       >
                         <Navigation className="w-4 h-4" />
                         {t.do_directions}
                       </a>
                     ) : (
-                      <span className="flex items-center gap-1.5 h-11 px-3.5 rounded-xl bg-white/5 border border-white/10 text-white/20 text-sm font-semibold">
+                      <span className="flex items-center gap-2 h-12 px-4 rounded-2xl bg-white/8 text-white/35 text-sm font-bold">
                         <MapPin className="w-4 h-4" />
                         {t.do_no_gps}
                       </span>
@@ -886,7 +916,7 @@ export default function DeliveryOrdersPage() {
                           loadWaTemplates()
                           setWhatsappDropdown(whatsappDropdown === order.delivery_id ? null : order.delivery_id)
                         }}
-                        className="flex items-center gap-1.5 h-11 px-3.5 rounded-xl bg-[#25D366]/10 border border-[#25D366]/25 text-[#25D366] hover:bg-[#25D366]/20 active:scale-95 transition-all text-sm font-semibold"
+                        className={cn(PILL_BTN, 'bg-[#1DAA61] text-white hover:bg-[#21c16e]')}
                       >
                         <WhatsAppIcon className="w-4 h-4" />
                         {t.do_whatsapp}
@@ -919,7 +949,7 @@ export default function DeliveryOrdersPage() {
                     </div>
                     <a
                       href={`tel:${order.customer_phone}`}
-                      className="flex items-center gap-1.5 h-11 px-3.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 hover:bg-indigo-500/20 hover:text-indigo-200 active:scale-95 transition-all text-sm font-semibold"
+                      className={cn(PILL_BTN, 'bg-sky-600 text-white hover:bg-sky-500')}
                     >
                       <Phone className="w-4 h-4" />
                       {order.customer_phone}
@@ -1058,13 +1088,13 @@ export default function DeliveryOrdersPage() {
                           key={d.id}
                           onClick={() => setDriverPick(p => ({ ...p, [order.delivery_id]: d.id }))}
                           className={cn(
-                            'flex items-center gap-2 px-4 h-12 rounded-xl text-sm font-bold border transition-all active:scale-95',
+                            PILL_BTN,
                             driverPick[order.delivery_id] === d.id
-                              ? 'bg-amber-500/20 border-amber-500/40 text-amber-300'
-                              : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10 hover:text-white/80'
+                              ? 'bg-amber-500 text-slate-900'
+                              : 'bg-white/10 text-white/80 hover:bg-white/15 hover:text-white'
                           )}
                         >
-                          <Truck className="w-4 h-4" />
+                          {driverPick[order.delivery_id] === d.id ? <Check className="w-4 h-4" /> : <Truck className="w-4 h-4" />}
                           {d.name}
                         </button>
                       ))}
@@ -1089,7 +1119,7 @@ export default function DeliveryOrdersPage() {
                       <button
                         onClick={() => openInvoice(order)}
                         disabled={viewLoading === order.order_id}
-                        className="flex items-center justify-center gap-1.5 px-4 h-14 rounded-2xl text-sm font-bold border border-white/12 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white/80 transition-all active:scale-95 disabled:opacity-50"
+                        className={cn(BIG_BTN, 'text-sm font-bold bg-slate-100 text-slate-900 hover:bg-white')}
                       >
                         {viewLoading === order.order_id
                           ? <Loader2 className="w-4 h-4 animate-spin" />
@@ -1101,7 +1131,7 @@ export default function DeliveryOrdersPage() {
                       <button
                         onClick={() => setCancelTarget({ deliveryId: order.delivery_id, orderId: order.order_id, name: order.customer_name })}
                         disabled={processing.has(`${order.delivery_id}-cancelled`)}
-                        className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-5 h-14 rounded-2xl text-sm font-bold border border-rose-500/25 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition-all active:scale-95 disabled:opacity-50"
+                        className={cn(BIG_BTN, 'flex-1 sm:flex-none text-sm font-bold bg-red-700 text-white hover:bg-red-600')}
                       >
                         {processing.has(`${order.delivery_id}-cancelled`)
                           ? <Loader2 className="w-4 h-4 animate-spin" />
@@ -1131,16 +1161,11 @@ export default function DeliveryOrdersPage() {
                         processing.has(`${order.delivery_id}-${nextStatus}`) ||
                         (order.status === 'preparing' && drivers.length > 0 && !driverPick[order.delivery_id])
                       }
-                      className={cn(
-                        'flex-1 flex items-center justify-center gap-2 px-4 h-14 rounded-2xl text-sm sm:text-base font-extrabold transition-all active:scale-95 disabled:opacity-50 disabled:active:scale-100 shadow-lg',
-                        order.status === 'pending'
-                          ? 'bg-gradient-to-b from-emerald-400 to-emerald-600 text-white shadow-emerald-900/40 hover:brightness-110'
-                          : 'bg-gradient-to-b from-indigo-400 to-indigo-600 text-white shadow-indigo-900/40 hover:brightness-110'
-                      )}
+                      className={cn(BIG_BTN, 'flex-1 text-base sm:text-lg text-white', ADVANCE_BG[nextStatus])}
                     >
                       {processing.has(`${order.delivery_id}-${nextStatus}`)
-                        ? <Loader2 className="w-5 h-5 animate-spin" />
-                        : order.status === 'pending' ? <Check className="w-5 h-5" /> : <Truck className="w-5 h-5" />}
+                        ? <Loader2 className="w-6 h-6 animate-spin" />
+                        : <NextIcon className="w-6 h-6" />}
                       {advanceLabel(order.status, nextStatus)}
                     </button>
                   )}
@@ -1149,14 +1174,14 @@ export default function DeliveryOrdersPage() {
 
               {order.status === 'delivered' && (
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 px-5 pb-5 pt-3">
-                  <div className="flex-1 flex items-center gap-2 px-4 h-14 rounded-2xl bg-emerald-500/8 border border-emerald-500/15">
+                  <div className="flex-1 flex items-center gap-2 px-4 h-14 rounded-2xl bg-emerald-600/20">
                     <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
                     <p className="text-sm text-emerald-400 font-semibold">{t.do_delivered_ok}</p>
                   </div>
                   <button
                     onClick={() => openInvoice(order)}
                     disabled={viewLoading === order.order_id}
-                    className="flex items-center justify-center gap-1.5 px-5 h-14 rounded-2xl text-sm font-bold border border-white/12 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white/80 transition-all active:scale-95 disabled:opacity-50 shrink-0"
+                    className={cn(BIG_BTN, 'shrink-0 text-sm font-bold bg-slate-100 text-slate-900 hover:bg-white')}
                   >
                     {viewLoading === order.order_id
                       ? <Loader2 className="w-4 h-4 animate-spin" />
@@ -1290,7 +1315,7 @@ export default function DeliveryOrdersPage() {
 
                 <button
                   onClick={() => setViewItem(null)}
-                  className="w-full h-12 rounded-2xl text-sm font-bold text-white/60 border border-white/10 hover:bg-white/5 hover:text-white/80 active:scale-95 transition-all"
+                  className={cn(BIG_BTN, 'w-full text-sm font-bold bg-white/10 text-white hover:bg-white/15')}
                 >
                   {t.do_close}
                 </button>
@@ -1328,7 +1353,7 @@ export default function DeliveryOrdersPage() {
             <div className="flex gap-2.5">
               <button
                 onClick={() => setCancelTarget(null)}
-                className="flex-1 h-14 rounded-2xl text-sm font-bold text-white/50 border border-white/8 hover:bg-white/5 hover:text-white/70 active:scale-95 transition-all"
+                className={cn(BIG_BTN, 'flex-1 text-sm font-bold bg-white/10 text-white hover:bg-white/15')}
               >
                 {t.do_keep_order}
               </button>
@@ -1338,7 +1363,7 @@ export default function DeliveryOrdersPage() {
                   setCancelTarget(null)
                 }}
                 disabled={processing.has(`${cancelTarget.deliveryId}-cancelled`)}
-                className="flex-1 h-14 rounded-2xl text-sm font-bold bg-rose-500/20 text-rose-400 border border-rose-500/30 hover:bg-rose-500/30 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                className={cn(BIG_BTN, 'flex-1 text-sm font-bold bg-red-600 text-white hover:bg-red-500')}
               >
                 {processing.has(`${cancelTarget.deliveryId}-cancelled`)
                   ? <Loader2 className="w-4 h-4 animate-spin" />
@@ -1381,7 +1406,7 @@ export default function DeliveryOrdersPage() {
             <div className="flex gap-2.5">
               <button
                 onClick={() => setAdvanceTarget(null)}
-                className="flex-1 h-14 rounded-2xl text-sm font-bold text-white/50 border border-white/8 hover:bg-white/5 hover:text-white/70 active:scale-95 transition-all"
+                className={cn(BIG_BTN, 'flex-1 text-sm font-bold bg-white/10 text-white hover:bg-white/15')}
               >
                 {t.do_go_back}
               </button>
@@ -1391,7 +1416,7 @@ export default function DeliveryOrdersPage() {
                   setAdvanceTarget(null)
                 }}
                 disabled={processing.has(`${advanceTarget.deliveryId}-${advanceTarget.nextStatus}`)}
-                className="flex-1 h-14 rounded-2xl text-sm font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                className={cn(BIG_BTN, 'flex-1 text-sm font-bold text-white', ADVANCE_BG[advanceTarget.nextStatus])}
               >
                 {processing.has(`${advanceTarget.deliveryId}-${advanceTarget.nextStatus}`)
                   ? <Loader2 className="w-4 h-4 animate-spin" />
@@ -1437,7 +1462,7 @@ export default function DeliveryOrdersPage() {
             target="_blank"
             rel="noopener noreferrer"
             onClick={() => setAutoWhatsAppUrl(null)}
-            className="flex items-center h-11 px-4 rounded-xl bg-white/15 hover:bg-white/25 active:scale-95 transition-all text-sm font-bold whitespace-nowrap"
+            className={cn(PILL_BTN, 'h-11 bg-white text-emerald-700 hover:bg-emerald-50 whitespace-nowrap')}
           >
             {t.do_send_whatsapp}
           </a>

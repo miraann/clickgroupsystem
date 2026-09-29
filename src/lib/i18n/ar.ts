@@ -1238,7 +1238,7 @@ const ar: Record<keyof typeof en, string> = {
   do_view_item:         'عرض تفاصيل العنصر',
   do_subtotal:          'المجموع الفرعي',
   do_discount:          'الخصم',
-  do_no_staff:          'لا يوجد موظفون نشطون — أضف موظفين من الإعدادات ← المستخدمون',
+  do_no_staff:          'لا يوجد سائقون — من الإعدادات ← المستخدمون، امنح دورًا صلاحية «العمل كموصّل»',
   do_invoice:           'الفاتورة',
   do_cancel_btn:        'إلغاء',
   do_confirm_approve:   'تأكيد وموافقة',

@@ -439,7 +439,7 @@ const en = {
   do_view_item:         'View item details',
   do_subtotal:          'Subtotal',
   do_discount:          'Discount',
-  do_no_staff:          'No active staff found — add staff in Settings → Users',
+  do_no_staff:          'No drivers yet — in Settings → Users, give a role the “Be Delivery Man” permission',
   do_invoice:           'Invoice',
   do_cancel_btn:        'Cancel',
   do_confirm_approve:   'Confirm & Approve',
