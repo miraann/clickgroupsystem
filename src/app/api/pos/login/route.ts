@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { rateLimit } from '@/lib/rate-limit'
+import { rateLimit, tooManyFailures, recordFailure } from '@/lib/rate-limit'
 import {
   createRestaurantToken, RESTAURANT_COOKIE,
   verifyPendingToken, RESTAURANT_PENDING_COOKIE,
 } from '@/lib/session'
 import { verifySecret } from '@/lib/crypto'
 import { attachRestaurantSupabaseSession } from '@/lib/supabase/session-bridge'
+import { staffIdsWithPin } from '@/lib/staffPin'
 
 function serviceClient() {
   return createClient(
@@ -47,6 +48,9 @@ async function grantSession(
   return res
 }
 
+const PIN_FAIL_LIMIT     = 30
+const PIN_FAIL_WINDOW_MS = 10 * 60_000
+
 export async function POST(req: NextRequest) {
   if (!(await rateLimit(req, 'pos/login', 10, 60_000))) {
     return NextResponse.json({ error: 'Too many requests. Try again later.' }, { status: 429 })
@@ -70,6 +74,18 @@ export async function POST(req: NextRequest) {
 
     if (!restaurant) {
       return NextResponse.json({ error: 'Restaurant not found.' }, { status: 404 })
+    }
+
+    // Wrong PINs are also counted per restaurant, whatever IP they come from —
+    // the per-IP limit above alone lets a guesser rotating IPs walk a 4-digit
+    // PIN space.
+    const failKey = `pos/login:${restaurant.id}`
+    if (await tooManyFailures(failKey, PIN_FAIL_LIMIT, PIN_FAIL_WINDOW_MS)) {
+      return NextResponse.json({ error: 'Too many wrong PINs. Try again in a few minutes.' }, { status: 429 })
+    }
+    const wrongPin = async () => {
+      await recordFailure(failKey, PIN_FAIL_WINDOW_MS)
+      return NextResponse.json({ error: 'Incorrect PIN.' }, { status: 401 })
     }
 
     const { data: secretRow } = await supabase
@@ -98,20 +114,21 @@ export async function POST(req: NextRequest) {
         if (!ownerPinConfigured) {
           return NextResponse.json({ error: 'No owner PIN configured. Ask your administrator.' }, { status: 403 })
         }
-        if (!(await checkOwnerPin(enteredPin))) {
-          return NextResponse.json({ error: 'Incorrect PIN.' }, { status: 401 })
-        }
+        if (!(await checkOwnerPin(enteredPin))) return wrongPin()
         return grantSession(req, restaurant.id, 'owner', ownerBody, true)
       }
     }
 
     // ── Staff PIN path ─────────────────────────────────────────────
-    // Pull the role (name + permissions) in the same round-trip as the staff row.
-    const { data: staffRow } = await supabase
+    // PINs are hashed; matched in Postgres (see staffIdsWithPin). Then pull the
+    // role (name + permissions) in the same round-trip as the staff row.
+    // Two active staff sharing a PIN → neither logs in (maybeSingle errors).
+    const staffIds = await staffIdsWithPin(supabase, restaurant.id, enteredPin)
+    const { data: staffRow } = staffIds.length === 0 ? { data: null } : await supabase
       .from('staff')
       .select('id, name, role, color, role_id, restaurant_roles(name, permissions)')
       .eq('restaurant_id', restaurant.id)
-      .eq('pin', enteredPin)
+      .in('id', staffIds)
       .eq('status', 'active')
       .maybeSingle()
 
@@ -120,7 +137,7 @@ export async function POST(req: NextRequest) {
       if (ownerPinConfigured && await checkOwnerPin(enteredPin)) {
         return grantSession(req, restaurant.id, 'owner', ownerBody, false)
       }
-      return NextResponse.json({ error: 'Incorrect PIN.' }, { status: 401 })
+      return wrongPin()
     }
 
     const roleRaw = (staffRow as { restaurant_roles?: unknown }).restaurant_roles

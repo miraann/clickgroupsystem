@@ -4,8 +4,11 @@ import { serverError } from '@/lib/api-auth'
 import { serviceClient } from '@/lib/supabase/service'
 import { logAuditServer } from '@/lib/logAudit.server'
 import type { RestaurantSession } from '@/lib/session'
+import { staffIdsWithPin } from '@/lib/staffPin'
 
 // Staff account mutations (create / edit / PIN reset / status / role assignment).
+// `pin` is still written to staff.pin: the trg_staff_hash_pin trigger
+// (20260930_03) moves it, bcrypt-hashed, into staff_secrets and nulls the column.
 // Guarded by `settings.users` — otherwise a staff session could create an admin
 // account or reset another user's PIN by calling Supabase directly.
 const PERM = 'settings.users'
@@ -136,10 +139,8 @@ export async function DELETE(req: NextRequest) {
 }
 
 async function pinTaken(pin: string, rid: string, exceptId: string | null): Promise<boolean> {
-  let q = serviceClient().from('staff').select('id').eq('restaurant_id', rid).eq('pin', pin)
-  if (exceptId) q = q.neq('id', exceptId)
-  const { data } = await q.maybeSingle()
-  return !!data
+  const ids = await staffIdsWithPin(serviceClient(), rid, pin)
+  return ids.some(id => id !== exceptId)
 }
 
 async function auditStaffPatch(session: RestaurantSession, b: StaffBody, id: string) {

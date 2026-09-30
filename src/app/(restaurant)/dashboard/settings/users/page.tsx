@@ -526,7 +526,6 @@ export default function UsersPage() {
   const [search, setSearch]         = useState('')
   const [selectedUser, setSelectedUser] = useState<StaffUser | null>(null)
   const [newPin, setNewPin]         = useState('')
-  const [showPins, setShowPins]     = useState(false)
   const [saveError, setSaveError]   = useState<string | null>(null)
 
   // ── Roles state ──
@@ -580,8 +579,8 @@ export default function UsersPage() {
   // ── Staff loaders ──
   const loadUsers = async (rid: string) => {
     setLoadingUsers(true)
-    const { data } = await supabase.from('staff').select('*').eq('restaurant_id', rid).order('created_at')
-    setUsers((data ?? []).map(s => ({ id: s.id, name: s.name, email: s.email ?? '', phone: s.phone ?? '', role: s.role as Role, pin: s.pin, color: s.color ?? ROLE_COLORS[s.role as Role], status: s.status as Status })))
+    const { data } = await supabase.from('staff').select('id, name, email, phone, role, color, status').eq('restaurant_id', rid).order('created_at')
+    setUsers((data ?? []).map(s => ({ id: s.id, name: s.name, email: s.email ?? '', phone: s.phone ?? '', role: s.role as Role, pin: '', color: s.color ?? ROLE_COLORS[s.role as Role], status: s.status as Status })))
     setLoadingUsers(false)
   }
 
@@ -604,7 +603,8 @@ export default function UsersPage() {
   function openAdd() { setEditId(null); setForm(EMPTY_STAFF); setEditCustomRoleId(null); setModal('add-edit') }
   function openEdit(u: StaffUser) {
     setEditId(u.id)
-    setForm({ name: u.name, email: u.email, phone: u.phone, role: u.role, pin: u.pin, color: u.color, status: u.status })
+    // PINs are hashed server-side — the field starts blank and blank keeps the current one.
+    setForm({ name: u.name, email: u.email, phone: u.phone, role: u.role, pin: '', color: u.color, status: u.status })
     setEditCustomRoleId(roleStaff.find(s => s.id === u.id)?.role_id ?? null)
     setModal('add-edit')
   }
@@ -623,16 +623,16 @@ export default function UsersPage() {
       if (editId) {
         const { staff: data } = await api<{ staff: StaffUser & { email: string | null; phone: string | null } }>(
           '/api/settings/staff', 'PATCH',
-          { id: editId, name: form.name, email: form.email || null, phone: form.phone || null, role: form.role, pin: form.pin, color, status: form.status, role_id: resolvedRoleId },
+          { id: editId, name: form.name, email: form.email || null, phone: form.phone || null, role: form.role, ...(form.pin ? { pin: form.pin } : {}), color, status: form.status, role_id: resolvedRoleId },
         )
-        setUsers(us => us.map(u => u.id === editId ? { ...u, name: data.name, email: data.email ?? '', phone: data.phone ?? '', role: data.role as Role, pin: data.pin, color: data.color, status: data.status as Status } : u))
+        setUsers(us => us.map(u => u.id === editId ? { ...u, name: data.name, email: data.email ?? '', phone: data.phone ?? '', role: data.role as Role, pin: '', color: data.color, status: data.status as Status } : u))
         setRoleStaff(prev => prev.map(s => s.id === editId ? { ...s, role_id: resolvedRoleId } : s))
       } else {
         const { staff: data } = await api<{ staff: StaffUser & { email: string | null; phone: string | null } }>(
           '/api/settings/staff', 'POST',
           { name: form.name, email: form.email || null, phone: form.phone || null, role: form.role, pin: form.pin, color, status: form.status, role_id: resolvedRoleId },
         )
-        setUsers(us => [...us, { id: data.id, name: data.name, email: data.email ?? '', phone: data.phone ?? '', role: data.role as Role, pin: data.pin, color: data.color, status: data.status as Status }])
+        setUsers(us => [...us, { id: data.id, name: data.name, email: data.email ?? '', phone: data.phone ?? '', role: data.role as Role, pin: '', color: data.color, status: data.status as Status }])
         setRoleStaff(prev => [...prev, { id: data.id, name: data.name, email: data.email ?? '', role: data.role, role_id: resolvedRoleId }])
       }
     } catch (e) {
@@ -645,7 +645,6 @@ export default function UsersPage() {
     setSaving(true)
     try {
       await api('/api/settings/staff', 'PATCH', { id: selectedUser.id, pin: newPin })
-      setUsers(us => us.map(u => u.id === selectedUser.id ? { ...u, pin: newPin } : u))
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : 'Reset failed'); setSaving(false); return
     }
@@ -816,12 +815,6 @@ export default function UsersPage() {
               className="w-full pl-9 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500/50 transition-colors" />
           </div>
 
-          <div className="flex justify-end mb-3">
-            <button onClick={() => setShowPins(p => !p)} className="flex items-center gap-1.5 text-xs text-white/30 hover:text-white/60 transition-colors">
-              <Key className="w-3.5 h-3.5" />{showPins ? t.usr_hide_pins : t.usr_show_pins}
-            </button>
-          </div>
-
           <AnimatePresence mode="wait">
             {loadingUsers ? (
               <motion.div key="skel-users" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }} className="space-y-2">
@@ -856,7 +849,6 @@ export default function UsersPage() {
                       ? <span className="mt-0.5 text-[10px] px-1.5 py-0.5 rounded-md font-medium border border-amber-500/30 bg-amber-500/10 text-amber-400">{customRole.name}</span>
                       : <span className="mt-0.5 text-[10px] px-1.5 py-0.5 rounded-md font-medium border border-white/10 bg-white/5 text-white/50">No role</span>}
                     {u.email && <p className="mt-0.5 text-[10px] text-white/45 line-clamp-1 w-full">{u.email}</p>}
-                    {showPins && <span className="mt-1 text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/8 text-white/70">PIN: {u.pin}</span>}
 
                     <span className="my-2 h-px w-full bg-white/8" />
 
@@ -1170,7 +1162,7 @@ export default function UsersPage() {
                 <label className="block text-xs text-white/50 mb-1.5 font-medium">{t.usr_pin} <span className="text-white/25">{t.usr_4_digits}</span></label>
                 <div className="relative">
                   <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/25" />
-                  <input type="password" maxLength={6} value={form.pin} onChange={e => set('pin', e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder={t.usr_pin_ph}
+                  <input type="password" maxLength={6} value={form.pin} onChange={e => set('pin', e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder={editId ? t.usr_pin_keep : t.usr_pin_ph}
                     className="w-full pl-8 pr-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/20 focus:outline-none focus:border-amber-500/50 transition-colors font-mono tracking-widest" />
                 </div>
               </div>
@@ -1188,7 +1180,7 @@ export default function UsersPage() {
             )}
             <div className="flex gap-3 p-6 border-t border-white/8">
               <button onClick={() => setModal(null)} className="flex-1 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 text-sm font-medium transition-all active:scale-95">{t.cancel}</button>
-              <button onClick={saveUser} disabled={!form.name.trim() || !form.pin || saving}
+              <button onClick={saveUser} disabled={!form.name.trim() || (!editId && !form.pin) || saving}
                 className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white text-sm font-medium transition-all active:scale-95 flex items-center justify-center gap-2">
                 {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                 {editId ? t.save_changes : t.usr_add}
