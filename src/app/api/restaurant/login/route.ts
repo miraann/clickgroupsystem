@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { rateLimit } from '@/lib/rate-limit'
+import { rateLimit, tooManyFailures, recordFailure } from '@/lib/rate-limit'
 import { createPendingToken, RESTAURANT_PENDING_COOKIE } from '@/lib/session'
 import { checkRestaurantPassword } from '@/lib/restaurant-password'
 
@@ -15,8 +15,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Email and password are required.' }, { status: 400 })
     }
 
+    // Failed passwords are also counted per account, whatever IP they come from.
+    const failKey = `restaurant/login:${email.trim().toLowerCase()}`
+    if (await tooManyFailures(failKey, 10, 10 * 60_000)) {
+      return NextResponse.json({ error: 'Too many attempts. Try again later.' }, { status: 429 })
+    }
+
     const check = await checkRestaurantPassword(email, password.trim())
     if (!check.ok) {
+      if (check.status === 401) await recordFailure(failKey, 10 * 60_000)
       return NextResponse.json({ error: check.error }, { status: check.status })
     }
     const { restaurant } = check

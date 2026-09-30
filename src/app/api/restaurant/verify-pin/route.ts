@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { rateLimit } from '@/lib/rate-limit'
+import { rateLimit, tooManyFailures, recordFailure } from '@/lib/rate-limit'
 import {
   verifyPendingToken, RESTAURANT_PENDING_COOKIE,
   createRestaurantToken, RESTAURANT_COOKIE,
@@ -32,6 +32,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Session expired. Please log in again.' }, { status: 401 })
     }
 
+    // Wrong owner PINs are counted per restaurant, whatever IP they come from.
+    const failKey = `verify-pin:${rid}`
+    if (await tooManyFailures(failKey, 10, 10 * 60_000)) {
+      return NextResponse.json({ error: 'Too many attempts. Try again later.' }, { status: 429 })
+    }
+
     const { pin } = await req.json() as { pin?: string }
     if (!pin || !/^\d{4,8}$/.test(pin)) {
       return NextResponse.json({ error: 'Invalid PIN.' }, { status: 400 })
@@ -56,6 +62,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (!(await verifySecret(pin, pinHash))) {
+      await recordFailure(failKey, 10 * 60_000)
       return NextResponse.json({ error: 'Incorrect PIN.' }, { status: 401 })
     }
 

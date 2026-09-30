@@ -32,7 +32,7 @@ export async function checkRestaurantPassword(
     .maybeSingle()
 
   if (!restaurant) {
-    return { ok: false, status: 401, error: 'No restaurant found with this email address.' }
+    return { ok: false, status: 401, error: 'Incorrect email or password.' }
   }
 
   const { data: secretRow } = await sb
@@ -47,7 +47,7 @@ export async function checkRestaurantPassword(
   }
 
   if (!(await verifySecret(password, stored))) {
-    return { ok: false, status: 401, error: 'Incorrect password.' }
+    return { ok: false, status: 401, error: 'Incorrect email or password.' }
   }
 
   if (isLegacyPlaintext(stored)) {

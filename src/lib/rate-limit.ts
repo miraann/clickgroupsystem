@@ -7,13 +7,13 @@
 // the counter lives there and is shared by all instances. Without those env
 // vars — local dev, self-hosted — it falls back to the in-memory map.
 
-const store = new Map<string, { count: number; windowStart: number }>()
+const store = new Map<string, { count: number; windowStart: number; windowMs: number }>()
 
-// Prune entries older than 2 min every 5 min to avoid unbounded memory growth
+// Prune entries whose window has passed every 5 min to avoid unbounded memory growth
 const pruneTimer = setInterval(() => {
   const now = Date.now()
   for (const [key, val] of store) {
-    if (now - val.windowStart > 120_000) store.delete(key)
+    if (now - val.windowStart > val.windowMs) store.delete(key)
   }
 }, 300_000)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -26,7 +26,7 @@ function memoryHit(mapKey: string, limit: number, windowMs: number): boolean {
   const now = Date.now()
   const entry = store.get(mapKey)
   if (!entry || now - entry.windowStart >= windowMs) {
-    store.set(mapKey, { count: 1, windowStart: now })
+    store.set(mapKey, { count: 1, windowStart: now, windowMs })
     return true
   }
   if (entry.count >= limit) return false
@@ -79,4 +79,48 @@ export async function rateLimit(
   }
 
   return memoryHit(mapKey, limit, windowMs)
+}
+
+// ── Per-account failure throttle ────────────────────────────────────────────
+// rateLimit() is per IP, so a guesser rotating IPs is never slowed down. These
+// count *failed* attempts against one account (e.g. wrong PINs for one
+// restaurant) regardless of IP. Check tooManyFailures() before verifying and
+// call recordFailure() only when verification fails, so normal logins never
+// use up the budget.
+
+async function redisGet(key: string): Promise<number | null> {
+  try {
+    const res = await fetch(`${REDIS_URL}/get/${encodeURIComponent(key)}`, {
+      headers: { Authorization: `Bearer ${REDIS_TOKEN}` },
+      signal: AbortSignal.timeout(1500),
+      cache: 'no-store',
+    })
+    if (!res.ok) return null
+    const out = await res.json() as { result?: string | null }
+    return out.result == null ? 0 : Number(out.result)
+  } catch {
+    return null
+  }
+}
+
+function failureKey(key: string, windowMs: number): string {
+  return `rlf:${key}:${Math.floor(Date.now() / windowMs)}`
+}
+
+export async function tooManyFailures(key: string, limit: number, windowMs: number): Promise<boolean> {
+  const k = failureKey(key, windowMs)
+  if (REDIS_URL && REDIS_TOKEN) {
+    const n = await redisGet(k)
+    if (n !== null) return n >= limit
+  }
+  const entry = store.get(k)
+  return !!entry && entry.count >= limit
+}
+
+export async function recordFailure(key: string, windowMs: number): Promise<void> {
+  const k = failureKey(key, windowMs)
+  if (REDIS_URL && REDIS_TOKEN && (await redisIncr(k, windowMs)) !== null) return
+  const entry = store.get(k)
+  if (entry) entry.count++
+  else store.set(k, { count: 1, windowStart: Date.now(), windowMs })
 }

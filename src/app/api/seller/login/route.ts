@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { rateLimit } from '@/lib/rate-limit'
+import { rateLimit, tooManyFailures, recordFailure } from '@/lib/rate-limit'
 import { createSellerToken, SELLER_COOKIE } from '@/lib/session'
 import { timingSafeEqualStr } from '@/lib/crypto'
 
@@ -16,7 +16,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Seller password not configured.' }, { status: 500 })
     }
 
+    // One seller account: failures are counted globally as well as per IP.
+    if (await tooManyFailures('seller/login', 10, 15 * 60_000)) {
+      return NextResponse.json({ error: 'Too many requests. Try again later.' }, { status: 429 })
+    }
     if (typeof password !== 'string' || !timingSafeEqualStr(password, sellerPassword)) {
+      await recordFailure('seller/login', 15 * 60_000)
       return NextResponse.json({ error: 'Incorrect password.' }, { status: 401 })
     }
 
