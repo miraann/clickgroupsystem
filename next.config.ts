@@ -81,6 +81,16 @@ const nextConfig: NextConfig = {
       "report-uri /api/csp-report",
     ].join('; ')
 
+    // Enforced now: the directives that don't gate resource loading, so they
+    // can't break printing / realtime / face-api / maps while the full policy
+    // above is still being observed in Report-Only.
+    const cspEnforced = [
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "frame-ancestors 'self'",
+    ].join('; ')
+
     const securityHeaders = [
       { key: 'X-Content-Type-Options', value: 'nosniff' },
       { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
@@ -88,6 +98,7 @@ const nextConfig: NextConfig = {
       { key: 'X-DNS-Prefetch-Control', value: 'on' },
       { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
       { key: 'Permissions-Policy', value: 'camera=(self), microphone=(), geolocation=(self), usb=(self), bluetooth=(self), serial=(self)' },
+      { key: 'Content-Security-Policy', value: cspEnforced },
       { key: 'Content-Security-Policy-Report-Only', value: csp },
     ]
 
