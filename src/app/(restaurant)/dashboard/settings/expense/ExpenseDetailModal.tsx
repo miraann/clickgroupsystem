@@ -1,11 +1,12 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { X, Trash2, Eye, Paperclip, LayoutGrid } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import type { Category, Expense } from './types'
 import { CAT_ICONS, STATUS_CFG } from './types'
+import { signedReceiptUrl } from './receipt'
 
 function ReceiptPreview({ url }: { url: string }) {
   const [failed, setFailed] = useState(false)
@@ -42,6 +43,21 @@ interface Props {
 }
 
 export function ExpenseDetailModal({ expense, category, onClose, onDelete }: Props) {
+  // Private bucket — resolve a short-lived signed URL for the stored path.
+  const [signed, setSigned] = useState<{ src: string; url: string | null } | null>(null)
+  useEffect(() => {
+    const src = expense.receipt_url
+    if (!src) return
+    let alive = true
+    signedReceiptUrl(src)
+      .then(url => { if (alive) setSigned({ src, url }) })
+      .catch(() => { if (alive) setSigned({ src, url: null }) })
+    return () => { alive = false }
+  }, [expense.receipt_url])
+  // undefined = still signing, null = none / couldn't be signed.
+  const receiptUrl = !expense.receipt_url ? null
+    : signed?.src === expense.receipt_url ? signed.url : undefined
+
   const { formatPrice } = useDefaultCurrency()
   const { t } = useLanguage()
   const CatIcon  = category ? (CAT_ICONS[category.icon] ?? LayoutGrid) : LayoutGrid
@@ -111,15 +127,17 @@ export function ExpenseDetailModal({ expense, category, onClose, onDelete }: Pro
           <div className="pt-1">
             <div className="flex items-center justify-between mb-1.5">
               <p className="text-xs text-white/35">Receipt</p>
-              {expense.receipt_url && (
-                <a href={expense.receipt_url} target="_blank" rel="noreferrer"
+              {receiptUrl && (
+                <a href={receiptUrl} target="_blank" rel="noreferrer"
                   className="flex items-center gap-1 text-[10px] text-amber-400 hover:text-amber-300 transition-colors">
                   <Eye className="w-3 h-3" />Open full size
                 </a>
               )}
             </div>
-            {expense.receipt_url ? (
-              <ReceiptPreview url={expense.receipt_url} />
+            {receiptUrl ? (
+              <ReceiptPreview url={receiptUrl} />
+            ) : receiptUrl === undefined ? (
+              <div className="h-24 rounded-xl border border-white/10 bg-white/5 animate-pulse" />
             ) : (
               <div className="flex flex-col items-center justify-center gap-2 py-8 rounded-xl border border-dashed border-white/10 bg-white/3">
                 <Paperclip className="w-6 h-6 text-white/15" />

@@ -57,19 +57,20 @@ export function AddExpenseModal({ restaurantId, categories, cashier, onClose, on
 
     if (file) {
       setUploading(true)
-      const ext  = file.name.split('.').pop()
+      const ext  = file.type === 'application/pdf' ? 'pdf'
+        : file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg'
       const path = `expenses/${restaurantId}/${Date.now()}.${ext}`
       const { data: upData, error: upErr } = await supabase.storage
         .from('receipts')
-        .upload(path, file, { upsert: false })
+        .upload(path, file, { upsert: false, contentType: file.type })
       setUploading(false)
       if (upErr) {
         setSaving(false)
-        setErr(`Receipt upload failed: ${upErr.message}. Go to Supabase → Storage → Create bucket "receipts" (Public), then retry.`)
+        setErr(`Receipt upload failed: ${upErr.message}`)
         return
       }
-      const { data: pub } = supabase.storage.from('receipts').getPublicUrl(upData.path)
-      receipt_url = pub.publicUrl
+      // The bucket is private: store the object path; the detail view signs it.
+      receipt_url = upData.path
     }
 
     const { data, error } = await supabase.from('expenses').insert({
