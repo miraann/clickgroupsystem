@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient as createAnonClient } from '@supabase/supabase-js'
+import { serviceClient } from '@/lib/supabase/service'
+import { timingSafeEqualStr } from '@/lib/crypto'
 
 export const runtime = 'nodejs'
 
@@ -20,16 +21,14 @@ export async function POST(req: NextRequest) {
   // `Authorization: Bearer <CRON_SECRET>` that Vercel Cron sends automatically.
   const bearer = req.headers.get('authorization')?.replace(/^Bearer\s+/i, '')
   const secret = req.headers.get('x-cron-secret') ?? bearer
-  if (!process.env.CRON_SECRET || secret !== process.env.CRON_SECRET) {
+  if (!process.env.CRON_SECRET || !secret || !timingSafeEqualStr(secret, process.env.CRON_SECRET)) {
     return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 })
   }
 
-  const supabase = createAnonClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-  )
-
-  const { error } = await supabase.rpc('check_inventory_expiry', { p_warn_days: 3 })
+  // The sweep covers every restaurant, so it runs as the service role (the
+  // function is not executable by anon / authenticated). CRON_SECRET above is
+  // the only gate.
+  const { error } = await serviceClient().rpc('check_inventory_expiry', { p_warn_days: 3 })
   if (error) {
     console.error('[check-expiry]', error)
     return NextResponse.json({ ok: false, error: 'Sweep failed' }, { status: 500 })

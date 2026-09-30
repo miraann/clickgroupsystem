@@ -10,7 +10,6 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
-import { matchDeliveryZone, type ZoneMatchResult } from '@/lib/delivery/zoneCalculator'
 
 // Lazy-load the map to avoid SSR
 const LocationPickerMap = dynamic(
@@ -55,14 +54,14 @@ export interface DeliveryCheckoutProps {
   cartTotal: number
   formatPrice: (n: number) => string
   onClose: () => void
+  // Prices, fee and discount are recomputed server-side from the coupon code —
+  // nothing money-related is passed up from here.
   onConfirm: (
     name: string, phone: string,
     lat: number | null, lng: number | null,
     address: string | null,
-    discountAmount: number,
-    couponId: string | null,
+    couponCode: string | null,
     selfieUrl: string | null,
-    resolvedFee?: number,
   ) => void
   placing: boolean
   placeError: string | null
@@ -989,23 +988,11 @@ export default function DeliveryCheckout({
   const [couponErr,     setCouponErr]     = useState<string | null>(null)
   const [couponLoading, setCouponLoading] = useState(false)
 
-  // ── Zone-based fee override ────────────────────────────────
-  // Recalculated whenever the pinned location changes; falls back to the
-  // restaurant-wide defaults (deliveryFee/minOrder/estimatedTime props)
-  // when no delivery_zones row matches the point (see zoneCalculator.ts).
-  const [zoneMatch, setZoneMatch] = useState<ZoneMatchResult | null>(null)
-  useEffect(() => {
-    if (lat == null || lng == null) { setZoneMatch(null); return }
-    let cancelled = false
-    matchDeliveryZone(restaurantId, lat, lng, { deliveryFee, minOrder, estimatedTime })
-      .then(res => { if (!cancelled) setZoneMatch(res) })
-      .catch(() => { if (!cancelled) setZoneMatch(null) })
-    return () => { cancelled = true }
-  }, [lat, lng, restaurantId, deliveryFee, minOrder, estimatedTime])
-
-  const effFee      = zoneMatch?.matched ? zoneMatch.deliveryFee   : deliveryFee
-  const effMinOrder = zoneMatch?.matched ? zoneMatch.minOrder      : minOrder
-  const effEta       = zoneMatch?.matched ? zoneMatch.estimatedTime : estimatedTime
+  // Restaurant-wide delivery settings. guest_place_delivery_order recomputes
+  // the same fee / minimum server-side, so what's shown here is what's charged.
+  const effFee      = deliveryFee
+  const effMinOrder = minOrder
+  const effEta      = estimatedTime
 
   // Refs for cleanup
   const watchRef  = useRef<number | null>(null)
@@ -1110,7 +1097,7 @@ export default function DeliveryCheckout({
 
   // ── Submit — fires once details are valid and (if required) face is verified ─
   const submit = (verifiedSelfieUrl: string | null) => {
-    onConfirm(name.trim(), phone.trim(), lat, lng, address, discountAmount, appliedCoupon?.id ?? null, verifiedSelfieUrl, effFee)
+    onConfirm(name.trim(), phone.trim(), lat, lng, address, appliedCoupon?.code ?? null, verifiedSelfieUrl)
   }
 
   // ── Details step CTA — validate, then move to face scan (or submit if disabled) ─
@@ -1123,7 +1110,7 @@ export default function DeliveryCheckout({
   // ── Liveness verified → submit the order with the selfie URL ─
   const handleVerified = useCallback((url: string) => {
     submit(url)
-  }, [name, phone, lat, lng, address, discountAmount, appliedCoupon, effFee])
+  }, [name, phone, lat, lng, address, appliedCoupon])
 
   // ── Render ─────────────────────────────────────────────────
   return (
@@ -1409,11 +1396,6 @@ export default function DeliveryCheckout({
               >
                 <TotalRow label={t.dck_subtotal}     value={formatPrice(cartTotal)} />
                 <TotalRow label={t.dck_delivery_fee} value={effFee === 0 ? t.dck_free : formatPrice(effFee)} accent={effFee === 0} />
-                {zoneMatch?.matched && zoneMatch.zoneName && (
-                  <div className="px-4 py-1.5 text-[10px] text-emerald-500 flex items-center gap-1">
-                    <MapPin className="w-3 h-3" /> {t.dck_zone}: {zoneMatch.zoneName}
-                  </div>
-                )}
                 {discountAmount > 0 && <TotalRow label={t.dck_discount} value={`−${formatPrice(discountAmount)}`} accent />}
                 <div
                   className="flex justify-between items-center px-4 py-3.5"

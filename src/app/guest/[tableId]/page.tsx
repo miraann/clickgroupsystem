@@ -13,7 +13,6 @@ import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import { sendToKitchenAtomic, type SendResult } from '@/lib/orderSend'
 import { sendPush } from '@/lib/push'
-import { logAudit } from '@/lib/logAudit'
 import { useRestaurantMenu } from '@/hooks/useRestaurantMenu'
 import MenuLanguageSwitcher from '@/components/menu/MenuLanguageSwitcher'
 import HorizontalItemRail from '@/components/menu/HorizontalItemRail'
@@ -254,10 +253,8 @@ export default function GuestPage() {
       table_name:    table.name || null,
       status:        'pending',
     })
+    // The 'waiter_call' audit entry is written by a trigger on waiter_calls.
     sendPush(restaurant.id, 'waiter')
-    logAudit(restaurant.id, 'waiter_call',
-      { table: table.table_number || String(table.seq), table_name: table.name || null },
-      table.id, { staffName: 'Guest', staffRole: 'guest' })
     setWaiterLoading(false)
     setWaiterCalled(true)
     setWaiterCooldown(true)
@@ -405,20 +402,22 @@ export default function GuestPage() {
     setPlacing(true)
     setPlaceError(null)
 
-    // Item payload — shared by the atomic RPC and the legacy fallback.
+    // Item payload. For a guest, pos_send_to_kitchen ignores item_name /
+    // item_price, re-prices from the menu + option_ids, and prepends the
+    // modifier names to the note itself — so the note here is only the kitchen
+    // notes + free text.
     const itemInputs = cartItems.map(({ item, entry }) => {
-      const modNames  = entry.selectedOptions.map(o => o.option_name)
       const noteTxts  = entry.noteIds.map(id => kitchenNotes.find(n => n.id === id)?.text).filter(Boolean) as string[]
       if (entry.customNote.trim()) noteTxts.push(entry.customNote.trim())
       const modPrice  = entry.selectedOptions.reduce((s, o) => s + o.price, 0)
-      const allParts  = [...modNames, ...noteTxts]
       return {
         menu_item_id: item.id,
         item_name:    item.name,
         item_price:   item.price + modPrice,
         qty:          entry.qty,
-        note:         allParts.length > 0 ? allParts.join(' · ') : null,
+        note:         noteTxts.length > 0 ? noteTxts.join(' · ') : null,
         station_id:   item.category_id ? (catStationMap.get(item.category_id) ?? null) : null,
+        option_ids:   entry.selectedOptions.map(o => o.option_id),
       }
     })
 
@@ -453,15 +452,8 @@ export default function GuestPage() {
 
     if (!orderId) { setPlaceError(t.gm_err_create); setPlacing(false); return }
 
+    // The 'guest_order' audit entry is written by pos_send_to_kitchen itself.
     sendPush(restaurant.id, 'guest')
-    logAudit(restaurant.id, 'guest_order',
-      {
-        table:       table.table_number || String(table.seq),
-        table_name:  table.name || null,
-        items_count: itemInputs.length,
-        items:       itemInputs.slice(0, 3).map(r => `${r.qty}× ${r.item_name}`).join(', '),
-      },
-      orderId, { staffName: 'Guest', staffRole: 'guest' })
 
     // Set realtime tracking
     setCurrentOrderId(orderId)

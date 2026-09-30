@@ -12,9 +12,7 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
-import { assignOrderNumber } from '@/lib/orderNumber'
 import { sendPush } from '@/lib/push'
-import { logAudit } from '@/lib/logAudit'
 import { useRestaurantMenu } from '@/hooks/useRestaurantMenu'
 import MenuLanguageSwitcher from '@/components/menu/MenuLanguageSwitcher'
 import HorizontalItemRail from '@/components/menu/HorizontalItemRail'
@@ -860,86 +858,41 @@ export default function DeliveryOrderPage() {
 
   const getQty = (id: string) => cart.get(id)?.qty ?? 0
 
-  const placeOrder = async (custName: string, custPhone: string, lat: number | null, lng: number | null, address: string | null, discountAmount = 0, couponId: string | null = null, selfieUrl: string | null = null, resolvedFee?: number) => {
+  const placeOrder = async (custName: string, custPhone: string, lat: number | null, lng: number | null, address: string | null, couponCode: string | null = null, selfieUrl: string | null = null) => {
     if (!restaurant || cartItems.length === 0) return
     setPlacing(true); setPlaceError(null)
 
-    // Zone-based fee (from DeliveryCheckout's zoneCalculator match) wins over
-    // the restaurant-wide default computed before the customer picked a location.
-    const finalFee = resolvedFee ?? effectiveDeliveryFee
-
-    // Create order. The id is generated here because anon may INSERT orders but
-    // not SELECT them back (insert…select would fail the RLS read check).
-    const newOrder = { id: crypto.randomUUID() }
-    const { error: orderErr } = await supabase
-      .from('orders')
-      .insert({
-        id:            newOrder.id,
-        restaurant_id: restaurant.id,
-        table_number:  0,
-        status:        'active',
-        source:        'delivery',
-        total:         cartTotal + finalFee - discountAmount,
-      })
-
-    if (orderErr) {
-      setPlaceError(t.gm_err_create)
-      setPlacing(false); return
-    }
-
-    await assignOrderNumber(supabase, restaurant.id, newOrder.id)
-
-    // Insert order items
-    const rows = cartItems.map(({ item, entry }) => {
-      const modPrice = entry.selectedOptions.reduce((s, o) => s + o.price, 0)
+    // One server-side call (guest_place_delivery_order): items are re-priced
+    // from the menu, the delivery fee and coupon are recomputed, and the order,
+    // its items and the delivery row are written in one transaction. Only ids,
+    // quantities and free-text notes go up — never a price. Modifier names are
+    // added to each item's note server-side from option_ids.
+    const items = cartItems.map(({ item, entry }) => {
       const noteParts = [
-        ...entry.selectedOptions.map(o => o.option_name),
         ...entry.noteIds.map(nid => kitchenNotes.find(k => k.id === nid)?.text ?? '').filter(Boolean),
         entry.customNote.trim(),
       ].filter(Boolean)
       return {
-        order_id:     newOrder.id,
         menu_item_id: item.id,
-        item_name:    item.name,
-        item_price:   deliveryPrice(item) + modPrice,
         qty:          entry.qty,
-        status:       'pending',
+        option_ids:   entry.selectedOptions.map(o => o.option_id),
         note:         noteParts.length > 0 ? noteParts.join(', ') : null,
-        station_id:   null,
       }
     })
-    const { error: itemsErr } = await supabase.from('order_items').insert(rows)
-    if (itemsErr) { setPlaceError(itemsErr.message); setPlacing(false); return }
 
-    // Insert delivery info
-    const { error: delivErr } = await supabase.from('delivery_orders').insert({
-      order_id:      newOrder.id,
-      restaurant_id: restaurant.id,
-      customer_name: custName,
-      customer_phone: custPhone,
-      latitude:      lat,
-      longitude:     lng,
-      address_text:  address,
-      delivery_fee:  finalFee,
-      status:        'pending',
-      selfie_url:    selfieUrl,
+    const { error } = await supabase.rpc('guest_place_delivery_order', {
+      p_restaurant_id: restaurant.id,
+      p_items:         items,
+      p_customer:      { name: custName, phone: custPhone, lat, lng, address, selfie_url: selfieUrl },
+      p_coupon_code:   couponCode,
     })
-    if (delivErr) { setPlaceError(delivErr.message); setPlacing(false); return }
+    if (error) {
+      console.error('[placeOrder]', error)
+      setPlaceError(t.gm_err_create)
+      setPlacing(false); return
+    }
 
     sendPush(restaurant.id, 'delivery')
-    logAudit(restaurant.id, 'delivery_order',
-      {
-        customer:    custName,
-        phone:       custPhone || null,
-        items_count: rows.length,
-        items:       rows.slice(0, 3).map(r => `${r.qty}× ${r.item_name}`).join(', '),
-        address:     address || null,
-      },
-      newOrder.id, { staffName: 'Customer', staffRole: 'customer' })
-
-    if (couponId) {
-      await supabase.rpc('increment_discount_code', { p_id: couponId })
-    }
 
     setCart(new Map())
     setShowModal(false)

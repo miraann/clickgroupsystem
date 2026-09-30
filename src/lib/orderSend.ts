@@ -22,6 +22,9 @@ export interface SendItemInput {
   qty:          number
   note:         string | null
   station_id:   string | null
+  // Guest sends only: chosen modifier options. For an anon caller the RPC
+  // ignores item_name / item_price and prices the item from the menu + these.
+  option_ids?:  string[]
 }
 
 export interface SentItem {
