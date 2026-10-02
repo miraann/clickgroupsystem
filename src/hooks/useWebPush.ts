@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
+import { promptBatteryExemptionOnce } from '@/lib/backgroundDelivery'
 
 type SubStatus = 'loading' | 'unsupported' | 'denied' | 'subscribed' | 'unsubscribed'
 
@@ -16,6 +17,94 @@ export async function isCapacitorNative(): Promise<boolean> {
     return Capacitor.isNativePlatform()
   } catch { return false }
 }
+
+// ── Native FCM token sync ─────────────────────────────────────────
+// FCM tokens rotate (reinstall, app-data clear, periodic refresh), and the
+// server drops a token FCM reports dead. Registering only the first time
+// permission was granted left such devices silent for good, so every page
+// load re-reads the current token and upserts it (idempotent), and a
+// long-lived 'registration' listener uploads tokens rotated while the app runs.
+
+let nativeOwner: { restaurantId: string; staffId: string | null } | null = null
+let nativeToken: string | null = null
+let tokenListener: Promise<void> | null = null
+let nativePost: { key: string; result: Promise<string | null> } | null = null
+let nativeSync: { key: string; result: Promise<string | null> } | null = null
+
+/** Upload a token; the listener and registerNative() both see each one, so share the request. */
+function postNativeToken(token: string): Promise<string | null> {
+  if (!nativeOwner) return Promise.resolve(null)
+  nativeToken = token
+  const { restaurantId, staffId } = nativeOwner
+  const key = `${token}|${restaurantId}|${staffId ?? ''}`
+  if (nativePost?.key === key) return nativePost.result
+  const result = (async () => {
+    try {
+      const res = await fetch('/api/push/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fcm_token: token, restaurant_id: restaurantId, staff_id: staffId }),
+      })
+      if (res.ok) return null
+      return `Subscribe API error: ${await res.text()}`
+    } catch (err) {
+      return `Subscribe API error: ${String(err)}`
+    }
+  })().then(err => {
+    if (err && nativePost?.key === key) nativePost = null
+    return err
+  })
+  nativePost = { key, result }
+  return result
+}
+
+function listenForTokens(): Promise<void> {
+  tokenListener ??= (async () => {
+    const { PushNotifications } = await import('@capacitor/push-notifications')
+    await PushNotifications.addListener('registration', t => { void postNativeToken(t.value) })
+  })()
+  return tokenListener
+}
+
+async function registerNative(): Promise<string | null> {
+  const { PushNotifications } = await import('@capacitor/push-notifications')
+  await listenForTokens()
+  // register() asks FCM for the current token; the listener above posts it.
+  const outcome = await new Promise<{ token?: string; err?: string }>(async (resolve) => {
+    const okHandle  = await PushNotifications.addListener('registration', (token) => {
+      okHandle.remove()
+      resolve({ token: token.value })
+    })
+    const errHandle = await PushNotifications.addListener('registrationError', (e) => {
+      errHandle.remove()
+      resolve({ err: JSON.stringify(e) })
+    })
+    setTimeout(() => resolve({ err: 'Registration timed out after 10s' }), 10000)
+    await PushNotifications.register()
+  })
+  if (outcome.err) return `FCM registration failed: ${outcome.err}`
+  const err = outcome.token ? await postNativeToken(outcome.token) : null
+  if (!err) void promptBatteryExemptionOnce()
+  return err
+}
+
+/** Register this device's FCM token for the restaurant — once per page load per owner. */
+function syncNativeToken(restaurantId: string, staffId: string | null): Promise<string | null> {
+  const key = `${restaurantId}|${staffId ?? ''}`
+  if (nativeSync?.key !== key) {
+    nativeOwner = { restaurantId, staffId }
+    const result = registerNative().then(err => {
+      if (err && nativeSync?.key === key) nativeSync = null  // let the next mount retry
+      return err
+    })
+    nativeSync = { key, result }
+  }
+  return nativeSync.result
+}
+
+// Same self-heal for browser Web Push: re-post the existing subscription once
+// per page load in case the server dropped it.
+const webSynced = new Set<string>()
 
 export function useWebPush(restaurantId: string | null, staffId: string | null = null) {
   const [status, setStatus]             = useState<SubStatus>('loading')
@@ -49,6 +138,28 @@ export function useWebPush(restaurantId: string | null, staffId: string | null =
 
   useEffect(() => { check() }, [check])
 
+  // Already permitted: re-register on every load (see syncNativeToken).
+  useEffect(() => {
+    if (status !== 'subscribed' || !restaurantId) return
+    let cancelled = false
+    ;(async () => {
+      if (await isCapacitorNative()) {
+        const err = await syncNativeToken(restaurantId, staffId)
+        if (err && !cancelled) setError(err)
+        return
+      }
+      const key = `${subscription?.endpoint}|${restaurantId}|${staffId ?? ''}`
+      if (!subscription || webSynced.has(key)) return
+      webSynced.add(key)
+      fetch('/api/push/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subscription: subscription.toJSON(), restaurant_id: restaurantId, staff_id: staffId }),
+      }).then(res => { if (!res.ok) webSynced.delete(key) }, () => webSynced.delete(key))
+    })()
+    return () => { cancelled = true }
+  }, [status, restaurantId, staffId, subscription])
+
   const subscribe = useCallback(async () => {
     if (!restaurantId || busy) return
     setBusy(true)
@@ -60,38 +171,11 @@ export function useWebPush(restaurantId: string | null, staffId: string | null =
         const result = await PushNotifications.requestPermissions()
         if (result.receive !== 'granted') { setStatus('denied'); setBusy(false); return }
 
-        // Set up both success and error listeners BEFORE calling register()
-        const outcome = await new Promise<{ token?: string; err?: string }>(async (resolve) => {
-          const okHandle  = await PushNotifications.addListener('registration', (token) => {
-            okHandle.remove()
-            resolve({ token: token.value })
-          })
-          const errHandle = await PushNotifications.addListener('registrationError', (e) => {
-            errHandle.remove()
-            resolve({ err: JSON.stringify(e) })
-          })
-          setTimeout(() => resolve({ err: 'Registration timed out after 10s' }), 10000)
-          await PushNotifications.register()
-        })
-
-        if (outcome.err) {
-          setError(`FCM registration failed: ${outcome.err}`)
+        const err = await syncNativeToken(restaurantId, staffId)
+        if (err) {
+          setError(err)
           setBusy(false)
           return
-        }
-
-        if (outcome.token) {
-          const res = await fetch('/api/push/subscribe', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fcm_token: outcome.token, restaurant_id: restaurantId, staff_id: staffId }),
-          })
-          if (!res.ok) {
-            const body = await res.text()
-            setError(`Subscribe API error: ${body}`)
-            setBusy(false)
-            return
-          }
         }
 
         setStatus('subscribed')
@@ -129,8 +213,21 @@ export function useWebPush(restaurantId: string | null, staffId: string | null =
     setError(null)
     try {
       if (await isCapacitorNative()) {
+        // Not removeAllListeners(): that also killed PushNavigation's tap
+        // handler and the token listener, while the server kept sending.
         const { PushNotifications } = await import('@capacitor/push-notifications')
-        await PushNotifications.removeAllListeners()
+        if (nativeToken) {
+          await fetch('/api/push/subscribe', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ endpoint: nativeToken }),
+          })
+        }
+        await PushNotifications.unregister()
+        nativeOwner = null
+        nativeToken = null
+        nativePost = null
+        nativeSync = null
         setStatus('unsubscribed')
         setBusy(false)
         return

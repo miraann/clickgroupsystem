@@ -170,12 +170,13 @@ self.addEventListener('push', e => {
 
 self.addEventListener('notificationclick', e => {
   e.notification.close()
-  const url = '/dashboard'
+  // The screen the alert is about (delivery orders, pending orders, …).
+  const url = e.notification.data?.url || '/dashboard'
   e.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clients => {
       const existing = clients.find(c => c.url.includes('/dashboard'))
-      if (existing) { existing.focus(); return }
-      self.clients.openWindow(url)
+      if (existing) return existing.focus().then(c => c.navigate(url)).catch(() => {})
+      return self.clients.openWindow(url)
     })
   )
 })

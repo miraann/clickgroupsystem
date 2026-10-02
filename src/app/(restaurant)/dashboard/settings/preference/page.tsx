@@ -13,6 +13,7 @@ import { useWebPush } from '@/hooks/useWebPush'
 import { SaveButton } from '@/components/ui/SaveButton'
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch'
 import { SettingsSection } from '@/components/ui/SettingsSection'
+import { BackgroundDeliveryCheck } from '@/components/restaurant/BackgroundDeliveryCheck'
 
 interface PrefSettings {
   language:                      string
@@ -773,6 +774,8 @@ export default function PreferencePage() {
                       {t.pref_push_unsupported_hint}
                     </p>
                   )}
+
+                  <BackgroundDeliveryCheck />
 
                 </div>
               </SettingsSection>

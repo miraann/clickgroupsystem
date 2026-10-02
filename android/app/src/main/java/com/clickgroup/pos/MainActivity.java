@@ -153,6 +153,7 @@ public class MainActivity extends BridgeActivity {
 
         registerPlugin(TcpPlugin.class);
         registerPlugin(UpdaterPlugin.class);
+        registerPlugin(BackgroundPlugin.class);
 
         if (usesSlugBinding()) {
             prefs = getSharedPreferences(PREFS, MODE_PRIVATE);

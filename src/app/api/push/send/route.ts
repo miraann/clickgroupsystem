@@ -33,7 +33,12 @@ function toBase64Url(buf: ArrayBuffer | Uint8Array): string {
   return Buffer.from(bytes).toString('base64url')
 }
 
+// One OAuth token serves every FCM send from this (warm) instance for its ~1h
+// lifetime, instead of minting one per device per notification.
+let fcmAuth: { token: string; expiresAt: number } | null = null
+
 async function getFcmAccessToken(sa: ServiceAccount): Promise<string> {
+  if (fcmAuth && fcmAuth.expiresAt > Date.now() + 60_000) return fcmAuth.token
   const iat = Math.floor(Date.now() / 1000)
   const header  = toBase64Url(Buffer.from(JSON.stringify({ alg: 'RS256', typ: 'JWT' })))
   const payload = toBase64Url(Buffer.from(JSON.stringify({
@@ -64,39 +69,90 @@ async function getFcmAccessToken(sa: ServiceAccount): Promise<string> {
       assertion:  jwt,
     }),
   })
-  const data = await res.json() as { access_token: string }
-  return data.access_token
+  const data = await res.json() as { access_token?: string; expires_in?: number }
+  if (!res.ok || !data.access_token) throw new Error(`FCM OAuth failed: HTTP ${res.status}`)
+  fcmAuth = { token: data.access_token, expiresAt: Date.now() + (data.expires_in ?? 3600) * 1000 }
+  return fcmAuth.token
 }
 
-async function sendFcmV1(fcmToken: string, title: string, body: string, url: string): Promise<boolean> {
-  const raw = process.env.FIREBASE_SERVICE_ACCOUNT
-  if (!raw) return false
-  try {
-    const sa: ServiceAccount = JSON.parse(raw)
-    const accessToken = await getFcmAccessToken(sa)
-    const res = await fetch(
-      `https://fcm.googleapis.com/v1/projects/${sa.project_id}/messages:send`,
-      {
+// 'stale' = FCM says the token itself is dead (delete the row). 'failed' is
+// anything else — quota, 5xx, network, bad config — and must NOT delete it:
+// dropping a live device on a transient error is what left phones silent
+// until the app was reopened and re-registered.
+type SendResult = 'sent' | 'stale' | 'failed'
+
+interface FcmErrorBody {
+  error?: { message?: string; details?: { errorCode?: string }[] }
+}
+
+function isDeadToken(status: number, err: FcmErrorBody | null): boolean {
+  const codes = err?.error?.details?.map(d => d.errorCode) ?? []
+  if (codes.includes('UNREGISTERED') || codes.includes('SENDER_ID_MISMATCH')) return true
+  return status === 400 && /registration token/i.test(err?.error?.message ?? '')
+}
+
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
+
+async function sendFcmV1(
+  sa: ServiceAccount, accessToken: string, fcmToken: string,
+  title: string, body: string, data: Record<string, string>,
+): Promise<SendResult> {
+  const payload = JSON.stringify({
+    message: {
+      token: fcmToken,
+      // A `notification` block is what lets Android show the alert while the
+      // app is backgrounded or killed: the FCM SDK posts it to the tray
+      // itself, no app code (or WebView) has to run.
+      notification: { title, body },
+      // Read on tap by PushNavigation. FCM data values must be strings.
+      data,
+      android: {
+        // HIGH is delivered at once and wakes the device from Doze; NORMAL can
+        // wait in FCM until the next maintenance window or app open.
+        priority: 'high',
+        notification: {
+          channel_id: 'pos_alerts',
+          sound: 'default',
+          default_vibrate_timings: true,
+          notification_priority: 'PRIORITY_MAX',
+          visibility: 'PUBLIC',
+        },
+      },
+      // No iOS app yet; this is what one would need. A visible alert is
+      // push-type `alert` at priority 10 — `background` / content-available
+      // pushes are throttled by iOS and never reach a force-quit app.
+      apns: {
+        headers: { 'apns-push-type': 'alert', 'apns-priority': '10' },
+        payload: { aps: { sound: 'default' } },
+      },
+    },
+  })
+
+  for (let attempt = 0; attempt < 2; attempt++) {
+    let res: Response
+    try {
+      res = await fetch(`https://fcm.googleapis.com/v1/projects/${sa.project_id}/messages:send`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
           'Content-Type':  'application/json',
         },
-        body: JSON.stringify({
-          message: {
-            token: fcmToken,
-            notification: { title, body },
-            data: { url },
-            android: {
-              priority: 'high',
-              notification: { sound: 'default', channel_id: 'pos_alerts' },
-            },
-          },
-        }),
-      },
-    )
-    return res.ok
-  } catch { return false }
+        body: payload,
+      })
+    } catch (e) {
+      if (attempt === 0) { await sleep(500); continue }
+      console.error('[push] FCM network error', e)
+      return 'failed'
+    }
+    if (res.ok) return 'sent'
+
+    const err = await res.json().catch(() => null) as FcmErrorBody | null
+    if (isDeadToken(res.status, err)) return 'stale'
+    if ((res.status === 429 || res.status >= 500) && attempt === 0) { await sleep(1000); continue }
+    console.error('[push] FCM send failed', res.status, err?.error?.message)
+    return 'failed'
+  }
+  return 'failed'
 }
 
 // ── Notification types ────────────────────────────────────────────
@@ -106,6 +162,14 @@ const NOTIF_META: Record<NotifType, { title: string; body: string; url: string }
   delivery: { title: '🚚 New Delivery Order',  body: 'A new delivery order has been received.',       url: '/dashboard/delivery-orders' },
   waiter:   { title: '🔔 Waiter Call',          body: 'A guest is requesting assistance at a table.',  url: '/dashboard'                 },
   guest:    { title: '📱 Guest Menu Order',     body: 'A new order arrived from the QR code menu.',    url: '/dashboard/pending-orders'  },
+}
+
+// The audit_logs row each public event writes (guest_place_delivery_order,
+// pos_send_to_kitchen, fn_waiter_call_audit) — proof the event just happened.
+const EVENT_ACTION: Record<NotifType, string> = {
+  delivery: 'delivery_order',
+  waiter:   'waiter_call',
+  guest:    'guest_order',
 }
 
 const ICON  = '/logo/android/launchericon-192x192.png'
@@ -166,13 +230,15 @@ export async function POST(req: NextRequest) {
       }
       // Tie the notification to a real, recent event so it can't be used as a
       // standalone spam trigger. Failing open on a query error keeps the
-      // feature working if the schema differs.
+      // feature working if the schema differs. Not orders.created_at: a guest
+      // ordering another round at a table whose order opened earlier reuses
+      // that order row, so its push was skipped as "no recent event".
       const since = new Date(Date.now() - 5 * 60_000).toISOString()
-      const evTable = type === 'waiter' ? 'waiter_calls' : 'orders'
       const { count, error: evErr } = await supabase
-        .from(evTable)
+        .from('audit_logs')
         .select('id', { count: 'exact', head: true })
         .eq('restaurant_id', restaurant_id)
+        .eq('action', EVENT_ACTION[type])
         .gte('created_at', since)
       if (!evErr && (count ?? 0) === 0) {
         return NextResponse.json({ ok: true, skipped: 'no recent event' })
@@ -207,17 +273,35 @@ export async function POST(req: NextRequest) {
 
     initVapid()
 
+    // One OAuth token for the whole batch. If it can't be had, skip FCM this
+    // time but keep every device registered.
+    let fcm: { sa: ServiceAccount; accessToken: string } | null = null
+    if (subs.some(row => row.type === 'fcm') && process.env.FIREBASE_SERVICE_ACCOUNT) {
+      try {
+        const sa: ServiceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)
+        fcm = { sa, accessToken: await getFcmAccessToken(sa) }
+      } catch (e) {
+        console.error('[push] FCM auth unavailable', e)
+      }
+    }
+
     await Promise.allSettled(
       subs.map(async (row) => {
         if (row.type === 'fcm') {
-          const ok = await sendFcmV1(row.endpoint, title, body, url)
-          if (ok) sent++
-          else staleEndpoints.push(row.endpoint)
+          if (!fcm) return
+          const result = await sendFcmV1(fcm.sa, fcm.accessToken, row.endpoint, title, body, { url, type, restaurant_id })
+          if (result === 'sent') sent++
+          else if (result === 'stale') staleEndpoints.push(row.endpoint)
         } else {
           try {
             await webpush.sendNotification(
               row.subscription as webpush.PushSubscription,
               JSON.stringify({ title, body, icon: ICON, badge: BADGE, data: { type, restaurant_id, url } }),
+              // `high` makes the push service deliver now even to a phone in
+              // battery saver / Doze (Chrome on Android maps it to a
+              // high-priority FCM message); the default `normal` may be held
+              // until the device wakes on its own.
+              { urgency: 'high' },
             )
             sent++
           } catch (err: unknown) {

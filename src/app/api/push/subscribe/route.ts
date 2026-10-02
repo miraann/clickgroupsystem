@@ -19,11 +19,16 @@ export async function POST(req: Request) {
     // moves it instead of failing the tenant RLS check.
     const supabase = serviceClient()
 
+    // Devices re-register on every launch now, from whichever screen opens
+    // first. Only a caller that names a staff member sets staff_id, so the
+    // dashboard's plain re-sync doesn't untarget a driver's device.
+    const staff = staff_id ? { staff_id } : {}
+
     if (body.fcm_token) {
       const { error } = await supabase
         .from('push_subscriptions')
         .upsert(
-          { restaurant_id, endpoint: body.fcm_token, type: 'fcm', subscription: null, staff_id: staff_id ?? null },
+          { restaurant_id, endpoint: body.fcm_token, type: 'fcm', subscription: null, ...staff },
           { onConflict: 'endpoint' }
         )
       if (error) return serverError(error)
@@ -32,7 +37,7 @@ export async function POST(req: Request) {
       const { error } = await supabase
         .from('push_subscriptions')
         .upsert(
-          { restaurant_id, endpoint, type: 'web', subscription: body.subscription, staff_id: staff_id ?? null },
+          { restaurant_id, endpoint, type: 'web', subscription: body.subscription, ...staff },
           { onConflict: 'endpoint' }
         )
       if (error) return serverError(error)
