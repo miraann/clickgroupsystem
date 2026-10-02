@@ -954,7 +954,7 @@ const TableCard = memo(function TableCard({ table, onSelect, onLongPress, format
         whileTap={{ scale: 0.92 }}
         style={{ width: cardW, height: cardH, borderRadius: shapeRadius, background: VIBRANT_BG[table.status], boxShadow: '0 6px 24px rgba(0,0,0,0.35)' }}
         className={cn(
-          'relative p-3 text-left shrink-0 touch-manipulation flex flex-col overflow-hidden',
+          'relative p-3 text-left shrink-0 touch-manipulation flex flex-col overflow-hidden on-color',
           isRound && 'items-center justify-center text-center',
           freeVibrant && 'justify-center',
           isBillReq && 'animate-pulse',
@@ -1087,7 +1087,7 @@ const TableCard = memo(function TableCard({ table, onSelect, onLongPress, format
           whileTap={{ scale: 0.94 }}
           style={{
             width: '100%', height: '100%', borderRadius: shapeRadius,
-            background: 'rgba(0,0,0,0.30)',
+            background: 'var(--app-well, rgba(0,0,0,0.30))',
             boxShadow: NEON_GLOW[table.status],
             position: 'relative', zIndex: 1,
           }}
@@ -1151,7 +1151,7 @@ const TableCard = memo(function TableCard({ table, onSelect, onLongPress, format
         whileTap={{ scale: 0.94 }}
         style={{
           width: cardW, height: cardH, borderRadius: shapeRadius,
-          background: 'rgba(255,255,255,0.04)',
+          background: 'var(--app-card, rgba(255,255,255,0.04))',
           boxShadow: MINIMAL_SHADOW[table.status],
         }}
         className={cn(
@@ -1210,7 +1210,7 @@ const TableCard = memo(function TableCard({ table, onSelect, onLongPress, format
         whileTap={{ scale: 0.93 }}
         style={{
           width: cardW, height: cardH, borderRadius: shapeRadius,
-          background: 'rgba(6,6,18,0.92)',
+          background: 'var(--app-panel, rgba(6,6,18,0.92))',
           boxShadow: CYBER_GLOW[table.status],
         }}
         className={cn(
@@ -1572,9 +1572,9 @@ export default function TablesPage() {
     kds: '#f97316', guests: '#8b5cf6', language: '#06b6d4',
   }
   const navBtnBase: React.CSSProperties = navButtonStyle === 'neon'
-    ? { background: 'rgba(0,0,0,0.40)', border: `1px solid ${hexAlpha(primaryColorHex, 0.68)}`, color: primaryColorHex, boxShadow: `0 0 10px ${hexAlpha(primaryColorHex, 0.26)}` }
+    ? { background: 'var(--app-well, rgba(0,0,0,0.40))', border: `1px solid ${hexAlpha(primaryColorHex, 0.68)}`, color: primaryColorHex, boxShadow: `0 0 10px ${hexAlpha(primaryColorHex, 0.26)}` }
     : navButtonStyle === 'crystal'
-    ? { background: 'linear-gradient(135deg,rgba(255,255,255,0.13) 0%,rgba(255,255,255,0.05) 100%)', border: '1px solid rgba(255,255,255,0.22)', color: 'rgba(255,255,255,0.75)' }
+    ? { background: 'linear-gradient(135deg, rgb(var(--ov) / 0.13) 0%, rgb(var(--ov) / 0.05) 100%)', border: '1px solid rgb(var(--ov) / 0.22)', color: 'color-mix(in srgb, var(--app-text, #ffffff) 75%, transparent)' }
     : {}
   const navBtn = (key: string): React.CSSProperties => {
     if (navButtonStyle === 'vibrant') {
@@ -2266,7 +2266,7 @@ export default function TablesPage() {
         {can('dashboard.btn_language') && showLangPicker && (
           <div
             className="lg:hidden absolute left-0 right-0 top-full z-50 rounded-b-2xl shadow-2xl overflow-hidden"
-            style={{ background: '#0d1120', borderTop: '1px solid rgba(255,255,255,0.08)' }}
+            style={{ background: 'var(--app-panel, #0d1120)', borderTop: '1px solid rgb(var(--ov) / 0.08)' }}
           >
             <p className="px-4 py-2.5 text-[10px] font-bold text-white/30 uppercase tracking-widest border-b border-white/8">
               Language

@@ -1600,6 +1600,7 @@ const en = {
   app_style_midnight:   'Midnight',
   app_style_colorful:   'Colorful',
   app_style_purple:     'Purple',
+  app_style_light:      'White',
   app_style_custom:     'Custom',
   app_custom_hint:      'Pick your own background color',
   app_custom_mode:      'Color mode',

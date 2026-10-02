@@ -13,6 +13,7 @@ import { MemberPicker }     from './payment/MemberPicker'
 import { CustomerPicker }   from './payment/CustomerPicker'
 import type { Item, DbDiscount, DbSurcharge, ActionTab } from './payment/types'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
+import { useNavButtonStyle } from '@/hooks/useNavButtonStyle'
 import { mutate as swrMutate } from 'swr'
 import { SWR_KEY } from '@/hooks/useDashboardTables'
 import type { DashboardFullData } from '@/hooks/useDashboardTables'
@@ -51,13 +52,14 @@ const ACTION_TABS: { id: ActionTab; labelKey: 'pay_tab_surcharge' | 'pay_tab_gra
 ]
 
 // Square, edge-to-edge back / home / refresh tiles in the summary row
-const NAV_TILE  = 'w-20 py-3 flex flex-col items-center justify-center gap-1 text-white active:scale-95 transition-all touch-manipulation'
+const NAV_TILE  = 'w-20 py-3 flex flex-col items-center justify-center gap-1 active:scale-95 transition-all touch-manipulation'
 const NAV_LABEL = 'text-xs font-semibold leading-none whitespace-nowrap'
 
 export default function PaymentScreen({ orderId, restaurantId, orderNum: orderNumProp, tableNum, cfdTableKey, guests, items, total, onClose, onPaid }: Props) {
   const router = useRouter()
   const { can, isOwner, isPinStaff, staffName, roleName } = usePermissions()
   const { t, isRTL, lang } = useLanguage()
+  const { navCn, navStyle } = useNavButtonStyle()
   const p = (key: string) => isOwner || can(key)
   const { checkout } = useCheckoutData(restaurantId)
   const [method, setMethod]               = useState<string>('')
@@ -558,15 +560,15 @@ export default function PaymentScreen({ orderId, restaurantId, orderNum: orderNu
               totals on one line, so the totals wrap underneath. */}
           <div className={cn('shrink-0 flex flex-wrap items-stretch border-b border-white/8', isRTL && 'flex-row-reverse')}>
             <div className={cn('hidden md:flex shrink-0', isRTL && 'flex-row-reverse')}>
-              <button onClick={onClose} className={cn(NAV_TILE, 'bg-red-700 hover:bg-red-600')}>
+              <button onClick={onClose} className={cn(NAV_TILE, navCn)} style={navStyle('back')}>
                 <ArrowLeft className="w-6 h-6" />
                 <span className={NAV_LABEL}>{t.back}</span>
               </button>
-              <button onClick={() => router.push('/dashboard')} className={cn(NAV_TILE, 'bg-orange-500 hover:bg-orange-400')}>
+              <button onClick={() => router.push('/dashboard')} className={cn(NAV_TILE, navCn)} style={navStyle('home')}>
                 <Home className="w-6 h-6" />
                 <span className={NAV_LABEL}>{t.ord_home}</span>
               </button>
-              <button onClick={() => window.location.reload()} className={cn(NAV_TILE, 'bg-blue-600 hover:bg-blue-500')}>
+              <button onClick={() => window.location.reload()} className={cn(NAV_TILE, navCn)} style={navStyle('refresh')}>
                 <RefreshCw className="w-6 h-6" />
                 <span className={NAV_LABEL}>{t.ord_refresh}</span>
               </button>

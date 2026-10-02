@@ -224,7 +224,7 @@ export default function ActivityToast() {
                 exit={{    opacity: 0, y: -16, scale: 0.96, transition: { duration: 0.18 } }}
                 transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
                 className="pointer-events-auto overflow-hidden rounded-2xl shadow-2xl shadow-black/60 shrink-0"
-                style={{ border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(10,13,24,0.92)' }}
+                style={{ border: '1px solid rgb(var(--ov) / 0.08)', background: 'var(--app-panel, rgba(10,13,24,0.92))' }}
               >
                 {/* Body */}
                 <div className="flex items-stretch">
@@ -291,7 +291,7 @@ export default function ActivityToast() {
               exit={{    opacity: 0, y: -16, scale: 0.96, transition: { duration: 0.18 } }}
               transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
               className="pointer-events-auto overflow-hidden rounded-2xl shadow-2xl shadow-black/60 shrink-0"
-              style={{ border: '1px solid rgba(245,158,11,0.25)', background: 'rgba(10,13,24,0.92)' }}
+              style={{ border: '1px solid rgba(245,158,11,0.25)', background: 'var(--app-panel, rgba(10,13,24,0.92))' }}
             >
               <div className="flex items-stretch">
                 <div className="w-[3px] shrink-0 bg-amber-400" />

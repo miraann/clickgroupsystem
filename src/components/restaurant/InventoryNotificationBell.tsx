@@ -153,8 +153,8 @@ export default function InventoryNotificationBell({ restaurantId }: { restaurant
               top:    pos.top,
               left:   pos.left,
               width:  pos.width,
-              border: '1px solid rgba(255,255,255,0.08)',
-              background: 'rgba(10,13,24,0.97)',
+              border: '1px solid rgb(var(--ov) / 0.08)',
+              background: 'var(--app-panel, rgba(10,13,24,0.97))',
             }}
             dir={isRTL ? 'rtl' : 'ltr'}
           >

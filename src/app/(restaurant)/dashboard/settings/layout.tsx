@@ -18,6 +18,7 @@ import { UpgradeWall, moduleLabel } from '@/components/ModuleGate'
 import { PermissionDenied } from '@/components/settings/PermissionDenied'
 import { usePermissions } from '@/lib/permissions/PermissionsContext'
 import { useRestaurant } from '@/hooks/useRestaurant'
+import { useNavButtonStyle } from '@/hooks/useNavButtonStyle'
 
 // permKey may name a real leaf permission ("settings.users") or a group/parent
 // key ("menu") whose access is decided by canAny — "has at least one leaf
@@ -102,6 +103,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
   const router   = useRouter()
   const { t, isRTL } = useLanguage()
   const { restaurant } = useRestaurant()
+  const { navCn, navStyle } = useNavButtonStyle()
 
   const isHome      = pathname === '/dashboard/settings'
   const isWidePage  = pathname === '/dashboard/settings/whatsapp' || pathname === '/dashboard/settings/appearance' || pathname === '/dashboard/settings/audit-log' || pathname === '/dashboard/settings/delivery' || pathname === '/dashboard/settings/receipt' || pathname === '/dashboard/settings/users' || pathname === '/dashboard/settings/device' || pathname === '/dashboard/settings/inventory'
@@ -144,7 +146,8 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
           {/* Back: home → dashboard, sub-page → settings home */}
           <button
             onClick={() => router.push(isHome ? '/dashboard' : '/dashboard/settings')}
-            className={cn(NAV_BTN, 'bg-red-700 border-red-700 text-white hover:bg-red-600')}
+            className={cn(NAV_BTN, navCn)}
+            style={navStyle('back')}
           >
             <ArrowLeft className="w-6 h-6" />
             <span className={NAV_LABEL}>{t.back}</span>
@@ -152,7 +155,8 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
 
           <button
             onClick={() => router.push('/dashboard')}
-            className={cn(NAV_BTN, 'bg-orange-500 border-orange-500 text-white hover:bg-orange-400')}
+            className={cn(NAV_BTN, navCn)}
+            style={navStyle('home')}
           >
             <Home className="w-6 h-6" />
             <span className={NAV_LABEL}>{t.ord_home}</span>
@@ -160,7 +164,8 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
 
           <button
             onClick={() => window.location.reload()}
-            className={cn(NAV_BTN, 'bg-blue-600 border-blue-600 text-white hover:bg-blue-500')}
+            className={cn(NAV_BTN, navCn)}
+            style={navStyle('refresh')}
           >
             <RefreshCw className="w-6 h-6" />
             <span className={NAV_LABEL}>{t.ord_refresh}</span>

@@ -950,6 +950,7 @@ const ku: Record<keyof typeof en, string> = {
   app_style_midnight:   'نیوەشەو',
   app_style_colorful:   'ڕەنگاوڕەنگ',
   app_style_purple:     'مۆر',
+  app_style_light:      'سپی',
   app_style_custom:     'دیاریکراو',
   app_custom_hint:      'ڕەنگی پاشزەمینەت خۆت هەڵبژێرە',
   app_custom_mode:      'دۆخی ڕەنگ',

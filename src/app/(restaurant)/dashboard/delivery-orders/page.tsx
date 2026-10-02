@@ -26,6 +26,7 @@ import { isDeliveryKiosk } from '@/lib/kioskMode'
 import { useWebPush } from '@/hooks/useWebPush'
 import DeliveryOrderAlert from '@/components/delivery/DeliveryOrderAlert'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
+import { useNavButtonStyle } from '@/hooks/useNavButtonStyle'
 import type { TranslationKey } from '@/lib/i18n/translations'
 import { getDefaultWaTemplates, fillWaTemplate, formatWaItemLines } from '@/lib/whatsapp/templates'
 
@@ -95,7 +96,7 @@ const STATUS_FLOW: DeliveryStatus[] = ['pending', 'confirmed', 'preparing', 'out
 // Solid, native-app style buttons — same press feel as the APK shell
 // (scale .97 + slight darken) and the solid order/settings nav buttons.
 const PRESS     = 'active:scale-[0.97] active:brightness-90 transition-all touch-manipulation select-none'
-const NAV_BTN   = `min-w-14 h-14 px-2 shrink-0 rounded-2xl flex flex-col items-center justify-center gap-1 text-white ${PRESS}`
+const NAV_BTN   = `min-w-14 h-14 px-2 shrink-0 rounded-2xl border flex flex-col items-center justify-center gap-1 ${PRESS}`
 const NAV_LABEL = 'text-[11px] font-semibold leading-none whitespace-nowrap'
 const PILL_BTN  = `flex items-center justify-center gap-2 h-12 px-4 rounded-2xl text-sm font-bold ${PRESS}`
 const PAID_BG   = 'bg-amber-500 hover:bg-amber-400 text-slate-900'
@@ -176,6 +177,7 @@ export default function DeliveryOrdersPage() {
   const { formatPrice } = useDefaultCurrency()
   const router = useRouter()
   const { t, isRTL, lang } = useLanguage()
+  const { navCn, navStyle } = useNavButtonStyle()
   const { can, isOwner, isPinStaff, staffName, permissions, loading: permsLoading } = usePermissions()
 
   useEffect(() => {
@@ -725,7 +727,8 @@ export default function DeliveryOrdersPage() {
             {!kiosk && (
               <button
                 onClick={() => router.push('/dashboard/driver')}
-                className={cn(NAV_BTN, 'bg-indigo-600 hover:bg-indigo-500')}
+                className={cn(NAV_BTN, navCn)}
+                style={navStyle('driver')}
               >
                 <MonitorSmartphone className="w-6 h-6" />
                 <span className={NAV_LABEL}>{t.do_driver}</span>
@@ -734,7 +737,8 @@ export default function DeliveryOrdersPage() {
             {!kiosk && (
               <button
                 onClick={() => router.push('/dashboard')}
-                className={cn(NAV_BTN, 'bg-orange-500 hover:bg-orange-400')}
+                className={cn(NAV_BTN, navCn)}
+                style={navStyle('home')}
               >
                 <Home className="w-6 h-6" />
                 <span className={NAV_LABEL}>{t.ord_home}</span>
@@ -742,7 +746,8 @@ export default function DeliveryOrdersPage() {
             )}
             <button
               onClick={() => { setLoading(true); load() }}
-              className={cn(NAV_BTN, 'bg-blue-600 hover:bg-blue-500')}
+              className={cn(NAV_BTN, navCn)}
+              style={navStyle('refresh')}
             >
               <RefreshCw className="w-6 h-6" />
               <span className={NAV_LABEL}>{t.ord_refresh}</span>
@@ -759,7 +764,8 @@ export default function DeliveryOrdersPage() {
                   keys.forEach(k => localStorage.removeItem(k))
                   router.replace(slug ? `/pos/${slug}/login` : '/restaurant-login')
                 }}
-                className={cn(NAV_BTN, 'bg-red-700 hover:bg-red-600')}
+                className={cn(NAV_BTN, navCn)}
+                style={navStyle('logout')}
               >
                 <LogOut className="w-6 h-6" />
                 <span className={NAV_LABEL}>{t.dnav_logout}</span>
@@ -1035,7 +1041,7 @@ export default function DeliveryOrdersPage() {
                         {t.do_whatsapp}
                       </button>
                       {whatsappDropdown === order.delivery_id && (
-                        <div className="absolute top-full right-0 mt-1.5 z-30 rounded-2xl border border-white/10 shadow-2xl overflow-hidden min-w-[220px]" style={{ background: '#0d1630' }}>
+                        <div className="absolute top-full right-0 mt-1.5 z-30 rounded-2xl border border-white/10 shadow-2xl overflow-hidden min-w-[220px]" style={{ background: 'var(--app-panel, #0d1630)' }}>
                           {waTemplates.length === 0 ? (
                             <div className="px-4 py-4 text-xs text-white/40 text-center">
                               {t.do_no_templates}<br />
@@ -1410,7 +1416,7 @@ export default function DeliveryOrdersPage() {
               exit={{ scale: 0.92, opacity: 0, y: 12 }}
               transition={{ type: 'spring', stiffness: 340, damping: 28 }}
               className="relative w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl border border-white/10"
-              style={{ background: '#0e1120' }}
+              style={{ background: 'var(--app-panel, #0e1120)' }}
               onClick={e => e.stopPropagation()}
             >
               {/* Image */}

@@ -2,6 +2,7 @@
 import { ArrowLeft, Users, ShoppingBag, RefreshCw, Home } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
+import { useNavButtonStyle } from '@/hooks/useNavButtonStyle'
 
 interface Props {
   table:        string
@@ -26,6 +27,7 @@ export function OrderHeader({
 }: Props) {
   const router = useRouter()
   const { t: tr, isRTL } = useLanguage()
+  const { navCn, navStyle } = useNavButtonStyle()
 
   // The nav buttons sit on the physical left in both LTR and RTL:
   // row-reverse in RTL keeps the same left-to-right layout as LTR
@@ -37,21 +39,24 @@ export function OrderHeader({
               — matches the payment screen */}
           <button
             onClick={() => router.back()}
-            className={`${isRTL ? 'order-last' : ''} ${NAV_BTN} bg-red-700 border-red-700 text-white hover:bg-red-600`}
+            className={`${isRTL ? 'order-last' : ''} ${NAV_BTN} ${navCn}`}
+            style={navStyle('back')}
           >
             <ArrowLeft className="w-5 h-5 sm:w-6 sm:h-6" />
             <span className={NAV_LABEL}>{tr.back}</span>
           </button>
           <button
             onClick={() => window.location.reload()}
-            className={`${NAV_BTN} bg-blue-600 border-blue-600 text-white hover:bg-blue-500`}
+            className={`${NAV_BTN} ${navCn}`}
+            style={navStyle('refresh')}
           >
             <RefreshCw className="w-5 h-5 sm:w-6 sm:h-6" />
             <span className={NAV_LABEL}>{tr.ord_refresh}</span>
           </button>
           <button
             onClick={() => router.push('/dashboard')}
-            className={`${NAV_BTN} bg-orange-500 border-orange-500 text-white hover:bg-orange-400`}
+            className={`${NAV_BTN} ${navCn}`}
+            style={navStyle('home')}
           >
             <Home className="w-5 h-5 sm:w-6 sm:h-6" />
             <span className={NAV_LABEL}>{tr.ord_home}</span>

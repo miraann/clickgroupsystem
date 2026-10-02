@@ -7,11 +7,15 @@ import { useRestaurantSettings } from '@/hooks/useRestaurantSettings'
 import { SaveButton } from '@/components/ui/SaveButton'
 import { SettingsSection } from '@/components/ui/SettingsSection'
 import { motion, AnimatePresence, type Variants } from 'framer-motion'
+import {
+  GRADIENT_PRESETS, LIGHT_BG, TEXT_ON_DARK, TEXT_ON_LIGHT,
+  applyAppearance, computeAnchor, computeBg, isLightBg,
+} from '@/lib/appearance'
 
 // ── Types & defaults ────────────────────────────────────────────
 interface AppearanceSettings {
   primary_color:        string
-  sidebar_style:        'default' | 'midnight' | 'colorful' | 'purple' | 'custom'
+  sidebar_style:        'default' | 'midnight' | 'colorful' | 'purple' | 'light' | 'custom'
                         | 'gradient-ocean' | 'gradient-sunset' | 'gradient-emerald' | 'gradient-galaxy'
                         | 'gradient-aurora' | 'gradient-rose'
   sidebar_custom_color: string
@@ -40,15 +44,7 @@ const BG_PRESETS = [
   { id: 'midnight', labelKey: 'app_style_midnight',  bg: '#09090b',     previewBg: '#09090b'  },
   { id: 'colorful', labelKey: 'app_style_colorful',  bg: 'linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%)', previewBg: '#302b63' },
   { id: 'purple',   labelKey: 'app_style_purple',    bg: '#3b0764',     previewBg: '#3b0764'  },
-] as const
-
-const GRADIENT_PRESETS = [
-  { id: 'gradient-ocean',   label: 'Ocean',   bg: 'linear-gradient(135deg, #050c18 0%, #1e3a8a 45%, #050c18 100%)',            anchor: '#050c18' },
-  { id: 'gradient-sunset',  label: 'Sunset',  bg: 'linear-gradient(135deg, #120303 0%, #7f1d1d 40%, #4a1505 100%)',            anchor: '#120303' },
-  { id: 'gradient-emerald', label: 'Emerald', bg: 'linear-gradient(135deg, #011a14 0%, #065f46 45%, #011a14 100%)',            anchor: '#011a14' },
-  { id: 'gradient-galaxy',  label: 'Galaxy',  bg: 'linear-gradient(135deg, #08061a 0%, #312e81 45%, #08061a 100%)',            anchor: '#08061a' },
-  { id: 'gradient-aurora',  label: 'Aurora',  bg: 'linear-gradient(135deg, #021a1a 0%, #134e4a 35%, #2e1065 70%, #021a1a 100%)', anchor: '#021a1a' },
-  { id: 'gradient-rose',    label: 'Rose',    bg: 'linear-gradient(135deg, #110309 0%, #831843 45%, #110309 100%)',            anchor: '#110309' },
+  { id: 'light',    labelKey: 'app_style_light',     bg: LIGHT_BG,      previewBg: LIGHT_BG   },
 ] as const
 
 const TABLE_DESIGNS = [
@@ -110,32 +106,6 @@ function hexAlpha(hex: string, a: number) {
   const g = parseInt(hex.slice(3, 5), 16)
   const b = parseInt(hex.slice(5, 7), 16)
   return `rgba(${r},${g},${b},${a})`
-}
-
-function computeBg(style: string, customColor: string, customType: 'gradient' | 'solid'): string {
-  if (style === 'default')  return '#022658'
-  if (style === 'midnight') return '#09090b'
-  if (style === 'colorful') return 'linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%)'
-  if (style === 'purple')   return '#3b0764'
-  const gp = GRADIENT_PRESETS.find(g => g.id === style)
-  if (gp) return gp.bg
-  if (customType === 'gradient') {
-    const r = parseInt(customColor.slice(1, 3), 16)
-    const g = parseInt(customColor.slice(3, 5), 16)
-    const b = parseInt(customColor.slice(5, 7), 16)
-    return `linear-gradient(135deg, rgb(${Math.floor(r*.2)},${Math.floor(g*.2)},${Math.floor(b*.2)}) 0%, ${customColor} 55%, rgb(${Math.floor(r*.3)},${Math.floor(g*.3)},${Math.floor(b*.3)}) 100%)`
-  }
-  return customColor
-}
-
-function anchorColor(style: string, customColor: string, customType: 'gradient' | 'solid') {
-  if (style === 'default')  return '#022658'
-  if (style === 'midnight') return '#09090b'
-  if (style === 'colorful') return '#24243e'
-  if (style === 'purple')   return '#3b0764'
-  const gp = GRADIENT_PRESETS.find(g => g.id === style)
-  if (gp) return gp.anchor
-  return customType === 'solid' ? customColor : '#0d0d0d'
 }
 
 // ── Mini SVG for glow/table-shape preview ────────────────────────
@@ -228,25 +198,25 @@ function MiniDesignPreview({ design, primary }: { design: string; primary: strin
     }
     if (design === 'neon') return {
       style: s === 'occupied'
-        ? { background: 'rgba(0,0,0,0.30)', border: `1.5px solid ${bgOcc(0.90)}`, boxShadow: `0 0 6px ${bgOcc(0.40)}` }
+        ? { background: 'var(--app-well, rgba(0,0,0,0.30))', border: `1.5px solid ${bgOcc(0.90)}`, boxShadow: `0 0 6px ${bgOcc(0.40)}` }
         : s === 'available'
-        ? { background: 'rgba(0,0,0,0.30)', border: '1.5px solid rgba(16,185,129,0.90)', boxShadow: '0 0 6px rgba(16,185,129,0.40)' }
-        : { background: 'rgba(0,0,0,0.30)', border: '1.5px solid rgba(129,140,248,0.90)', boxShadow: '0 0 6px rgba(129,140,248,0.40)' },
+        ? { background: 'var(--app-well, rgba(0,0,0,0.30))', border: '1.5px solid rgba(16,185,129,0.90)', boxShadow: '0 0 6px rgba(16,185,129,0.40)' }
+        : { background: 'var(--app-well, rgba(0,0,0,0.30))', border: '1.5px solid rgba(129,140,248,0.90)', boxShadow: '0 0 6px rgba(129,140,248,0.40)' },
     }
     if (design === 'minimal') return {
       style: s === 'occupied'
-        ? { background: 'rgba(255,255,255,0.04)', boxShadow: `0 3px 14px ${bgOcc(0.22)}` }
+        ? { background: 'var(--app-card, rgba(255,255,255,0.04))', boxShadow: `0 3px 14px ${bgOcc(0.22)}` }
         : s === 'available'
-        ? { background: 'rgba(255,255,255,0.04)', boxShadow: '0 3px 14px rgba(16,185,129,0.22)' }
-        : { background: 'rgba(255,255,255,0.04)', boxShadow: '0 3px 14px rgba(129,140,248,0.22)' },
+        ? { background: 'var(--app-card, rgba(255,255,255,0.04))', boxShadow: '0 3px 14px rgba(16,185,129,0.22)' }
+        : { background: 'var(--app-card, rgba(255,255,255,0.04))', boxShadow: '0 3px 14px rgba(129,140,248,0.22)' },
     }
     // cyberpunk
     return {
       style: s === 'occupied'
-        ? { background: 'rgba(6,6,18,0.92)', boxShadow: `0 0 0 1px ${bgOcc(0.85)}, 0 0 10px ${bgOcc(0.50)}` }
+        ? { background: 'var(--app-panel, rgba(6,6,18,0.92))', boxShadow: `0 0 0 1px ${bgOcc(0.85)}, 0 0 10px ${bgOcc(0.50)}` }
         : s === 'available'
-        ? { background: 'rgba(6,6,18,0.92)', boxShadow: '0 0 0 1px rgba(16,185,129,0.85), 0 0 10px rgba(16,185,129,0.50)' }
-        : { background: 'rgba(6,6,18,0.92)', boxShadow: '0 0 0 1px rgba(129,140,248,0.85), 0 0 10px rgba(129,140,248,0.50)' },
+        ? { background: 'var(--app-panel, rgba(6,6,18,0.92))', boxShadow: '0 0 0 1px rgba(16,185,129,0.85), 0 0 10px rgba(16,185,129,0.50)' }
+        : { background: 'var(--app-panel, rgba(6,6,18,0.92))', boxShadow: '0 0 0 1px rgba(129,140,248,0.85), 0 0 10px rgba(129,140,248,0.50)' },
     }
   })
 
@@ -277,9 +247,9 @@ function MiniNavPreview({ style, primary }: { style: string; primary: string }) 
   const btn: React.CSSProperties = style === 'neon'
     ? { background: 'rgba(0,0,0,0.45)', border: `1.5px solid ${bgA(0.72)}`, boxShadow: `0 0 6px ${bgA(0.28)}` }
     : style === 'crystal'
-    ? { background: 'linear-gradient(135deg,rgba(255,255,255,0.15) 0%,rgba(255,255,255,0.05) 100%)', border: '1.5px solid rgba(255,255,255,0.24)' }
-    : { background: 'rgba(255,255,255,0.06)', border: '1.5px solid rgba(255,255,255,0.11)' }
-  const dot = style === 'neon' ? primary : style === 'crystal' ? 'rgba(255,255,255,0.72)' : 'rgba(255,255,255,0.36)'
+    ? { background: 'linear-gradient(135deg,rgb(var(--ov) / 0.15) 0%,rgb(var(--ov) / 0.05) 100%)', border: '1.5px solid rgb(var(--ov) / 0.24)' }
+    : { background: 'rgb(var(--ov) / 0.06)', border: '1.5px solid rgb(var(--ov) / 0.11)' }
+  const dot = style === 'neon' ? primary : style === 'crystal' ? 'rgb(var(--ov) / 0.72)' : 'rgb(var(--ov) / 0.36)'
   return (
     <div className="flex items-center gap-2 justify-center">
       {[0,1,2,3].map(i => (
@@ -335,7 +305,7 @@ function DashboardPreview({
   textMutedColor:     string
 }) {
   const bg     = computeBg(sidebarStyle, sidebarCustomColor, sidebarCustomType)
-  const anchor = anchorColor(sidebarStyle, sidebarCustomColor, sidebarCustomType)
+  const anchor = computeAnchor(sidebarStyle, sidebarCustomColor, sidebarCustomType)
 
   const tableStyle = (status: string): React.CSSProperties => {
     const pc = primaryColor
@@ -357,7 +327,7 @@ function DashboardPreview({
       }
       const c  = borders[status] ?? borders.available
       const gl = glows[status]   ?? glows.available
-      return { background: 'rgba(0,0,0,0.30)', border: `1.5px solid ${c}`, boxShadow: `0 0 10px ${gl}` }
+      return { background: 'var(--app-well, rgba(0,0,0,0.30))', border: `1.5px solid ${c}`, boxShadow: `0 0 10px ${gl}` }
     }
     if (tableDesign === 'minimal') {
       const shadows: Record<string, string> = {
@@ -365,7 +335,7 @@ function DashboardPreview({
         reserved: 'rgba(99,102,241,0.22)', bill: 'rgba(239,68,68,0.22)', dirty: 'rgba(251,113,133,0.18)',
       }
       const sh = shadows[status] ?? shadows.available
-      return { background: 'rgba(255,255,255,0.04)', boxShadow: `0 4px 18px ${sh}` }
+      return { background: 'var(--app-card, rgba(255,255,255,0.04))', boxShadow: `0 4px 18px ${sh}` }
     }
     if (tableDesign === 'cyberpunk') {
       const borders: Record<string, string> = {
@@ -378,7 +348,7 @@ function DashboardPreview({
       }
       const c  = borders[status] ?? borders.available
       const gl = glows[status]   ?? glows.available
-      return { background: 'rgba(6,6,18,0.92)', boxShadow: `0 0 0 1.5px ${c}, 0 0 18px ${gl}` }
+      return { background: 'var(--app-panel, rgba(6,6,18,0.92))', boxShadow: `0 0 0 1.5px ${c}, 0 0 18px ${gl}` }
     }
     // glass
     if (status === 'occupied') return { background: hexAlpha(pc, 0.18), border: `1px solid ${hexAlpha(pc, 0.5)}`, color: pc }
@@ -393,8 +363,8 @@ function DashboardPreview({
   const nbsBase: React.CSSProperties = navButtonStyle === 'neon'
     ? { background: 'rgba(0,0,0,0.42)', border: `1px solid ${hexAlpha(primaryColor, 0.70)}`, boxShadow: `0 0 5px ${hexAlpha(primaryColor, 0.28)}` }
     : navButtonStyle === 'crystal'
-    ? { background: 'linear-gradient(135deg,rgba(255,255,255,0.15) 0%,rgba(255,255,255,0.05) 100%)', border: '1px solid rgba(255,255,255,0.23)' }
-    : { background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.10)' }
+    ? { background: 'linear-gradient(135deg,rgb(var(--ov) / 0.15) 0%,rgb(var(--ov) / 0.05) 100%)', border: '1px solid rgb(var(--ov) / 0.23)' }
+    : { background: 'rgb(var(--ov) / 0.08)', border: '1px solid rgb(var(--ov) / 0.10)' }
   const nbs = (i: number): React.CSSProperties => navButtonStyle === 'vibrant'
     ? { background: VIBRANT_NAV_COLORS[i % VIBRANT_NAV_COLORS.length], border: `1px solid ${VIBRANT_NAV_COLORS[i % VIBRANT_NAV_COLORS.length]}` }
     : nbsBase
@@ -445,7 +415,7 @@ function DashboardPreview({
                 {isGlow ? (
                   <MiniTableSvg shape={shape} color={glowColor[status] ?? '#10b981'} />
                 ) : (
-                  <span className="text-[9px] font-bold leading-none" style={{ color: textColor, opacity: 0.85 }}>{n}</span>
+                  <span className="text-[9px] font-bold leading-none" style={{ color: tableDesign === 'vibrant' ? '#ffffff' : textColor, opacity: 0.85 }}>{n}</span>
                 )}
               </motion.div>
             )
@@ -492,23 +462,33 @@ export default function AppearancePage() {
 
   const isCustom = cfg.sidebar_style === 'custom'
 
+  // Background changes go through here: crossing between a dark and a light
+  // background also swaps in that side's stock text colours, so text never
+  // ends up white-on-white (or dark-on-navy)
+  const setBg = (patch: Partial<AppearanceSettings>) => setCfg(c => {
+    const next     = { ...c, ...patch }
+    const wasLight = isLightBg(c.sidebar_style, c.sidebar_custom_color, c.sidebar_custom_type)
+    const nowLight = isLightBg(next.sidebar_style, next.sidebar_custom_color, next.sidebar_custom_type)
+    if (wasLight === nowLight) return next
+    const text = nowLight ? TEXT_ON_LIGHT : TEXT_ON_DARK
+    return { ...next, text_color: text.text, text_muted_color: text.muted }
+  })
+
   // Apply CSS vars live so the actual dashboard background updates instantly
   useEffect(() => {
     if (loading) return
     const bg     = computeBg(cfg.sidebar_style, cfg.sidebar_custom_color, cfg.sidebar_custom_type)
-    const anchor = anchorColor(cfg.sidebar_style, cfg.sidebar_custom_color, cfg.sidebar_custom_type)
-    const root   = document.documentElement
-    root.style.setProperty('--app-bg',         bg)
-    root.style.setProperty('--app-anchor',     anchor)
-    root.style.setProperty('--app-anchor-80',  hexAlpha(anchor, 0.80))
-    root.style.setProperty('--app-anchor-90',  hexAlpha(anchor, 0.90))
-    root.style.setProperty('--app-anchor-95',  hexAlpha(anchor, 0.95))
-    root.style.setProperty('--app-primary',    cfg.primary_color)
-    root.style.setProperty('--app-text',       cfg.text_color)
-    root.style.setProperty('--app-text-muted', cfg.text_muted_color)
+    const anchor = computeAnchor(cfg.sidebar_style, cfg.sidebar_custom_color, cfg.sidebar_custom_type)
+    const light  = isLightBg(cfg.sidebar_style, cfg.sidebar_custom_color, cfg.sidebar_custom_type)
+    applyAppearance({
+      bg, anchor, light,
+      primary:   cfg.primary_color,
+      text:      cfg.text_color,
+      textMuted: cfg.text_muted_color,
+    })
     const id = localStorage.getItem('restaurant_id')
     if (id) localStorage.setItem('_app_bg_cache', JSON.stringify({
-      forId: id, bg, anchor,
+      forId: id, bg, anchor, light,
       primary: cfg.primary_color,
       text: cfg.text_color,
       textMuted: cfg.text_muted_color,
@@ -545,21 +525,21 @@ export default function AppearancePage() {
         <SettingsSection title={t.app_sidebar} icon={<Monitor className="w-4 h-4 text-white/80" />} color="bg-indigo-500/70">
           <div className="space-y-3">
             <p className="text-xs text-white/40">{t.app_sidebar_d}</p>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
               {BG_PRESETS.map(({ id, labelKey, bg }) => {
                 const active = cfg.sidebar_style === id
                 return (
                   <button key={id}
-                    onClick={() => setCfg(c => ({ ...c, sidebar_style: id as AppearanceSettings['sidebar_style'] }))}
+                    onClick={() => setBg({ sidebar_style: id as AppearanceSettings['sidebar_style'] })}
                     className={cn('relative flex flex-col items-center gap-2 p-3 rounded-2xl border transition-all active:scale-95',
                       active ? 'border-white/30 bg-white/8' : 'border-white/8 bg-white/3 hover:bg-white/6')}
                   >
                     <div className="w-full h-12 rounded-xl border border-white/15 flex items-center justify-center gap-1 overflow-hidden" style={{ background: bg }}>
-                      {[1,2,3].map(i => <div key={i} className="w-1.5 h-5 rounded-sm bg-white/20" />)}
+                      {[1,2,3].map(i => <div key={i} className="w-1.5 h-5 rounded-sm" style={{ background: id === 'light' ? 'rgba(15,23,42,0.18)' : 'rgba(255,255,255,0.2)' }} />)}
                     </div>
                     <span className="text-[11px] font-medium text-white/60">{t[labelKey as keyof typeof t]}</span>
                     {active && (
-                      <div className="absolute top-2 right-2 w-4 h-4 rounded-full flex items-center justify-center" style={{ background: cfg.primary_color }}>
+                      <div className="absolute top-2 right-2 w-4 h-4 rounded-full flex items-center justify-center on-color" style={{ background: cfg.primary_color }}>
                         <Check className="w-2.5 h-2.5 text-white" />
                       </div>
                     )}
@@ -576,14 +556,14 @@ export default function AppearancePage() {
                   const active = cfg.sidebar_style === id
                   return (
                     <button key={id}
-                      onClick={() => setCfg(c => ({ ...c, sidebar_style: id as AppearanceSettings['sidebar_style'] }))}
+                      onClick={() => setBg({ sidebar_style: id as AppearanceSettings['sidebar_style'] })}
                       className={cn('relative flex flex-col items-center gap-2 p-2.5 rounded-2xl border transition-all active:scale-95',
                         active ? 'border-white/30 bg-white/8' : 'border-white/8 bg-white/3 hover:bg-white/6')}
                     >
                       <div className="w-full h-10 rounded-xl border border-white/10 overflow-hidden" style={{ background: bg }} />
                       <span className="text-[11px] font-medium text-white/60">{label}</span>
                       {active && (
-                        <div className="absolute top-2 right-2 w-4 h-4 rounded-full flex items-center justify-center" style={{ background: cfg.primary_color }}>
+                        <div className="absolute top-2 right-2 w-4 h-4 rounded-full flex items-center justify-center on-color" style={{ background: cfg.primary_color }}>
                           <Check className="w-2.5 h-2.5 text-white" />
                         </div>
                       )}
@@ -595,7 +575,7 @@ export default function AppearancePage() {
 
             {/* Custom option */}
             <button
-              onClick={() => setCfg(c => ({ ...c, sidebar_style: 'custom' }))}
+              onClick={() => setBg({ sidebar_style: 'custom' })}
               className={cn('relative w-full flex items-center gap-3 p-3 rounded-2xl border transition-all active:scale-[0.99]',
                 isCustom ? 'border-white/30 bg-white/8' : 'border-white/8 bg-white/3 hover:bg-white/6')}
             >
@@ -606,7 +586,7 @@ export default function AppearancePage() {
                 <div className="text-[11px] text-white/40 mt-0.5">{t.app_custom_hint}</div>
               </div>
               {isCustom && (
-                <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0" style={{ background: cfg.primary_color }}>
+                <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 on-color" style={{ background: cfg.primary_color }}>
                   <Check className="w-3 h-3 text-white" />
                 </div>
               )}
@@ -627,7 +607,7 @@ export default function AppearancePage() {
                       <div className="flex rounded-xl border border-white/10 overflow-hidden bg-white/4">
                         {(['gradient', 'solid'] as const).map(type => (
                           <button key={type}
-                            onClick={() => setCfg(c => ({ ...c, sidebar_custom_type: type }))}
+                            onClick={() => setBg({ sidebar_custom_type: type })}
                             className={cn('px-4 py-1.5 text-xs font-medium transition-all',
                               cfg.sidebar_custom_type === type ? 'text-white' : 'text-white/40 hover:text-white/70')}
                             style={cfg.sidebar_custom_type === type ? { background: hexAlpha(cfg.primary_color, 0.35) } : {}}
@@ -640,10 +620,10 @@ export default function AppearancePage() {
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 rounded-xl border border-white/20 shrink-0" style={{ background: cfg.sidebar_custom_color }} />
                       <input type="color" value={cfg.sidebar_custom_color}
-                        onChange={e => setCfg(c => ({ ...c, sidebar_custom_color: e.target.value }))}
+                        onChange={e => setBg({ sidebar_custom_color: e.target.value })}
                         className="w-9 h-9 rounded-xl cursor-pointer border-0 bg-transparent p-0" />
                       <input type="text" value={cfg.sidebar_custom_color.toUpperCase()}
-                        onChange={e => { const v = e.target.value; if (/^#[0-9a-fA-F]{0,6}$/.test(v)) setCfg(c => ({ ...c, sidebar_custom_color: v })) }}
+                        onChange={e => { const v = e.target.value; if (/^#[0-9a-fA-F]{0,6}$/.test(v)) setBg({ sidebar_custom_color: v }) }}
                         className="flex-1 px-3 py-2 rounded-xl bg-white/6 border border-white/10 text-sm text-white font-mono focus:outline-none focus:border-white/30 transition-colors"
                         placeholder="#022658" maxLength={7} />
                     </div>
@@ -744,7 +724,7 @@ export default function AppearancePage() {
                       <div className="text-[11px] text-white/40 mt-0.5">{desc}</div>
                     </div>
                     {active && (
-                      <div className="absolute top-2.5 right-2.5 w-5 h-5 rounded-full flex items-center justify-center" style={{ background: cfg.primary_color }}>
+                      <div className="absolute top-2.5 right-2.5 w-5 h-5 rounded-full flex items-center justify-center on-color" style={{ background: cfg.primary_color }}>
                         <Check className="w-3 h-3 text-white" />
                       </div>
                     )}
@@ -780,7 +760,7 @@ export default function AppearancePage() {
                       <div className="text-[11px] text-white/40 mt-0.5">{desc}</div>
                     </div>
                     {active && (
-                      <div className="absolute top-2.5 right-2.5 w-5 h-5 rounded-full flex items-center justify-center" style={{ background: cfg.primary_color }}>
+                      <div className="absolute top-2.5 right-2.5 w-5 h-5 rounded-full flex items-center justify-center on-color" style={{ background: cfg.primary_color }}>
                         <Check className="w-3 h-3 text-white" />
                       </div>
                     )}

@@ -950,6 +950,7 @@ const ar: Record<keyof typeof en, string> = {
   app_style_midnight:   'أسود منتصف الليل',
   app_style_colorful:   'ملوّن',
   app_style_purple:     'بنفسجي',
+  app_style_light:      'أبيض',
   app_style_custom:     'مخصص',
   app_custom_hint:      'اختر لون خلفيتك الخاص',
   app_custom_mode:      'وضع اللون',
