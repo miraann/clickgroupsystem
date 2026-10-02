@@ -136,10 +136,15 @@ export function getRuntime(): AppRuntime {
 }
 
 // ── Android Capacitor plugin handle (lazy) ───────────────────────
+// loadUpdater() only fills `_updater` — never resolve a promise with the plugin
+// itself. A Capacitor plugin proxy answers every property, `then` included, so
+// awaiting it (or returning it from an async function) calls a native
+// Updater.then() that never settles: every Android version read, update check
+// and download used to hang right here.
 /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
 let _updater: any = null
-async function androidUpdater() {
-  if (_updater) return _updater
+async function loadUpdater(): Promise<void> {
+  if (_updater) return
   // Prefer the already-loaded global — `@capacitor/core` is a lazy chunk, and a
   // stalled chunk fetch would hang the whole check with no way to recover.
   /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
@@ -149,7 +154,6 @@ async function androidUpdater() {
       ? glob
       : (await withTimeout(import('@capacitor/core'), 5000, 'load @capacitor/core')).registerPlugin
   _updater = registerPlugin('Updater')
-  return _updater
 }
 
 // ── Current installed version ────────────────────────────────────
@@ -161,9 +165,9 @@ export async function getCurrentVersion(): Promise<string> {
       return String(await (window as any).electronAPI.updates.getVersion())
     }
     if (rt === 'android') {
-      const u = await androidUpdater()
+      await loadUpdater()
       /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-      const r = await withTimeout<any>(u.getCurrentVersion(), 4000, 'Updater.getCurrentVersion')
+      const r = await withTimeout<any>(_updater.getCurrentVersion(), 4000, 'Updater.getCurrentVersion')
       return String(r?.versionName ?? '—')
     }
   } catch { /* fall through to build stamp */ }
@@ -201,7 +205,7 @@ export async function checkForUpdate(): Promise<UpdateInfo> {
 // Android update check, split out so checkForUpdate() can put an overall
 // deadline around it — see the withTimeout() call above.
 async function checkAndroid(runtime: AppRuntime, current: string): Promise<UpdateInfo> {
-  const u = await androidUpdater()
+  await loadUpdater()
 
   // An APK built before the native Updater plugin leaves this call pending
   // forever — time out and treat it as "plugin missing" rather than freeze.
@@ -209,7 +213,7 @@ async function checkAndroid(runtime: AppRuntime, current: string): Promise<Updat
   let info: any = null
   try {
     /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-    info = await withTimeout<any>(u.getCurrentVersion(), 4000, 'Updater.getCurrentVersion')
+    info = await withTimeout<any>(_updater.getCurrentVersion(), 4000, 'Updater.getCurrentVersion')
   } catch { /* legacy APK without the plugin, or a wedged bridge */ }
   const pluginMissing = !info
   const pkg  = String(info?.packageName ?? 'com.clickgroup.pos')
@@ -257,7 +261,8 @@ export async function downloadUpdate(
 
   if (runtime === 'android') {
     if (!url) throw new Error('No download URL for this build')
-    const u = await androidUpdater()
+    await loadUpdater()
+    const u = _updater
     /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
     let handle: any
     if (onProgress) {
