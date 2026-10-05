@@ -1,0 +1,58 @@
+{
+  "name": "clickgroup-pos-offline",
+  "version": "0.1.0",
+  "description": "ClickGroup POS — Offline Edition (runs the whole system on this PC)",
+  "main": "main.js",
+  "private": true,
+  "author": "ClickGroup",
+  "scripts": {
+    "assemble": "node scripts/assemble.mjs",
+    "start": "electron .",
+    "build:win": "node scripts/assemble.mjs && electron-builder --win",
+    "pack:win": "electron-builder --win --dir"
+  },
+  "build": {
+    "appId": "com.clickgroup.pos.offline",
+    "productName": "ClickGroup POS Offline",
+    "executableName": "ClickGroupPOSOffline",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "splash-preload.js",
+      "splash.html",
+      "build/icon.png"
+    ],
+    "extraResources": [
+      {
+        "from": "stage",
+        "to": ".",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "asar": true,
+    "win": {
+      "target": "nsis",
+      "icon": "build/icon.png",
+      "signAndEditExecutable": true,
+      "signExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "ClickGroup POS Offline",
+      "runAfterFinish": true,
+      "include": "installer.nsh"
+    }
+  },
+  "devDependencies": {
+    "electron": "^44.5.1",
+    "electron-builder": "^26.15.3"
+  }
+}
