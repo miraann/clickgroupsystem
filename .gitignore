@@ -15,6 +15,7 @@
 
 # next.js
 /.next/
+/.next-offline/
 /out/
 
 # production
@@ -47,3 +48,18 @@ electron-app/dist
 
 # staged release assets (built locally, uploaded to GitHub Releases)
 dist-release/
+
+# offline edition — downloaded PostgreSQL/PostgREST binaries and local dev data
+offline/vendor/
+offline/.data*/
+offline/node_modules/
+
+# offline desktop app — staged resources and installers (built locally)
+electron-offline/stage/
+electron-offline/dist/
+electron-offline/node_modules/
+
+# dependencies in any sub-project (marketing/promo-video, …)
+node_modules/
+# the licence *public* key is meant to be shared (the private half is never in the repo)
+!offline/runtime/license-public.pem
