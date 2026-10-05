@@ -1,0 +1,24 @@
+{
+  "name": "clickgroup-offline-runtime",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local Supabase-compatible backend for the ClickGroup POS offline edition (embedded PostgreSQL + PostgREST + gateway)",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "seed:demo": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/seed-demo.mjs",
+    "import-restaurant": "node scripts/import-restaurant.mjs",
+    "license-keygen": "node scripts/license-keygen.mjs",
+    "fake-printer": "node scripts/fake-printer.mjs",
+    "smoke": "node scripts/smoke-test.mjs",
+    "ui-test": "node scripts/ui-test.mjs",
+    "dump-schema": "node scripts/dump-schema.mjs",
+    "fetch-vendor": "node scripts/fetch-vendor.mjs"
+  },
+  "dependencies": {
+    "pg": "^8.23.0",
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "puppeteer-core": "^24.43.0"
+  }
+}
