@@ -4,7 +4,7 @@ import { GlassCard, GlassCardBody } from '@/components/ui/glass-card'
 import { Badge } from '@/components/ui/badge'
 import {
   Search, Plus, Store, MoreVertical, Eye, Ban,
-  Trash2, Edit, CheckCircle, Filter, Download,
+  Trash2, Edit, CheckCircle, Filter, Download, KeyRound,
 } from 'lucide-react'
 import { SkeletonList } from '@/components/ui/SkeletonList'
 import { motion } from 'framer-motion'
@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils'
 import type { Restaurant } from './types'
 import { AddRestaurantModal } from './AddRestaurantModal'
 import { EditRestaurantModal } from './EditRestaurantModal'
+import { OfflineLicenseModal } from './OfflineLicenseModal'
 import type { RestaurantStatus } from '@/types'
 import type { Plan } from '../plans/PlanModal'
 
@@ -33,6 +34,7 @@ export default function RestaurantsPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [showAdd, setShowAdd]           = useState(false)
   const [editRec, setEditRec]           = useState<Restaurant | null>(null)
+  const [licenseRec, setLicenseRec]     = useState<Restaurant | null>(null)
   const [activeMenu, setActiveMenu]     = useState<string | null>(null)
 
   const load = useCallback(async () => {
@@ -200,6 +202,7 @@ export default function RestaurantsPage() {
                               {[
                                 { icon: Eye,      label: 'View Details', color: 'text-white/70',   action: () => setActiveMenu(null) },
                                 { icon: Edit,     label: 'Edit',         color: 'text-white/70',   action: () => { setEditRec(r); setActiveMenu(null) } },
+                                { icon: KeyRound, label: 'Offline licence', color: 'text-amber-300', action: () => { setLicenseRec(r); setActiveMenu(null) } },
                                 {
                                   icon:   r.status === 'active' ? Ban : CheckCircle,
                                   label:  r.status === 'active' ? 'Suspend' : 'Activate',
@@ -233,6 +236,8 @@ export default function RestaurantsPage() {
       {editRec && (
         <EditRestaurantModal plans={plans} restaurant={editRec} onClose={() => setEditRec(null)} onSaved={() => { setEditRec(null); load() }} />
       )}
+
+      {licenseRec && <OfflineLicenseModal restaurant={licenseRec} onClose={() => setLicenseRec(null)} />}
     </div>
   )
 }
