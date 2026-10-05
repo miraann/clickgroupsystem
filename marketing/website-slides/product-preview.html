@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Product card preview</title>
+<!--
+  Static replica of the product card in components/ProductShowcase.tsx (clickgroup.site "Our Systems" section),
+  to check out/product-restaurant-pos.jpg before uploading it at /admin/products.
+  product-preview.html?ku=1 (Kurdish, the site default) · ?ku=0 (English). Resize the window to see the crops.
+-->
+<style>
+@font-face { font-family: 'KF'; src: url('../promo-video/assets/kurdish.ttf'); }
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Inter,system-ui,sans-serif;background:linear-gradient(180deg,#fff 0%,#f8fafc 50%,#f1f5f9 100%);padding:40px 0}
+.ku{font-family:'KF','Segoe UI',sans-serif}
+.wrap{max-width:1280px;margin:0 auto;padding:0 16px}
+#card{position:relative;border-radius:16px;overflow:hidden;background:linear-gradient(135deg,rgba(255,255,255,.95),rgba(248,250,252,.98));
+  border:1px solid #3B82F630;box-shadow:0 0 70px rgba(59,130,246,.18),0 25px 50px rgba(0,0,0,.08)}
+.grid{position:relative;display:grid;grid-template-columns:1fr}
+.left{position:relative;min-height:340px;overflow:hidden;border-bottom:1px solid rgba(0,0,0,.05)}
+.left img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.left .ov{position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.78) 0%,rgba(0,0,0,.28) 55%,rgba(0,0,0,.04) 100%)}
+.left .tx{position:absolute;bottom:0;left:0;right:0;padding:24px}
+h3{font-size:24px;font-weight:900;line-height:1.25;color:#fff;margin-bottom:2px}
+.nku{font-weight:700;color:#3B82F6;font-size:clamp(1.3rem,3.5vw,1.8rem);margin-bottom:4px}
+.tag{font-size:14px;font-weight:500;color:rgba(255,255,255,.85);margin-bottom:16px;letter-spacing:.025em}
+.cta{display:inline-flex;align-items:center;gap:10px;padding:12px 20px;border-radius:16px;font-size:14px;font-weight:700;color:#fff;
+  background:linear-gradient(135deg,#3B82F6 0%,#3B82F6cc 100%);box-shadow:0 10px 35px rgba(59,130,246,.18)}
+.cta small{opacity:.65;font-size:12px;display:none}
+.right{padding:24px}
+.lbl{font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.2em;margin-bottom:24px}
+ul{list-style:none;display:flex;flex-direction:column;gap:12px}
+li{display:flex;align-items:flex-start;gap:12px;font-size:14px;line-height:1.625;color:#334155}
+li i{flex-shrink:0;width:20px;height:20px;margin-top:2px;border-radius:50%;background:#3B82F618;box-shadow:0 0 8px rgba(59,130,246,.18);display:flex;align-items:center;justify-content:center}
+li i:before{content:'';width:12px;height:12px;border-radius:50%;border:2px solid #3B82F6}
+.note{margin-top:32px;padding-top:24px;border-top:1px solid rgba(0,0,0,.07);font-size:12px;color:#64748b}
+[dir=rtl]{direction:rtl;text-align:right}
+@media (min-width:640px){
+  .wrap{padding:0 24px} #card{border-radius:24px}
+  .left{min-height:420px} .left .tx{padding:32px} h3{font-size:30px}
+  .cta{padding:14px 28px} .cta small{display:inline}
+  .right{padding:32px} ul{gap:16px} .note{margin-top:40px;padding-top:28px}
+}
+@media (min-width:1024px){
+  .wrap{padding:0 32px}
+  .grid{grid-template-columns:1fr 1fr}
+  .left{min-height:0;border-bottom:0;border-right:1px solid rgba(0,0,0,.05)}
+  .right{padding:48px}
+}
+</style>
+</head>
+<body>
+<div class="wrap"><div id="card"><div class="grid" id="g"></div></div></div>
+<script>
+// Suggested copy for the "Restaurant POS System" product — keep in sync with PRODUCT.md
+const P = {
+  name_en: 'Restaurant POS System', name_ku: 'سیستەمی ڕێستۆرانت',
+  tag_en: 'Complete Restaurant Control', tag_ku: 'کۆنترۆڵی تەواوی ڕێستۆرانت',
+  cta_en: 'Request Demo', cta_ku: 'داواکردنی تاقیکاری',
+  features: [
+    ['Fast cashier POS — photo menu, discounts, split bills', 'کاشێری خێرا — مینیوی وێنەدار، داشکاندن، دابەشکردنی حیساب'],
+    ['Kitchen Display (KDS) with automatic printing', 'شاشەی چێشتخانە (KDS) و چاپی خۆکار'],
+    ['QR table ordering & one-tap waiter call', 'داواکاری بە QR و بانگکردنی گارسۆن بە یەک کلیک'],
+    ['Delivery with driver app & WhatsApp updates', 'گەیاندن بە ئەپی شۆفێر و ئاگادارکردنەوەی واتساپ'],
+    ['Inventory with low-stock alerts', 'کۆگا و ئاگادارکردنەوەی کەمبوونی کاڵا'],
+    ['Sales, expense & profit reports', 'ڕاپۆرتی فرۆش، خەرجی و قازانج'],
+    ['Staff roles & permissions — Kurdish, Arabic, English', 'ڕۆڵ و مۆڵەتی ستاف — کوردی، عەرەبی، ئینگلیزی'],
+  ],
+};
+const ku = new URLSearchParams(location.search).get('ku') !== '0';
+const img = new URLSearchParams(location.search).get('img') || 'out/product-restaurant-pos.jpg';
+document.getElementById('g').innerHTML = `
+  <div class="left">
+    <img src="${img}" alt="">
+    <div class="ov"></div>
+    <div class="tx" ${ku ? 'dir="rtl"' : ''}>
+      ${ku ? `<p class="nku ku">${P.name_ku}</p>` : `<h3>${P.name_en}</h3>`}
+      <p class="tag ${ku ? 'ku' : ''}">${ku ? P.tag_ku : P.tag_en}</p>
+      <span class="cta"><span class="ku">${P.cta_ku}</span><small>/ ${P.cta_en}</small><span>→</span></span>
+    </div>
+  </div>
+  <div class="right" ${ku ? 'dir="rtl"' : ''}>
+    <p class="lbl ${ku ? 'ku' : ''}">${ku ? 'تایبەتمەندییە سەرەکیەکان' : 'Key Features'}</p>
+    <ul>${P.features.map(([en, k]) => `<li><i></i><span class="${ku ? 'ku' : ''}">${ku ? k : en}</span></li>`).join('')}</ul>
+    <div class="note ${ku ? 'ku' : ''}">${ku ? 'بەردەستە لە دێسکتۆپ، تابلێت و مۆبایل' : 'Available on Desktop, Tablet & Mobile'}</div>
+  </div>`;
+</script>
+</body>
+</html>

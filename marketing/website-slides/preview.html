@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Slide preview</title>
+<!--
+  Static replica of components/HeroSlider.tsx (clickgroup.site) so a slide can be checked before uploading.
+  preview.html?i=0 … ?i=5   — resize the window below 1024px to see the phone layout.
+-->
+<style>
+@font-face { font-family: 'KF'; src: url('../promo-video/assets/kurdish.ttf'); }
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#020617;overflow:hidden}
+body{font-family:'Segoe UI',Inter,system-ui,sans-serif;color:#fff}
+.ku{font-family:'KF','Segoe UI',sans-serif}
+section{position:relative;width:100%;height:clamp(480px,90vh,900px);overflow:hidden}
+.abs{position:absolute;inset:0}
+.bgimg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:blur(3px) saturate(1.15);transform:scale(1.05)}
+.ov-m{background:rgba(4,9,28,.78)}
+.ov-d{display:none;background:linear-gradient(110deg,rgba(4,9,28,.92) 35%,rgba(4,9,28,.55) 65%,rgba(4,9,28,.20) 100%)}
+.grid{background-image:linear-gradient(rgba(250,204,21,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(250,204,21,.04) 1px,transparent 1px);background-size:64px 64px}
+.topline{position:absolute;top:0;left:0;right:0;height:2px;z-index:10;background:linear-gradient(90deg,transparent,#facc15 40%,#eab308 60%,transparent)}
+.content{position:absolute;inset:0;z-index:10;display:flex;flex-direction:column}
+.char-m{flex-shrink:0;display:flex;justify-content:flex-end;padding:12px 16px 0 0;height:42%}
+.char-m img{height:100%;width:auto;max-width:100%;object-fit:contain;object-position:bottom;opacity:.95;
+  filter:drop-shadow(0 0 30px rgba(250,204,21,.28)) drop-shadow(0 20px 40px rgba(0,0,0,.5))}
+.char-d{display:none;position:absolute;right:0;top:0;bottom:0;width:48%;align-items:flex-end;justify-content:center;z-index:10}
+.aura{position:absolute;top:50%;left:50%;width:420px;height:420px;transform:translate(-50%,-50%);border-radius:50%;filter:blur(50px);
+  background:radial-gradient(circle,rgba(250,204,21,.22) 0%,rgba(30,58,138,.12) 50%,transparent 75%)}
+.char-d img{position:relative;width:auto;max-width:100%;height:88%;max-height:88%;object-fit:contain;object-position:bottom;
+  filter:drop-shadow(0 0 80px rgba(250,204,21,.28)) drop-shadow(0 40px 60px rgba(0,0,0,.6))}
+.textwrap{flex:1;display:flex;align-items:center;width:100%}
+.container{width:100%;max-width:1280px;margin:0 auto;padding:0 24px}
+.block{display:flex;flex-direction:column;align-items:center;text-align:center;width:100%}
+.badge{display:inline-flex;align-items:center;gap:8px;padding:6px 16px;border-radius:999px;margin-bottom:16px;font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  background:rgba(250,204,21,.12);border:1px solid rgba(250,204,21,.35);color:#facc15}
+.badge i{width:6px;height:6px;border-radius:50%;background:#facc15}
+h2{font-weight:900;line-height:1.05;letter-spacing:-.025em;margin-bottom:8px;max-width:42rem;font-size:clamp(1.7rem,7vw,4.2rem)}
+h2 span{background-image:linear-gradient(135deg,#facc15,#eab308);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.tku{font-weight:700;color:#facc15;margin-bottom:12px;direction:rtl;font-size:clamp(1rem,4vw,1.7rem)}
+.div{width:56px;height:2px;margin-bottom:12px;background:linear-gradient(90deg,#facc15,transparent)}
+.sub{color:rgba(255,255,255,.55);max-width:32rem;line-height:1.625;margin-bottom:20px;font-size:clamp(.875rem,3vw,1.05rem)}
+.cta{display:inline-flex;align-items:center;gap:12px;padding:14px 28px;border-radius:16px;font-weight:700;color:#0f172a;text-decoration:none;
+  background:linear-gradient(135deg,#facc15,#eab308);box-shadow:0 8px 32px rgba(250,204,21,.4);font-size:clamp(.9rem,2.5vw,1rem)}
+.cta small{font-size:14px;font-weight:500;opacity:.6}
+.dots{position:absolute;bottom:28px;left:50%;transform:translateX(-50%);z-index:20;display:flex;gap:8px;align-items:center}
+.dots i{display:block;height:5px;width:6px;border-radius:9px;background:rgba(255,255,255,.7);opacity:.38}
+.dots i.on{width:28px;background:#facc15;opacity:1}
+.vig{position:absolute;bottom:0;left:0;right:0;height:112px;z-index:10;background:linear-gradient(to bottom,transparent,rgba(2,6,23,.45))}
+@media (min-width:640px){.container{padding:0 40px}}
+@media (min-width:1024px){
+  .ov-m,.char-m{display:none}
+  .ov-d{display:block}
+  .char-d{display:flex}
+  .textwrap{position:absolute;inset:0}
+  .container{padding:0 64px}
+  .block{width:52%;text-align:left;align-items:flex-start}
+}
+@media (min-width:1280px){.char-d{width:44%}}
+</style>
+</head>
+<body>
+<section id="s"></section>
+<script>
+const G = {
+  'Deep Blue':    'linear-gradient(135deg, #0f172a 0%, #1e3a8a 75%, #1e40af 100%)',
+  'Amber Dusk':   'linear-gradient(135deg, #451a03 0%, #292524 50%, #0f172a 100%)',
+  'Crimson':      'linear-gradient(135deg, #450a0a 0%, #3f0000 50%, #0f172a 100%)',
+  'Purple Night': 'linear-gradient(135deg, #1e1b4b 0%, #312e81 45%, #0f172a 100%)',
+  'Ocean':        'linear-gradient(135deg, #0c4a6e 0%, #082f49 50%, #0f172a 100%)',
+  'Teal Night':   'linear-gradient(135deg, #134e4a 0%, #042f2e 50%, #0f172a 100%)',
+};
+// Keep in sync with SLIDES.md
+const SLIDES = [
+  { id: 'all-in-one', g: 'Deep Blue', title_en: 'All-in-One Restaurant System', title_ku: 'سیستەمی تەواوی بەڕێوەبردنی کافێ و ڕێستۆرانت',
+    subtitle_en: 'Orders, menu, kitchen, delivery, inventory and reports — all in one place, fully in Kurdish.', cta_ku: 'داوای نمایش بکە', cta_en: 'Book a Demo' },
+  { id: 'pos', g: 'Amber Dusk', title_en: 'Lightning-Fast Cashier POS', title_ku: 'فرۆشتنی خێرا بە چەند کلیکێک',
+    subtitle_en: 'Photo menu, discounts, split bills, any payment method and Kurdish receipts on thermal printers.', cta_ku: 'زیاتر بزانە', cta_en: 'Learn More' },
+  { id: 'kds', g: 'Crimson', title_en: 'Paperless Kitchen Display', title_ku: 'داواکاری ڕاستەوخۆ دەگاتە چێشتخانە',
+    subtitle_en: 'Every order reaches the kitchen screen instantly — with a timer on each ticket and automatic printing.', cta_ku: 'زیاتر بزانە', cta_en: 'Learn More' },
+  { id: 'qr-menu', g: 'Purple Night', title_en: 'Scan, Order, Enjoy', title_ku: 'میوان خۆی داوا دەکات',
+    subtitle_en: 'Guests scan the table QR, browse your menu with photos and offers, order and call the waiter in one tap.', cta_ku: 'زیاتر بزانە', cta_en: 'Learn More' },
+  { id: 'delivery', g: 'Ocean', title_en: 'Real-Time Delivery Tracking', title_ku: 'گەیاندنی خێرا لە ژێر چاودێریدا',
+    subtitle_en: 'A dedicated driver app, customer location on the map and automatic WhatsApp updates for every order.', cta_ku: 'زیاتر بزانە', cta_en: 'Learn More' },
+  { id: 'reports', g: 'Teal Night', title_en: 'Live Sales Dashboard', title_ku: 'هەموو ژمارەکان لە بەردەستتدان',
+    subtitle_en: 'Daily, monthly and yearly reports — sales, inventory alerts, expenses, profit and staff permissions.', cta_ku: 'داوای نمایش بکە', cta_en: 'Book a Demo' },
+];
+const i = +(new URLSearchParams(location.search).get('i') || 0);
+const s = SLIDES[i], n = String(i + 1).padStart(2, '0');
+const bg = `out/${n}-${s.id}-background.jpg`, ch = `out/${n}-${s.id}-character.webp`;
+// HeroSlider highlights the middle word of title_en
+const words = s.title_en.split(' '), mid = Math.floor(words.length / 2);
+const title = words.map((w, k) => k === mid ? ` <span>${w}</span> ` : (k ? ' ' : '') + w).join('');
+document.getElementById('s').innerHTML = `
+  <div class="abs">
+    <img class="bgimg" src="${bg}">
+    <div class="abs ov-m"></div><div class="abs ov-d"></div>
+    <div class="abs" style="opacity:.2;background:${G[s.g]}"></div>
+    <div class="abs grid"></div>
+  </div>
+  <div class="topline"></div>
+  <div class="content">
+    <div class="char-m"><img src="${ch}"></div>
+    <div class="char-d"><div class="aura"></div><img src="${ch}"></div>
+    <div class="textwrap"><div class="container"><div class="block">
+      <div class="badge"><i></i>ClickGroup</div>
+      <h2>${title}</h2>
+      <p class="tku ku">${s.title_ku}</p>
+      <div class="div"></div>
+      <p class="sub">${s.subtitle_en}</p>
+      <a class="cta"><span class="ku">${s.cta_ku}</span><small>/ ${s.cta_en}</small></a>
+    </div></div></div>
+  </div>
+  <div class="dots">${SLIDES.map((_, k) => `<i class="${k === i ? 'on' : ''}"></i>`).join('')}</div>
+  <div class="vig"></div>`;
+</script>
+</body>
+</html>
