@@ -1,4 +1,8 @@
+import { IS_OFFLINE_EDITION } from '@/lib/edition'
+
 export function sendPush(restaurantId: string, type: 'delivery' | 'waiter' | 'guest') {
+  // Push messages are delivered over the internet; the offline edition has none.
+  if (IS_OFFLINE_EDITION) return
   fetch('/api/push/send', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

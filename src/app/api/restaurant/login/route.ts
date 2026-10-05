@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { SECURE_COOKIES } from '@/lib/edition'
 import { rateLimit, tooManyFailures, recordFailure } from '@/lib/rate-limit'
 import { createPendingToken, RESTAURANT_PENDING_COOKIE } from '@/lib/session'
 import { checkRestaurantPassword } from '@/lib/restaurant-password'
@@ -37,7 +38,7 @@ export async function POST(req: NextRequest) {
     })
     res.cookies.set(RESTAURANT_PENDING_COOKIE, pendingToken, {
       httpOnly: true,
-      secure:   process.env.NODE_ENV === 'production',
+      secure:   SECURE_COOKIES,
       sameSite: 'lax',
       path:     '/',
       maxAge:   5 * 60,

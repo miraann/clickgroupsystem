@@ -1,3 +1,5 @@
+import { offlineDisablesModule } from '@/lib/edition'
+
 export interface ModuleDef {
   key: string
   label: string
@@ -53,6 +55,7 @@ export function getSettingsModuleKey(pathname: string): string | null {
 
 /** Returns true if the module is enabled. Missing key = enabled by default. */
 export function isModuleEnabled(modules: Record<string, boolean> | undefined | null, key: string): boolean {
+  if (offlineDisablesModule(key)) return false
   if (!modules || !(key in modules)) return true
   return modules[key] === true
 }

@@ -5,6 +5,7 @@ import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { Plus, Pencil, Trash2, LayoutGrid, X, Users, Loader2, AlertCircle, QrCode, Download, Copy, Check, Printer } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { printTableQr } from '@/lib/printTableQr'
+import { IS_OFFLINE_EDITION } from '@/lib/edition'
 import { openInAppBrowser } from '@/lib/openInAppBrowser'
 import { logAudit } from '@/lib/logAudit'
 import { useTableGroups } from '@/hooks/useTableGroups'
@@ -202,13 +203,14 @@ export default function TablePage() {
                       </button>
                       <span className="text-[9px] font-medium text-white/40">{t.edit}</span>
                     </div>
-                    <div className="flex flex-col items-center gap-1">
+                    {/* Guest QR ordering needs guests to reach the restaurant over the internet. */}
+                    {!IS_OFFLINE_EDITION && <div className="flex flex-col items-center gap-1">
                       <button onClick={() => setQrTable(tbl)}
                         className="w-8 h-8 rounded-lg bg-amber-500/15 text-amber-400 hover:bg-amber-500/25 flex items-center justify-center transition-all active:scale-95">
                         <QrCode className="w-3.5 h-3.5" />
                       </button>
                       <span className="text-[9px] font-medium text-white/40">{t.tbl_qr}</span>
-                    </div>
+                    </div>}
                     <div className="flex flex-col items-center gap-1">
                       <button onClick={() => handleDelete(tbl.id)}
                         className={cn('w-8 h-8 rounded-lg flex items-center justify-center transition-all active:scale-95',

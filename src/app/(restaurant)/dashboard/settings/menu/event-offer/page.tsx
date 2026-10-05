@@ -52,6 +52,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { useEventOffers, type CachedEventOffer } from '@/hooks/useEventOffers'
+import { storedFileUrl } from '@/lib/edition'
 import { motion, type Variants } from 'framer-motion'
 
 type EventOffer = CachedEventOffer
@@ -261,7 +262,7 @@ export default function EventOfferPage() {
     const path = `events/${restaurantId}/${Date.now()}.webp`
     const { data, error } = await supabase.storage.from('menu-images').upload(path, file, { upsert: true, contentType: file.type })
     if (!error && data) {
-      const { data: { publicUrl } } = supabase.storage.from('menu-images').getPublicUrl(data.path)
+      const publicUrl = storedFileUrl(supabase.storage.from('menu-images').getPublicUrl(data.path).data.publicUrl)
       setForm(f => ({ ...f, image_url: publicUrl }))
       URL.revokeObjectURL(localUrl)
     } else if (error) {

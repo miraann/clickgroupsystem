@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { SECURE_COOKIES } from '@/lib/edition'
 import { createClient } from '@supabase/supabase-js'
 import { rateLimit, tooManyFailures, recordFailure } from '@/lib/rate-limit'
 import {
@@ -79,7 +80,7 @@ export async function POST(req: NextRequest) {
 
     res.cookies.set(RESTAURANT_COOKIE, token, {
       httpOnly: true,
-      secure:   process.env.NODE_ENV === 'production',
+      secure:   SECURE_COOKIES,
       sameSite: 'lax',
       path:     '/',
       maxAge:   8 * 3600,
@@ -88,7 +89,7 @@ export async function POST(req: NextRequest) {
     // Clear the pending cookie
     res.cookies.set(RESTAURANT_PENDING_COOKIE, '', {
       httpOnly: true,
-      secure:   process.env.NODE_ENV === 'production',
+      secure:   SECURE_COOKIES,
       sameSite: 'lax',
       path:     '/',
       maxAge:   0,

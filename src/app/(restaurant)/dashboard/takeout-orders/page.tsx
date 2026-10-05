@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { refetchOnRejoin } from '@/lib/realtimeResync'
 import { ModuleGate } from '@/components/ModuleGate'
 import {
   ShoppingBag, Plus, X, Loader2, RefreshCw,
@@ -147,7 +148,7 @@ export default function TakeoutOrdersPage() {
     const ch = supabase
       .channel('takeout-rt')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => loadRef.current())
-      .subscribe()
+      .subscribe(refetchOnRejoin(() => loadRef.current()))
     return () => { supabase.removeChannel(ch) }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 

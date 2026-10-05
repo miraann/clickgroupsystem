@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { rateLimit } from '@/lib/rate-limit'
 import { requireRestaurant, serverError } from '@/lib/api-auth'
+import { storedFileUrl } from '@/lib/edition'
 
 export const runtime = 'nodejs'
 
@@ -71,7 +72,7 @@ export async function POST(req: NextRequest) {
     if (error) return serverError(error)
 
     const { data } = supabaseAdmin.storage.from('menu-images').getPublicUrl(path)
-    return NextResponse.json({ ok: true, url: data.publicUrl })
+    return NextResponse.json({ ok: true, url: storedFileUrl(data.publicUrl) })
   } catch (err: unknown) {
     return serverError(err)
   }

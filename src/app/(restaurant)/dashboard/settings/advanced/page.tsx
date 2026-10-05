@@ -15,6 +15,8 @@ import {
   subscribeUpdateEvents, CASHIER_APK_URL, type AppRuntime,
 } from '@/lib/appUpdate'
 import { useRestaurantSettings } from '@/hooks/useRestaurantSettings'
+import { IS_OFFLINE_EDITION } from '@/lib/edition'
+import { OfflineEditionCard } from '@/components/offline/OfflineEditionCard'
 import { SaveButton } from '@/components/ui/SaveButton'
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch'
 import {
@@ -631,8 +633,9 @@ export default function AdvancedPage() {
         </div>
       </motion.div>
 
-      {/* App version & updates */}
-      <AppUpdateCard />
+      {/* App version & updates — the offline EXE is updated by its installer and
+          shows its own licence / tablets / backup card instead */}
+      {IS_OFFLINE_EDITION ? <OfflineEditionCard /> : <AppUpdateCard />}
 
       {/* Coming soon */}
       <motion.div variants={ITEM} className="rounded-2xl border border-white/8 bg-white/2 px-5 py-4 space-y-3">

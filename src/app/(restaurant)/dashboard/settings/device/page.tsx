@@ -8,6 +8,8 @@ import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { motion, type Variants } from 'framer-motion'
 import { getAndroidTcp } from '@/lib/android-tcp'
 import { printerPurposes } from '@/lib/printerPurpose'
+import { IS_OFFLINE_EDITION } from '@/lib/edition'
+import { sendPrinterBytes } from '@/lib/sendToPrinter'
 
 const PAGE: Variants = {
   hidden: { opacity: 0, y: 20 },
@@ -436,7 +438,14 @@ export default function DevicePage() {
     setScanPhase('usb')
     setScanProgress(20)
     const ea = (window as any).electronAPI
-    if (ea?.isElectron) {
+    if (IS_OFFLINE_EDITION) {
+      // Offline edition: the printers installed on the restaurant PC, which prints for every device.
+      try {
+        const res = await fetch('/api/devices/system-printers')
+        const json = await res.json()
+        for (const d of (json.devices ?? [])) found.push(d)
+      } catch {}
+    } else if (ea?.isElectron) {
       // Electron: enumerate all OS-installed printers via WMI (USB + network)
       try {
         const result = await ea.scanUsb()
@@ -854,6 +863,28 @@ export default function DevicePage() {
   const testPrinter = async (p: PrinterDevice) => {
     setTestResults(prev => ({ ...prev, [p.id]: { status: 'testing' } }))
 
+    // Offline edition: the restaurant PC prints the test page itself, for every
+    // kind of printer and from any device — the same way real tickets print.
+    if (IS_OFFLINE_EDITION) {
+      try {
+        const tRes  = await fetch('/api/printer/test-escpos', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ restaurantId, name: p.name, paper_width: p.paper_width ?? 80 }),
+        })
+        const tJson = await tRes.json()
+        if (!tJson.ok) throw new Error(tJson.error ?? 'Failed to build test page')
+        await sendPrinterBytes({
+          bytes: tJson.bytes, connectionType: p.connection_type, printerName: p.name,
+          ipAddress: p.ip_address, port: p.port ?? 9100,
+        })
+        setTestResults(prev => ({ ...prev, [p.id]: { status: 'ok', message: `Test page sent to "${p.name}"` } }))
+      } catch (e) {
+        setTestResults(prev => ({ ...prev, [p.id]: { status: 'fail', message: e instanceof Error ? e.message : 'Print error' } }))
+      }
+      return
+    }
+
     if (p.connection_type === 'ip') {
       if (!p.ip_address) {
         setTestResults(prev => ({ ...prev, [p.id]: { status: 'fail', message: 'No IP address configured' } }))
@@ -1167,18 +1198,21 @@ export default function DevicePage() {
               </div>
               {/* Own full-width row on phones, inline from sm up */}
               <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
-                {/* Request USB — hidden on Android (WebUSB not supported) */}
-                {!isAndroid() && (
+                {/* Request USB — hidden on Android (WebUSB not supported) and offline,
+                    where USB / Bluetooth printers are the PC's Windows printers (found by Scan) */}
+                {!isAndroid() && !IS_OFFLINE_EDITION && (
                   <button onClick={requestNewUsb} title="Authorize new USB device"
                     className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white/40 hover:text-white text-[11px] font-medium transition-all active:scale-95 border border-white/8">
                     <Usb className="w-3 h-3" /> USB
                   </button>
                 )}
                 {/* Request BT */}
+                {!IS_OFFLINE_EDITION && (
                 <button onClick={requestNewBt} title="Pair new Bluetooth device"
                   className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white/40 hover:text-white text-[11px] font-medium transition-all active:scale-95 border border-white/8">
                   <Bluetooth className="w-3 h-3" /> Pair BT
                 </button>
+                )}
                 {/* Scan button */}
                 <button onClick={scanDevices} disabled={scanning}
                   className={cn(

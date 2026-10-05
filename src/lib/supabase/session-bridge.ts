@@ -8,6 +8,7 @@ import 'server-only'
 import { createClient } from '@supabase/supabase-js'
 import { createServerClient } from '@supabase/ssr'
 import type { NextRequest, NextResponse } from 'next/server'
+import { SUPABASE_COOKIE_OPTIONS } from '@/lib/edition'
 
 function admin() {
   return createClient(
@@ -43,6 +44,7 @@ export async function attachRestaurantSupabaseSession(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      cookieOptions: SUPABASE_COOKIE_OPTIONS,
       cookies: {
         getAll: () => req.cookies.getAll().map(c => ({ name: c.name, value: c.value })),
         setAll: (list) => list.forEach(({ name, value, options }) => res.cookies.set(name, value, options)),

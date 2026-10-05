@@ -3,6 +3,7 @@ import { preconnect } from "react-dom";
 import NativeShell from "@/components/NativeShell";
 import NavProgress from "@/components/NavProgress";
 import { NATIVE_SHELL_SCRIPT } from "@/lib/nativeShell";
+import { IS_OFFLINE_EDITION } from "@/lib/edition";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -53,8 +54,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   // Open the TLS connection to Supabase while the JS bundle is still loading,
-  // so the first data request doesn't pay for the handshake.
-  if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
+  // so the first data request doesn't pay for the handshake. Offline the API is
+  // the page's own origin, and the env URL (127.0.0.1) is wrong for tablets.
+  if (process.env.NEXT_PUBLIC_SUPABASE_URL && !IS_OFFLINE_EDITION) {
     preconnect(process.env.NEXT_PUBLIC_SUPABASE_URL, { crossOrigin: "anonymous" });
   }
 

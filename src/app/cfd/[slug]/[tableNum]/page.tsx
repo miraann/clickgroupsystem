@@ -7,6 +7,7 @@ import { QRCodeSVG } from 'qrcode.react'
 import { Star, Check, ChefHat, UtensilsCrossed } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useWakeLock } from '@/hooks/useWakeLock'
+import { IS_OFFLINE_EDITION } from '@/lib/edition'
 
 // ── Types ──────────────────────────────────────────────────────
 type Phase = 'loading' | 'idle' | 'ordering' | 'thankyou'
@@ -306,7 +307,8 @@ export default function CFDPage() {
             <p className="text-white/20 text-sm">Customer Display · شاشەی کڕیار</p>
           </div>
 
-          {/* Divider */}
+          {/* Divider + QR to the online menu, which guests can't reach in the offline edition */}
+          {!IS_OFFLINE_EDITION && <>
           <div className="hidden lg:block w-px h-48 bg-white/8" />
 
           {/* QR code */}
@@ -320,6 +322,7 @@ export default function CFDPage() {
             </div>
             <p className="text-[11px] text-white/20 text-center">Digital Menu · مینیووی دیجیتاڵ</p>
           </div>
+          </>}
         </div>
       </div>
 

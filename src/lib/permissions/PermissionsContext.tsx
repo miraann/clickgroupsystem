@@ -3,6 +3,7 @@ import { createContext, useContext, useEffect, useState, useCallback, useRef } f
 import { createClient } from '@/lib/supabase/client'
 import { useRestaurant } from '@/hooks/useRestaurant'
 import { hasPermission } from '@/lib/permissions/check'
+import { offlineDisablesPermission } from '@/lib/edition'
 
 type Permissions = Record<string, boolean>
 
@@ -160,8 +161,10 @@ export function PermissionsProvider({ children }: { children: React.ReactNode })
   useEffect(() => { load() }, [load])
 
   // Owner always passes. PIN staff must have the permission explicitly set to true.
+  // Online-only features are off for everyone in the offline edition.
   const can = useCallback(
     (key: string) => {
+      if (offlineDisablesPermission(key)) return false
       if (isOwner) return true
       return permissions[key] === true
     },
@@ -174,7 +177,7 @@ export function PermissionsProvider({ children }: { children: React.ReactNode })
   // prefix" (or the key itself), working for both a real leaf and a group key.
   // Shares hasPermission() with the server-side requirePermission guard.
   const canAny = useCallback(
-    (prefix: string) => isOwner || hasPermission(permissions, prefix),
+    (prefix: string) => !offlineDisablesPermission(prefix) && (isOwner || hasPermission(permissions, prefix)),
     [isOwner, permissions],
   )
 

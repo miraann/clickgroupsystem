@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
+import { refetchOnRejoin } from '@/lib/realtimeResync'
 import {
   TrendingUp, TrendingDown, Search, X, ChevronDown,
   FileText, Download, Receipt, User,
@@ -169,7 +170,7 @@ export default function SalesPage() {
     const ch = supabase.channel('sales-rt')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'invoices', filter: `restaurant_id=eq.${restaurantId}` },
         () => load(restaurantId, dateFrom, dateTo))
-      .subscribe()
+      .subscribe(refetchOnRejoin(() => load(restaurantId, dateFrom, dateTo)))
     return () => { supabase.removeChannel(ch) }
   }, [restaurantId, dateFrom, dateTo]) // eslint-disable-line react-hooks/exhaustive-deps
 

@@ -26,6 +26,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { motion, type Variants } from 'framer-motion'
 import { AlertCircle, GripVertical, ImageIcon, Loader2, Package, Pencil, Plus, Sliders, ToggleLeft, ToggleRight, Trash2, UtensilsCrossed, X } from 'lucide-react'
 import { useState } from 'react'
+import { storedFileUrl } from '@/lib/edition'
 
 
 interface Category  { id: string; name: string; color: string }
@@ -200,7 +201,7 @@ export default function ItemPage() {
     const path = `${restaurantId}/${Date.now()}.${ext}`
     const { data, error } = await supabase.storage.from('menu-images').upload(path, file, { upsert: true, contentType: file.type })
     if (!error && data) {
-      const { data: { publicUrl } } = supabase.storage.from('menu-images').getPublicUrl(data.path)
+      const publicUrl = storedFileUrl(supabase.storage.from('menu-images').getPublicUrl(data.path).data.publicUrl)
       setForm(f => ({ ...f, image_url: publicUrl }))
       URL.revokeObjectURL(localUrl)
       // Persist public URL to DB immediately if editing

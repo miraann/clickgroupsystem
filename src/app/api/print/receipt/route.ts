@@ -7,6 +7,7 @@ import sharp from 'sharp'
 import QRCode from 'qrcode'
 import { requireRestaurant } from '@/lib/api-auth'
 import { rateLimit } from '@/lib/rate-limit'
+import { fetchableFileUrl } from '@/lib/edition'
 
 export const runtime = 'nodejs'
 
@@ -27,7 +28,7 @@ async function makeLogoBitmap(logoUrl: string, paperWidthMm: number): Promise<Ui
     // ~22mm so a tall logo can't take over the top of the receipt.
     const maxWidthPx  = Math.floor(paperWidthMm * dotsPerMm * 0.40)
     const maxHeightPx = 180
-    const res = await fetch(logoUrl, { signal: AbortSignal.timeout(6000) })
+    const res = await fetch(fetchableFileUrl(logoUrl), { signal: AbortSignal.timeout(6000) })
     if (!res.ok) return null
     let buf: Buffer = Buffer.from(await res.arrayBuffer())
     // Many uploaded logo files carry asymmetric transparent/white padding

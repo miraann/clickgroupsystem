@@ -8,6 +8,7 @@ import { logAudit } from '@/lib/logAudit'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { SaveButton } from '@/components/ui/SaveButton'
 import type { SaveState } from '@/hooks/useRestaurantSettings'
+import { storedFileUrl } from '@/lib/edition'
 
 // ── Social icons ────────────────────────────────────────────
 function WhatsAppIcon({ className }: { className?: string }) {
@@ -214,7 +215,7 @@ export default function RestaurantInfoPage() {
       const { data: urlData } = supabase.storage.from('logos').getPublicUrl(path)
       // Path is stable (upsert overwrites logo.<ext>), so bust the browser/CDN
       // cache — otherwise a replaced logo keeps showing the old image.
-      logo_url = `${urlData.publicUrl}?v=${Date.now()}`
+      logo_url = `${storedFileUrl(urlData.publicUrl)}?v=${Date.now()}`
     }
 
     // Read existing settings first so we don't overwrite password/modules/inventory/etc.

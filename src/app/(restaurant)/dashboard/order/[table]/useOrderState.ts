@@ -8,6 +8,8 @@ import { enqueuePrint } from '@/lib/printQueue'
 import { logAudit } from '@/lib/logAudit'
 import { sendPush } from '@/lib/push'
 import { enqueueOrder, getQueueCount, syncAllQueued } from '@/lib/offlineQueue'
+import { browserOnline } from '@/lib/edition'
+import { refetchOnRejoin } from '@/lib/realtimeResync'
 import { useRestaurant } from '@/hooks/useRestaurant'
 import { useOrderMenu } from '@/hooks/useOrderMenu'
 import { usePermissions } from '@/lib/permissions/PermissionsContext'
@@ -93,7 +95,7 @@ export function useOrderState(table: string, guestCount: number) {
 
   // ── Online / offline detection + auto-sync ──────────────────
   useEffect(() => {
-    setIsOnline(navigator.onLine)
+    setIsOnline(browserOnline())
     setQueueCount(getQueueCount())
 
     const onOnline = async () => {
@@ -106,7 +108,7 @@ export function useOrderState(table: string, guestCount: number) {
       setSyncing(false)
       initRef.current()
     }
-    const onOffline = () => setIsOnline(false)
+    const onOffline = () => setIsOnline(browserOnline())
 
     window.addEventListener('online',  onOnline)
     window.addEventListener('offline', onOffline)
@@ -192,7 +194,7 @@ export function useOrderState(table: string, guestCount: number) {
           const updated = payload.new as { status: string }
           if (updated.status !== 'active') setOrderClosedElsewhere(true)
         })
-      .subscribe()
+      .subscribe(refetchOnRejoin(() => initRef.current()))
     return () => { supabase.removeChannel(channel) }
   }, [orderId]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -262,7 +264,7 @@ export function useOrderState(table: string, guestCount: number) {
 
   // ── Manual queue sync ─────────────────────────────────────────
   const syncQueuedOrders = useCallback(async () => {
-    if (!navigator.onLine || syncing) return
+    if (!browserOnline() || syncing) return
     setSyncing(true)
     await syncAllQueued(supabase)
     setQueueCount(getQueueCount())
@@ -299,7 +301,7 @@ export function useOrderState(table: string, guestCount: number) {
     })
 
     // ── Offline: save to queue, show locally ──────────────────
-    if (!navigator.onLine) {
+    if (!browserOnline()) {
       enqueueOrder({
         restaurant_id: restaurantId,
         table_number:  parseInt(table),
@@ -446,7 +448,7 @@ export function useOrderState(table: string, guestCount: number) {
     }
 
     // ── Offline: queue single item ────────────────────────────
-    if (!navigator.onLine) {
+    if (!browserOnline()) {
       enqueueOrder({
         restaurant_id: restaurantId,
         table_number:  parseInt(table),

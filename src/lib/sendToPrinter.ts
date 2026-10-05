@@ -1,5 +1,6 @@
 import { browserPrint } from '@/lib/webusb-print'
 import { getAndroidTcp } from '@/lib/android-tcp'
+import { IS_OFFLINE_EDITION } from '@/lib/edition'
 
 // Shared "hand the ESC/POS bytes to the physical printer" step.
 // Every /api/print/* route returns the same shape; this picks the right
@@ -31,6 +32,20 @@ export async function sendPrinterBytes(p: PrinterDispatch): Promise<void> {
   const { bytes, connectionType } = p
   const port = p.port ?? 9100
   if (!bytes) throw new Error('Nothing to print — empty payload')
+
+  // ── Offline edition ──────────────────────────────────────────
+  // The server is the restaurant PC itself, so it prints for every device —
+  // waiter tablets included (see /api/print/dispatch).
+  if (IS_OFFLINE_EDITION) {
+    const res = await fetch('/api/print/dispatch', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ bytes, connectionType, printerName: p.printerName, ipAddress: p.ipAddress, port }),
+    })
+    const json = await res.json().catch(() => null)
+    if (!json?.ok) throw new Error(json?.error ?? 'Printer did not respond')
+    return
+  }
 
   const rawBytes = Uint8Array.from(atob(bytes), c => c.charCodeAt(0))
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

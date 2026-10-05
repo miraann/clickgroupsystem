@@ -22,6 +22,7 @@ import { useDefaultCurrency } from '@/hooks/useDefaultCurrency'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { Lang, LANG_META } from '@/lib/i18n/translations'
 import { useDashboardTables, SWR_KEY, type DashboardFullData, type FloorElement } from '@/hooks/useDashboardTables'
+import { refetchOnRejoin } from '@/lib/realtimeResync'
 import { useRestaurant } from '@/hooks/useRestaurant'
 import { usePermissions } from '@/lib/permissions/PermissionsContext'
 import { getStaffHome } from '@/lib/permissions/staffHome'
@@ -1840,7 +1841,7 @@ export default function TablesPage() {
         })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'waiter_calls' },
         () => refresh())
-      .subscribe()
+      .subscribe(refetchOnRejoin(refresh))
 
     return () => {
       document.removeEventListener('visibilitychange', onVisible)
@@ -2735,6 +2736,8 @@ export default function TablesPage() {
                   await supabase.from('reservations').update({ status: 'seated' }).eq('id', reservationDetail.id)
                   setReservationDetail(null)
                   fetchOrders()
+                  // Nothing streams reservation changes; refresh the grid's "reserved" state now.
+                  if (cachedRestaurantId) swrMutate(SWR_KEY(cachedRestaurantId))
                 }}
                 className="h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 text-sm font-semibold flex items-center justify-center gap-1.5 active:scale-95 transition-all"
               >
@@ -2746,6 +2749,7 @@ export default function TablesPage() {
                   await supabase.from('reservations').update({ status: 'cancelled' }).eq('id', reservationDetail.id)
                   setReservationDetail(null)
                   fetchOrders()
+                  if (cachedRestaurantId) swrMutate(SWR_KEY(cachedRestaurantId))
                 }}
                 className="h-10 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm font-semibold flex items-center justify-center gap-1.5 active:scale-95 transition-all"
               >
@@ -3023,6 +3027,7 @@ function GuestNumpad({
       status:        'confirmed',
     })
     if (error) { setResErr(error.message); setResSaving(false); return }
+    swrMutate(SWR_KEY(rest.id)) // show the table as reserved right away
     setResSaving(false); setResSaved(true)
     setTimeout(() => onClose(), 1500)
   }

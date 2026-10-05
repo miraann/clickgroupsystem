@@ -12,15 +12,34 @@ const APP_VERSION = (() => {
   }
 })();
 
+// The offline edition (Windows EXE, see offline/README.md) is built with
+// NEXT_PUBLIC_EDITION=offline; everything below that checks this leaves the
+// online (Vercel) build untouched.
+const OFFLINE = process.env.NEXT_PUBLIC_EDITION === 'offline'
+
 const nextConfig: NextConfig = {
   env: {
     NEXT_PUBLIC_APP_VERSION: APP_VERSION,
+    // Always set, so it is inlined at build time and the other edition's code
+    // is dropped from the bundle (see src/lib/edition.ts).
+    NEXT_PUBLIC_EDITION: process.env.NEXT_PUBLIC_EDITION || 'online',
   },
   // @napi-rs/canvas ships a native .node addon (used to raster Kurdish
   // receipt text — see src/lib/escpos/kurdishRender.ts) that neither
   // Turbopack nor webpack can bundle; this tells Next to require() it
   // directly from node_modules at runtime instead of trying to bundle it.
   serverExternalPackages: ['@napi-rs/canvas'],
+  ...(OFFLINE ? {
+    // `next dev`: waiter tablets open the app by the PC's LAN IP, and the dev
+    // server refuses its own scripts to any host but localhost unless listed
+    // here. Production builds don't have this check.
+    allowedDevOrigins: ['192.168.*.*', '10.*.*.*', '172.*.*.*'],
+    // The EXE runs the app as `node server.js` from one self-contained folder.
+    output: 'standalone' as const,
+    // Own build folder, so online and offline builds (and dev servers) never
+    // overwrite or reuse each other's output.
+    distDir: '.next-offline',
+  } : {}),
   experimental: {
     // Turbopack's persistent build cache (on by default in Next 16.3) kept
     // serving an old globals.css: new utilities were generated but the file's
@@ -56,6 +75,10 @@ const nextConfig: NextConfig = {
       },
     ],
     formats: ['image/webp', 'image/avif'],
+    // Offline, uploads are saved as relative links (/storage/v1/...) served by
+    // the gateway in front of Next; the optimizer would fetch them from Next
+    // itself, which doesn't serve them. Images are small and local anyway.
+    ...(OFFLINE ? { unoptimized: true } : {}),
   },
   async headers() {
     // Content-Security-Policy is shipped in Report-Only mode first so it cannot

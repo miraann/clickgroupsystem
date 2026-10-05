@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
+import { refetchOnRejoin } from '@/lib/realtimeResync'
 import {
   Plus, Search,
   AlertCircle, ChevronDown,
@@ -66,7 +67,7 @@ export default function PayLaterPage() {
     const ch = supabase.channel('pay-later-rt')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'pay_later', filter: `restaurant_id=eq.${restaurantId}` },
         () => load(restaurantId))
-      .subscribe()
+      .subscribe(refetchOnRejoin(() => load(restaurantId)))
     return () => { supabase.removeChannel(ch) }
   }, [restaurantId]) // eslint-disable-line react-hooks/exhaustive-deps
 

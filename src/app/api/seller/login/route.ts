@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { SECURE_COOKIES } from '@/lib/edition'
 import { rateLimit, tooManyFailures, recordFailure } from '@/lib/rate-limit'
 import { createSellerToken, SELLER_COOKIE } from '@/lib/session'
 import { timingSafeEqualStr } from '@/lib/crypto'
@@ -31,7 +32,7 @@ export async function POST(req: NextRequest) {
 
     res.cookies.set(SELLER_COOKIE, token, {
       httpOnly: true,
-      secure:   process.env.NODE_ENV === 'production',
+      secure:   SECURE_COOKIES,
       sameSite: 'lax',
       path:     '/',
       maxAge:   2 * 3600,

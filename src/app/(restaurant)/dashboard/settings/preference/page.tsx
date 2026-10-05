@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { useRestaurantSettings } from '@/hooks/useRestaurantSettings'
 import { useWebPush } from '@/hooks/useWebPush'
+import { IS_OFFLINE_EDITION } from '@/lib/edition'
 import { SaveButton } from '@/components/ui/SaveButton'
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch'
 import { SettingsSection } from '@/components/ui/SettingsSection'
@@ -690,8 +691,8 @@ export default function PreferencePage() {
               </SettingsSection>
             </motion.div>
 
-            {/* ── Push Notifications ── */}
-            <motion.div variants={FIELD_ITEM}>
+            {/* ── Push Notifications ── (they travel over the internet, so not offline) */}
+            {!IS_OFFLINE_EDITION && <motion.div variants={FIELD_ITEM}>
               <SettingsSection title={t.pref_push_title} icon={<Smartphone className="w-4 h-4 text-white/80" />} color="bg-rose-500/70">
                 <div className="space-y-5">
 
@@ -779,7 +780,7 @@ export default function PreferencePage() {
 
                 </div>
               </SettingsSection>
-            </motion.div>
+            </motion.div>}
 
             {/* ── Activity Toasts ── */}
             <motion.div variants={FIELD_ITEM}>
