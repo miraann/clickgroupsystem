@@ -3,8 +3,9 @@
 //   cd offline && npm run dev        → browse http://localhost:4100
 //
 // Data lives in offline/.data (git-ignored; --data <dir> uses another folder,
-// e.g. to try first-run setup on a fresh "PC"). Ctrl+C stops Next.js, the
-// gateway, PostgREST and PostgreSQL.
+// e.g. to try first-run setup on a fresh "PC"). --port-base 5100 uses ports
+// 5100-5103 instead of 4100-4103, to run beside the installed desktop app.
+// Ctrl+C stops Next.js, the gateway, PostgREST and PostgreSQL.
 import { spawn, spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import { createRequire } from 'node:module'
@@ -18,9 +19,12 @@ const repo      = path.resolve(offline, '..')
 const { startBackend, nextEnv, loadConfig } = require('../runtime/index.cjs')
 
 const dataArg = process.argv.indexOf('--data')
+const baseArg = process.argv.indexOf('--port-base')
+const base = baseArg > 0 ? Number(process.argv[baseArg + 1]) : null
 const cfg = loadConfig({
   dataDir:   dataArg > 0 ? path.resolve(process.argv[dataArg + 1]) : path.join(offline, '.data'),
   vendorDir: path.join(offline, 'vendor'),
+  ports:     base ? { gateway: base, next: base + 1, postgrest: base + 2, postgres: base + 3 } : {},
 })
 const log = (m) => console.log(m)
 
