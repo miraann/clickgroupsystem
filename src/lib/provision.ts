@@ -76,6 +76,53 @@ export async function provisionRestaurantAuth(
   return { userId, authSecret }
 }
 
+/**
+ * A new restaurant with its defaults (currency, cash payment, starter roles)
+ * and its sign-in. Used by the seller panel, and by the offline desktop app
+ * when a restaurant is created on the PC itself.
+ */
+export async function createRestaurantRecords(
+  admin: SupabaseClient,
+  opts: {
+    name: string; email: string; password: string; phone?: string | null; plan?: string | null
+    ownerName?: string; ownerPin?: string; modules?: Record<string, boolean>
+  },
+): Promise<string> {
+  const settings: Record<string, unknown> = {}
+  if (opts.ownerName?.trim()) settings.owner_name = opts.ownerName.trim()
+  if (opts.modules) settings.modules = opts.modules
+
+  const { data: rest, error: insErr } = await admin.from('restaurants').insert({
+    name: opts.name,
+    email: opts.email,
+    phone: opts.phone?.trim() || null,
+    plan: opts.plan || null,
+    status: 'active',
+    settings,
+  }).select('id').single()
+  if (insErr || !rest) throw insErr ?? new Error('insert failed')
+
+  await Promise.all([
+    admin.from('currencies').insert({
+      restaurant_id: rest.id, name: 'Iraqi Dinar', symbol: 'IQD',
+      decimal_places: 0, is_default: true, sort_order: 0,
+    }),
+    admin.from('payment_methods').insert({
+      restaurant_id: rest.id, name: 'کاش', icon_type: 'cash',
+      active: true, is_default: true, sort_order: 0,
+    }),
+    seedDefaultRoles(admin, rest.id),
+  ])
+
+  await provisionRestaurantAuth(admin, {
+    restaurantId: rest.id,
+    email: opts.email,
+    password: opts.password,
+    ownerPin: opts.ownerPin || undefined,
+  })
+  return rest.id as string
+}
+
 /** Seed the starter Cashier / Driver / CFD / KDS roles for a new restaurant. */
 export async function seedDefaultRoles(admin: SupabaseClient, restaurantId: string): Promise<void> {
   const { error } = await admin.from('restaurant_roles').insert(

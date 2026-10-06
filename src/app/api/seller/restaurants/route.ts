@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireSeller, serverError } from '@/lib/api-auth'
-import { serviceClient, provisionRestaurantAuth, updateRestaurantSecrets, seedDefaultRoles } from '@/lib/provision'
+import { serviceClient, updateRestaurantSecrets, createRestaurantRecords } from '@/lib/provision'
 
 export const runtime = 'nodejs'
 
@@ -49,43 +49,11 @@ export async function POST(req: NextRequest) {
     if (!password || password.length < 8) return NextResponse.json({ error: 'Password must be at least 8 characters.' }, { status: 400 })
     if (body.ownerPin && !/^\d{6}$/.test(body.ownerPin)) return NextResponse.json({ error: 'Owner PIN must be 6 digits.' }, { status: 400 })
 
-    const admin = serviceClient()
-
-    const settings: Record<string, unknown> = {}
-    if (body.ownerName?.trim()) settings.owner_name = body.ownerName.trim()
-    if (body.modules) settings.modules = body.modules
-
-    const { data: rest, error: insErr } = await admin.from('restaurants').insert({
-      name,
-      email,
-      phone: body.phone?.trim() || null,
-      plan: body.plan || null,
-      status: 'active',
-      settings,
-    }).select('id').single()
-    if (insErr || !rest) return serverError(insErr ?? new Error('insert failed'))
-
-    // default currency + payment method + starter roles
-    await Promise.all([
-      admin.from('currencies').insert({
-        restaurant_id: rest.id, name: 'Iraqi Dinar', symbol: 'IQD',
-        decimal_places: 0, is_default: true, sort_order: 0,
-      }),
-      admin.from('payment_methods').insert({
-        restaurant_id: rest.id, name: 'کاش', icon_type: 'cash',
-        active: true, is_default: true, sort_order: 0,
-      }),
-      seedDefaultRoles(admin, rest.id),
-    ])
-
-    await provisionRestaurantAuth(admin, {
-      restaurantId: rest.id,
-      email,
-      password,
-      ownerPin: body.ownerPin?.trim() || undefined,
+    const id = await createRestaurantRecords(serviceClient(), {
+      name, email, password, phone: body.phone, plan: body.plan,
+      ownerName: body.ownerName, ownerPin: body.ownerPin?.trim(), modules: body.modules,
     })
-
-    return NextResponse.json({ ok: true, id: rest.id })
+    return NextResponse.json({ ok: true, id })
   } catch (e) {
     return serverError(e)
   }
