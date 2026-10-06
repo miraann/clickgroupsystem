@@ -56,7 +56,7 @@ offline/node_modules/
 
 # offline desktop app — staged resources and installers (built locally)
 electron-offline/stage/
-electron-offline/dist/
+electron-offline/dist*/
 electron-offline/node_modules/
 
 # dependencies in any sub-project (marketing/promo-video, …)

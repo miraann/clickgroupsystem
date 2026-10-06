@@ -32,6 +32,19 @@ for (const p of [path.join(offline, 'vendor', 'pgsql', 'bin', 'postgres.exe'), p
   if (!fs.existsSync(p)) { console.error(`Missing ${p} — run "npm install" and "npm run fetch-vendor" in offline/ first.`); process.exit(1) }
 }
 
+// The installer build first deletes its output folder (dist/, or --out <dir>
+// to match electron-builder's --config.directories.output); a copy running
+// from there would lose half its files under it. An installed copy is fine.
+if (process.platform === 'win32') {
+  const outArg = process.argv.indexOf('--out')
+  const out = path.resolve(desktop, outArg > 0 ? process.argv[outArg + 1] : 'dist')
+  const paths = spawnSync('powershell', ['-NoProfile', '-Command', 'Get-Process ClickGroupPOSOffline -ErrorAction SilentlyContinue | ForEach-Object { $_.Path }'], { encoding: 'utf8' }).stdout
+  if (paths.split(/\r?\n/).some(p => p && path.resolve(p).toLowerCase().startsWith(out.toLowerCase() + path.sep))) {
+    console.error(`ClickGroup POS Offline is running from ${out} — quit it first (tray icon → Quit), then build again.`)
+    process.exit(1)
+  }
+}
+
 // ── 1. Next.js, offline edition ─────────────────────────────────────────────
 // The browser-facing settings are fixed at build time. Every cloud setting is
 // set empty, so nothing from .env.local (keys, the cloud address) can end up

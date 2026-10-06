@@ -14,6 +14,10 @@ const fs   = require('node:fs')
 const path = require('node:path')
 const http = require('node:http')
 
+// The window only ever loads this PC. Windows' proxy auto-detection can stall
+// right after start-up and leave the first page loading forever, so skip it.
+app.commandLine.appendSwitch('no-proxy-server')
+
 // Packaged: resources/{web,backend}. From source: electron-offline/stage (npm run assemble).
 // (Not "app": Electron would load a resources/app folder as itself.)
 const RES     = app.isPackaged ? process.resourcesPath : path.join(__dirname, 'stage')
@@ -213,6 +217,34 @@ function createWindow() {
     shell.openExternal(url)
     return { action: 'deny' }
   })
+  // Right after Windows starts, a first load can half fail (a script that
+  // didn't arrive leaves an empty page); reload until the app shows.
+  let blankReloads = 0
+  win.webContents.on('did-finish-load', () => setTimeout(async () => {
+    if (!win || win.isDestroyed()) return
+    const empty = await win.webContents.executeJavaScript('!document.body || document.body.innerText.trim() === ""').catch(() => true)
+    if (!empty) blankReloads = 0
+    else if (blankReloads++ < 5) { log('window was empty, reloading'); win.webContents.reload() }
+  }, 8000))
+  win.webContents.on('did-fail-load', (_e, code, _desc, _url, isMainFrame) => {
+    if (isMainFrame && code !== -3) setTimeout(() => win?.webContents.reload(), 2000) // -3: load replaced by another
+  })
+  win.webContents.on('render-process-gone', () => win?.webContents.reload())
+  // A first page that never finishes (seen once after a Windows restart): start it again.
+  const stuckCheck = setInterval(() => {
+    if (!win || win.isDestroyed()) return clearInterval(stuckCheck)
+    if (!win.webContents.isLoading()) return clearInterval(stuckCheck)
+    log('window still loading after 20 s, retrying')
+    win.webContents.stop()
+    win.loadURL(HOME_URL)
+  }, 20000)
+  // The window has no menu, so F5 / Ctrl+R are wired by hand, as in a browser.
+  win.webContents.on('before-input-event', (e, input) => {
+    if (input.type === 'keyDown' && (input.key === 'F5' || (input.control && input.key.toLowerCase() === 'r'))) {
+      e.preventDefault()
+      win.webContents.reload()
+    }
+  })
 }
 
 function showWindow() {
@@ -231,6 +263,7 @@ function buildTrayMenu() {
   const lan = lanAddresses().map((ip) => `http://${ip}:${cfg.ports.gateway}`)
   return Menu.buildFromTemplate([
     { label: 'Open ClickGroup POS', click: showWindow },
+    { label: 'Reload the window', click: () => { showWindow(); win?.webContents.reload() } },
     { type: 'separator' },
     ...(lan.length
       ? lan.map((u) => ({ label: `Tablets: ${u}  (click to copy)`, click: () => clipboard.writeText(u) }))
