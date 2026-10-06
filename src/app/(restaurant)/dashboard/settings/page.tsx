@@ -12,6 +12,7 @@ import { SettingsIcons, SettingsIconMeta } from '@/components/settings/SettingsI
 import type { TranslationKey } from '@/lib/i18n/translations'
 import { usePermissions } from '@/lib/permissions/PermissionsContext'
 import { useRestaurantSettings } from '@/hooks/useRestaurantSettings'
+import { IS_OFFLINE_EDITION } from '@/lib/edition'
 
 // ── Tile data ──────────────────────────────────────────────────────────────────
 // subtitles keyed by lang; 'en' is used as fallback for unsupported langs
@@ -29,6 +30,8 @@ interface TileItem {
   subtitles:  Subtitles
   permKey?:   string
   ownerOnly?: boolean
+  // Hidden in the offline edition: the Android apps work with the online system.
+  onlineOnly?: boolean
 }
 
 interface Section {
@@ -106,7 +109,7 @@ const SECTIONS: Section[] = [
         subtitles: { en: 'Backups & sync',      ku: 'پاشەکەوت و هاودەنگی',  ar: 'النسخ الاحتياطي' } },
       { id: 'audit_log', labelKey: 'si_audit_log', icon: 'audit', href: '/dashboard/settings/audit-log', span: 2, permKey: 'settings.audit_log',
         subtitles: { en: 'Staff activity trail', ku: 'چاودێری چالاکی ستاف',  ar: 'سجل نشاط الموظفين' } },
-      { id: 'apps', labelKey: 'si_apps', icon: 'android', href: '/dashboard/settings/apps', span: 2, ownerOnly: true,
+      { id: 'apps', labelKey: 'si_apps', icon: 'android', href: '/dashboard/settings/apps', span: 2, ownerOnly: true, onlineOnly: true,
         subtitles: { en: 'Download Android apps', ku: 'داگرتنی ئەپەکانی ئەندرۆید', ar: 'تنزيل تطبيقات أندرويد' } },
     ],
   },
@@ -328,6 +331,7 @@ export default function SettingsHomePage() {
             <div className="space-y-10">
               {SECTIONS.map((section, si) => {
                 const visibleItems = section.items.filter(item => {
+                  if (IS_OFFLINE_EDITION && item.onlineOnly) return false
                   if (!isOwner && (item.ownerOnly || (item.permKey && !canAny(item.permKey)))) return false
                   if (!q) return true
                   const label = t[item.labelKey] || ''

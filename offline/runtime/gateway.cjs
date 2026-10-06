@@ -14,8 +14,9 @@ const { bearer, sendJson } = require('./http-util.cjs')
 
 // Parts of the app that only make sense online: the marketing home page, the
 // seller panel, the public online menu and table-QR guest ordering (guests
-// can't reach the PC), push messages and face-scan selfies.
-const ONLINE_ONLY_PAGE = /^\/(seller(-login)?|order|guest|r)(\/|\?|$)/
+// can't reach the PC), push messages and face-scan selfies. The Android apps
+// page too: those apps work with the online system, not with this PC.
+const ONLINE_ONLY_PAGE = /^\/(seller(-login)?|order|guest|r|dashboard\/settings\/apps)(\/|\?|$)/
 const ONLINE_ONLY_API  = /^\/api\/(seller|push|upload\/selfie)(\/|\?|$)/
 const { createAuth } = require('./auth.cjs')
 const { createStorage } = require('./storage.cjs')
