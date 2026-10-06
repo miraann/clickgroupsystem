@@ -39,9 +39,11 @@ export function fill(template: string, values: Record<string, string | number>):
 /** What /offline/v1/status returns (offline/runtime/control.cjs). */
 export interface OfflineStatus {
   activated:  boolean
-  restaurant: { name: string; slug: string } | null
+  restaurant: { id: string; name: string; slug: string; email: string | null } | null
   license:    { state: 'none' | 'valid' | 'ending' | 'grace' | 'expired'; validUntil?: string; daysLeft?: number; graceDaysLeft?: number }
   tablets:    string[]
+  /** linked: this PC has an upload token; enabled: it uses it (the owner's on/off switch). */
+  cloud:      { linked: boolean; enabled: boolean }
   sync:       { lastUploadAt?: string; pending?: number; lastError?: string | null } | null
 }
 

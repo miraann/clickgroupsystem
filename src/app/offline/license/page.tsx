@@ -3,7 +3,7 @@
 // seller (signed by the cloud) and is checked on this PC with no internet.
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Loader2, ShieldCheck, ShieldAlert } from 'lucide-react'
+import { Loader2, ShieldCheck, ShieldAlert, Copy, Check } from 'lucide-react'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { OfflineShell, ErrorNote, inputCls, buttonCls, fill, fetchOfflineStatus, type OfflineStatus } from '@/components/offline/OfflineShell'
 import { licenseLine } from '@/components/offline/licenseLine'
@@ -16,6 +16,13 @@ export default function OfflineLicensePage() {
   const [busy, setBusy]     = useState(false)
   const [error, setError]   = useState<string | null>(null)
   const [saved, setSaved]   = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
+
+  const copyId = async (id: string) => {
+    await navigator.clipboard?.writeText(id).catch(() => {})
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
 
   useEffect(() => {
     fetchOfflineStatus().then(s => {
@@ -55,6 +62,18 @@ export default function OfflineLicensePage() {
           {good ? <ShieldCheck className="w-5 h-5 shrink-0" /> : <ShieldAlert className="w-5 h-5 shrink-0" />}
           {licenseLine(t, status.license)}
         </p>
+      )}
+      {status?.restaurant && (
+        <div className="rounded-xl bg-white/[0.04] border border-white/10 px-4 py-3 space-y-1.5">
+          <p className="text-xs text-white/55">{t.off_lic_id}</p>
+          <div className="flex items-center gap-2">
+            <span className="flex-1 font-mono text-xs text-white break-all select-all" dir="ltr">{status.restaurant.id}</span>
+            <button type="button" onClick={() => copyId(status.restaurant!.id)}
+              className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-xs text-white/70 border border-white/10">
+              {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}{copied ? t.off_copied : t.off_copy}
+            </button>
+          </div>
+        </div>
       )}
       <form onSubmit={submit} className="space-y-3">
         <label className="block text-xs font-medium text-white/55">{t.off_lic_code}</label>

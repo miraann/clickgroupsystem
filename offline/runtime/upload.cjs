@@ -7,6 +7,7 @@ const pg = require('pg')
 
 const EVERY_MS = 60 * 1000
 const BATCH    = 400
+const CHECK_IN_MS = 6 * 60 * 60 * 1000
 
 // Parents before children, matching the cloud's insert order.
 const TABLES = ['customers', 'members', 'orders', 'order_items', 'invoices', 'pay_later', 'pay_later_payments', 'expenses']
@@ -15,6 +16,7 @@ function createUploader({ cfg, pool, control, log = console.log }) {
   let timer = null
   let running = false
   let lastLoggedError = null
+  let lastContact = 0
 
   async function pendingCount() {
     return Number((await pool.query('select count(distinct (tbl, row_id)) as n from cg_offline.outbox')).rows[0].n)
@@ -27,8 +29,8 @@ function createUploader({ cfg, pool, control, log = console.log }) {
 
   /** One round: up to BATCH changed rows. Returns how many were sent. */
   async function uploadOnce() {
+    if (!(await control.syncEnabled())) return 0
     const cloud = await control.getState('cloud')
-    if (!cloud?.token) return 0
     const { rows: keys } = await pool.query(`
       with pending as (
         select tbl, row_id, max(id) as last_id, min(id) as first_id from cg_offline.outbox group by tbl, row_id
@@ -41,7 +43,9 @@ function createUploader({ cfg, pool, control, log = console.log }) {
                 where i.id = p.row_id and o.status = 'active'))
        order by p.first_id
        limit $1`, [BATCH])
-    if (!keys.length) return 0
+    // Nothing to send: still ask now and then, which brings any renewal code
+    // (an expired PC makes no sales, so it would never hear of one).
+    if (!keys.length && Date.now() - lastContact < CHECK_IN_MS) return 0
 
     const changes = {}
     for (const t of TABLES) {
@@ -61,12 +65,15 @@ function createUploader({ cfg, pool, control, log = console.log }) {
     })
     const body = await res.json().catch(() => null)
     if (!res.ok) throw new Error(body?.error ?? `the online system answered ${res.status}`)
+    lastContact = Date.now()
 
     // Clear only what was sent; changes made meanwhile stay queued.
     for (const k of keys) {
       await pool.query('delete from cg_offline.outbox where tbl = $1 and row_id = $2 and id <= $3', [k.tbl, k.row_id, k.last_id])
     }
     if (body?.serverTime) await control.trustCloudTime(body.serverTime)
+    // A renewal the seller made online arrives by itself.
+    if (body?.license) await control.offerLicense(body.license).catch(() => {})
     for (const s of body?.skipped ?? []) log(`[upload] the online system skipped ${s.table} ${s.id}: ${s.reason}`)
     return keys.length
   }

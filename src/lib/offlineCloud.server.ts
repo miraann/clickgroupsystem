@@ -7,6 +7,7 @@ import crypto from 'node:crypto'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import license from '../../offline/runtime/license.cjs'
 import restaurantImport from '../../offline/runtime/restaurant-import.cjs'
+import { provisionRestaurantAuth } from '@/lib/provision'
 
 type Row = Record<string, unknown>
 type Spec = { table: string; by: 'restaurant_id' | { col: string; parent: string } }
@@ -27,6 +28,16 @@ export function licenseKeyConfigured(): boolean {
 
 export function createLicenseCode(restaurantId: string, validUntil: string): string {
   return license.createLicense({ restaurantId, validUntil }, process.env.OFFLINE_LICENSE_PRIVATE_KEY)
+}
+
+/** Is `code` a licence this server signed for `restaurantId`? (Its end date doesn't matter here.) */
+export function isIssuedLicense(code: unknown, restaurantId: string): { ok: boolean; validUntil?: string } {
+  if (typeof code !== 'string' || !licenseKeyConfigured()) return { ok: false }
+  const publicKey = crypto.createPublicKey(crypto.createPrivateKey({
+    key: Buffer.from(process.env.OFFLINE_LICENSE_PRIVATE_KEY!, 'base64'), format: 'der', type: 'pkcs8',
+  })).export({ type: 'spki', format: 'pem' })
+  const v = license.verifyLicense(code, publicKey)
+  return v.ok && v.restaurantId === restaurantId ? { ok: true, validUntil: v.validUntil } : { ok: false }
 }
 
 /** Records the code; a missing table (migration 20261005_01 not run yet) isn't fatal. */
@@ -100,4 +111,96 @@ export async function exportRestaurant(admin: SupabaseClient, restaurantId: stri
   tables.restaurant_secrets = (tables.restaurant_secrets ?? []).map(({ auth_secret: _drop, ...rest }) => rest) // eslint-disable-line @typescript-eslint/no-unused-vars
   const { data: plans } = await admin.from('plans').select('*').eq('slug', restaurant.plan as string)
   return { version: 1, restaurant, tables, plans: plans ?? [] }
+}
+
+// ── Pictures ────────────────────────────────────────────────────────────────
+const STORAGE_REL = '/storage/v1/object/public/'
+const PICTURE_BUCKETS = new Set(['menu-images', 'logos', 'receipts'])
+
+/** Every storage link (absolute or relative) found anywhere in `value`. */
+function storageLinks(value: unknown, out = new Set<string>()): Set<string> {
+  if (typeof value === 'string') {
+    const at = value.indexOf(STORAGE_REL)
+    if (at === 0 || (at > 0 && /^https?:\/\//.test(value))) out.add(value.split(/[?#]/)[0])
+  } else if (Array.isArray(value)) value.forEach(v => storageLinks(v, out))
+  else if (value && typeof value === 'object') Object.values(value).forEach(v => storageLinks(v, out))
+  return out
+}
+
+/**
+ * The seller panel's setup file, for a PC with no internet at all: the same
+ * data the online set-up downloads, the latest licence, and the pictures to
+ * fetch (the browser adds them, so the response stays small).
+ */
+export async function setupFileData(admin: SupabaseClient, restaurantId: string) {
+  const data = await exportRestaurant(admin, restaurantId)
+  const pictures = [...storageLinks(data)]
+    .filter(u => u.startsWith('http'))
+    .map(url => ({ url, rel: url.slice(url.indexOf(STORAGE_REL)) }))
+  return { kind: 'clickgroup-offline-setup', version: 1, createdAt: new Date().toISOString(), data, license: await latestLicense(admin, restaurantId), pictures }
+}
+
+// ── A restaurant made on a PC, joining the online system ────────────────────
+type Setup = { restaurant: Row; tables: Record<string, Row[]> }
+
+/** Relative storage links (how the PC saves them) made absolute for the online app. */
+function absolutize(value: unknown): unknown {
+  if (typeof value === 'string') return value.startsWith(STORAGE_REL) ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}${value}` : value
+  if (Array.isArray(value)) return value.map(absolutize)
+  if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, absolutize(v)]))
+  return value
+}
+
+/**
+ * Creates the restaurant online from the PC's set-up (same ids, so the PC's
+ * sales upload onto it), with its sign-in from `email` + `password`. Returns
+ * signed upload links for its pictures. The caller has checked that the
+ * seller issued a licence for this id.
+ */
+export async function registerPcRestaurant(
+  admin: SupabaseClient,
+  opts: { restaurantId: string; email: string; password: string; setup: Setup },
+): Promise<{ uploads: { path: string; url: string }[] }> {
+  const rid = opts.restaurantId
+  const email = opts.email.trim().toLowerCase()
+  const { setup } = opts
+  if (setup?.restaurant?.id !== rid) throw Object.assign(new Error('The set-up sent is for a different restaurant.'), { status: 400 })
+
+  const { restaurant_secrets: secrets, restaurant_users: _users, ...rest } = setup.tables ?? {} // eslint-disable-line @typescript-eslint/no-unused-vars
+  const { owner_id: _owner, ...restaurant } = setup.restaurant // eslint-disable-line @typescript-eslint/no-unused-vars
+  const { error: insErr } = await admin.from('restaurants').insert(absolutize({ ...restaurant, email, status: 'active' }) as Row)
+  if (insErr) throw Object.assign(new Error(`Could not create the restaurant online: ${insErr.message}`), { status: 409 })
+
+  try {
+    const ids: Record<string, Set<string>> = {}
+    for (const spec of restaurantImport.CONFIG as Spec[]) {
+      if (spec.table === 'restaurant_secrets' || spec.table === 'restaurant_users') continue
+      let rows = (rest[spec.table] ?? []) as Row[]
+      if (spec.by === 'restaurant_id') rows = rows.map(r => ({ ...r, restaurant_id: rid }))
+      // A child row must hang off a parent row of this same restaurant.
+      else rows = rows.filter(r => ids[(spec.by as { parent: string }).parent]?.has(String(r[(spec.by as { col: string }).col])))
+      ids[spec.table] = new Set(rows.map(r => String(r.id)))
+      for (let i = 0; i < rows.length; i += 200) {
+        const { error } = await admin.from(spec.table).insert(absolutize(rows.slice(i, i + 200)) as Row[])
+        if (error) throw new Error(`${spec.table}: ${error.message}`)
+      }
+    }
+    await provisionRestaurantAuth(admin, { restaurantId: rid, email, password: opts.password })
+    const pin = (secrets as Row[] | undefined)?.[0]?.owner_pin_hash
+    if (typeof pin === 'string') await admin.from('restaurant_secrets').update({ owner_pin_hash: pin }).eq('restaurant_id', rid)
+  } catch (e) {
+    await admin.from('restaurants').delete().eq('id', rid) // children go with it (on delete cascade)
+    throw e
+  }
+
+  // Upload links only for files that don't exist yet, so nothing can be overwritten.
+  const uploads: { path: string; url: string }[] = []
+  for (const rel of storageLinks(setup)) {
+    if (!rel.startsWith(STORAGE_REL)) continue
+    const [bucket, ...parts] = rel.slice(STORAGE_REL.length).split('/')
+    if (!PICTURE_BUCKETS.has(bucket) || !parts.length) continue
+    const { data } = await admin.storage.from(bucket).createSignedUploadUrl(parts.map(decodeURIComponent).join('/'))
+    if (data?.signedUrl) uploads.push({ path: rel, url: data.signedUrl })
+  }
+  return { uploads }
 }

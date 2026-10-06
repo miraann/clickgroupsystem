@@ -14,8 +14,8 @@ function readBody(req, limit = 25 * 1024 * 1024) {
   })
 }
 
-async function readJson(req) {
-  const buf = await readBody(req)
+async function readJson(req, limit) {
+  const buf = await readBody(req, limit)
   if (!buf.length) return {}
   try { return JSON.parse(buf.toString('utf8')) } catch { return {} }
 }

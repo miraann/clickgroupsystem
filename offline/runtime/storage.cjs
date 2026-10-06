@@ -89,6 +89,26 @@ function createStorage({ cfg }) {
         if (!claims || claims.url !== `${b}/${key}`) return sendJson(res, 400, { error: 'InvalidJWT', message: 'invalid signature' })
         return serveFile(res, fileFor(b, key))
       }
+      // POST /object/upload/sign/<bucket>/<key> → { url } (service role), then
+      // PUT that url to upload the file once — how the online system lets an
+      // offline PC send pictures without a key (Supabase has the same).
+      if (a === 'upload' && b === 'sign') {
+        const [bucket, ...k] = rest
+        const key = k.join('/')
+        const file = fileFor(bucket, key)
+        if (!file) return sendJson(res, 400, { error: 'invalid_key', message: 'Invalid key' })
+        if (req.method === 'POST') {
+          if (verify(bearer(req), secret)?.role !== 'service_role') return sendJson(res, 403, { error: 'Unauthorized', message: 'Unauthorized' })
+          if (fs.existsSync(file)) return sendJson(res, 400, { statusCode: '409', error: 'Duplicate', message: 'The resource already exists' })
+          const now = Math.floor(Date.now() / 1000)
+          const token = sign({ upload: `${bucket}/${key}`, iat: now, exp: now + 7200 }, secret)
+          return sendJson(res, 200, { url: `/object/upload/sign/${encodeURIComponent(bucket)}/${k.map(encodeURIComponent).join('/')}?token=${token}`, token })
+        }
+        if (req.method === 'PUT') {
+          if (verify(url.searchParams.get('token'), secret)?.upload !== `${bucket}/${key}`) return sendJson(res, 400, { error: 'InvalidJWT', message: 'invalid signature' })
+          return await upload(req, res, bucket, key)
+        }
+      }
       // GET /object/(authenticated/)<bucket>/<key>
       if (req.method === 'GET') {
         if (!isSignedIn(req)) return sendJson(res, 403, { error: 'Unauthorized', message: 'Unauthorized' })

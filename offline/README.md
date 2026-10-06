@@ -25,15 +25,28 @@ built with `NEXT_PUBLIC_EDITION=offline`); the online build is unchanged.
 1. **Seller** (online seller panel → Restaurants → ⋮ → *Offline licence*) picks an
    end date and creates a code. The first code also enables the offline edition.
 2. **Install** `ClickGroup POS Offline Setup x.y.z.exe` on the restaurant PC.
-3. **First run** (needs internet once): the app shows *Set up*: sign in with the
-   restaurant's usual email + password. Menu, tables, staff, printers and settings
-   are copied to the PC, and the seller's latest licence code is applied.
+3. **First run** — the setup screen offers three ways:
+   - *Sign in online* (needs internet once): the restaurant's usual email +
+     password. Menu, tables, staff, printers and settings are copied to the PC,
+     and the seller's latest licence code is applied.
+   - *Open a setup file* (no internet): the seller clicks *Download setup file*
+     in the same Offline licence window (menu, staff, settings, pictures and the
+     latest code in one `.cgsetup` file), copies it to the PC by USB, opens it.
+   - *New restaurant* (no internet): name, owner email, password and PIN, made
+     on the PC. The licence screen shows its **Restaurant ID**; the seller makes
+     a code for it (Restaurants → *Offline PC licence*) and sends it by phone.
 4. From then on it works with no internet: usual email/password, owner PIN and
    staff PINs. Tablets: Settings → Advanced shows the address + QR code.
 5. **Renewal:** the seller makes a new code; enter it on the licence screen
    (Settings → Advanced → *Enter a renewal code*). After the end date the app keeps
    working 3 more days, then only the licence screen opens until a code is entered.
-6. **Sales upload:** every minute when there is internet; nothing to do.
+   While connected (below) renewals arrive by themselves.
+6. **Connect to the online system** (Settings → Advanced, on/off switch):
+   on = sales upload every minute when there is internet; off = the app never
+   uses the internet. Turning it on asks for the email + password (a PC set up
+   online starts on). A restaurant made on the PC is created online the first
+   time, with the same menu, staff and pictures, and the sales made so far.
+   Turning it off asks for the password (tablets can open Settings too).
 7. **Backups:** daily, kept 14; tray icon (next to the clock) → Back up now /
    Restore / Choose backups folder (e.g. a USB stick).
 
@@ -67,6 +80,7 @@ copies it from the cloud database (reads production; you run it). `--with-histor
 adds orders and invoices, `--replace` refreshes it, `--remove` deletes it locally.
 
 **Try first-run setup:** `npm run dev -- --data .data-fresh` starts a fresh "PC".
+Add `--port-base 5100` to use ports 5100–5103, beside an installed desktop app.
 
 ## Build the Windows installer
 
@@ -124,14 +138,20 @@ browser test (14) on dev and on the packaged EXE; EXE start/quit (clean stop of
 PostgreSQL and PostgREST); backup/restore (15); restaurant import (17); stage 3+4
 end to end against a local stand-in cloud and the real online app in dev (41:
 seller codes, first-run setup in a browser, offline sale, upload, idempotency,
-cross-restaurant protection, renewal, expiry, grace, clock guard). `tsc` clean,
+cross-restaurant protection, renewal, expiry, grace, clock guard); fully-offline
+set-up and the online switch (45, 2026-10-06: setup file with pictures, new
+restaurant on the PC, Restaurant ID licence, connect creates it online with
+pictures and earlier sales, auto-renewal, switch off/on, forged licence refused). `tsc` clean,
 online `npm run build` passes and contains none of the offline code paths.
 
 Not done / known limits:
 - Never run against production: the migration, the keys and the cloud APIs need
   the owner steps above. The installer was built but not installed on a PC.
 - Menu/settings changes made on the PC stay on the PC; changes made online
-  after setup don't reach the PC (re-run setup is not built yet).
+  after setup don't reach the PC (re-run setup is not built yet). Only when a
+  restaurant made on the PC first connects does its set-up go online.
+- A setup file holds password and PIN hashes: the seller should hand it over
+  privately. It is a few MB per 100 pictures.
 - Orders still open on a table upload only after they're paid or closed.
 - Live updates ignore row-level security: one restaurant per PC.
 - Ports 4100–4103 are fixed; if another program uses 4100 the app says so.

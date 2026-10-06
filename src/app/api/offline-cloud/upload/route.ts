@@ -4,7 +4,7 @@ import { rateLimit } from '@/lib/rate-limit'
 import { serviceClient } from '@/lib/supabase/service'
 import { serverError } from '@/lib/api-auth'
 import { IS_OFFLINE_EDITION } from '@/lib/edition'
-import { installForToken } from '@/lib/offlineCloud.server'
+import { installForToken, latestLicense } from '@/lib/offlineCloud.server'
 import upload from '../../../../../offline/runtime/upload.cjs'
 
 export const runtime = 'nodejs'
@@ -123,7 +123,8 @@ export async function POST(req: NextRequest) {
     }
 
     await admin.from('offline_installs').update({ last_upload_at: new Date().toISOString() }).eq('id', install.id)
-    return NextResponse.json({ ok: true, serverTime: Date.now(), skipped })
+    // The newest licence rides along, so renewals reach the PC by themselves.
+    return NextResponse.json({ ok: true, serverTime: Date.now(), skipped, license: await latestLicense(admin, rid) })
   } catch (e) {
     return serverError(e)
   }

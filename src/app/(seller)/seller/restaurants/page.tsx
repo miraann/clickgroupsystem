@@ -35,6 +35,7 @@ export default function RestaurantsPage() {
   const [showAdd, setShowAdd]           = useState(false)
   const [editRec, setEditRec]           = useState<Restaurant | null>(null)
   const [licenseRec, setLicenseRec]     = useState<Restaurant | null>(null)
+  const [pcLicense, setPcLicense]       = useState(false)
   const [activeMenu, setActiveMenu]     = useState<string | null>(null)
 
   const load = useCallback(async () => {
@@ -92,10 +93,16 @@ export default function RestaurantsPage() {
           <h1 className="text-3xl font-bold text-white">Restaurants</h1>
           <p className="text-white/40 mt-1">Manage all restaurant clients and their access</p>
         </div>
+        <div className="flex items-center gap-2">
+        <button onClick={() => setPcLicense(true)} title="Licence for a restaurant that was made on an offline PC"
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white/80 text-sm font-medium transition-all">
+          <KeyRound className="w-4 h-4 text-amber-300" />Offline PC licence
+        </button>
         <button onClick={() => setShowAdd(true)}
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-medium transition-all shadow-lg shadow-indigo-500/25">
           <Plus className="w-4 h-4" />Add Restaurant
         </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -238,6 +245,7 @@ export default function RestaurantsPage() {
       )}
 
       {licenseRec && <OfflineLicenseModal restaurant={licenseRec} onClose={() => setLicenseRec(null)} />}
+      {pcLicense && <OfflineLicenseModal restaurant={null} onClose={() => setPcLicense(false)} />}
     </div>
   )
 }
