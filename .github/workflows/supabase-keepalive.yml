@@ -1,0 +1,39 @@
+name: Supabase keep-alive
+
+# Free-tier Supabase projects pause after 7 days without activity.
+# This runs a real database read once a day so the project never goes idle.
+# Uses the same repo secrets as CI: NEXT_PUBLIC_SUPABASE_URL and
+# NEXT_PUBLIC_SUPABASE_ANON_KEY (both are public values).
+
+on:
+  schedule:
+    - cron: '17 6 * * *' # every day at 06:17 UTC
+  workflow_dispatch: # allow a manual run from the Actions tab
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Query Supabase
+        env:
+          SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "::error::Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY repo secrets."
+            exit 1
+          fi
+          # restaurant_public is the anon-readable view (see migrations), so this
+          # is a genuine PostgREST -> Postgres query, not just a health check.
+          status=$(curl -sS -o response.json -w '%{http_code}' \
+            --retry 3 --retry-delay 20 --retry-all-errors \
+            "${SUPABASE_URL%/}/rest/v1/restaurant_public?select=id&limit=1" \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY")
+          echo "HTTP $status"
+          if [ "$status" -lt 200 ] || [ "$status" -ge 300 ]; then
+            cat response.json
+            exit 1
+          fi
+          echo "Supabase is awake."
