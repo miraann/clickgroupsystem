@@ -35,3 +35,7 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           SESSION_SECRET: ci-placeholder-session-secret-not-used-at-build
+          # Some API routes create their service client when the module loads,
+          # and supabase-js refuses an empty key. Never used: the build makes
+          # no requests. The real key stays out of CI.
+          SUPABASE_SERVICE_ROLE_KEY: ci-placeholder-service-key-not-used-at-build
