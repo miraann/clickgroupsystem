@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { isModuleEnabled, MODULES } from '@/lib/modules'
 import { QRCodeSVG } from 'qrcode.react'
+import { useShareOrigin } from '@/components/offline/useShareOrigin'
 import {
   Users, Plus, Pencil, Trash2, X, ToggleLeft, ToggleRight,
   Key, Shield, Search, ChevronDown, Loader2,
@@ -553,6 +554,8 @@ export default function UsersPage() {
   const [showInstallModal, setShowInstallModal] = useState(false)
 
   const [restaurantSlug, setRestaurantSlug] = useState<string | null>(null)
+  // What a phone scans: offline, the PC's Wi-Fi address rather than 127.0.0.1.
+  const shareOrigin = useShareOrigin()
 
   useEffect(() => {
     const rid = localStorage.getItem('restaurant_id') ?? ''
@@ -1318,7 +1321,7 @@ export default function UsersPage() {
                 <div className="flex flex-col items-center gap-2">
                   <div className="p-3 bg-white rounded-2xl shadow-lg">
                     <QRCodeSVG
-                      value={`${typeof window !== 'undefined' ? window.location.origin : ''}/pos/${restaurantSlug}/login`}
+                      value={`${shareOrigin}/pos/${restaurantSlug}/login`}
                       size={160}
                       bgColor="#ffffff"
                       fgColor="#0d1220"
@@ -1400,7 +1403,7 @@ export default function UsersPage() {
             <div className="flex flex-col items-center p-8 gap-5">
               <div className="p-4 bg-white rounded-2xl shadow-xl">
                 <QRCodeSVG
-                  value={`${typeof window !== 'undefined' ? window.location.origin : ''}/pos/${restaurantSlug}/login`}
+                  value={`${shareOrigin}/pos/${restaurantSlug}/login`}
                   size={200}
                   bgColor="#ffffff"
                   fgColor="#0d1220"
@@ -1412,8 +1415,8 @@ export default function UsersPage() {
               {/* URL label */}
               <div className="w-full bg-white/4 border border-white/8 rounded-xl px-4 py-3 text-center">
                 <p className="text-[11px] text-white/35 mb-1 uppercase tracking-wider font-semibold">Login URL</p>
-                <p className="text-xs text-amber-400 font-mono break-all leading-relaxed">
-                  {typeof window !== 'undefined' ? window.location.host : ''}/pos/{restaurantSlug}/login
+                <p dir="ltr" className="text-xs text-amber-400 font-mono break-all leading-relaxed">
+                  {shareOrigin.replace(/^https?:\/\//, '')}/pos/{restaurantSlug}/login
                 </p>
               </div>
 
