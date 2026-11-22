@@ -9,6 +9,7 @@ import { createClient } from '@/lib/supabase/client'
 import { getStaffHome } from '@/lib/permissions/staffHome'
 import { getRuntime, CASHIER_APK_URL } from '@/lib/appUpdate'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
+import styles from './login.module.css'
 
 const supabase = createClient()
 
@@ -170,10 +171,12 @@ export default function POSLoginPage() {
   const formattedDate = time?.toLocaleDateString(dateLocale, { weekday: 'long', month: 'long', day: 'numeric' }) ?? ' '
 
   return (
-    <div className="min-h-screen bg-[#022658] flex flex-col items-center justify-center overflow-hidden relative select-none">
+    // Sizing / layout lives in login.module.css: the screen always fits the
+    // viewport (browser, PWA, APK WebView, Electron) with no scrolling.
+    <div className={cn(styles.root, 'bg-[#022658] select-none')}>
 
       {/* Ambient background */}
-      <div className="fixed inset-0 pointer-events-none">
+      <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
         <div className="absolute top-[-10%] left-[-5%] w-[500px] h-[500px] bg-amber-600/8 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '5s' }} />
         <div className="absolute bottom-[-10%] right-[-5%] w-[600px] h-[600px] bg-indigo-600/8 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '7s' }} />
         <div className="absolute inset-0 opacity-[0.025]" style={{
@@ -183,170 +186,165 @@ export default function POSLoginPage() {
       </div>
 
       {/* Top bar */}
-      <div className="fixed top-0 left-0 right-0 z-10 flex items-center justify-between px-8 py-5">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/30">
-            <ChefHat className="w-5 h-5 text-white" />
+      <header className={styles.topbar}>
+        <div className={styles.brand}>
+          <div className={cn(styles.brandIcon, 'rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 shadow-lg shadow-amber-500/30')}>
+            <ChefHat className="text-white" />
           </div>
           {loadingRest ? (
-            <div className="h-4 w-32 rounded bg-white/8 animate-pulse" />
+            <div className="h-4 w-32 max-w-[40vw] rounded bg-white/8 animate-pulse" />
           ) : (
-            <div>
-              <p className="text-sm font-bold text-white leading-none">{restaurant?.name ?? t.pl_pos}</p>
-              <p className="text-xs text-white/30 mt-0.5">{t.pl_staff_login}</p>
+            <div className={styles.brandText}>
+              <p className={cn(styles.brandName, 'font-bold text-white')}>{restaurant?.name ?? t.pl_pos}</p>
+              <p className={cn(styles.brandSub, 'text-white/30')}>{t.pl_staff_login}</p>
             </div>
           )}
         </div>
-        <div className="text-right">
-          <p className="text-2xl font-bold text-white tabular-nums">{formattedTime}</p>
-          <p className="text-xs text-white/30 flex items-center justify-end gap-1.5">
-            <Clock className="w-3 h-3" />{formattedDate}
+        <div className={styles.clock}>
+          <p className={cn(styles.time, 'font-bold text-white tabular-nums')}>{formattedTime}</p>
+          <p className={cn(styles.date, 'text-white/30')}>
+            <Clock />{formattedDate}
           </p>
         </div>
-      </div>
+      </header>
 
-      {/* PIN card */}
-      <div className="relative z-10 w-full max-w-sm sm:max-w-md md:max-w-xl lg:max-w-2xl px-4">
+      <main className={styles.stage}>
 
-        {/* Restaurant logo / icon */}
-        <div className="flex flex-col items-center mb-8">
-          <div className="relative w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 rounded-3xl bg-gradient-to-br from-amber-400/20 to-orange-500/20 border border-amber-500/20 flex items-center justify-center mb-4 shadow-2xl shadow-amber-500/10 overflow-hidden">
+        {/* Logo, title, PIN dots, status */}
+        <div className={styles.head}>
+          <div className={cn(styles.logo, 'bg-gradient-to-br from-amber-400/20 to-orange-500/20 border border-amber-500/20 flex items-center justify-center shadow-2xl shadow-amber-500/10 overflow-hidden')}>
             {restaurant?.logo_url
               ? <Image src={restaurant.logo_url} alt={restaurant.name} fill sizes="112px" className="object-cover" />
-              : <ChefHat className="w-9 h-9 sm:w-11 sm:h-11 md:w-14 md:h-14 text-amber-400" />}
+              : <ChefHat className="text-amber-400" />}
           </div>
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white">{t.pl_enter_pin}</h1>
-          <p className="text-white/35 text-sm sm:text-base md:text-lg mt-1">{t.pl_pin_subtitle}</p>
+          <h1 className={cn(styles.title, 'font-bold text-white')}>{t.pl_enter_pin}</h1>
+          <p className={cn(styles.subtitle, 'text-white/35')}>{t.pl_pin_subtitle}</p>
+
+          <div className={cn(styles.dots, shake && styles.shake)} dir="ltr">
+            {[0, 1, 2, 3, 4, 5].map(i => (
+              <div key={i} className={cn(
+                styles.dot,
+                'rounded-full border-2 transition-all duration-150',
+                status === 'success'   ? 'bg-emerald-400 border-emerald-400 scale-110'
+                : status === 'error'  ? 'bg-rose-400 border-rose-400'
+                : status === 'checking' && i < pin.length ? 'bg-amber-400 border-amber-400 scale-110 animate-pulse'
+                : i < pin.length     ? 'bg-white border-white scale-110'
+                : 'bg-transparent border-white/20'
+              )} />
+            ))}
+          </div>
+
+          <div className={styles.status} role="status" aria-live="polite">
+            {status === 'success' && (
+              <span className="text-emerald-400 font-medium inline-flex items-center gap-1.5">
+                <CheckCircle2 /> {t.pl_welcome}
+              </span>
+            )}
+            {status === 'error' && (
+              <span className="text-rose-400 font-medium">{t.pl_incorrect}</span>
+            )}
+            {status === 'checking' && (
+              <span className="text-amber-400/70 font-medium inline-flex items-center gap-1.5">
+                <Loader2 className="animate-spin" /> {t.pl_verifying}
+              </span>
+            )}
+            {status === 'idle' && pin.length === 0 && (
+              <span className="text-white/20">{t.pl_tap_numbers}</span>
+            )}
+          </div>
         </div>
 
-        {/* PIN dots */}
-        <div className={cn('flex justify-center gap-5 sm:gap-6 md:gap-8 mb-8 md:mb-10', shake && 'animate-[pinShake_0.45s_ease-in-out]')}>
-          {[0, 1, 2, 3, 4, 5].map(i => (
-            <div key={i} className={cn(
-              'w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8 rounded-full border-2 transition-all duration-150',
-              status === 'success'   ? 'bg-emerald-400 border-emerald-400 scale-110'
-              : status === 'error'  ? 'bg-rose-400 border-rose-400'
-              : status === 'checking' && i < pin.length ? 'bg-amber-400 border-amber-400 scale-110 animate-pulse'
-              : i < pin.length     ? 'bg-white border-white scale-110'
-              : 'bg-transparent border-white/20'
-            )} />
-          ))}
-        </div>
-
-        {/* Status message */}
-        <div className="text-center h-6 mb-6">
-          {status === 'success' && (
-            <p className="text-sm text-emerald-400 font-medium flex items-center justify-center gap-1.5">
-              <CheckCircle2 className="w-4 h-4" /> {t.pl_welcome}
-            </p>
-          )}
-          {status === 'error' && (
-            <p className="text-sm text-rose-400 font-medium">{t.pl_incorrect}</p>
-          )}
-          {status === 'checking' && (
-            <p className="text-sm text-amber-400/70 font-medium flex items-center justify-center gap-1.5">
-              <Loader2 className="w-3.5 h-3.5 animate-spin" /> {t.pl_verifying}
-            </p>
-          )}
-          {status === 'idle' && pin.length === 0 && (
-            <p className="text-sm text-white/20">{t.pl_tap_numbers}</p>
-          )}
-        </div>
-
-        {/* Number pad */}
-        <div className="rounded-3xl border border-white/10 bg-white/4 backdrop-blur-2xl p-4 sm:p-5 md:p-7 shadow-2xl shadow-black/40">
-          <div className="grid grid-cols-3 gap-3 sm:gap-4 md:gap-5" dir="ltr">
+        {/* Number pad — fills the height that is left */}
+        <div className={styles.padArea}>
+          <div className={cn(styles.pad, 'border border-white/10 bg-white/4 backdrop-blur-2xl shadow-2xl shadow-black/40')} dir="ltr">
             {KEYS.map(key => {
               const isAction = key === 'del' || key === 'clr'
               const disabled = status === 'checking' || status === 'success'
               return (
                 <button
                   key={key}
+                  type="button"
                   onClick={() => handleKey(key)}
                   disabled={disabled}
                   className={cn(
-                    'relative h-[68px] sm:h-[92px] md:h-[150px] rounded-2xl md:rounded-3xl font-semibold text-2xl sm:text-3xl md:text-5xl transition-all duration-100 touch-manipulation active:scale-[0.92] disabled:opacity-40',
+                    styles.key,
+                    isAction && styles.keyAction,
+                    'font-semibold transition-all duration-100 touch-manipulation active:scale-[0.92] disabled:opacity-40',
                     isAction
-                      ? 'bg-white/5 border border-white/8 text-white/45 hover:bg-white/10 hover:text-white/70 text-base sm:text-lg md:text-2xl'
+                      ? 'bg-white/5 border border-white/8 text-white/45 hover:bg-white/10 hover:text-white/70'
                       : 'bg-white/8 border border-white/12 text-white hover:bg-white/14 hover:border-white/20 active:bg-white/20 shadow-sm'
                   )}
                 >
-                  {key === 'del' ? <Delete className="w-5 h-5 sm:w-7 sm:h-7 md:w-11 md:h-11 mx-auto" /> : key === 'clr' ? t.pl_clr : key}
+                  {key === 'del' ? <Delete /> : key === 'clr' ? t.pl_clr : key}
                 </button>
               )
             })}
           </div>
         </div>
 
-        <p className="text-center text-xs text-white/15 mt-5">
-          {t.pl_forgot}
-        </p>
+        {/* Forgot hint, switch account, install */}
+        <div className={styles.foot}>
+          <p className={cn(styles.forgot, 'text-white/15')}>
+            {t.pl_forgot}
+          </p>
 
-        <div className="mt-4 flex justify-center">
-          <button
-            onClick={() => {
-              ['restaurant_id','restaurant_name','restaurant_slug','owner_session',
-               'pos_staff_id','pos_staff_name','pos_staff_role','pos_staff_color',
-               'pos_role_permissions','pos_role_name'].forEach(k => localStorage.removeItem(k))
-              sessionStorage.removeItem('pos_session_active')
-              router.replace(`/restaurant-login${nextDest ? `?next=${encodeURIComponent(nextDest)}` : ''}`)
-            }}
-            className="flex items-center gap-2 px-4 py-2 sm:px-5 sm:py-2.5 rounded-2xl text-xs sm:text-sm font-semibold transition-all active:scale-95 border bg-white/8 border-white/15 text-white/70 hover:bg-white/14 hover:text-white hover:border-white/25"
-          >
-            <ArrowLeftRight className="w-4 h-4" />
-            {t.pl_change_account}
-          </button>
-        </div>
-
-        {/* Install App button — web only; hidden inside the native APK / Electron shell */}
-        {!isNativeShell && (
-        <div className="mt-5 flex justify-center">
-          {isAndroid ? (
-            // Android: download and install the native APK
-            installed ? (
-              <div className="flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-semibold border bg-emerald-500/15 border-emerald-500/25 text-emerald-400">
-                <CheckCircle2 className="w-4 h-4" /> {t.pl_app_installed}
-              </div>
-            ) : (
-              <a
-                href={CASHIER_APK_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-semibold transition-all active:scale-95 border bg-amber-500/15 border-amber-500/25 text-amber-400 hover:bg-amber-500/25"
-              >
-                <Download className="w-4 h-4" /> {t.pl_install_android}
-              </a>
-            )
-          ) : (deferredInstall || installed) ? (
-            // Desktop/iOS: PWA install prompt
+          <div className={styles.actions}>
             <button
-              onClick={handleInstall}
-              disabled={installed}
-              className={cn(
-                'flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-semibold transition-all active:scale-95 border',
-                installed
-                  ? 'bg-emerald-500/15 border-emerald-500/25 text-emerald-400 cursor-default'
-                  : 'bg-white/8 border-white/15 text-white/70 hover:bg-white/14 hover:text-white hover:border-white/25'
-              )}
+              type="button"
+              onClick={() => {
+                ['restaurant_id','restaurant_name','restaurant_slug','owner_session',
+                 'pos_staff_id','pos_staff_name','pos_staff_role','pos_staff_color',
+                 'pos_role_permissions','pos_role_name'].forEach(k => localStorage.removeItem(k))
+                sessionStorage.removeItem('pos_session_active')
+                router.replace(`/restaurant-login${nextDest ? `?next=${encodeURIComponent(nextDest)}` : ''}`)
+              }}
+              className={cn(styles.action, 'font-semibold transition-all active:scale-95 border bg-white/8 border-white/15 text-white/70 hover:bg-white/14 hover:text-white hover:border-white/25')}
             >
-              {installed
-                ? <><CheckCircle2 className="w-4 h-4" /> {t.pl_app_installed}</>
-                : <><Download className="w-4 h-4" /> {t.pl_install_app}</>}
+              <ArrowLeftRight />
+              {t.pl_change_account}
             </button>
-          ) : null}
-        </div>
-        )}
-      </div>
 
-      <style jsx>{`
-        @keyframes pinShake {
-          0%, 100% { transform: translateX(0); }
-          15%       { transform: translateX(-10px); }
-          35%       { transform: translateX(10px); }
-          55%       { transform: translateX(-7px); }
-          75%       { transform: translateX(7px); }
-        }
-      `}</style>
+            {/* Install App button — web only; hidden inside the native APK / Electron shell */}
+            {!isNativeShell && (
+              isAndroid ? (
+                // Android: download and install the native APK
+                installed ? (
+                  <div className={cn(styles.action, 'font-semibold border bg-emerald-500/15 border-emerald-500/25 text-emerald-400')}>
+                    <CheckCircle2 /> {t.pl_app_installed}
+                  </div>
+                ) : (
+                  <a
+                    href={CASHIER_APK_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={cn(styles.action, 'font-semibold transition-all active:scale-95 border bg-amber-500/15 border-amber-500/25 text-amber-400 hover:bg-amber-500/25')}
+                  >
+                    <Download /> {t.pl_install_android}
+                  </a>
+                )
+              ) : (deferredInstall || installed) ? (
+                // Desktop/iOS: PWA install prompt
+                <button
+                  type="button"
+                  onClick={handleInstall}
+                  disabled={installed}
+                  className={cn(
+                    styles.action,
+                    'font-semibold transition-all active:scale-95 border',
+                    installed
+                      ? 'bg-emerald-500/15 border-emerald-500/25 text-emerald-400 cursor-default'
+                      : 'bg-white/8 border-white/15 text-white/70 hover:bg-white/14 hover:text-white hover:border-white/25'
+                  )}
+                >
+                  {installed
+                    ? <><CheckCircle2 /> {t.pl_app_installed}</>
+                    : <><Download /> {t.pl_install_app}</>}
+                </button>
+              ) : null
+            )}
+          </div>
+        </div>
+      </main>
     </div>
   )
 }
