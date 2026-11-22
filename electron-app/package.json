@@ -38,10 +38,10 @@
     ]
   },
   "dependencies": {
-    "electron-updater": "^6.3.9"
+    "electron-updater": "^6.8.11"
   },
   "devDependencies": {
-    "electron": "^33.4.11",
-    "electron-builder": "^25.0.0"
+    "electron": "^44.11.5",
+    "electron-builder": "^26.18.0"
   }
 }
