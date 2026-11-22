@@ -1,6 +1,6 @@
 {
   "name": "clickgroup-pos-offline",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "ClickGroup POS — Offline Edition (runs the whole system on this PC)",
   "main": "main.js",
   "private": true,

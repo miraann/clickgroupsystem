@@ -1,0 +1,77 @@
+name: Offline installer (Windows)
+
+# Builds "ClickGroup POS Offline Setup x.y.z.exe" (see offline/README.md) on a
+# GitHub Windows machine and attaches it to the run as an artifact: open the
+# run in the Actions tab → Artifacts → clickgroup-pos-offline-setup.
+#
+# Built here rather than on a dev PC because Windows Smart App Control blocks
+# electron-builder's NSIS step (it runs an unsigned helper it just made).
+#
+# Runs on every push to offline-edition; "Run workflow" in the Actions tab
+# works once this file is also on the default branch.
+
+on:
+  push:
+    branches: [offline-edition]
+  workflow_dispatch:
+
+concurrency:
+  group: offline-installer-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            offline/package-lock.json
+            electron-offline/package-lock.json
+
+      - name: Install (app)
+        run: npm ci
+
+      - name: Install (offline backend)
+        run: npm ci
+        working-directory: offline
+
+      - name: Install (desktop app)
+        run: npm ci
+        working-directory: electron-offline
+
+      # PostgreSQL + PostgREST (~450 MB, checksummed). The versions and
+      # checksums live in fetch-vendor.mjs, so its hash is the cache key.
+      - name: Cache PostgreSQL and PostgREST
+        uses: actions/cache@v4
+        with:
+          path: |
+            offline/vendor/pgsql
+            offline/vendor/postgrest
+          key: offline-vendor-${{ hashFiles('offline/scripts/fetch-vendor.mjs') }}
+
+      - name: Download PostgreSQL and PostgREST
+        run: npm run fetch-vendor
+        working-directory: offline
+
+      # assemble.mjs builds the offline Next app, stages the backend (with the
+      # Visual C++ runtime beside PostgreSQL), then electron-builder makes the
+      # NSIS installer. Nothing is published anywhere.
+      - name: Build the installer
+        run: npm run build:win -- --publish never
+        working-directory: electron-offline
+
+      - name: Upload the installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: clickgroup-pos-offline-setup
+          path: electron-offline/dist/*.exe
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0

@@ -87,8 +87,14 @@ Add `--port-base 5100` to use ports 5100–5103, beside an installed desktop app
 ```powershell
 cd electron-offline
 npm install
-npm run build:win     # → electron-offline/dist/ClickGroup POS Offline Setup 0.1.0.exe
+npm run build:win     # → electron-offline/dist/ClickGroup POS Offline Setup x.y.z.exe
 ```
+
+**Or let GitHub build it** (needed on a PC with Smart App Control on, which
+blocks electron-builder's NSIS step with `spawn UNKNOWN`): every push to
+`offline-edition` runs `.github/workflows/offline-installer.yml`; download the
+installer from the run's *Artifacts* (kept 30 days). Bump the version in
+`electron-offline/package.json` for each release so installers are told apart.
 
 `npm run assemble` alone stages `electron-offline/stage/` (offline Next build
 + backend + PostgreSQL/PostgREST); it refuses to finish if any value from
