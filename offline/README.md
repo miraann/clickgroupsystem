@@ -94,6 +94,10 @@ npm run build:win     # → electron-offline/dist/ClickGroup POS Offline Setup 0
 + backend + PostgreSQL/PostgREST); it refuses to finish if any value from
 `.env.local` ended up inside, and warns if the licence public key is missing.
 `npm run pack:win` makes an unpacked folder to try without installing.
+It also copies the 64-bit Visual C++ runtime (`vcruntime140.dll`,
+`vcruntime140_1.dll`, `msvcp140.dll`) from the build PC's System32 into
+PostgreSQL's `bin`: the EDB binaries need it and many restaurant PCs don't
+have it (without it `initdb` exits with 0xC0000135 and no output).
 The installer adds a Windows Firewall rule for TCP 4100 (all network
 profiles — restaurant Wi-Fi is often marked "Public") and a shared data folder
 `C:\ProgramData\ClickGroup POS Offline` (database, pictures, logs, backups).

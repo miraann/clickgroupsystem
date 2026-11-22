@@ -124,6 +124,31 @@ const SKIP_PG = /^(stackbuilder\.exe|wx.*\.dll|pgbench\.exe|ecpg\.exe|pg_upgrade
 fs.cpSync(path.join(offline, 'vendor', 'pgsql'), path.join(backend, 'vendor', 'pgsql'), {
   recursive: true, filter: (src) => !SKIP_PG.test(path.basename(src)),
 })
+// The EDB binaries need the Microsoft Visual C++ runtime (VCRUNTIME140.dll,
+// MSVCP140.dll — the latter needs VCRUNTIME140_1.dll), which is not part of
+// Windows. On a PC without the VC++ Redistributable, initdb exits at once with
+// no output. Ship the 64-bit DLLs beside the programs (Microsoft's app-local
+// deployment); Windows looks in a program's own folder first, and PostgREST
+// finds them through pgsql/bin on its PATH.
+const VC_RUNTIME = ['vcruntime140.dll', 'vcruntime140_1.dll', 'msvcp140.dll']
+const system32 = path.join(process.env.SystemRoot || 'C:\\Windows', 'System32')
+const pgStagedBin = path.join(backend, 'vendor', 'pgsql', 'bin')
+for (const dll of VC_RUNTIME) {
+  const src = path.join(system32, dll)
+  if (!fs.existsSync(src)) {
+    console.error(`Missing ${src} — install the Microsoft Visual C++ Redistributable (x64) on this build PC: https://aka.ms/vs/17/release/vc_redist.x64.exe`)
+    process.exit(1)
+  }
+  // A 32-bit Node sees SysWOW64 as System32; PostgreSQL is 64-bit (PE machine 0x8664).
+  const b = fs.readFileSync(src)
+  if (b.readUInt16LE(b.readUInt32LE(0x3c) + 4) !== 0x8664) {
+    console.error(`${src} is not 64-bit — run this build with 64-bit Node.js.`)
+    process.exit(1)
+  }
+  fs.copyFileSync(src, path.join(pgStagedBin, dll))
+}
+console.log(`  Visual C++ runtime shipped with PostgreSQL: ${VC_RUNTIME.join(', ')}`)
+
 fs.mkdirSync(path.join(backend, 'vendor', 'postgrest'), { recursive: true })
 fs.copyFileSync(path.join(offline, 'vendor', 'postgrest', 'postgrest.exe'), path.join(backend, 'vendor', 'postgrest', 'postgrest.exe'))
 

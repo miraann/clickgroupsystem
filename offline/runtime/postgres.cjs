@@ -25,6 +25,24 @@ function run(cmd, args, { env, input, detach } = {}) {
 
 const exe = (cfg, name) => path.join(cfg.pgBin, process.platform === 'win32' ? `${name}.exe` : name)
 
+// A Windows program that can't load prints nothing; its exit code is the only clue.
+const WINDOWS_START_ERRORS = {
+  0xC0000135: 'a file it needs is missing — usually the Microsoft Visual C++ Redistributable (x64): VCRUNTIME140.dll / MSVCP140.dll',
+  0xC000007B: 'one of its files is the wrong type (32-bit instead of 64-bit)',
+  0xC0000022: 'Windows (or an antivirus) blocked it',
+}
+
+/** What went wrong with a finished run(), for an error message. */
+function describeFailure(r) {
+  const out = (r.stderr || r.stdout).trim()
+  if (out) return out
+  const code = r.code == null ? null : r.code >>> 0
+  const why = code != null && WINDOWS_START_ERRORS[code]
+  return why
+    ? `it could not start: ${why} (exit code 0x${code.toString(16).toUpperCase()})`
+    : `no output (exit code ${code == null ? 'none' : `0x${code.toString(16).toUpperCase()}`})`
+}
+
 async function ensureCluster(cfg, log = console.log) {
   if (fs.existsSync(path.join(cfg.pgData, 'PG_VERSION'))) return false
   log('[postgres] creating database cluster…')
@@ -37,7 +55,7 @@ async function ensureCluster(cfg, log = console.log) {
       // Code-point ordering, full Unicode case mapping, no OS-locale dependence.
       '--locale-provider=builtin', '--builtin-locale=C.UTF-8', '--locale=C',
     ])
-    if (r.code !== 0) throw new Error(`initdb failed:\n${r.stderr || r.stdout}`)
+    if (r.code !== 0) throw new Error(`initdb failed: ${describeFailure(r)}`)
   } finally {
     fs.rmSync(pwfile, { force: true })
   }
@@ -61,7 +79,12 @@ async function start(cfg, log = console.log) {
     '-o', `-p ${cfg.ports.postgres} -c listen_addresses=127.0.0.1`,
   ], { detach: true })
   if (r.code !== 0) {
-    throw new Error(`postgres did not start (see ${path.join(cfg.logDir, 'postgres.log')})`)
+    // detach: no output to read, but a pg_ctl that couldn't even load still has its exit code.
+    const code = r.code == null ? null : r.code >>> 0
+    const why = code != null && WINDOWS_START_ERRORS[code]
+    throw new Error(why
+      ? `postgres did not start: pg_ctl could not start: ${why}`
+      : `postgres did not start (see ${path.join(cfg.logDir, 'postgres.log')})`)
   }
 }
 
