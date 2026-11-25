@@ -9,7 +9,7 @@ This flow only updates the **native shell**:
 | Build | What an update ships | Mechanism |
 |---|---|---|
 | Windows `.exe` (`electron-app/`) | `main.js` / `preload.js` — printing, tray, cache tuning | [`electron-updater`](https://www.electron.build/auto-update) reads `latest.yml` from **GitHub Releases** |
-| Android `.apk` × 5 flavors (`android/`) | `MainActivity.java`, plugins, `AndroidManifest.xml`, native config | `UpdaterPlugin` reads `/android-latest.json` from **Vercel**, downloads the APK from `/apps`, launches the OS installer |
+| Android `.apk` × 6 flavors (`android/`) | `MainActivity.java`, plugins, `AndroidManifest.xml`, native config | `UpdaterPlugin` reads `/android-latest.json` from **Vercel**, downloads the APK from the **`android-apps` GitHub release**, launches the OS installer |
 
 The user triggers it from **Settings → Advanced → "App version & updates"**
 (`src/app/(restaurant)/dashboard/settings/advanced/page.tsx`, backed by
@@ -18,10 +18,19 @@ The user triggers it from **Settings → Advanced → "App version & updates"**
 Hosting:
 - **EXE** → GitHub Releases on `miraann/clickgroupsystem` (electron-updater needs
   the `publish` block + `latest.yml` there).
-- **APKs** → committed to `public/apps/` and served from the Vercel deploy. The
-  update manifest is `public/android-latest.json` (served at `/android-latest.json`).
-  Nothing GitHub-side; a `git push` that Vercel deploys *is* the APK release. The
-  Settings → Apps page (`/dashboard/settings/apps`) lists them for manual install.
+- **APKs** → attached to the **`android-apps` release** on the same repo, under
+  fixed names, so the download URLs never change:
+  `https://github.com/miraann/clickgroupsystem/releases/download/android-apps/<Flavor>.apk`
+  (`Cashier`, `Driver`, `Delivery`, `Seller`, `CFD`, `KDS`). The base URL is
+  `APK_DOWNLOAD_BASE` in `src/lib/apkHosting.ts`. They are **not** in `public/`:
+  Capacitor's `webDir` is `public/`, so anything there is copied into every APK.
+  The old `https://clickgroupsystem.vercel.app/apps/<Flavor>.apk` links redirect
+  to the release (`redirects()` in `next.config.ts`).
+- **Update manifest** → `public/android-latest.json`, served by Vercel at
+  `/android-latest.json`; a `git push` that Vercel deploys publishes it. The
+  Settings → Apps page (`/dashboard/settings/apps`) lists the apps for manual install.
+- `android-apps` is created with `--latest=false`, so GitHub's "Latest" release —
+  what `electron-updater` reads — stays the newest EXE release.
 
 ---
 
@@ -34,12 +43,10 @@ Pick the next version, e.g. `1.2`. Do the version bumps **in the same commit** s
 2. `android/app/build.gradle` → `versionCode 3`, `versionName "1.2"`
    (`versionCode` MUST increase — it's what the APK compares)
 3. `public/android-latest.json` → bump `versionCode` / `versionName` for each
-   flavor that changed. The `url` fields already point at the stable
-   `https://clickgroupsystem.vercel.app/apps/<Flavor>.apk` paths
-   (`Cashier.apk`, `Driver.apk`, `Delivery.apk`, `Seller.apk`, `CFD.apk`) —
-   only touch them if the filenames change.
+   flavor that changed. The `url` fields already point at the fixed
+   `android-apps` release URLs — only touch them if the filenames change.
 4. `src/lib/appUpdate.ts` → `APK_RELEASE_TAG` (the version label on the
-   Settings → Apps page). APK URLs there are the fixed `/apps/...` paths, so
+   Settings → Apps page). APK URLs there come from `APK_DOWNLOAD_BASE`, so
    nothing else to change.
 
 ### Build the EXE
@@ -66,47 +73,54 @@ mv "ClickGroup POS Setup 1.2.0.exe.blockmap" "ClickGroup-POS-Setup-1.2.0.exe.blo
 cd ../..
 ```
 
-### Build + ship the 5 APKs
+### Build + ship the 6 APKs
 
 ```bash
 npx cap sync android
 cd android
 ./gradlew assembleCashierRelease  assembleDriverRelease assembleDeliveryRelease \
-          assembleSellerRelease   assembleCfdRelease
+          assembleSellerRelease   assembleCfdRelease    assembleKdsRelease
 cd ..
-# copy the fresh builds into public/ under the stable names the manifest uses
-cp android/app/build/outputs/apk/cashier/release/app-cashier-release.apk   public/apps/Cashier.apk
-cp android/app/build/outputs/apk/driver/release/app-driver-release.apk     public/apps/Driver.apk
-cp android/app/build/outputs/apk/delivery/release/app-delivery-release.apk public/apps/Delivery.apk
-cp android/app/build/outputs/apk/seller/release/app-seller-release.apk     public/apps/Seller.apk
-cp android/app/build/outputs/apk/cfd/release/app-cfd-release.apk           public/apps/CFD.apk
-git add public/apps public/android-latest.json android/app/build.gradle src/lib/appUpdate.ts
-git commit && git push          # Vercel deploys → the APK release is live
+# stage the fresh builds under the fixed names the URLs use (dist-release/ is git-ignored)
+mkdir -p dist-release/android-apps
+cp android/app/build/outputs/apk/cashier/release/app-cashier-release.apk   dist-release/android-apps/Cashier.apk
+cp android/app/build/outputs/apk/driver/release/app-driver-release.apk     dist-release/android-apps/Driver.apk
+cp android/app/build/outputs/apk/delivery/release/app-delivery-release.apk dist-release/android-apps/Delivery.apk
+cp android/app/build/outputs/apk/seller/release/app-seller-release.apk     dist-release/android-apps/Seller.apk
+cp android/app/build/outputs/apk/cfd/release/app-cfd-release.apk           dist-release/android-apps/CFD.apk
+cp android/app/build/outputs/apk/kds/release/app-kds-release.apk           dist-release/android-apps/KDS.apk
+# 1) replace the files on the release (same URLs) — only the flavors you rebuilt
+gh release upload android-apps dist-release/android-apps/*.apk --clobber -R miraann/clickgroupsystem
+# 2) THEN publish the version bump, so no device sees "update available" before the file is there
+git add public/android-latest.json android/app/build.gradle src/lib/appUpdate.ts
+git commit && git push          # Vercel deploys the manifest → devices are offered the update
+```
+
+The `android-apps` release was created once with:
+
+```bash
+gh release create android-apps dist-release/android-apps/*.apk -R miraann/clickgroupsystem \
+  --latest=false --title "Android apps" \
+  --notes "Download links for the ClickGroup Android apps. Files are replaced in place on each release; see docs/APP_UPDATES.md."
 ```
 
 Release signing needs `android/keystore.properties` + the keystore (git-ignored —
 see `docs/ANDROID_APPS.md`). Without them the build falls back to the debug key
 and the output is **not** an in-place update for real installs. (`apksigner verify
---print-certs public/apps/Cashier.apk` should show
+--print-certs dist-release/android-apps/Cashier.apk` should show
 `CN=ClickGroup Technology`.)
 
-Each APK is ~10 MB → ~50 MB of binaries live in `public/apps/` and in git
-history. The filenames are stable so the working tree stays ~50 MB, but every
-release adds another ~50 MB of history.
+The APKs are release assets, not files in git, so new builds don't add ~60 MB
+to the repo history any more.
 
-> **Gotcha:** `capacitor.config.ts` sets `webDir: 'public'`, so `npx cap sync
-> android` copies the *entire* `public/` folder — including whatever is
-> already sitting in `public/apps/*.apk` from the previous release — into
-> each flavor's bundled assets. Those bundled assets are never actually read
-> (every flavor boots straight to the remote `server.url`), but the Gradle
-> packaging step still includes them, roughly tripling the output APK size
-> (~10 MB → ~27 MB) if you don't account for it. There's no `.capacitorignore`
-> support in this project's `@capacitor/cli` version to exclude it. Cheapest
-> workaround until `webDir` is split from `public/apps/`: `mv public/apps
-> /tmp/apps_backup` before `cap sync`, build, then restore + overwrite with
-> the fresh APKs. (Fixed this way for the 2026-09-12 push-notification
-> release; the size jump was caught by comparing against a known-good flavor
-> before shipping — always sanity-check new APK sizes against the others.)
+> **Keep `public/` small.** `capacitor.config.ts` sets `webDir: 'public'`, so
+> `npx cap sync android` copies the *entire* `public/` folder into each
+> flavor's bundled assets. They are never read (every flavor boots straight
+> to the remote `server.url`), but Gradle packages them anyway. When the APKs
+> themselves lived in `public/apps/`, each build swallowed the previous ones
+> (~10 MB → ~27 MB). That is why they moved to the `android-apps` release —
+> don't put large files back in `public/`. Still sanity-check new APK sizes
+> against the previous ones before uploading.
 
 ### Publish the EXE (GitHub release)
 
@@ -125,8 +139,9 @@ gh release create v1.2 \
   testing so `latest/download/` keeps pointing at the previous stable EXE.
 - The APK's native `Updater` fetches `/android-latest.json` from the same Vercel
   origin (no CORS proxy needed), reads the entry for its own `applicationId`,
-  compares `versionCode`, then downloads the `url` (an absolute
-  `https://clickgroupsystem.vercel.app/apps/…` path) with native Java.
+  compares `versionCode`, then downloads the `url` (the absolute `android-apps`
+  release URL; GitHub answers with a redirect, which `HttpURLConnection`
+  follows) with native Java.
 
 ---
 
@@ -135,11 +150,12 @@ gh release create v1.2 \
 ```json
 {
   "flavors": {
-    "com.clickgroup.pos":          { "versionCode": 5, "versionName": "1.3",          "url": "https://clickgroupsystem.vercel.app/apps/Cashier.apk",  "notes": "…" },
-    "com.clickgroup.pos.driver":   { "versionCode": 5, "versionName": "1.3-driver",   "url": "https://clickgroupsystem.vercel.app/apps/Driver.apk",   "notes": "…" },
-    "com.clickgroup.pos.delivery": { "versionCode": 5, "versionName": "1.3-delivery", "url": "https://clickgroupsystem.vercel.app/apps/Delivery.apk", "notes": "…" },
-    "com.clickgroup.pos.seller":   { "versionCode": 5, "versionName": "1.3-seller",   "url": "https://clickgroupsystem.vercel.app/apps/Seller.apk",   "notes": "…" },
-    "com.clickgroup.pos.cfd":      { "versionCode": 5, "versionName": "1.3-cfd",      "url": "https://clickgroupsystem.vercel.app/apps/CFD.apk",      "notes": "…" }
+    "com.clickgroup.pos":          { "versionCode": 9, "versionName": "1.5.2",          "url": "https://github.com/miraann/clickgroupsystem/releases/download/android-apps/Cashier.apk",  "notes": "…" },
+    "com.clickgroup.pos.driver":   { "versionCode": 9, "versionName": "1.5.2-driver",   "url": "https://github.com/miraann/clickgroupsystem/releases/download/android-apps/Driver.apk",   "notes": "…" },
+    "com.clickgroup.pos.delivery": { "versionCode": 9, "versionName": "1.5.2-delivery", "url": "https://github.com/miraann/clickgroupsystem/releases/download/android-apps/Delivery.apk", "notes": "…" },
+    "com.clickgroup.pos.seller":   { "versionCode": 6, "versionName": "1.4-seller",     "url": "https://github.com/miraann/clickgroupsystem/releases/download/android-apps/Seller.apk",   "notes": "…" },
+    "com.clickgroup.pos.cfd":      { "versionCode": 9, "versionName": "1.5.2-cfd",      "url": "https://github.com/miraann/clickgroupsystem/releases/download/android-apps/CFD.apk",      "notes": "…" },
+    "com.clickgroup.pos.kds":      { "versionCode": 9, "versionName": "1.5.2-kds",      "url": "https://github.com/miraann/clickgroupsystem/releases/download/android-apps/KDS.apk",      "notes": "…" }
   }
 }
 ```
