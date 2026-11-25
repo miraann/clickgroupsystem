@@ -150,7 +150,8 @@ page (`src/app/cfd/page.tsx`) must be deployed to Vercel before the CFD APK work
 Users update in place from **Settings → Advanced → "App version & updates"** — no
 reinstall. `UpdaterPlugin` (`android/app/.../UpdaterPlugin.java`) checks
 `public/android-latest.json` (served from Vercel at `/android-latest.json`),
-downloads the matching flavor's APK from the `android-apps` GitHub release, and
+downloads the matching flavor's APK from the `android-apps` release of
+`miraann/clickgroup-releases` (a public repo with only download files), and
 launches the OS installer. `versionCode` in `android/app/build.gradle` must
 increase every release; the fresh APKs are uploaded to that release (same
 filenames, so the URLs never change), then the manifest bump is deployed.

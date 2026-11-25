@@ -4,37 +4,37 @@
     "com.clickgroup.pos": {
       "versionCode": 9,
       "versionName": "1.5.2",
-      "url": "https://github.com/miraann/clickgroupsystem/releases/download/android-apps/Cashier.apk",
+      "url": "https://github.com/miraann/clickgroup-releases/releases/download/android-apps/Cashier.apk",
       "notes": "Fixes the app closing right after login (1.5 / 1.5.1). Faster launch, branded splash screen, native Back button, status bar matches the app, and an offline screen that reconnects by itself."
     },
     "com.clickgroup.pos.driver": {
       "versionCode": 9,
       "versionName": "1.5.2-driver",
-      "url": "https://github.com/miraann/clickgroupsystem/releases/download/android-apps/Driver.apk",
+      "url": "https://github.com/miraann/clickgroup-releases/releases/download/android-apps/Driver.apk",
       "notes": "Fixes the app closing right after login (1.5 / 1.5.1). Faster launch, branded splash screen, native Back button, status bar matches the app, and an offline screen that reconnects by itself."
     },
     "com.clickgroup.pos.delivery": {
       "versionCode": 9,
       "versionName": "1.5.2-delivery",
-      "url": "https://github.com/miraann/clickgroupsystem/releases/download/android-apps/Delivery.apk",
+      "url": "https://github.com/miraann/clickgroup-releases/releases/download/android-apps/Delivery.apk",
       "notes": "Fixes the app closing right after login (1.5 / 1.5.1). Faster launch, branded splash screen, native Back button, status bar matches the app, and an offline screen that reconnects by itself."
     },
     "com.clickgroup.pos.seller": {
       "versionCode": 6,
       "versionName": "1.4-seller",
-      "url": "https://github.com/miraann/clickgroupsystem/releases/download/android-apps/Seller.apk",
+      "url": "https://github.com/miraann/clickgroup-releases/releases/download/android-apps/Seller.apk",
       "notes": "Fixed a corrupted APK (failed to install with a parsing error)."
     },
     "com.clickgroup.pos.cfd": {
       "versionCode": 9,
       "versionName": "1.5.2-cfd",
-      "url": "https://github.com/miraann/clickgroupsystem/releases/download/android-apps/CFD.apk",
+      "url": "https://github.com/miraann/clickgroup-releases/releases/download/android-apps/CFD.apk",
       "notes": "Fixes the app closing right after login (1.5 / 1.5.1). Faster launch, branded splash screen, native Back button, status bar matches the app, and an offline screen that reconnects by itself."
     },
     "com.clickgroup.pos.kds": {
       "versionCode": 9,
       "versionName": "1.5.2-kds",
-      "url": "https://github.com/miraann/clickgroupsystem/releases/download/android-apps/KDS.apk",
+      "url": "https://github.com/miraann/clickgroup-releases/releases/download/android-apps/KDS.apk",
       "notes": "Fixes the app closing right after login (1.5 / 1.5.1). Faster launch, branded splash screen, native Back button, status bar matches the app, and an offline screen that reconnects by itself."
     }
   }

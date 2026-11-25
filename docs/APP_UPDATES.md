@@ -18,9 +18,10 @@ The user triggers it from **Settings → Advanced → "App version & updates"**
 Hosting:
 - **EXE** → GitHub Releases on `miraann/clickgroupsystem` (electron-updater needs
   the `publish` block + `latest.yml` there).
-- **APKs** → attached to the **`android-apps` release** on the same repo, under
-  fixed names, so the download URLs never change:
-  `https://github.com/miraann/clickgroupsystem/releases/download/android-apps/<Flavor>.apk`
+- **APKs** → attached to the **`android-apps` release** of
+  **`miraann/clickgroup-releases`** (public; download/update files only, no
+  source code), under fixed names, so the download URLs never change:
+  `https://github.com/miraann/clickgroup-releases/releases/download/android-apps/<Flavor>.apk`
   (`Cashier`, `Driver`, `Delivery`, `Seller`, `CFD`, `KDS`). The base URL is
   `APK_DOWNLOAD_BASE` in `src/lib/apkHosting.ts`. They are **not** in `public/`:
   Capacitor's `webDir` is `public/`, so anything there is copied into every APK.
@@ -29,8 +30,8 @@ Hosting:
 - **Update manifest** → `public/android-latest.json`, served by Vercel at
   `/android-latest.json`; a `git push` that Vercel deploys publishes it. The
   Settings → Apps page (`/dashboard/settings/apps`) lists the apps for manual install.
-- `android-apps` is created with `--latest=false`, so GitHub's "Latest" release —
-  what `electron-updater` reads — stays the newest EXE release.
+- `android-apps` is created with `--latest=false`, so it never becomes the
+  repo's "Latest" release (that is what `electron-updater` reads for the EXE).
 
 ---
 
@@ -90,7 +91,7 @@ cp android/app/build/outputs/apk/seller/release/app-seller-release.apk     dist-
 cp android/app/build/outputs/apk/cfd/release/app-cfd-release.apk           dist-release/android-apps/CFD.apk
 cp android/app/build/outputs/apk/kds/release/app-kds-release.apk           dist-release/android-apps/KDS.apk
 # 1) replace the files on the release (same URLs) — only the flavors you rebuilt
-gh release upload android-apps dist-release/android-apps/*.apk --clobber -R miraann/clickgroupsystem
+gh release upload android-apps dist-release/android-apps/*.apk --clobber -R miraann/clickgroup-releases
 # 2) THEN publish the version bump, so no device sees "update available" before the file is there
 git add public/android-latest.json android/app/build.gradle src/lib/appUpdate.ts
 git commit && git push          # Vercel deploys the manifest → devices are offered the update
@@ -99,7 +100,7 @@ git commit && git push          # Vercel deploys the manifest → devices are of
 The `android-apps` release was created once with:
 
 ```bash
-gh release create android-apps dist-release/android-apps/*.apk -R miraann/clickgroupsystem \
+gh release create android-apps dist-release/android-apps/*.apk -R miraann/clickgroup-releases \
   --latest=false --title "Android apps" \
   --notes "Download links for the ClickGroup Android apps. Files are replaced in place on each release; see docs/APP_UPDATES.md."
 ```
@@ -150,12 +151,12 @@ gh release create v1.2 \
 ```json
 {
   "flavors": {
-    "com.clickgroup.pos":          { "versionCode": 9, "versionName": "1.5.2",          "url": "https://github.com/miraann/clickgroupsystem/releases/download/android-apps/Cashier.apk",  "notes": "…" },
-    "com.clickgroup.pos.driver":   { "versionCode": 9, "versionName": "1.5.2-driver",   "url": "https://github.com/miraann/clickgroupsystem/releases/download/android-apps/Driver.apk",   "notes": "…" },
-    "com.clickgroup.pos.delivery": { "versionCode": 9, "versionName": "1.5.2-delivery", "url": "https://github.com/miraann/clickgroupsystem/releases/download/android-apps/Delivery.apk", "notes": "…" },
-    "com.clickgroup.pos.seller":   { "versionCode": 6, "versionName": "1.4-seller",     "url": "https://github.com/miraann/clickgroupsystem/releases/download/android-apps/Seller.apk",   "notes": "…" },
-    "com.clickgroup.pos.cfd":      { "versionCode": 9, "versionName": "1.5.2-cfd",      "url": "https://github.com/miraann/clickgroupsystem/releases/download/android-apps/CFD.apk",      "notes": "…" },
-    "com.clickgroup.pos.kds":      { "versionCode": 9, "versionName": "1.5.2-kds",      "url": "https://github.com/miraann/clickgroupsystem/releases/download/android-apps/KDS.apk",      "notes": "…" }
+    "com.clickgroup.pos":          { "versionCode": 9, "versionName": "1.5.2",          "url": "https://github.com/miraann/clickgroup-releases/releases/download/android-apps/Cashier.apk",  "notes": "…" },
+    "com.clickgroup.pos.driver":   { "versionCode": 9, "versionName": "1.5.2-driver",   "url": "https://github.com/miraann/clickgroup-releases/releases/download/android-apps/Driver.apk",   "notes": "…" },
+    "com.clickgroup.pos.delivery": { "versionCode": 9, "versionName": "1.5.2-delivery", "url": "https://github.com/miraann/clickgroup-releases/releases/download/android-apps/Delivery.apk", "notes": "…" },
+    "com.clickgroup.pos.seller":   { "versionCode": 6, "versionName": "1.4-seller",     "url": "https://github.com/miraann/clickgroup-releases/releases/download/android-apps/Seller.apk",   "notes": "…" },
+    "com.clickgroup.pos.cfd":      { "versionCode": 9, "versionName": "1.5.2-cfd",      "url": "https://github.com/miraann/clickgroup-releases/releases/download/android-apps/CFD.apk",      "notes": "…" },
+    "com.clickgroup.pos.kds":      { "versionCode": 9, "versionName": "1.5.2-kds",      "url": "https://github.com/miraann/clickgroup-releases/releases/download/android-apps/KDS.apk",      "notes": "…" }
   }
 }
 ```
