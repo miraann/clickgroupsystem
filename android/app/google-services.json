@@ -64,7 +64,7 @@
     },
     {
       "client_info": {
-        "mobilesdk_app_id": "1:172919359973:android:5e11e6a0b1c2d3e468c70c",
+        "mobilesdk_app_id": "1:172919359973:android:9e4ad2e95a214d6868c70c",
         "android_client_info": {
           "package_name": "com.clickgroup.pos.seller"
         }
@@ -83,7 +83,7 @@
     },
     {
       "client_info": {
-        "mobilesdk_app_id": "1:172919359973:android:c1dd0a0b1c2d3e4f68c70c",
+        "mobilesdk_app_id": "1:172919359973:android:e274ad01f90c104f68c70c",
         "android_client_info": {
           "package_name": "com.clickgroup.pos.cfd"
         }
@@ -102,7 +102,7 @@
     },
     {
       "client_info": {
-        "mobilesdk_app_id": "1:172919359973:android:d2ee1b1c2d3e4f5068c70c",
+        "mobilesdk_app_id": "1:172919359973:android:f5ef8444b237200f68c70c",
         "android_client_info": {
           "package_name": "com.clickgroup.pos.kds"
         }
