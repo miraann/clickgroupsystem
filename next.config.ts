@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 import path from "path";
 import { readFileSync } from "fs";
+import { APK_DOWNLOAD_BASE } from "./src/lib/apkHosting";
 
 // Stamp the web build with the package.json version so the "App version &
 // updates" card on /dashboard/settings/advanced can show it in a plain browser.
@@ -148,22 +149,21 @@ const nextConfig: NextConfig = {
         ],
       },
       {
-        // Self-hosted APKs (public/apps). A short max-age lets the CDN serve one
-        // consistent cached object for the whole (possibly resumed / ranged)
-        // download — `max-age=0, must-revalidate` re-hits origin mid-download and
-        // can stitch inconsistent bytes into a right-sized but corrupt file that
-        // then fails to parse on-device. Vercel purges static assets on every
-        // deploy, so a 10-min window can't serve a stale APK after a release.
-        source: '/apps/:file*.apk',
-        headers: [
-          { key: 'Cache-Control', value: 'public, max-age=600' },
-          { key: 'Content-Type', value: 'application/vnd.android.package-archive' },
-          { key: 'Content-Disposition', value: 'attachment' },
-        ],
-      },
-      {
         source: '/:path*',
         headers: securityHeaders,
+      },
+    ]
+  },
+  async redirects() {
+    return [
+      {
+        // The APKs moved from public/apps to the android-apps GitHub release
+        // (src/lib/apkHosting.ts) so Capacitor stops copying them into every
+        // APK. Old links keep working: the marketing site, printed QR codes,
+        // links already sent to customers, any cached manifest.
+        source: '/apps/:file([A-Za-z0-9_-]+\\.apk)',
+        destination: `${APK_DOWNLOAD_BASE}/:file`,
+        permanent: false,
       },
     ]
   },

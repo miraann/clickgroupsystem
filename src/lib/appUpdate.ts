@@ -1,5 +1,7 @@
 'use client'
 
+import { APK_DOWNLOAD_BASE } from '@/lib/apkHosting'
+
 /**
  * In-app updater bridge.
  *
@@ -10,7 +12,7 @@
  *   - electron → electron-updater over GitHub Releases (latest.yml + .exe)
  *   - android  → a native `Updater` Capacitor plugin: fetch `/android-latest.json`
  *                (served from Vercel), compare versionCode, download the APK from
- *                /apps and launch the OS installer
+ *                the android-apps GitHub release and launch the OS installer
  *   - web      → nothing to do; the browser always has the latest deploy
  *
  * All calls are feature-detected and safe to invoke in any runtime.
@@ -40,19 +42,19 @@ export interface UpdateEvent {
   message?: string
 }
 
-// Update manifest + APK files are hosted on Vercel (in /public), so every
-// consumer — the WebView download page and the native Updater — hits the same
-// origin. No GitHub CDN, no CORS proxy.
+// The update manifest is served from Vercel (public/android-latest.json) and
+// read with a same-origin fetch, so no CORS. The APK files themselves are on
+// the android-apps GitHub release (src/lib/apkHosting.ts); they are only ever
+// downloaded by navigation or by the native Updater, never fetch()ed, so CORS
+// doesn't apply to them.
 const ANDROID_MANIFEST_URL = '/android-latest.json'
-/** Directory (under /public) the APK files are served from. */
-const APK_DIR = '/apps'
 
 /**
  * Version label shown on the Settings → Apps page (and the git tag that carries
  * the matching source). Bump on every release alongside android/app/build.gradle
  * + public/android-latest.json — see docs/APP_UPDATES.md.
  */
-export const APK_RELEASE_TAG = 'v1.5.2'
+export const APK_RELEASE_TAG = 'v1.5.3'
 
 /**
  * One entry per restaurant-facing Android flavor for the Settings → Apps
@@ -63,9 +65,9 @@ export interface AndroidApp {
   id:      'cashier' | 'driver' | 'delivery' | 'cfd' | 'kds'
   /** applicationId — also the key in android-latest.json's `flavors` map */
   pkg:     string
-  /** APK filename under /public/apps */
+  /** APK filename on the android-apps release */
   asset:   string
-  /** same-origin download path (`/apps/<asset>`) */
+  /** download URL (`<APK_DOWNLOAD_BASE>/<asset>`) */
   url:     string
   /** /public path to the launcher icon */
   icon:    string
@@ -81,14 +83,14 @@ export const ANDROID_APPS: AndroidApp[] = (
     { id: 'kds',      pkg: 'com.clickgroup.pos.kds',      asset: 'KDS.apk',      icon: '/app-icons/kds.png',      nameKey: 'apk_app_kds',      descKey: 'apk_desc_kds'      },
     { id: 'cfd',      pkg: 'com.clickgroup.pos.cfd',      asset: 'CFD.apk',      icon: '/app-icons/cfd.png',      nameKey: 'apk_app_cfd',      descKey: 'apk_desc_cfd'      },
   ] as const
-).map(a => ({ ...a, url: `${APK_DIR}/${a.asset}` }))
+).map(a => ({ ...a, url: `${APK_DOWNLOAD_BASE}/${a.asset}` }))
 
 /**
  * Direct link to the current cashier APK — the no-frills fallback when the
  * in-app updater can't run (e.g. an APK built before the native Updater
  * plugin). See docs/APP_UPDATES.md.
  */
-export const CASHIER_APK_URL = `${APK_DIR}/Cashier.apk`
+export const CASHIER_APK_URL = `${APK_DOWNLOAD_BASE}/Cashier.apk`
 
 /** Shape of /android-latest.json. */
 export interface AndroidManifest {
