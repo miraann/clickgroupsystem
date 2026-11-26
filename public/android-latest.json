@@ -20,22 +20,22 @@
       "notes": "Fixes the app closing right after login (1.5 / 1.5.1). Faster launch, branded splash screen, native Back button, status bar matches the app, and an offline screen that reconnects by itself."
     },
     "com.clickgroup.pos.seller": {
-      "versionCode": 6,
-      "versionName": "1.4-seller",
+      "versionCode": 10,
+      "versionName": "1.5.3-seller",
       "url": "https://github.com/miraann/clickgroup-releases/releases/download/android-apps/Seller.apk",
-      "notes": "Fixed a corrupted APK (failed to install with a parsing error)."
+      "notes": "Push notifications now work, also when the app is closed. Faster launch, branded splash screen, native Back button, status bar matches the app, an offline screen that reconnects by itself, and a much smaller download."
     },
     "com.clickgroup.pos.cfd": {
-      "versionCode": 9,
-      "versionName": "1.5.2-cfd",
+      "versionCode": 10,
+      "versionName": "1.5.3-cfd",
       "url": "https://github.com/miraann/clickgroup-releases/releases/download/android-apps/CFD.apk",
-      "notes": "Fixes the app closing right after login (1.5 / 1.5.1). Faster launch, branded splash screen, native Back button, status bar matches the app, and an offline screen that reconnects by itself."
+      "notes": "Push notifications now work, also when the app is closed. Security updates and a smaller download."
     },
     "com.clickgroup.pos.kds": {
-      "versionCode": 9,
-      "versionName": "1.5.2-kds",
+      "versionCode": 10,
+      "versionName": "1.5.3-kds",
       "url": "https://github.com/miraann/clickgroup-releases/releases/download/android-apps/KDS.apk",
-      "notes": "Fixes the app closing right after login (1.5 / 1.5.1). Faster launch, branded splash screen, native Back button, status bar matches the app, and an offline screen that reconnects by itself."
+      "notes": "Push notifications now work, also when the app is closed. Security updates and a smaller download."
     }
   }
 }

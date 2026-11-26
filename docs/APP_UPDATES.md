@@ -154,9 +154,9 @@ gh release create v1.2 \
     "com.clickgroup.pos":          { "versionCode": 9, "versionName": "1.5.2",          "url": "https://github.com/miraann/clickgroup-releases/releases/download/android-apps/Cashier.apk",  "notes": "…" },
     "com.clickgroup.pos.driver":   { "versionCode": 9, "versionName": "1.5.2-driver",   "url": "https://github.com/miraann/clickgroup-releases/releases/download/android-apps/Driver.apk",   "notes": "…" },
     "com.clickgroup.pos.delivery": { "versionCode": 9, "versionName": "1.5.2-delivery", "url": "https://github.com/miraann/clickgroup-releases/releases/download/android-apps/Delivery.apk", "notes": "…" },
-    "com.clickgroup.pos.seller":   { "versionCode": 6, "versionName": "1.4-seller",     "url": "https://github.com/miraann/clickgroup-releases/releases/download/android-apps/Seller.apk",   "notes": "…" },
-    "com.clickgroup.pos.cfd":      { "versionCode": 9, "versionName": "1.5.2-cfd",      "url": "https://github.com/miraann/clickgroup-releases/releases/download/android-apps/CFD.apk",      "notes": "…" },
-    "com.clickgroup.pos.kds":      { "versionCode": 9, "versionName": "1.5.2-kds",      "url": "https://github.com/miraann/clickgroup-releases/releases/download/android-apps/KDS.apk",      "notes": "…" }
+    "com.clickgroup.pos.seller":   { "versionCode": 10, "versionName": "1.5.3-seller",  "url": "https://github.com/miraann/clickgroup-releases/releases/download/android-apps/Seller.apk",   "notes": "…" },
+    "com.clickgroup.pos.cfd":      { "versionCode": 10, "versionName": "1.5.3-cfd",     "url": "https://github.com/miraann/clickgroup-releases/releases/download/android-apps/CFD.apk",      "notes": "…" },
+    "com.clickgroup.pos.kds":      { "versionCode": 10, "versionName": "1.5.3-kds",     "url": "https://github.com/miraann/clickgroup-releases/releases/download/android-apps/KDS.apk",      "notes": "…" }
   }
 }
 ```

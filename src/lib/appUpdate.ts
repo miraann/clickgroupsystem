@@ -54,7 +54,7 @@ const ANDROID_MANIFEST_URL = '/android-latest.json'
  * the matching source). Bump on every release alongside android/app/build.gradle
  * + public/android-latest.json — see docs/APP_UPDATES.md.
  */
-export const APK_RELEASE_TAG = 'v1.5.2'
+export const APK_RELEASE_TAG = 'v1.5.3'
 
 /**
  * One entry per restaurant-facing Android flavor for the Settings → Apps
